@@ -1,0 +1,24 @@
+name: Foundation checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: sh -n scripts/preflight.sh && sh -n scripts/deploy.sh && sh -n scripts/bootstrap-ubuntu.sh && sh -n scripts/bootstrap-node.sh
+      - run: docker compose config --quiet
+      - run: docker compose up -d --build --wait --wait-timeout 90 api
+      - run: curl --fail --retry 5 --retry-delay 2 http://127.0.0.1:3000/healthz
+      - if: always()
+        run: docker compose logs && docker compose down
