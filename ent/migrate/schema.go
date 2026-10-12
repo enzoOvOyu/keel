@@ -187,6 +187,34 @@ var (
 			},
 		},
 	}
+	// ParamKeysColumns holds the columns for the "param_keys" table.
+	ParamKeysColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Size: 32},
+		{Name: "scope_key", Type: field.TypeString, Size: 120},
+		{Name: "key", Type: field.TypeString, Size: 120},
+		{Name: "value_type", Type: field.TypeString, Size: 10},
+		{Name: "options", Type: field.TypeJSON},
+		{Name: "default_value", Type: field.TypeString, Size: 120, Default: ""},
+		{Name: "source_media_type", Type: field.TypeString, Size: 20, Default: ""},
+		{Name: "deps", Type: field.TypeJSON},
+		{Name: "state", Type: field.TypeEnum, Enums: []string{"active", "retired"}, Default: "active"},
+		{Name: "created_by", Type: field.TypeString, Size: 32},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ParamKeysTable holds the schema information for the "param_keys" table.
+	ParamKeysTable = &schema.Table{
+		Name:       "param_keys",
+		Columns:    ParamKeysColumns,
+		PrimaryKey: []*schema.Column{ParamKeysColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "paramkey_scope_key_key",
+				Unique:  true,
+				Columns: []*schema.Column{ParamKeysColumns[1], ParamKeysColumns[2]},
+			},
+		},
+	}
 	// ProjectsColumns holds the columns for the "projects" table.
 	ProjectsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, Size: 32},
@@ -249,6 +277,7 @@ var (
 		LoginThrottlesTable,
 		MediaItemsTable,
 		MembershipsTable,
+		ParamKeysTable,
 		ProjectsTable,
 		SessionsTable,
 		UsersTable,

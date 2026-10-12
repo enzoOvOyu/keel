@@ -28,6 +28,8 @@ type Tx struct {
 	MediaItem *MediaItemClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
+	// ParamKey is the client for interacting with the ParamKey builders.
+	ParamKey *ParamKeyClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
 	// Session is the client for interacting with the Session builders.
@@ -173,6 +175,7 @@ func (tx *Tx) init() {
 	tx.LoginThrottle = NewLoginThrottleClient(tx.config)
 	tx.MediaItem = NewMediaItemClient(tx.config)
 	tx.Membership = NewMembershipClient(tx.config)
+	tx.ParamKey = NewParamKeyClient(tx.config)
 	tx.Project = NewProjectClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
 	tx.User = NewUserClient(tx.config)

@@ -84,6 +84,7 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 		auth.registerExecution(r)
 		auth.registerModels(r)
 		auth.registerMedia(r)
+		auth.registerParams(r)
 	}
 	r.NoMethod(func(c *gin.Context) { failure(c, 405, "METHOD_NOT_ALLOWED", "Method not allowed") })
 	fs := http.Dir(staticDir)

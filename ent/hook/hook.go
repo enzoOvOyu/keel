@@ -105,6 +105,18 @@ func (f MembershipFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MembershipMutation", m)
 }
 
+// The ParamKeyFunc type is an adapter to allow the use of ordinary
+// function as ParamKey mutator.
+type ParamKeyFunc func(context.Context, *ent.ParamKeyMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ParamKeyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ParamKeyMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ParamKeyMutation", m)
+}
+
 // The ProjectFunc type is an adapter to allow the use of ordinary
 // function as Project mutator.
 type ProjectFunc func(context.Context, *ent.ProjectMutation) (ent.Value, error)

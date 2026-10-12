@@ -19,6 +19,7 @@ import (
 	"github.com/enzoOvOyu/keel/ent/loginthrottle"
 	"github.com/enzoOvOyu/keel/ent/mediaitem"
 	"github.com/enzoOvOyu/keel/ent/membership"
+	"github.com/enzoOvOyu/keel/ent/paramkey"
 	"github.com/enzoOvOyu/keel/ent/predicate"
 	"github.com/enzoOvOyu/keel/ent/project"
 	"github.com/enzoOvOyu/keel/ent/session"
@@ -42,6 +43,7 @@ const (
 	TypeLoginThrottle      = "LoginThrottle"
 	TypeMediaItem          = "MediaItem"
 	TypeMembership         = "Membership"
+	TypeParamKey           = "ParamKey"
 	TypeProject            = "Project"
 	TypeSession            = "Session"
 	TypeUser               = "User"
@@ -5755,6 +5757,894 @@ func (m *MembershipMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *MembershipMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Membership edge %s", name)
+}
+
+// ParamKeyMutation represents an operation that mutates the ParamKey nodes in the graph.
+type ParamKeyMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *string
+	scope_key         *string
+	key               *string
+	value_type        *string
+	options           *[]string
+	appendoptions     []string
+	default_value     *string
+	source_media_type *string
+	deps              *map[string]interface{}
+	state             *paramkey.State
+	created_by        *string
+	created_at        *time.Time
+	updated_at        *time.Time
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*ParamKey, error)
+	predicates        []predicate.ParamKey
+}
+
+var _ ent.Mutation = (*ParamKeyMutation)(nil)
+
+// paramkeyOption allows management of the mutation configuration using functional options.
+type paramkeyOption func(*ParamKeyMutation)
+
+// newParamKeyMutation creates new mutation for the ParamKey entity.
+func newParamKeyMutation(c config, op Op, opts ...paramkeyOption) *ParamKeyMutation {
+	m := &ParamKeyMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeParamKey,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withParamKeyID sets the ID field of the mutation.
+func withParamKeyID(id string) paramkeyOption {
+	return func(m *ParamKeyMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ParamKey
+		)
+		m.oldValue = func(ctx context.Context) (*ParamKey, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ParamKey.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withParamKey sets the old ParamKey of the mutation.
+func withParamKey(node *ParamKey) paramkeyOption {
+	return func(m *ParamKeyMutation) {
+		m.oldValue = func(context.Context) (*ParamKey, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ParamKeyMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ParamKeyMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of ParamKey entities.
+func (m *ParamKeyMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ParamKeyMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ParamKeyMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ParamKey.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetScopeKey sets the "scope_key" field.
+func (m *ParamKeyMutation) SetScopeKey(s string) {
+	m.scope_key = &s
+}
+
+// ScopeKey returns the value of the "scope_key" field in the mutation.
+func (m *ParamKeyMutation) ScopeKey() (r string, exists bool) {
+	v := m.scope_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScopeKey returns the old "scope_key" field's value of the ParamKey entity.
+// If the ParamKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ParamKeyMutation) OldScopeKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScopeKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScopeKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScopeKey: %w", err)
+	}
+	return oldValue.ScopeKey, nil
+}
+
+// ResetScopeKey resets all changes to the "scope_key" field.
+func (m *ParamKeyMutation) ResetScopeKey() {
+	m.scope_key = nil
+}
+
+// SetKey sets the "key" field.
+func (m *ParamKeyMutation) SetKey(s string) {
+	m.key = &s
+}
+
+// Key returns the value of the "key" field in the mutation.
+func (m *ParamKeyMutation) Key() (r string, exists bool) {
+	v := m.key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKey returns the old "key" field's value of the ParamKey entity.
+// If the ParamKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ParamKeyMutation) OldKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKey: %w", err)
+	}
+	return oldValue.Key, nil
+}
+
+// ResetKey resets all changes to the "key" field.
+func (m *ParamKeyMutation) ResetKey() {
+	m.key = nil
+}
+
+// SetValueType sets the "value_type" field.
+func (m *ParamKeyMutation) SetValueType(s string) {
+	m.value_type = &s
+}
+
+// ValueType returns the value of the "value_type" field in the mutation.
+func (m *ParamKeyMutation) ValueType() (r string, exists bool) {
+	v := m.value_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldValueType returns the old "value_type" field's value of the ParamKey entity.
+// If the ParamKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ParamKeyMutation) OldValueType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldValueType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldValueType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldValueType: %w", err)
+	}
+	return oldValue.ValueType, nil
+}
+
+// ResetValueType resets all changes to the "value_type" field.
+func (m *ParamKeyMutation) ResetValueType() {
+	m.value_type = nil
+}
+
+// SetOptions sets the "options" field.
+func (m *ParamKeyMutation) SetOptions(s []string) {
+	m.options = &s
+	m.appendoptions = nil
+}
+
+// Options returns the value of the "options" field in the mutation.
+func (m *ParamKeyMutation) Options() (r []string, exists bool) {
+	v := m.options
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOptions returns the old "options" field's value of the ParamKey entity.
+// If the ParamKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ParamKeyMutation) OldOptions(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOptions is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOptions requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOptions: %w", err)
+	}
+	return oldValue.Options, nil
+}
+
+// AppendOptions adds s to the "options" field.
+func (m *ParamKeyMutation) AppendOptions(s []string) {
+	m.appendoptions = append(m.appendoptions, s...)
+}
+
+// AppendedOptions returns the list of values that were appended to the "options" field in this mutation.
+func (m *ParamKeyMutation) AppendedOptions() ([]string, bool) {
+	if len(m.appendoptions) == 0 {
+		return nil, false
+	}
+	return m.appendoptions, true
+}
+
+// ResetOptions resets all changes to the "options" field.
+func (m *ParamKeyMutation) ResetOptions() {
+	m.options = nil
+	m.appendoptions = nil
+}
+
+// SetDefaultValue sets the "default_value" field.
+func (m *ParamKeyMutation) SetDefaultValue(s string) {
+	m.default_value = &s
+}
+
+// DefaultValue returns the value of the "default_value" field in the mutation.
+func (m *ParamKeyMutation) DefaultValue() (r string, exists bool) {
+	v := m.default_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDefaultValue returns the old "default_value" field's value of the ParamKey entity.
+// If the ParamKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ParamKeyMutation) OldDefaultValue(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDefaultValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDefaultValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDefaultValue: %w", err)
+	}
+	return oldValue.DefaultValue, nil
+}
+
+// ResetDefaultValue resets all changes to the "default_value" field.
+func (m *ParamKeyMutation) ResetDefaultValue() {
+	m.default_value = nil
+}
+
+// SetSourceMediaType sets the "source_media_type" field.
+func (m *ParamKeyMutation) SetSourceMediaType(s string) {
+	m.source_media_type = &s
+}
+
+// SourceMediaType returns the value of the "source_media_type" field in the mutation.
+func (m *ParamKeyMutation) SourceMediaType() (r string, exists bool) {
+	v := m.source_media_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceMediaType returns the old "source_media_type" field's value of the ParamKey entity.
+// If the ParamKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ParamKeyMutation) OldSourceMediaType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceMediaType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceMediaType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceMediaType: %w", err)
+	}
+	return oldValue.SourceMediaType, nil
+}
+
+// ResetSourceMediaType resets all changes to the "source_media_type" field.
+func (m *ParamKeyMutation) ResetSourceMediaType() {
+	m.source_media_type = nil
+}
+
+// SetDeps sets the "deps" field.
+func (m *ParamKeyMutation) SetDeps(value map[string]interface{}) {
+	m.deps = &value
+}
+
+// Deps returns the value of the "deps" field in the mutation.
+func (m *ParamKeyMutation) Deps() (r map[string]interface{}, exists bool) {
+	v := m.deps
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeps returns the old "deps" field's value of the ParamKey entity.
+// If the ParamKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ParamKeyMutation) OldDeps(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeps is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeps requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeps: %w", err)
+	}
+	return oldValue.Deps, nil
+}
+
+// ResetDeps resets all changes to the "deps" field.
+func (m *ParamKeyMutation) ResetDeps() {
+	m.deps = nil
+}
+
+// SetState sets the "state" field.
+func (m *ParamKeyMutation) SetState(pa paramkey.State) {
+	m.state = &pa
+}
+
+// State returns the value of the "state" field in the mutation.
+func (m *ParamKeyMutation) State() (r paramkey.State, exists bool) {
+	v := m.state
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldState returns the old "state" field's value of the ParamKey entity.
+// If the ParamKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ParamKeyMutation) OldState(ctx context.Context) (v paramkey.State, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldState is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldState requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldState: %w", err)
+	}
+	return oldValue.State, nil
+}
+
+// ResetState resets all changes to the "state" field.
+func (m *ParamKeyMutation) ResetState() {
+	m.state = nil
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (m *ParamKeyMutation) SetCreatedBy(s string) {
+	m.created_by = &s
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *ParamKeyMutation) CreatedBy() (r string, exists bool) {
+	v := m.created_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the ParamKey entity.
+// If the ParamKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ParamKeyMutation) OldCreatedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *ParamKeyMutation) ResetCreatedBy() {
+	m.created_by = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ParamKeyMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ParamKeyMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ParamKey entity.
+// If the ParamKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ParamKeyMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ParamKeyMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ParamKeyMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ParamKeyMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ParamKey entity.
+// If the ParamKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ParamKeyMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ParamKeyMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the ParamKeyMutation builder.
+func (m *ParamKeyMutation) Where(ps ...predicate.ParamKey) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ParamKeyMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ParamKeyMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ParamKey, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ParamKeyMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ParamKeyMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ParamKey).
+func (m *ParamKeyMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ParamKeyMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.scope_key != nil {
+		fields = append(fields, paramkey.FieldScopeKey)
+	}
+	if m.key != nil {
+		fields = append(fields, paramkey.FieldKey)
+	}
+	if m.value_type != nil {
+		fields = append(fields, paramkey.FieldValueType)
+	}
+	if m.options != nil {
+		fields = append(fields, paramkey.FieldOptions)
+	}
+	if m.default_value != nil {
+		fields = append(fields, paramkey.FieldDefaultValue)
+	}
+	if m.source_media_type != nil {
+		fields = append(fields, paramkey.FieldSourceMediaType)
+	}
+	if m.deps != nil {
+		fields = append(fields, paramkey.FieldDeps)
+	}
+	if m.state != nil {
+		fields = append(fields, paramkey.FieldState)
+	}
+	if m.created_by != nil {
+		fields = append(fields, paramkey.FieldCreatedBy)
+	}
+	if m.created_at != nil {
+		fields = append(fields, paramkey.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, paramkey.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ParamKeyMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case paramkey.FieldScopeKey:
+		return m.ScopeKey()
+	case paramkey.FieldKey:
+		return m.Key()
+	case paramkey.FieldValueType:
+		return m.ValueType()
+	case paramkey.FieldOptions:
+		return m.Options()
+	case paramkey.FieldDefaultValue:
+		return m.DefaultValue()
+	case paramkey.FieldSourceMediaType:
+		return m.SourceMediaType()
+	case paramkey.FieldDeps:
+		return m.Deps()
+	case paramkey.FieldState:
+		return m.State()
+	case paramkey.FieldCreatedBy:
+		return m.CreatedBy()
+	case paramkey.FieldCreatedAt:
+		return m.CreatedAt()
+	case paramkey.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ParamKeyMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case paramkey.FieldScopeKey:
+		return m.OldScopeKey(ctx)
+	case paramkey.FieldKey:
+		return m.OldKey(ctx)
+	case paramkey.FieldValueType:
+		return m.OldValueType(ctx)
+	case paramkey.FieldOptions:
+		return m.OldOptions(ctx)
+	case paramkey.FieldDefaultValue:
+		return m.OldDefaultValue(ctx)
+	case paramkey.FieldSourceMediaType:
+		return m.OldSourceMediaType(ctx)
+	case paramkey.FieldDeps:
+		return m.OldDeps(ctx)
+	case paramkey.FieldState:
+		return m.OldState(ctx)
+	case paramkey.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case paramkey.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case paramkey.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown ParamKey field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ParamKeyMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case paramkey.FieldScopeKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScopeKey(v)
+		return nil
+	case paramkey.FieldKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKey(v)
+		return nil
+	case paramkey.FieldValueType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetValueType(v)
+		return nil
+	case paramkey.FieldOptions:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOptions(v)
+		return nil
+	case paramkey.FieldDefaultValue:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDefaultValue(v)
+		return nil
+	case paramkey.FieldSourceMediaType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceMediaType(v)
+		return nil
+	case paramkey.FieldDeps:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeps(v)
+		return nil
+	case paramkey.FieldState:
+		v, ok := value.(paramkey.State)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetState(v)
+		return nil
+	case paramkey.FieldCreatedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case paramkey.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case paramkey.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ParamKey field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ParamKeyMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ParamKeyMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ParamKeyMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown ParamKey numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ParamKeyMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ParamKeyMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ParamKeyMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown ParamKey nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ParamKeyMutation) ResetField(name string) error {
+	switch name {
+	case paramkey.FieldScopeKey:
+		m.ResetScopeKey()
+		return nil
+	case paramkey.FieldKey:
+		m.ResetKey()
+		return nil
+	case paramkey.FieldValueType:
+		m.ResetValueType()
+		return nil
+	case paramkey.FieldOptions:
+		m.ResetOptions()
+		return nil
+	case paramkey.FieldDefaultValue:
+		m.ResetDefaultValue()
+		return nil
+	case paramkey.FieldSourceMediaType:
+		m.ResetSourceMediaType()
+		return nil
+	case paramkey.FieldDeps:
+		m.ResetDeps()
+		return nil
+	case paramkey.FieldState:
+		m.ResetState()
+		return nil
+	case paramkey.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case paramkey.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case paramkey.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ParamKey field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ParamKeyMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ParamKeyMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ParamKeyMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ParamKeyMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ParamKeyMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ParamKeyMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ParamKeyMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown ParamKey unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ParamKeyMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown ParamKey edge %s", name)
 }
 
 // ProjectMutation represents an operation that mutates the Project nodes in the graph.

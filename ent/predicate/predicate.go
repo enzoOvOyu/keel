@@ -30,6 +30,9 @@ type MediaItem func(*sql.Selector)
 // Membership is the predicate function for membership builders.
 type Membership func(*sql.Selector)
 
+// ParamKey is the predicate function for paramkey builders.
+type ParamKey func(*sql.Selector)
+
 // Project is the predicate function for project builders.
 type Project func(*sql.Selector)
 

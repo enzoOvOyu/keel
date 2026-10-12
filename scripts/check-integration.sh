@@ -49,6 +49,7 @@ test_worker_pid=$!
 python3 scripts/check-execution-integration.py
 python3 scripts/check-model-integration.py
 python3 scripts/check-media-integration.py
+python3 scripts/check-param-integration.py
 export KEEL_PLAYWRIGHT_MODULE=${KEEL_PLAYWRIGHT_MODULE:-/tmp/keel-browser-check/node_modules/playwright/index.mjs}
 test -f "$KEEL_PLAYWRIGHT_MODULE" || { echo 'Install the pinned Playwright package/browser from docs/DEPLOYMENT.md first.' >&2; exit 1; }
 node scripts/check-auth-browser.mjs

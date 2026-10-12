@@ -22,6 +22,7 @@ import (
 	"github.com/enzoOvOyu/keel/ent/loginthrottle"
 	"github.com/enzoOvOyu/keel/ent/mediaitem"
 	"github.com/enzoOvOyu/keel/ent/membership"
+	"github.com/enzoOvOyu/keel/ent/paramkey"
 	"github.com/enzoOvOyu/keel/ent/project"
 	"github.com/enzoOvOyu/keel/ent/session"
 	"github.com/enzoOvOyu/keel/ent/user"
@@ -48,6 +49,8 @@ type Client struct {
 	MediaItem *MediaItemClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
+	// ParamKey is the client for interacting with the ParamKey builders.
+	ParamKey *ParamKeyClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
 	// Session is the client for interacting with the Session builders.
@@ -73,6 +76,7 @@ func (c *Client) init() {
 	c.LoginThrottle = NewLoginThrottleClient(c.config)
 	c.MediaItem = NewMediaItemClient(c.config)
 	c.Membership = NewMembershipClient(c.config)
+	c.ParamKey = NewParamKeyClient(c.config)
 	c.Project = NewProjectClient(c.config)
 	c.Session = NewSessionClient(c.config)
 	c.User = NewUserClient(c.config)
@@ -176,6 +180,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		LoginThrottle:      NewLoginThrottleClient(cfg),
 		MediaItem:          NewMediaItemClient(cfg),
 		Membership:         NewMembershipClient(cfg),
+		ParamKey:           NewParamKeyClient(cfg),
 		Project:            NewProjectClient(cfg),
 		Session:            NewSessionClient(cfg),
 		User:               NewUserClient(cfg),
@@ -206,6 +211,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		LoginThrottle:      NewLoginThrottleClient(cfg),
 		MediaItem:          NewMediaItemClient(cfg),
 		Membership:         NewMembershipClient(cfg),
+		ParamKey:           NewParamKeyClient(cfg),
 		Project:            NewProjectClient(cfg),
 		Session:            NewSessionClient(cfg),
 		User:               NewUserClient(cfg),
@@ -239,7 +245,8 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Audit, c.DeviceModel, c.DeviceModelSlot, c.DeviceModelVersion, c.Idempotency,
-		c.LoginThrottle, c.MediaItem, c.Membership, c.Project, c.Session, c.User,
+		c.LoginThrottle, c.MediaItem, c.Membership, c.ParamKey, c.Project, c.Session,
+		c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -250,7 +257,8 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Audit, c.DeviceModel, c.DeviceModelSlot, c.DeviceModelVersion, c.Idempotency,
-		c.LoginThrottle, c.MediaItem, c.Membership, c.Project, c.Session, c.User,
+		c.LoginThrottle, c.MediaItem, c.Membership, c.ParamKey, c.Project, c.Session,
+		c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -275,6 +283,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.MediaItem.mutate(ctx, m)
 	case *MembershipMutation:
 		return c.Membership.mutate(ctx, m)
+	case *ParamKeyMutation:
+		return c.ParamKey.mutate(ctx, m)
 	case *ProjectMutation:
 		return c.Project.mutate(ctx, m)
 	case *SessionMutation:
@@ -1350,6 +1360,139 @@ func (c *MembershipClient) mutate(ctx context.Context, m *MembershipMutation) (V
 	}
 }
 
+// ParamKeyClient is a client for the ParamKey schema.
+type ParamKeyClient struct {
+	config
+}
+
+// NewParamKeyClient returns a client for the ParamKey from the given config.
+func NewParamKeyClient(c config) *ParamKeyClient {
+	return &ParamKeyClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `paramkey.Hooks(f(g(h())))`.
+func (c *ParamKeyClient) Use(hooks ...Hook) {
+	c.hooks.ParamKey = append(c.hooks.ParamKey, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `paramkey.Intercept(f(g(h())))`.
+func (c *ParamKeyClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ParamKey = append(c.inters.ParamKey, interceptors...)
+}
+
+// Create returns a builder for creating a ParamKey entity.
+func (c *ParamKeyClient) Create() *ParamKeyCreate {
+	mutation := newParamKeyMutation(c.config, OpCreate)
+	return &ParamKeyCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ParamKey entities.
+func (c *ParamKeyClient) CreateBulk(builders ...*ParamKeyCreate) *ParamKeyCreateBulk {
+	return &ParamKeyCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ParamKeyClient) MapCreateBulk(slice any, setFunc func(*ParamKeyCreate, int)) *ParamKeyCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ParamKeyCreateBulk{err: fmt.Errorf("calling to ParamKeyClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ParamKeyCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ParamKeyCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ParamKey.
+func (c *ParamKeyClient) Update() *ParamKeyUpdate {
+	mutation := newParamKeyMutation(c.config, OpUpdate)
+	return &ParamKeyUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ParamKeyClient) UpdateOne(_m *ParamKey) *ParamKeyUpdateOne {
+	mutation := newParamKeyMutation(c.config, OpUpdateOne, withParamKey(_m))
+	return &ParamKeyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ParamKeyClient) UpdateOneID(id string) *ParamKeyUpdateOne {
+	mutation := newParamKeyMutation(c.config, OpUpdateOne, withParamKeyID(id))
+	return &ParamKeyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ParamKey.
+func (c *ParamKeyClient) Delete() *ParamKeyDelete {
+	mutation := newParamKeyMutation(c.config, OpDelete)
+	return &ParamKeyDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ParamKeyClient) DeleteOne(_m *ParamKey) *ParamKeyDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ParamKeyClient) DeleteOneID(id string) *ParamKeyDeleteOne {
+	builder := c.Delete().Where(paramkey.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ParamKeyDeleteOne{builder}
+}
+
+// Query returns a query builder for ParamKey.
+func (c *ParamKeyClient) Query() *ParamKeyQuery {
+	return &ParamKeyQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeParamKey},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ParamKey entity by its id.
+func (c *ParamKeyClient) Get(ctx context.Context, id string) (*ParamKey, error) {
+	return c.Query().Where(paramkey.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ParamKeyClient) GetX(ctx context.Context, id string) *ParamKey {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ParamKeyClient) Hooks() []Hook {
+	return c.hooks.ParamKey
+}
+
+// Interceptors returns the client interceptors.
+func (c *ParamKeyClient) Interceptors() []Interceptor {
+	return c.inters.ParamKey
+}
+
+func (c *ParamKeyClient) mutate(ctx context.Context, m *ParamKeyMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ParamKeyCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ParamKeyUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ParamKeyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ParamKeyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ParamKey mutation op: %q", m.Op())
+	}
+}
+
 // ProjectClient is a client for the Project schema.
 type ProjectClient struct {
 	config
@@ -1753,10 +1896,12 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 type (
 	hooks struct {
 		Audit, DeviceModel, DeviceModelSlot, DeviceModelVersion, Idempotency,
-		LoginThrottle, MediaItem, Membership, Project, Session, User []ent.Hook
+		LoginThrottle, MediaItem, Membership, ParamKey, Project, Session,
+		User []ent.Hook
 	}
 	inters struct {
 		Audit, DeviceModel, DeviceModelSlot, DeviceModelVersion, Idempotency,
-		LoginThrottle, MediaItem, Membership, Project, Session, User []ent.Interceptor
+		LoginThrottle, MediaItem, Membership, ParamKey, Project, Session,
+		User []ent.Interceptor
 	}
 )

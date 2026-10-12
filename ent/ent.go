@@ -20,6 +20,7 @@ import (
 	"github.com/enzoOvOyu/keel/ent/loginthrottle"
 	"github.com/enzoOvOyu/keel/ent/mediaitem"
 	"github.com/enzoOvOyu/keel/ent/membership"
+	"github.com/enzoOvOyu/keel/ent/paramkey"
 	"github.com/enzoOvOyu/keel/ent/project"
 	"github.com/enzoOvOyu/keel/ent/session"
 	"github.com/enzoOvOyu/keel/ent/user"
@@ -91,6 +92,7 @@ func checkColumn(t, c string) error {
 			loginthrottle.Table:      loginthrottle.ValidColumn,
 			mediaitem.Table:          mediaitem.ValidColumn,
 			membership.Table:         membership.ValidColumn,
+			paramkey.Table:           paramkey.ValidColumn,
 			project.Table:            project.ValidColumn,
 			session.Table:            session.ValidColumn,
 			user.Table:               user.ValidColumn,

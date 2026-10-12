@@ -13,6 +13,7 @@ import (
 	"github.com/enzoOvOyu/keel/ent/loginthrottle"
 	"github.com/enzoOvOyu/keel/ent/mediaitem"
 	"github.com/enzoOvOyu/keel/ent/membership"
+	"github.com/enzoOvOyu/keel/ent/paramkey"
 	"github.com/enzoOvOyu/keel/ent/project"
 	"github.com/enzoOvOyu/keel/ent/schema"
 	"github.com/enzoOvOyu/keel/ent/session"
@@ -281,6 +282,56 @@ func init() {
 	membershipDescID := membershipFields[0].Descriptor()
 	// membership.IDValidator is a validator for the "id" field. It is called by the builders before save.
 	membership.IDValidator = membershipDescID.Validators[0].(func(string) error)
+	paramkeyFields := schema.ParamKey{}.Fields()
+	_ = paramkeyFields
+	// paramkeyDescScopeKey is the schema descriptor for scope_key field.
+	paramkeyDescScopeKey := paramkeyFields[1].Descriptor()
+	// paramkey.ScopeKeyValidator is a validator for the "scope_key" field. It is called by the builders before save.
+	paramkey.ScopeKeyValidator = paramkeyDescScopeKey.Validators[0].(func(string) error)
+	// paramkeyDescKey is the schema descriptor for key field.
+	paramkeyDescKey := paramkeyFields[2].Descriptor()
+	// paramkey.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	paramkey.KeyValidator = paramkeyDescKey.Validators[0].(func(string) error)
+	// paramkeyDescValueType is the schema descriptor for value_type field.
+	paramkeyDescValueType := paramkeyFields[3].Descriptor()
+	// paramkey.ValueTypeValidator is a validator for the "value_type" field. It is called by the builders before save.
+	paramkey.ValueTypeValidator = paramkeyDescValueType.Validators[0].(func(string) error)
+	// paramkeyDescOptions is the schema descriptor for options field.
+	paramkeyDescOptions := paramkeyFields[4].Descriptor()
+	// paramkey.DefaultOptions holds the default value on creation for the options field.
+	paramkey.DefaultOptions = paramkeyDescOptions.Default.([]string)
+	// paramkeyDescDefaultValue is the schema descriptor for default_value field.
+	paramkeyDescDefaultValue := paramkeyFields[5].Descriptor()
+	// paramkey.DefaultDefaultValue holds the default value on creation for the default_value field.
+	paramkey.DefaultDefaultValue = paramkeyDescDefaultValue.Default.(string)
+	// paramkey.DefaultValueValidator is a validator for the "default_value" field. It is called by the builders before save.
+	paramkey.DefaultValueValidator = paramkeyDescDefaultValue.Validators[0].(func(string) error)
+	// paramkeyDescSourceMediaType is the schema descriptor for source_media_type field.
+	paramkeyDescSourceMediaType := paramkeyFields[6].Descriptor()
+	// paramkey.DefaultSourceMediaType holds the default value on creation for the source_media_type field.
+	paramkey.DefaultSourceMediaType = paramkeyDescSourceMediaType.Default.(string)
+	// paramkey.SourceMediaTypeValidator is a validator for the "source_media_type" field. It is called by the builders before save.
+	paramkey.SourceMediaTypeValidator = paramkeyDescSourceMediaType.Validators[0].(func(string) error)
+	// paramkeyDescDeps is the schema descriptor for deps field.
+	paramkeyDescDeps := paramkeyFields[7].Descriptor()
+	// paramkey.DefaultDeps holds the default value on creation for the deps field.
+	paramkey.DefaultDeps = paramkeyDescDeps.Default.(map[string]interface{})
+	// paramkeyDescCreatedBy is the schema descriptor for created_by field.
+	paramkeyDescCreatedBy := paramkeyFields[9].Descriptor()
+	// paramkey.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	paramkey.CreatedByValidator = paramkeyDescCreatedBy.Validators[0].(func(string) error)
+	// paramkeyDescCreatedAt is the schema descriptor for created_at field.
+	paramkeyDescCreatedAt := paramkeyFields[10].Descriptor()
+	// paramkey.DefaultCreatedAt holds the default value on creation for the created_at field.
+	paramkey.DefaultCreatedAt = paramkeyDescCreatedAt.Default.(func() time.Time)
+	// paramkeyDescUpdatedAt is the schema descriptor for updated_at field.
+	paramkeyDescUpdatedAt := paramkeyFields[11].Descriptor()
+	// paramkey.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	paramkey.DefaultUpdatedAt = paramkeyDescUpdatedAt.Default.(func() time.Time)
+	// paramkeyDescID is the schema descriptor for id field.
+	paramkeyDescID := paramkeyFields[0].Descriptor()
+	// paramkey.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	paramkey.IDValidator = paramkeyDescID.Validators[0].(func(string) error)
 	projectFields := schema.Project{}.Fields()
 	_ = projectFields
 	// projectDescName is the schema descriptor for name field.
