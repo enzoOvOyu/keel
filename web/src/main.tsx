@@ -7,6 +7,7 @@ import { readPreference } from './lib/preferences'
 import './lib/i18n'
 import './styles/tokens.css'
 import './styles/app.css'
+import './styles/management.css'
 
 const storedTheme = readPreference('keel.theme')
 document.documentElement.dataset.theme = storedTheme === 'dark' || storedTheme === 'light'

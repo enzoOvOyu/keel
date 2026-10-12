@@ -78,7 +78,10 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 		})
 		r.POST("/api/v1/auth/login", func(c *gin.Context) { failure(c, 503, "AUTH_NOT_CONFIGURED", "Identity service is not enabled") })
 	} else {
-		(&authAPI{store: store, config: config, preRequests: make(map[string]preRate)}).register(r)
+		auth := &authAPI{store: store, config: config, preRequests: make(map[string]preRate)}
+		auth.register(r)
+		auth.registerControl(r)
+		auth.registerExecution(r)
 	}
 	r.NoMethod(func(c *gin.Context) { failure(c, 405, "METHOD_NOT_ALLOWED", "Method not allowed") })
 	fs := http.Dir(staticDir)

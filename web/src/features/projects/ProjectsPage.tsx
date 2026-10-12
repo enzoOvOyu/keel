@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Workspace } from '../../components/Workspace'
+import { Pagination } from '../../components/Management'
 import { Icon } from '../../components/Icon'
 import { ApiError, createProject, listProjects, type CreateProject, type Project, type Session } from '../../lib/api'
 import { sessionKey, useExpireOnUnauthorized, useSession } from '../../lib/session'
@@ -51,8 +52,10 @@ function ProjectsContent() {
   const session = useSession()
   const client = useQueryClient()
   const navigate = useNavigate()
+  const { page: requestedPage } = useSearch({ from: '/projects' })
+  const page = requestedPage ?? 1
   const [showForm, setShowForm] = useState(false)
-  const projects = useQuery({ queryKey: ['private', session.user.id, 'projects'], queryFn: ({ signal }) => listProjects(signal), staleTime: 0 })
+  const projects = useQuery({ queryKey: ['private', session.user.id, 'projects', page], queryFn: ({ signal }) => listProjects(signal, page), staleTime: 0 })
   useExpireOnUnauthorized(projects.error)
   const canCreate = session.user.is_admin && session.permissions.includes('project:create')
   useEffect(() => { document.title = `${t('projectsTitle')} · Keel` }, [t])
@@ -66,12 +69,13 @@ function ProjectsContent() {
     <div className="page-heading"><div><p className="section-eyebrow">{t('workspaceLabel')}</p><h1>{t('projectsTitle')}</h1><p>{t('projectsIntro')}</p></div>{canCreate && !showForm && <button className="primary-button" id="new-project-button" onClick={() => setShowForm(true)}>{t('newProject')}<Icon name="arrow" /></button>}</div>
     <div className={`projects-layout ${showForm ? 'with-form' : ''}`}>
       <section className="projects-region" aria-label={t('projectsTitle')} aria-busy={projects.isFetching}>
-        <div className="list-heading"><h2>{t('yourProjects')}{projects.data && <span className="count-label">{projects.data.items.length}</span>}</h2><button className="icon-button" aria-label={t('refreshProjects')} disabled={projects.isFetching} onClick={() => void projects.refetch()}><Icon name="refresh" className={projects.isFetching ? 'rotating' : ''} /></button></div>
+        <div className="list-heading"><h2>{t('yourProjects')}{projects.data && <span className="count-label">{projects.data.total}</span>}</h2><button className="icon-button" aria-label={t('refreshProjects')} disabled={projects.isFetching} onClick={() => void projects.refetch()}><Icon name="refresh" className={projects.isFetching ? 'rotating' : ''} /></button></div>
         {projects.isPending ? <div className="empty-state" role="status">{t('loadingProjects')}</div> : projects.isError ? <div className="empty-state" role="alert"><Icon name="refresh" /><h3>{t('projectsUnavailable')}</h3><p>{t('tryAgainDetail')}</p><button className="secondary-button" onClick={() => void projects.refetch()}>{t('retry')}</button></div> : projects.data.items.length === 0 ? <div className="empty-state"><div className="empty-icon"><Icon name="shield" /></div><h3>{t('noProjects')}</h3><p>{t(canCreate ? 'noProjectsAdmin' : 'noProjectsMember')}</p></div> : <div className="project-list">{projects.data.items.map((project) => <Link className="project-card" to="/p/$projectId" params={{ projectId: project.id }} key={project.id}>
           <div className="project-card-top"><span className="project-monogram" aria-hidden="true">{project.name.slice(0, 1).toUpperCase()}</span><span className="state-badge">{t(`state_${project.state}`)}</span></div>
           <h3>{project.name}</h3><p className="project-slug">{project.slug}</p><p className="project-description">{project.description || t('noDescription')}</p>
           <div className="project-card-bottom"><span className="role-label">{project.role}</span><span>{t('openProject')}<Icon name="arrow" /></span></div>
         </Link>)}</div>}
+      {projects.data && <Pagination offset={(page - 1) * projects.data.page_size} limit={projects.data.page_size} total={projects.data.total} busy={projects.isFetching} onChange={(offset) => void navigate({ to: '/projects', search: { page: offset / 20 + 1 } })} />}
       </section>
       {showForm && canCreate && <ProjectForm onClose={closeForm} onCreated={created} />}
     </div>

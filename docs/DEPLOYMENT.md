@@ -43,7 +43,10 @@ python3 scripts/configure-development.py
 ```sh
 umask 077
 mkdir -p /home/ubuntu/.local/state/keel/backups
-docker compose exec -T postgres pg_dump -U keel -d keel -Fc   > /home/ubuntu/.local/state/keel/backups/pre-migration.dump
+backup_file="/home/ubuntu/.local/state/keel/backups/pre-migration-$(date -u +%Y%m%dT%H%M%SZ).dump"
+(set -C; docker compose exec -T postgres pg_dump -U keel -d keel -Fc > "$backup_file")
+test -s "$backup_file"
+docker compose exec -T postgres pg_restore -l < "$backup_file"
 ```
 
 示例使用时间戳和禁止覆盖模式保存备份。核验文件非空且pg_restore可读取目录；不能仅凭命令退出成功声称恢复演练通过。

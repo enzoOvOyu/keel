@@ -38,6 +38,20 @@ func (_c *MembershipCreate) SetRole(v membership.Role) *MembershipCreate {
 	return _c
 }
 
+// SetVersion sets the "version" field.
+func (_c *MembershipCreate) SetVersion(v int) *MembershipCreate {
+	_c.mutation.SetVersion(v)
+	return _c
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_c *MembershipCreate) SetNillableVersion(v *int) *MembershipCreate {
+	if v != nil {
+		_c.SetVersion(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *MembershipCreate) SetCreatedAt(v time.Time) *MembershipCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -93,6 +107,10 @@ func (_c *MembershipCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *MembershipCreate) defaults() {
+	if _, ok := _c.mutation.Version(); !ok {
+		v := membership.DefaultVersion
+		_c.mutation.SetVersion(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := membership.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -124,6 +142,9 @@ func (_c *MembershipCreate) check() error {
 		if err := membership.RoleValidator(v); err != nil {
 			return &ValidationError{Name: "role", err: fmt.Errorf(`ent: validator failed for field "Membership.role": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "Membership.version"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Membership.created_at"`)}
@@ -179,6 +200,10 @@ func (_c *MembershipCreate) createSpec() (*Membership, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Role(); ok {
 		_spec.SetField(membership.FieldRole, field.TypeEnum, value)
 		_node.Role = value
+	}
+	if value, ok := _c.mutation.Version(); ok {
+		_spec.SetField(membership.FieldVersion, field.TypeInt, value)
+		_node.Version = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(membership.FieldCreatedAt, field.TypeTime, value)

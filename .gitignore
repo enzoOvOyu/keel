@@ -10,3 +10,6 @@ bin/
 .deploy-lock/
 .env.deploy.*
 .DS_Store
+
+__pycache__/
+*.pyc

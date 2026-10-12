@@ -12,7 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as AccountSecurityRouteImport } from './routes/account.security'
+import { Route as AdminAuditsRouteImport } from './routes/admin.audits'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as PProjectIdRouteImport } from './routes/p.$projectId'
+import { Route as PProjectIdAuditsRouteImport } from './routes/p_.$projectId.audits'
+import { Route as PProjectIdMembersRouteImport } from './routes/p_.$projectId.members'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,9 +34,34 @@ const ProjectsRoute = ProjectsRouteImport.update({
   path: '/projects',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountSecurityRoute = AccountSecurityRouteImport.update({
+  id: '/account/security',
+  path: '/account/security',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAuditsRoute = AdminAuditsRouteImport.update({
+  id: '/admin/audits',
+  path: '/admin/audits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PProjectIdRoute = PProjectIdRouteImport.update({
   id: '/p/$projectId',
   path: '/p/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PProjectIdAuditsRoute = PProjectIdAuditsRouteImport.update({
+  id: '/p_/$projectId/audits',
+  path: '/p/$projectId/audits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PProjectIdMembersRoute = PProjectIdMembersRouteImport.update({
+  id: '/p_/$projectId/members',
+  path: '/p/$projectId/members',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -39,34 +69,82 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/projects': typeof ProjectsRoute
+  '/account/security': typeof AccountSecurityRoute
+  '/admin/audits': typeof AdminAuditsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/p/$projectId': typeof PProjectIdRoute
+  '/p/$projectId/audits': typeof PProjectIdAuditsRoute
+  '/p/$projectId/members': typeof PProjectIdMembersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/projects': typeof ProjectsRoute
+  '/account/security': typeof AccountSecurityRoute
+  '/admin/audits': typeof AdminAuditsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/p/$projectId': typeof PProjectIdRoute
+  '/p/$projectId/audits': typeof PProjectIdAuditsRoute
+  '/p/$projectId/members': typeof PProjectIdMembersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/projects': typeof ProjectsRoute
+  '/account/security': typeof AccountSecurityRoute
+  '/admin/audits': typeof AdminAuditsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/p/$projectId': typeof PProjectIdRoute
+  '/p_/$projectId/audits': typeof PProjectIdAuditsRoute
+  '/p_/$projectId/members': typeof PProjectIdMembersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/projects' | '/p/$projectId'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/projects'
+    | '/account/security'
+    | '/admin/audits'
+    | '/admin/users'
+    | '/p/$projectId'
+    | '/p/$projectId/audits'
+    | '/p/$projectId/members'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/projects' | '/p/$projectId'
-  id: '__root__' | '/' | '/login' | '/projects' | '/p/$projectId'
+  to:
+    | '/'
+    | '/login'
+    | '/projects'
+    | '/account/security'
+    | '/admin/audits'
+    | '/admin/users'
+    | '/p/$projectId'
+    | '/p/$projectId/audits'
+    | '/p/$projectId/members'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/projects'
+    | '/account/security'
+    | '/admin/audits'
+    | '/admin/users'
+    | '/p/$projectId'
+    | '/p_/$projectId/audits'
+    | '/p_/$projectId/members'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   ProjectsRoute: typeof ProjectsRoute
+  AccountSecurityRoute: typeof AccountSecurityRoute
+  AdminAuditsRoute: typeof AdminAuditsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   PProjectIdRoute: typeof PProjectIdRoute
+  PProjectIdAuditsRoute: typeof PProjectIdAuditsRoute
+  PProjectIdMembersRoute: typeof PProjectIdMembersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -92,11 +170,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/account/security': {
+      id: '/account/security'
+      path: '/account/security'
+      fullPath: '/account/security'
+      preLoaderRoute: typeof AccountSecurityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/audits': {
+      id: '/admin/audits'
+      path: '/admin/audits'
+      fullPath: '/admin/audits'
+      preLoaderRoute: typeof AdminAuditsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p/$projectId': {
       id: '/p/$projectId'
       path: '/p/$projectId'
       fullPath: '/p/$projectId'
       preLoaderRoute: typeof PProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/p_/$projectId/audits': {
+      id: '/p_/$projectId/audits'
+      path: '/p/$projectId/audits'
+      fullPath: '/p/$projectId/audits'
+      preLoaderRoute: typeof PProjectIdAuditsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/p_/$projectId/members': {
+      id: '/p_/$projectId/members'
+      path: '/p/$projectId/members'
+      fullPath: '/p/$projectId/members'
+      preLoaderRoute: typeof PProjectIdMembersRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -106,7 +219,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   ProjectsRoute: ProjectsRoute,
+  AccountSecurityRoute: AccountSecurityRoute,
+  AdminAuditsRoute: AdminAuditsRoute,
+  AdminUsersRoute: AdminUsersRoute,
   PProjectIdRoute: PProjectIdRoute,
+  PProjectIdAuditsRoute: PProjectIdAuditsRoute,
+  PProjectIdMembersRoute: PProjectIdMembersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

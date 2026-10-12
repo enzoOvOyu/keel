@@ -16,13 +16,17 @@ COPY internal ./internal
 COPY ent ./ent
 ARG APP_VERSION=development
 RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${APP_VERSION}" -o /keel-api ./cmd/keel-api \
- && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /keel-admin ./cmd/keel-admin
+ && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /keel-admin ./cmd/keel-admin \
+ && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /keel-worker ./cmd/keel-worker \
+ && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /keel-sim ./cmd/keel-sim
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=backend /keel-api /app/keel-api
 COPY --from=backend /keel-admin /app/keel-admin
+COPY --from=backend /keel-worker /app/keel-worker
+COPY --from=backend /keel-sim /app/keel-sim
 COPY --from=web /src/web/dist /app/web/dist
 ENV KEEL_LISTEN_ADDR=0.0.0.0:3000 KEEL_STATIC_DIR=/app/web/dist
 USER 65532:65532

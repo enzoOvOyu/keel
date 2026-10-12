@@ -1794,6 +1794,8 @@ type MembershipMutation struct {
 	user_id       *string
 	project_id    *string
 	role          *membership.Role
+	version       *int
+	addversion    *int
 	created_at    *time.Time
 	clearedFields map[string]struct{}
 	done          bool
@@ -2013,6 +2015,62 @@ func (m *MembershipMutation) ResetRole() {
 	m.role = nil
 }
 
+// SetVersion sets the "version" field.
+func (m *MembershipMutation) SetVersion(i int) {
+	m.version = &i
+	m.addversion = nil
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *MembershipMutation) Version() (r int, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the Membership entity.
+// If the Membership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MembershipMutation) OldVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// AddVersion adds i to the "version" field.
+func (m *MembershipMutation) AddVersion(i int) {
+	if m.addversion != nil {
+		*m.addversion += i
+	} else {
+		m.addversion = &i
+	}
+}
+
+// AddedVersion returns the value that was added to the "version" field in this mutation.
+func (m *MembershipMutation) AddedVersion() (r int, exists bool) {
+	v := m.addversion
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *MembershipMutation) ResetVersion() {
+	m.version = nil
+	m.addversion = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *MembershipMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -2083,7 +2141,7 @@ func (m *MembershipMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MembershipMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 5)
 	if m.user_id != nil {
 		fields = append(fields, membership.FieldUserID)
 	}
@@ -2092,6 +2150,9 @@ func (m *MembershipMutation) Fields() []string {
 	}
 	if m.role != nil {
 		fields = append(fields, membership.FieldRole)
+	}
+	if m.version != nil {
+		fields = append(fields, membership.FieldVersion)
 	}
 	if m.created_at != nil {
 		fields = append(fields, membership.FieldCreatedAt)
@@ -2110,6 +2171,8 @@ func (m *MembershipMutation) Field(name string) (ent.Value, bool) {
 		return m.ProjectID()
 	case membership.FieldRole:
 		return m.Role()
+	case membership.FieldVersion:
+		return m.Version()
 	case membership.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -2127,6 +2190,8 @@ func (m *MembershipMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldProjectID(ctx)
 	case membership.FieldRole:
 		return m.OldRole(ctx)
+	case membership.FieldVersion:
+		return m.OldVersion(ctx)
 	case membership.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -2159,6 +2224,13 @@ func (m *MembershipMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRole(v)
 		return nil
+	case membership.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
 	case membership.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -2173,13 +2245,21 @@ func (m *MembershipMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *MembershipMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addversion != nil {
+		fields = append(fields, membership.FieldVersion)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *MembershipMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case membership.FieldVersion:
+		return m.AddedVersion()
+	}
 	return nil, false
 }
 
@@ -2188,6 +2268,13 @@ func (m *MembershipMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *MembershipMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case membership.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersion(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Membership numeric field %s", name)
 }
@@ -2223,6 +2310,9 @@ func (m *MembershipMutation) ResetField(name string) error {
 		return nil
 	case membership.FieldRole:
 		m.ResetRole()
+		return nil
+	case membership.FieldVersion:
+		m.ResetVersion()
 		return nil
 	case membership.FieldCreatedAt:
 		m.ResetCreatedAt()

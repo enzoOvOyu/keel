@@ -17,6 +17,9 @@ func (s *Store) ResetPassword(ctx context.Context, username, password string) er
 		return e
 	}
 	defer tx.Rollback()
+	if e = lockKey(ctx, tx, "keel-admin-initialization"); e != nil {
+		return e
+	}
 	var id string
 	e = tx.QueryRowContext(ctx, "SELECT id FROM users WHERE username=$1 FOR UPDATE", NormalizeUsername(username)).Scan(&id)
 	if errors.Is(e, sql.ErrNoRows) {
@@ -43,6 +46,9 @@ func (s *Store) UnlockIP(ctx context.Context, ip string) error {
 		return e
 	}
 	defer tx.Rollback()
+	if e = lockKey(ctx, tx, "keel-admin-initialization"); e != nil {
+		return e
+	}
 	key := digest("ip:" + parsed.String())
 	if e = lockKey(ctx, tx, "login:"+key); e != nil {
 		return e

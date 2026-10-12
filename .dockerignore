@@ -9,3 +9,6 @@ bin
 *.pem
 *.key
 *.bundle
+
+__pycache__/
+*.pyc

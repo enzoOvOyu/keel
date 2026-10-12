@@ -87,8 +87,12 @@ func init() {
 	membershipDescProjectID := membershipFields[2].Descriptor()
 	// membership.ProjectIDValidator is a validator for the "project_id" field. It is called by the builders before save.
 	membership.ProjectIDValidator = membershipDescProjectID.Validators[0].(func(string) error)
+	// membershipDescVersion is the schema descriptor for version field.
+	membershipDescVersion := membershipFields[4].Descriptor()
+	// membership.DefaultVersion holds the default value on creation for the version field.
+	membership.DefaultVersion = membershipDescVersion.Default.(int)
 	// membershipDescCreatedAt is the schema descriptor for created_at field.
-	membershipDescCreatedAt := membershipFields[4].Descriptor()
+	membershipDescCreatedAt := membershipFields[5].Descriptor()
 	// membership.DefaultCreatedAt holds the default value on creation for the created_at field.
 	membership.DefaultCreatedAt = membershipDescCreatedAt.Default.(func() time.Time)
 	// membershipDescID is the schema descriptor for id field.

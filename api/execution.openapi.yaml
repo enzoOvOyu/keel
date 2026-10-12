@@ -1,0 +1,2210 @@
+{
+  "paths": {
+    "/api/v1/projects/{id}/sim-targets": {
+      "get": {
+        "operationId": "listSimTargets",
+        "tags": [
+          "Simulation execution"
+        ],
+        "x-permission": "sim:target:read",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Simulation-only result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimTargetPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Project-scoped simulation operation. Historical reads remain available to authorized users; writes reject delivered/archived projects."
+      },
+      "post": {
+        "operationId": "registerSimTargets",
+        "tags": [
+          "Simulation execution"
+        ],
+        "x-permission": "sim:target:register",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Simulation-only result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterSimTargetsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Project-scoped simulation operation. Historical reads remain available to authorized users; writes reject delivered/archived projects. Writes require strict JSON <=512 KiB and unknown fields are rejected.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterSimTargetsInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/flows": {
+      "get": {
+        "operationId": "listFlows",
+        "tags": [
+          "Simulation execution"
+        ],
+        "x-permission": "flow:read",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Simulation-only result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowVersionPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Paginated latest immutable version of every project flow."
+      },
+      "post": {
+        "operationId": "publishFlow",
+        "tags": [
+          "Simulation execution"
+        ],
+        "x-permission": "flow:publish",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Simulation-only result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowVersion"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Project-scoped simulation operation. Historical reads remain available to authorized users; writes reject delivered/archived projects. Writes require strict JSON <=512 KiB and unknown fields are rejected.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishFlowInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/flows/{flowId}/versions": {
+      "get": {
+        "operationId": "listFlowVersions",
+        "tags": [
+          "Simulation execution"
+        ],
+        "x-permission": "flow:read",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "flowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Simulation-only result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowVersionPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Project-scoped simulation operation. Historical reads remain available to authorized users; writes reject delivered/archived projects."
+      },
+      "post": {
+        "operationId": "publishFlowVersion",
+        "tags": [
+          "Simulation execution"
+        ],
+        "x-permission": "flow:publish",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "flowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Simulation-only result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowVersion"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Project-scoped simulation operation. Historical reads remain available to authorized users; writes reject delivered/archived projects. Writes require strict JSON <=512 KiB and unknown fields are rejected.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishFlowInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/executions": {
+      "get": {
+        "operationId": "listExecutions",
+        "tags": [
+          "Simulation execution"
+        ],
+        "x-permission": "execution:read",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Simulation-only result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Project-scoped simulation operation. Historical reads remain available to authorized users; writes reject delivered/archived projects."
+      },
+      "post": {
+        "operationId": "createExecution",
+        "tags": [
+          "Simulation execution"
+        ],
+        "x-permission": "execution:create",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Simulation-only result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Execution"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Project-scoped simulation operation. Historical reads remain available to authorized users; writes reject delivered/archived projects. Writes require strict JSON <=512 KiB and unknown fields are rejected.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExecutionInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}": {
+      "get": {
+        "operationId": "getExecution",
+        "tags": [
+          "Simulation execution"
+        ],
+        "x-permission": "execution:read",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Simulation-only result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Project-scoped simulation operation. Historical reads remain available to authorized users; writes reject delivered/archived projects."
+      }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/attempts": {
+      "get": {
+        "operationId": "listExecutionAttempts",
+        "tags": [
+          "Simulation execution"
+        ],
+        "x-permission": "execution:read",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Simulation-only result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionAttemptPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Project-scoped simulation operation. Historical reads remain available to authorized users; writes reject delivered/archived projects."
+      }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/control": {
+      "post": {
+        "operationId": "controlExecution",
+        "tags": [
+          "Simulation execution"
+        ],
+        "x-permission": "execution:control",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Simulation-only result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Execution"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Project-scoped simulation operation. Historical reads remain available to authorized users; writes reject delivered/archived projects. Writes require strict JSON <=512 KiB and unknown fields are rejected.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ControlExecutionInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/attempts/{attemptId}/reconcile": {
+      "post": {
+        "operationId": "reconcileAttempt",
+        "tags": [
+          "Simulation execution"
+        ],
+        "x-permission": "execution:reconcile",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "attemptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Simulation-only result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Execution"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Project-scoped simulation operation. Historical reads remain available to authorized users; writes reject delivered/archived projects. Writes require strict JSON <=512 KiB and unknown fields are rejected.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconcileAttemptInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/events": {
+      "get": {
+        "operationId": "executionEvents",
+        "tags": [
+          "Simulation execution"
+        ],
+        "x-permission": "execution:read",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Simulation-only result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionEventPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Read durable committed outbox events in ascending global sequence. At most200; reconnect with last next_cursor. SQL state and receipts are authoritative, not event arrival order."
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "FlowInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "string",
+              "number",
+              "boolean",
+              "enum"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "default": {
+            "oneOf": [
+              {
+                "type": "string",
+                "maxLength": 4096
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "enum": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64
+          }
+        },
+        "required": [
+          "type",
+          "required"
+        ]
+      },
+      "SimTaskOptions": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failed",
+              "drop_receipt"
+            ]
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 60000
+          },
+          "fail_first": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4,
+            "default": 0
+          },
+          "seed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "uncancellable": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "outcome",
+          "duration_ms",
+          "seed"
+        ]
+      },
+      "FlowTask": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "sim.read",
+              "sim.write"
+            ]
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 32,
+            "uniqueItems": true
+          },
+          "retry": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "idempotent": {
+            "type": "boolean"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "minimum": 50,
+            "maximum": 60000
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "machine",
+                "gpu",
+                "nic"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 3,
+            "uniqueItems": true
+          },
+          "sim": {
+            "$ref": "#/components/schemas/SimTaskOptions"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "retry",
+          "idempotent",
+          "timeout_ms",
+          "resources",
+          "sim"
+        ],
+        "description": "Acyclic dependencies. Every task includes machine resource; sim.read shared, sim.write exclusive. Retry>0 requires idempotent=true and an explicit failed receipt; never retries unknown."
+      },
+      "FlowDefinition": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "enum": [
+              "keel.sim/v1"
+            ]
+          },
+          "inputs": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FlowInput"
+            },
+            "maxProperties": 32
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlowTask"
+            },
+            "minItems": 1,
+            "maxItems": 32
+          }
+        },
+        "required": [
+          "api_version",
+          "inputs",
+          "tasks"
+        ]
+      },
+      "PublishFlowInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "definition": {
+            "$ref": "#/components/schemas/FlowDefinition"
+          },
+          "yaml_source": {
+            "type": "string",
+            "maxLength": 49152
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "description": "Exactly one of definition or yaml_source. YAML is one strict document, no aliases, maximum depth16/49152 bytes. New flow expected_version=0; new immutable version requires current flow version and unchanged name."
+      },
+      "FlowVersion": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "flow_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "project_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "definition": {
+            "$ref": "#/components/schemas/FlowDefinition"
+          },
+          "yaml_source": {
+            "type": "string"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "flow_id",
+          "project_id",
+          "name",
+          "version",
+          "definition",
+          "yaml_source",
+          "content_hash",
+          "created_at"
+        ]
+      },
+      "RegisterSimTargetsInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "prefix": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2000
+          },
+          "seed": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "prefix",
+          "count",
+          "seed"
+        ],
+        "description": "Creates distinct simulation identities prefix-0001..count. Never creates Machine/ProjectAsset or accepts network addresses."
+      },
+      "SimTarget": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "project_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "seed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "model_version": {
+            "type": "string",
+            "enum": [
+              "sim-model-v1"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "sim"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "name",
+          "seed",
+          "revision",
+          "model_version",
+          "created_at",
+          "mode"
+        ]
+      },
+      "RegisterSimTargetsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimTarget"
+            }
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "sim"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "mode"
+        ]
+      },
+      "CreateExecutionInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "flow_version_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "target_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            },
+            "minItems": 1,
+            "maxItems": 2000,
+            "uniqueItems": true
+          },
+          "parameters": {
+            "type": "object",
+            "maxProperties": 32,
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "description": "Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB."
+          },
+          "concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256,
+            "default": 16
+          },
+          "circuit_breaker_percent": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 5
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "sim"
+            ]
+          }
+        },
+        "required": [
+          "flow_version_id",
+          "target_ids",
+          "parameters",
+          "mode"
+        ],
+        "description": "Every ID must be a registered simulation target in this project. Freezes flow, target identities/model versions, public parameters and target-set hash. Idempotency is scoped to exact parsed input, including explicit defaults and array order."
+      },
+      "ExecutionSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "sim"
+            ]
+          },
+          "flow": {
+            "$ref": "#/components/schemas/FlowVersion"
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimTarget"
+            },
+            "maxItems": 2000
+          },
+          "parameters": {
+            "type": "object",
+            "maxProperties": 32,
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "description": "Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB."
+          },
+          "target_set_hash": {
+            "type": "string"
+          },
+          "admission": {
+            "type": "string"
+          },
+          "frozen_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "mode",
+          "flow",
+          "targets",
+          "parameters",
+          "target_set_hash",
+          "admission",
+          "frozen_at"
+        ],
+        "description": "Immutable historical snapshot. Simulation admission is never hardware gate evidence."
+      },
+      "Execution": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "project_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "flow_version_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "sim"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "created",
+              "scheduled",
+              "dispatching",
+              "running",
+              "pausing",
+              "paused",
+              "cancelling",
+              "reconciling",
+              "success",
+              "failed",
+              "killed",
+              "warning"
+            ]
+          },
+          "state_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "desired_state": {
+            "type": "string",
+            "enum": [
+              "running",
+              "paused",
+              "killed"
+            ]
+          },
+          "target_set_hash": {
+            "type": "string"
+          },
+          "concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256
+          },
+          "circuit_breaker_percent": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "created_by": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "parameters": {
+            "type": "object",
+            "maxProperties": 32,
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "description": "Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB."
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/ExecutionSnapshot"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "flow_version_id",
+          "mode",
+          "state",
+          "state_version",
+          "desired_state",
+          "target_set_hash",
+          "concurrency",
+          "circuit_breaker_percent",
+          "created_by",
+          "created_at",
+          "started_at",
+          "finished_at",
+          "parameters",
+          "snapshot"
+        ]
+      },
+      "ExecutionSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "project_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "flow_version_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "sim"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "created",
+              "scheduled",
+              "dispatching",
+              "running",
+              "pausing",
+              "paused",
+              "cancelling",
+              "reconciling",
+              "success",
+              "failed",
+              "killed",
+              "warning"
+            ]
+          },
+          "state_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "desired_state": {
+            "type": "string",
+            "enum": [
+              "running",
+              "paused",
+              "killed"
+            ]
+          },
+          "target_set_hash": {
+            "type": "string"
+          },
+          "concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256
+          },
+          "circuit_breaker_percent": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "created_by": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "target_count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2000
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "flow_version_id",
+          "mode",
+          "state",
+          "state_version",
+          "desired_state",
+          "target_set_hash",
+          "concurrency",
+          "circuit_breaker_percent",
+          "created_by",
+          "created_at",
+          "started_at",
+          "finished_at",
+          "target_count"
+        ]
+      },
+      "ExecutionReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "attempt_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "fencing_token": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "output": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "command_id",
+          "attempt_id",
+          "fencing_token",
+          "result",
+          "output",
+          "started_at",
+          "finished_at"
+        ],
+        "description": "Immutable durable simulation receipt. cancelled is attempt outcome; execution cancellation terminal is killed."
+      },
+      "ExecutionAttempt": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "execution_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "target_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "task_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "attempt_no": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "command_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "success",
+              "failed",
+              "cancelled",
+              "unknown",
+              "skipped"
+            ]
+          },
+          "state_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "lease_owner": {
+            "type": "string"
+          },
+          "lease_until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "fencing_token": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "result": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionReceipt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "receipt": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionReceipt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "execution_id",
+          "target_id",
+          "task_id",
+          "task_index",
+          "attempt_no",
+          "command_id",
+          "state",
+          "state_version",
+          "lease_owner",
+          "lease_until",
+          "fencing_token",
+          "result",
+          "receipt",
+          "started_at",
+          "finished_at"
+        ],
+        "description": "receipt exposes real persisted simulator proof even when the control-plane completion acknowledgement was dropped. Unknown attempts keep reconciling locks; no automatic retry/unlock."
+      },
+      "ExecutionDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "execution": {
+            "$ref": "#/components/schemas/Execution"
+          },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExecutionAttempt"
+            },
+            "maxItems": 100
+          },
+          "attempts_total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "required": [
+          "execution",
+          "attempts",
+          "attempts_total",
+          "counts"
+        ],
+        "description": "First100 ordered attempts preview. Use attempts pagination for all attempts. Counts aggregate only latest attempt per target/task."
+      },
+      "ControlExecutionInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "pause",
+              "resume",
+              "cancel"
+            ]
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "action",
+          "expected_version"
+        ],
+        "description": "CAS execution state_version. pause stops dispatch and waits current tasks at finite safe endpoints before paused; resume only fully paused; cancel requests cooperative stop, retains unknown locks and becomes killed only after no running/unknown work."
+      },
+      "ReconcileAttemptInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 2000
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "result",
+          "evidence",
+          "expected_version"
+        ],
+        "description": "CAS attempt state_version. Only unknown can reconcile; result must match its immutable durable simulator receipt. No receipt or mismatched proof means409 and resource remains quarantined. Never schedules retries of unknown."
+      },
+      "ExecutionEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "execution_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "aggregate_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "type": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "sequence",
+          "id",
+          "execution_id",
+          "aggregate_version",
+          "type",
+          "payload",
+          "created_at"
+        ]
+      },
+      "ExecutionEventPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExecutionEvent"
+            },
+            "maxItems": 200
+          },
+          "next_cursor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "sim"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor",
+          "mode"
+        ]
+      },
+      "SimTargetPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimTarget"
+            },
+            "maxItems": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ]
+      },
+      "FlowVersionPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlowVersion"
+            },
+            "maxItems": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ]
+      },
+      "ExecutionPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExecutionSummary"
+            },
+            "maxItems": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ]
+      },
+      "ExecutionAttemptPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExecutionAttempt"
+            },
+            "maxItems": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ]
+      }
+    }
+  }
+}

@@ -129,9 +129,47 @@ func (s *Store) SessionResponse(ctx context.Context, a *AuthSession) (*SessionRe
 	if e != nil {
 		return nil, e
 	}
-	permissions := []string{"project:read"}
+	permissions := []string{"project:read", "account:password"}
+	projectAdmin := a.User.IsAdmin
+	for _, p := range projects {
+		if p.Role == "Admin" {
+			projectAdmin = true
+		}
+	}
+	if projectAdmin {
+		permissions = append(permissions, "project:members:read", "project:members:manage", "project:audit:read")
+	}
 	if a.User.IsAdmin {
-		permissions = append(permissions, "project:create")
+		permissions = append(permissions, "project:create", "user:read", "user:manage", "audit:read")
+	}
+	// Permissions are a capability union for navigation. Each execution route
+	// must still authorize its own project rather than trusting this union.
+	readExecution := a.User.IsAdmin || len(projects) > 0
+	publishExecution, createExecution, reconcileExecution := a.User.IsAdmin, a.User.IsAdmin, a.User.IsAdmin
+	for _, p := range projects {
+		switch p.Role {
+		case "Admin", "SRE":
+			publishExecution = true
+			createExecution = true
+			reconcileExecution = true
+		case "DL":
+			createExecution = true
+			reconcileExecution = true
+		case "DE":
+			createExecution = true
+		}
+	}
+	if readExecution {
+		permissions = append(permissions, "sim:target:read", "flow:read", "execution:read")
+	}
+	if publishExecution {
+		permissions = append(permissions, "sim:target:register", "flow:publish")
+	}
+	if createExecution {
+		permissions = append(permissions, "execution:create", "execution:control")
+	}
+	if reconcileExecution {
+		permissions = append(permissions, "execution:reconcile")
 	}
 	return &SessionResponse{User: a.User, Permissions: permissions, Projects: projects, CSRFToken: a.CSRF, ExpiresAt: a.ExpiresAt}, nil
 }

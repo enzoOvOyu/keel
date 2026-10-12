@@ -1,5 +1,16 @@
 # Keel 开发交接
 
+## 暂停检查点（2026-10-12，用户明确要求）
+
+- 用户要求“先暂停吧”；已中断三个并行开发任务，不继续实施、迁移、发布或推送，等用户恢复指令。
+- 最新开发保留在远端 `/opt/keel` 工作区，**尚未提交或推送**。已部署预览仍为 `66fecbe5facf050e0f2deac351e85277af5ca553`；API、PostgreSQL、Redis、MinIO 本次暂停检查均 healthy。不要将下述工作区变更当作已部署版本。
+- 控制面账号/成员/审计前后端已实现。原12组认证+9组管理HTTP曾通过、管理真实浏览器10组通过；随后成员删除重建的ABA版本修复与CLI保护通过Go PostgreSQL -race。新增HTTP ABA断言仍待最终整轮执行。
+- 执行引擎模拟实现、独立worker/sim、003迁移、执行OpenAPI片段正在开发；暂停前尚未冻结、未完成整轮测试。root已接入router和Docker/Compose/Makefile，但这些集成修改尚未验证。`scripts/check-execution-integration.py`刚写入，尚未运行；不能声称2,000目标扇出已通过。执行UI和inventory下一任务已派发后中断，应先看实际文件及git diff，不假设已完成。
+- `scripts/test-environment.py`创建的带disposable标签PostgreSQL在127.0.0.1:15433，独立auth/http/execution库；测试凭据仅服务器/tmp下0600文件。`keel:control-test`窗口继续运行3102隔离测试API（旧快照），其HTTP库的003校验和可能落后于工作区。恢复时协调停止该测试窗口，**只重建隔离HTTP库**再以最终源码迁移；不得重置正式数据库。
+- 新增`make integration`及`check-integration.sh`尚未整体运行；已串联auth/control HTTP与browser，尚须接执行worker/执行测试。正式数据库仍仅已发布001，本轮没有执行正式迁移。
+- 恢复顺序：检查git差异/代理留下的文件→冻结003及契约、完成执行UI→隔离数据库最终回归（含权限/锁/unknown/2k容量证据）→备份正式数据库→显式迁移与最小权限核验→提交推送并部署同SHA→更新本交接记录。继续按IMPLEMENTATION-PLAN推进剩余P1及后续阶段，不能把模拟执行内核称为完整平台。
+
+
 记录日期：2026-10-12。主工作区 `ubuntu@13.158.38.7:/opt/keel`，分支main。品牌字标为 **Keel**，slogan 为 **Knowledge-led Execution, Enforcement & Lifecycle**；仓库、命令、包名和服务标识保留 `keel`。
 
 当前源码已进入 **P1 本地认证与项目基础闭环**，不是全部P1或全部交付功能完成。版本不写死在本文件：源码用 `git log -1 --oneline`，运行镜像用 `/healthz` 的version，GitHub用 `git ls-remote origin refs/heads/main` 对照。

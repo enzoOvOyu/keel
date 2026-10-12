@@ -69,6 +69,27 @@ func (_u *MembershipUpdate) SetNillableRole(v *membership.Role) *MembershipUpdat
 	return _u
 }
 
+// SetVersion sets the "version" field.
+func (_u *MembershipUpdate) SetVersion(v int) *MembershipUpdate {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *MembershipUpdate) SetNillableVersion(v *int) *MembershipUpdate {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *MembershipUpdate) AddVersion(v int) *MembershipUpdate {
+	_u.mutation.AddVersion(v)
+	return _u
+}
+
 // Mutation returns the MembershipMutation object of the builder.
 func (_u *MembershipUpdate) Mutation() *MembershipMutation {
 	return _u.mutation
@@ -142,6 +163,12 @@ func (_u *MembershipUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(membership.FieldRole, field.TypeEnum, value)
 	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(membership.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(membership.FieldVersion, field.TypeInt, value)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{membership.Label}
@@ -201,6 +228,27 @@ func (_u *MembershipUpdateOne) SetNillableRole(v *membership.Role) *MembershipUp
 	if v != nil {
 		_u.SetRole(*v)
 	}
+	return _u
+}
+
+// SetVersion sets the "version" field.
+func (_u *MembershipUpdateOne) SetVersion(v int) *MembershipUpdateOne {
+	_u.mutation.ResetVersion()
+	_u.mutation.SetVersion(v)
+	return _u
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_u *MembershipUpdateOne) SetNillableVersion(v *int) *MembershipUpdateOne {
+	if v != nil {
+		_u.SetVersion(*v)
+	}
+	return _u
+}
+
+// AddVersion adds value to the "version" field.
+func (_u *MembershipUpdateOne) AddVersion(v int) *MembershipUpdateOne {
+	_u.mutation.AddVersion(v)
 	return _u
 }
 
@@ -306,6 +354,12 @@ func (_u *MembershipUpdateOne) sqlSave(ctx context.Context) (_node *Membership, 
 	}
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(membership.FieldRole, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Version(); ok {
+		_spec.SetField(membership.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersion(); ok {
+		_spec.AddField(membership.FieldVersion, field.TypeInt, value)
 	}
 	_node = &Membership{config: _u.config}
 	_spec.Assign = _node.assignValues

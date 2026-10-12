@@ -23,6 +23,8 @@ type Membership struct {
 	ProjectID string `json:"project_id,omitempty"`
 	// Role holds the value of the "role" field.
 	Role membership.Role `json:"role,omitempty"`
+	// Version holds the value of the "version" field.
+	Version int `json:"version,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt    time.Time `json:"created_at,omitempty"`
 	selectValues sql.SelectValues
@@ -33,6 +35,8 @@ func (*Membership) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case membership.FieldVersion:
+			values[i] = new(sql.NullInt64)
 		case membership.FieldID, membership.FieldUserID, membership.FieldProjectID, membership.FieldRole:
 			values[i] = new(sql.NullString)
 		case membership.FieldCreatedAt:
@@ -75,6 +79,12 @@ func (_m *Membership) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field role", values[i])
 			} else if value.Valid {
 				_m.Role = membership.Role(value.String)
+			}
+		case membership.FieldVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field version", values[i])
+			} else if value.Valid {
+				_m.Version = int(value.Int64)
 			}
 		case membership.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -126,6 +136,9 @@ func (_m *Membership) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("role=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Role))
+	builder.WriteString(", ")
+	builder.WriteString("version=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Version))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

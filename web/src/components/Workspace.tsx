@@ -24,6 +24,12 @@ function WorkspaceContent({ children }: { children: ReactNode }) {
   return <div className="workspace-shell">
     <a className="skip-link" href="#workspace-content">{t('skipContent')}</a>
     <header className="workspace-header"><Link to="/projects" className="brand-link" aria-label={t('allProjects')}><Brand /></Link><div className="workspace-tools"><Preferences /><span className="user-name">{session.user.display_name || session.user.username}</span><button className="secondary-button logout-button" onClick={() => void signOut()} disabled={busy}>{t(busy ? 'signingOut' : 'signOut')}</button></div></header>
+    <nav className="workspace-nav" aria-label={t('workspaceNavigation')}>
+      <Link to="/projects">{t('projectsTitle')}</Link>
+      {session.user.is_admin && session.permissions.includes('user:read') && <Link to="/admin/users">{t('usersTitle')}</Link>}
+      {session.user.is_admin && session.permissions.includes('audit:read') && <Link to="/admin/audits">{t('platformAudit')}</Link>}
+      <Link to="/account/security" className="account-link">{t('accountSecurity')}</Link>
+    </nav>
     {error && <div className="workspace-banner" role="alert">{t('logoutError')}</div>}
     <main id="workspace-content" className="workspace-content">{children}</main>
     <footer className="workspace-footer"><span>Keel <span aria-hidden="true">·</span> Knowledge-led Execution, Enforcement &amp; Lifecycle</span><span><Icon name="shield" />{t('authorizedWorkspace')}</span></footer>

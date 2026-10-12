@@ -1,19 +1,123 @@
-version: 1
+version: 2
 default: deny
 implemented_permissions:
+  account:password:
+    scope: current_authenticated_account
   project:read:
     scope: authorized_project_membership_or_platform_admin
   project:create:
     scope: platform_admin
+  user:read:
+    scope: platform_admin
+  user:manage:
+    scope: platform_admin
+  audit:read:
+    scope: platform_admin
+  project:members:read:
+    scope: project_admin_or_platform_admin
+  project:members:manage:
+    scope: project_admin_or_platform_admin
+  project:audit:read:
+    scope: project_admin_or_platform_admin
+  sim:target:read:
+    scope: authorized_project_membership_or_platform_admin
+  flow:read:
+    scope: authorized_project_membership_or_platform_admin
+  execution:read:
+    scope: authorized_project_membership_or_platform_admin
+  sim:target:register:
+    scope: project_admin_sre_or_platform_admin
+  flow:publish:
+    scope: project_admin_sre_or_platform_admin
+  execution:create:
+    scope: project_admin_de_dl_sre_or_platform_admin
+  execution:control:
+    scope: project_admin_de_dl_sre_or_platform_admin
+  execution:reconcile:
+    scope: project_admin_dl_sre_or_platform_admin
 roles:
-  Viewer: [project:read]
-  DE: [project:read]
-  DL: [project:read]
-  NE: [project:read]
-  SRE: [project:read]
-  Admin: [project:read]
-platform_admin: [project:read, project:create]
+  Viewer:
+  - project:read
+  - account:password
+  - sim:target:read
+  - flow:read
+  - execution:read
+  DE:
+  - project:read
+  - account:password
+  - sim:target:read
+  - flow:read
+  - execution:read
+  - execution:create
+  - execution:control
+  DL:
+  - project:read
+  - account:password
+  - sim:target:read
+  - flow:read
+  - execution:read
+  - execution:create
+  - execution:control
+  - execution:reconcile
+  NE:
+  - project:read
+  - account:password
+  - sim:target:read
+  - flow:read
+  - execution:read
+  SRE:
+  - project:read
+  - account:password
+  - sim:target:read
+  - flow:read
+  - execution:read
+  - sim:target:register
+  - flow:publish
+  - execution:create
+  - execution:control
+  - execution:reconcile
+  Admin:
+  - project:read
+  - account:password
+  - project:members:read
+  - project:members:manage
+  - project:audit:read
+  - sim:target:read
+  - flow:read
+  - execution:read
+  - sim:target:register
+  - flow:publish
+  - execution:create
+  - execution:control
+  - execution:reconcile
+platform_admin:
+- project:read
+- project:create
+- account:password
+- user:read
+- user:manage
+- audit:read
+- project:members:read
+- project:members:manage
+- project:audit:read
+- sim:target:read
+- flow:read
+- execution:read
+- sim:target:register
+- flow:publish
+- execution:create
+- execution:control
+- execution:reconcile
 notes:
-  - Membership Admin applies only to its project and does not grant platform project creation.
-  - Permissions not implemented here are denied; Admin never implicitly bypasses delivery approvals.
-  - Membership changes increment security_version and invalidate existing sessions.
+- Project Admin authority applies only to that project's members and redacted audit,
+  not platform accounts.
+- Session permissions advertise implemented actions; every project route rechecks
+  its own project scope.
+- Unimplemented permissions are denied. Admin never implicitly bypasses delivery approvals.
+- Identity or membership changes increment security_version and revoke existing sessions.
+- Preserve the last active platform administrator and the last active administrator
+  of every project.
+- Audit APIs expose a scalar metadata allowlist; passwords, hashes, cookies, tokens
+  and source IPs are excluded.
+- Execution capabilities in this increment apply to the explicit simulation transport;
+  external hardware execution is not enabled.

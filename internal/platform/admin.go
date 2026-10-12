@@ -75,15 +75,10 @@ func (s *Store) DisableUser(ctx context.Context, username string) error {
 	if e != nil {
 		return e
 	}
-	if enabled && admin {
-		var count int
-		if e = tx.QueryRowContext(ctx, "SELECT count(*) FROM users WHERE is_admin=true AND enabled=true").Scan(&count); e != nil {
-			return e
-		}
-		if count <= 1 {
-			return errors.New("cannot disable the last active administrator")
-		}
+	if e = protectDisablingUser(ctx, tx, &UserAccount{ID: id, IsAdmin: admin, Enabled: enabled}); e != nil {
+		return e
 	}
+
 	if _, e = tx.ExecContext(ctx, "UPDATE users SET enabled=false,security_version=security_version+1 WHERE id=$1", id); e != nil {
 		return e
 	}
@@ -104,8 +99,13 @@ func (s *Store) SetMembership(ctx context.Context, username, projectID, role str
 		return e
 	}
 	defer tx.Rollback()
+	if e = lockKey(ctx, tx, "keel-admin-initialization"); e != nil {
+		return e
+	}
 	var id string
-	e = tx.QueryRowContext(ctx, "SELECT id FROM users WHERE username=$1 FOR UPDATE", NormalizeUsername(username)).Scan(&id)
+	var enabled bool
+	var userVersion int
+	e = tx.QueryRowContext(ctx, "SELECT id,enabled,security_version FROM users WHERE username=$1 FOR UPDATE", NormalizeUsername(username)).Scan(&id, &enabled, &userVersion)
 	if errors.Is(e, sql.ErrNoRows) {
 		return errors.New("user not found")
 	}
@@ -119,12 +119,26 @@ func (s *Store) SetMembership(ctx context.Context, username, projectID, role str
 	if !exists {
 		return errors.New("project not found")
 	}
+	var oldRole string
+	var oldVersion int
+	e = tx.QueryRowContext(ctx, "SELECT role,version FROM memberships WHERE project_id=$1 AND user_id=$2 FOR UPDATE", projectID, id).Scan(&oldRole, &oldVersion)
+	if e != nil && !errors.Is(e, sql.ErrNoRows) {
+		return e
+	}
+	if oldVersion == 0 && !enabled {
+		return errors.New("enable the account before assigning membership")
+	}
+	if revoke || role != "Admin" {
+		if e = protectMemberRemoval(ctx, tx, projectID, id, oldRole, enabled); e != nil {
+			return e
+		}
+	}
 	action := "membership.grant"
 	if revoke {
 		action = "membership.revoke"
 		_, e = tx.ExecContext(ctx, "DELETE FROM memberships WHERE user_id=$1 AND project_id=$2", id, projectID)
 	} else {
-		_, e = tx.ExecContext(ctx, "INSERT INTO memberships(id,user_id,project_id,role,created_at) VALUES($1,$2,$3,$4,$5) ON CONFLICT(user_id,project_id) DO UPDATE SET role=EXCLUDED.role", RandomID(), id, projectID, role, time.Now().UTC())
+		_, e = tx.ExecContext(ctx, "INSERT INTO memberships(id,user_id,project_id,role,version,created_at) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(user_id,project_id) DO UPDATE SET role=EXCLUDED.role,version=memberships.version+1", RandomID(), id, projectID, role, userVersion+1, time.Now().UTC())
 	}
 	if e != nil {
 		return e
@@ -132,7 +146,14 @@ func (s *Store) SetMembership(ctx context.Context, username, projectID, role str
 	if _, e = tx.ExecContext(ctx, "UPDATE users SET security_version=security_version+1 WHERE id=$1", id); e != nil {
 		return e
 	}
-	if e = appendAudit(ctx, tx, "", projectID, action, id, "cli", map[string]any{"source": "server_cli", "role": role}); e != nil {
+	after := oldVersion + 1
+	if oldVersion == 0 {
+		after = userVersion + 1
+	}
+	if revoke {
+		after = 0
+	}
+	if e = appendAudit(ctx, tx, "", projectID, action, id, "cli", map[string]any{"source": "server_cli", "before_role": oldRole, "after_role": role, "before_version": oldVersion, "after_version": after, "sessions_revoked": true}); e != nil {
 		return e
 	}
 	return tx.Commit()
@@ -147,11 +168,17 @@ func (s *Store) UnlockUser(ctx context.Context, username string) error {
 		return e
 	}
 	defer tx.Rollback()
+	if e = lockKey(ctx, tx, "keel-admin-initialization"); e != nil {
+		return e
+	}
 	key := digest("account:" + username)
 	if e = lockKey(ctx, tx, "login:"+key); e != nil {
 		return e
 	}
 	if _, e = tx.ExecContext(ctx, "DELETE FROM login_throttles WHERE id=$1", key); e != nil {
+		return e
+	}
+	if _, e = tx.ExecContext(ctx, "UPDATE users SET security_version=security_version+1 WHERE username=$1", username); e != nil {
 		return e
 	}
 	if e = appendAudit(ctx, tx, "", "", "user.unlock", key, "cli", map[string]any{"scope": "account", "source": "server_cli"}); e != nil {

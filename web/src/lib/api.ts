@@ -11,7 +11,7 @@ export class ApiError extends Error {
   constructor(public readonly status: number, public readonly code: string,
     public readonly traceId = '', public readonly retryAfter = 0) { super(code) }
 }
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   let response: Response
   try { response = await fetch(`/api/v1${path}`, { ...options, credentials: 'same-origin', cache: 'no-store',
     headers: { Accept: 'application/json', ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers } }) }
@@ -46,7 +46,7 @@ export async function getSession(signal?: AbortSignal): Promise<Session | null> 
   catch (error) { if (error instanceof ApiError && error.status === 401) return null; throw error }
 }
 export const logout = (csrf: string) => request<void>('/auth/logout', { method: 'POST', headers: { 'X-CSRF-Token': csrf } })
-export const listProjects = (signal: AbortSignal) => request<ProjectList>('/projects', { signal })
+export const listProjects = (signal: AbortSignal, page = 1) => request<ProjectList>(`/projects?page=${page}&page_size=20`, { signal })
 export const getProject = (id: string, signal: AbortSignal) => request<Project>(`/projects/${encodeURIComponent(id)}`, { signal })
 export const createProject = (body: CreateProject, csrf: string, key: string) => request<Project>('/projects', {
   method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify(body),
@@ -55,7 +55,10 @@ export const createProject = (body: CreateProject, csrf: string, key: string) =>
 // Deliberately accept only implemented destinations. Encodings, queries,
 // fragments, protocol-relative URLs and backslashes cannot pass this allowlist.
 export function safeNext(value: string | undefined, session: Session): string {
-  if (value === '/projects') return value
-  const match = /^\/p\/([0-9a-f]{32})$/i.exec(value ?? '')
-  return match && session.projects.some((project) => project.id === match[1]) ? value! : '/projects'
+  if (value === '/projects' || value === '/account/security') return value
+  if (value === '/admin/users' && session.user.is_admin && session.permissions.includes('user:read')) return value
+  if (value === '/admin/audits' && session.user.is_admin && session.permissions.includes('audit:read')) return value
+  const match = /^\/p\/([0-9a-f]{32})(?:\/(members|audits))?$/.exec(value ?? '')
+  const project = match && session.projects.find((item) => item.id === match[1])
+  return project && (!match[2] || session.user.is_admin || project.role === 'Admin') ? value! : '/projects'
 }

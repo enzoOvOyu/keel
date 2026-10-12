@@ -261,12 +261,16 @@ func (a *authAPI) register(r *gin.Engine) {
 		if !ok {
 			return
 		}
-		rows, e := a.store.ListProjects(c.Request.Context(), s)
+		page, ok := readPagination(c)
+		if !ok {
+			return
+		}
+		result, e := a.store.ListProjectsPage(c.Request.Context(), s, page)
 		if e != nil {
 			a.respondError(c, e)
 			return
 		}
-		c.JSON(200, gin.H{"items": rows})
+		c.JSON(200, result)
 	})
 	r.GET("/api/v1/projects/:id", func(c *gin.Context) {
 		s, ok := a.authenticated(c)

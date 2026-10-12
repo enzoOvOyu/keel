@@ -44,7 +44,12 @@ export function LoginPage() {
   }, [retryAt])
   async function enter(session: Session) {
     const next = safeNext(search.next, session)
-    if (next.startsWith('/p/')) await navigate({ to: '/p/$projectId', params: { projectId: next.slice(3) }, replace: true })
+    if (next.startsWith('/p/')) {
+      const [, , projectId, section] = next.split('/')
+      const to = section === 'members' ? '/p/$projectId/members' : section === 'audits' ? '/p/$projectId/audits' : '/p/$projectId'
+      await navigate({ to, params: { projectId }, replace: true })
+    }
+    else if (next === '/account/security' || next === '/admin/users' || next === '/admin/audits') await navigate({ to: next, replace: true })
     else await navigate({ to: '/projects', replace: true })
   }
   useEffect(() => { if (available && auth.data && !auth.isFetching && !busyRef.current) void enter(auth.data) }, [available, auth.data, auth.isFetching])
@@ -98,7 +103,7 @@ export function LoginPage() {
               {!pending && <button type="button" className="text-button" onClick={() => void providers.refetch()} disabled={providers.isFetching}><Icon name="refresh" className={providers.isFetching ? 'rotating' : ''} />{t(providers.isFetching ? 'retrying' : 'retry')}</button>}
             </div>
           </div>}
-          {available && search.reason === 'expired' && <p className="session-notice" role="status">{t('sessionExpired')}</p>}
+          {available && search.reason && <p className="session-notice" role="status">{t(search.reason === 'password_changed' ? 'passwordChanged' : search.reason === 'access_changed' ? 'ownAccessChanged' : 'sessionExpired')}</p>}
           {error && <div id="login-error" className="form-error" role="alert" tabIndex={-1}><strong>{t(errorKey)}</strong>{error.status === 429 && <p>{t('retrySeconds', { count: retrySeconds })}</p>}{error.traceId && <small>{t('traceId')}: {error.traceId}</small>}</div>}
           <form id="login-form" aria-describedby={!available ? 'identity-status' : undefined} onSubmit={(event) => void submit(event)} noValidate aria-busy={busy}>
             <div className="field"><label htmlFor="username">{t('account')}</label><input id="username" name="username" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={128} placeholder={t('accountPlaceholder')} value={username} onChange={(event) => { setUsername(event.target.value); setInvalid(null) }} disabled={busy} aria-invalid={invalid === 'username'} aria-describedby={invalid === 'username' ? 'username-error' : undefined} />{invalid === 'username' && <span className="field-error" id="username-error">{t('accountRequired')}</span>}</div>

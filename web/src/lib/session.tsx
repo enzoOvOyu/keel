@@ -18,12 +18,12 @@ export function useSession() {
 export function useEndSession() {
   const client = useQueryClient()
   const navigate = useNavigate()
-  return async (expired = true) => {
+  return async (expired = true, notice?: 'password_changed' | 'access_changed') => {
     await client.cancelQueries()
     client.clear()
     client.setQueryData(sessionKey, null)
     const next = window.location.pathname
-    await navigate({ to: '/login', search: { ...(expired ? { reason: 'expired' as const, next } : {}) }, replace: true })
+    await navigate({ to: '/login', search: { ...(notice ? { reason: notice } : expired ? { reason: 'expired' as const, next } : {}) }, replace: true })
   }
 }
 export function SessionBoundary({ children }: { children: ReactNode }) {

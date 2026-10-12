@@ -262,7 +262,7 @@ def main():
         member_name, member_password, member_file = account('member')
         member = Browser('127.0.0.4')
         member.login(member_name, member_password)
-        check(member.call('GET', '/api/v1/projects')[1] == {'items': []}, 'unassigned account has explicit empty project list')
+        check(member.call('GET', '/api/v1/projects')[1]['items'] == [], 'unassigned account has explicit empty project list')
         missing = member.call('GET', '/api/v1/projects/00000000000000000000000000000000')
         unauthorized = member.call('GET', '/api/v1/projects/' + project_id)
         check(missing[0] == unauthorized[0] == 404 and public_error(missing[1]) == public_error(unauthorized[1]),
@@ -284,7 +284,7 @@ def main():
         cli('member-revoke', '--username', member_name, '--project', project_id)
         check(member.call('GET', '/api/v1/projects')[0] == 401, 'membership removal immediately invalidates session')
         member.login(member_name, member_password)
-        check(member.call('GET', '/api/v1/projects')[1] == {'items': []}, 'revoked member has no stale cached authorization')
+        check(member.call('GET', '/api/v1/projects')[1]['items'] == [], 'revoked member has no stale cached authorization')
         check(member.call('GET', '/api/v1/projects/' + project_id)[0] == 404, 'revoked membership cannot regain resource access')
         previous_password = member_password
         member_password = secrets.token_urlsafe(36)

@@ -58,6 +58,7 @@ var (
 		{Name: "user_id", Type: field.TypeString, Size: 32},
 		{Name: "project_id", Type: field.TypeString, Size: 32},
 		{Name: "role", Type: field.TypeEnum, Enums: []string{"Admin", "DE", "DL", "NE", "SRE", "Viewer"}},
+		{Name: "version", Type: field.TypeInt, Default: 1},
 		{Name: "created_at", Type: field.TypeTime},
 	}
 	// MembershipsTable holds the schema information for the "memberships" table.

@@ -25,6 +25,33 @@ services:
       options:
         max-size: 10m
         max-file: "3"
+  worker:
+    profiles: [execution]
+    image: ${KEEL_IMAGE:-keel:local}
+    command: [/app/keel-worker]
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 70s
+    environment:
+      KEEL_DATABASE_URL: ${KEEL_DATABASE_URL:-}
+      KEEL_WORKER_ID: ${KEEL_WORKER_ID:-keel-sim-worker}
+      KEEL_WORKER_CONCURRENCY: ${KEEL_WORKER_CONCURRENCY:-8}
+      KEEL_WORKER_LEASE: ${KEEL_WORKER_LEASE:-5s}
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, /app/keel-worker, --healthcheck]
+      interval: 5s
+      timeout: 4s
+      start_period: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
   postgres:
     profiles: [data]
     image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
