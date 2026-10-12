@@ -3,6 +3,7 @@ import { initReactI18next } from 'react-i18next'
 import { managementTranslations } from './management-i18n'
 import { executionTranslations } from './execution-i18n'
 import { modelsTranslations } from './models-i18n'
+import { mediaTranslations } from './media-i18n'
 import { readPreference } from './preferences'
 
 export const resources = {
@@ -10,6 +11,7 @@ export const resources = {
     ...managementTranslations.zh,
     ...executionTranslations.zh,
     ...modelsTranslations.zh,
+    ...mediaTranslations.zh,
     "setupRequired": "管理员尚未初始化",
     "setupRequiredDetail": "请由服务器管理员完成首位管理员初始化后，再登录工作空间。",
     "signingIn": "正在登录…",
@@ -104,6 +106,7 @@ export const resources = {
     ...managementTranslations.en,
     ...executionTranslations.en,
     ...modelsTranslations.en,
+    ...mediaTranslations.en,
     "setupRequired": "Administrator setup is required",
     "setupRequiredDetail": "Ask your server administrator to initialize the first administrator before signing in.",
     "signingIn": "Signing in…",

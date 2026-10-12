@@ -18,6 +18,7 @@ import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as PProjectIdRouteImport } from './routes/p.$projectId'
 import { Route as PProjectIdAuditsRouteImport } from './routes/p_.$projectId.audits'
 import { Route as PProjectIdExecutionsRouteImport } from './routes/p_.$projectId.executions'
+import { Route as PProjectIdMediaRouteImport } from './routes/p_.$projectId.media'
 import { Route as PProjectIdMembersRouteImport } from './routes/p_.$projectId.members'
 import { Route as PProjectIdModelsRouteImport } from './routes/p_.$projectId.models'
 
@@ -66,6 +67,11 @@ const PProjectIdExecutionsRoute = PProjectIdExecutionsRouteImport.update({
   path: '/p/$projectId/executions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PProjectIdMediaRoute = PProjectIdMediaRouteImport.update({
+  id: '/p_/$projectId/media',
+  path: '/p/$projectId/media',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PProjectIdMembersRoute = PProjectIdMembersRouteImport.update({
   id: '/p_/$projectId/members',
   path: '/p/$projectId/members',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/p/$projectId': typeof PProjectIdRoute
   '/p/$projectId/audits': typeof PProjectIdAuditsRoute
   '/p/$projectId/executions': typeof PProjectIdExecutionsRoute
+  '/p/$projectId/media': typeof PProjectIdMediaRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
   '/p/$projectId/models': typeof PProjectIdModelsRoute
 }
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/p/$projectId': typeof PProjectIdRoute
   '/p/$projectId/audits': typeof PProjectIdAuditsRoute
   '/p/$projectId/executions': typeof PProjectIdExecutionsRoute
+  '/p/$projectId/media': typeof PProjectIdMediaRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
   '/p/$projectId/models': typeof PProjectIdModelsRoute
 }
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/p/$projectId': typeof PProjectIdRoute
   '/p_/$projectId/audits': typeof PProjectIdAuditsRoute
   '/p_/$projectId/executions': typeof PProjectIdExecutionsRoute
+  '/p_/$projectId/media': typeof PProjectIdMediaRoute
   '/p_/$projectId/members': typeof PProjectIdMembersRoute
   '/p_/$projectId/models': typeof PProjectIdModelsRoute
 }
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/p/$projectId'
     | '/p/$projectId/audits'
     | '/p/$projectId/executions'
+    | '/p/$projectId/media'
     | '/p/$projectId/members'
     | '/p/$projectId/models'
   fileRoutesByTo: FileRoutesByTo
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/p/$projectId'
     | '/p/$projectId/audits'
     | '/p/$projectId/executions'
+    | '/p/$projectId/media'
     | '/p/$projectId/members'
     | '/p/$projectId/models'
   id:
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/p/$projectId'
     | '/p_/$projectId/audits'
     | '/p_/$projectId/executions'
+    | '/p_/$projectId/media'
     | '/p_/$projectId/members'
     | '/p_/$projectId/models'
   fileRoutesById: FileRoutesById
@@ -169,6 +181,7 @@ export interface RootRouteChildren {
   PProjectIdRoute: typeof PProjectIdRoute
   PProjectIdAuditsRoute: typeof PProjectIdAuditsRoute
   PProjectIdExecutionsRoute: typeof PProjectIdExecutionsRoute
+  PProjectIdMediaRoute: typeof PProjectIdMediaRoute
   PProjectIdMembersRoute: typeof PProjectIdMembersRoute
   PProjectIdModelsRoute: typeof PProjectIdModelsRoute
 }
@@ -238,6 +251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectIdExecutionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p_/$projectId/media': {
+      id: '/p_/$projectId/media'
+      path: '/p/$projectId/media'
+      fullPath: '/p/$projectId/media'
+      preLoaderRoute: typeof PProjectIdMediaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p_/$projectId/members': {
       id: '/p_/$projectId/members'
       path: '/p/$projectId/members'
@@ -265,6 +285,7 @@ const rootRouteChildren: RootRouteChildren = {
   PProjectIdRoute: PProjectIdRoute,
   PProjectIdAuditsRoute: PProjectIdAuditsRoute,
   PProjectIdExecutionsRoute: PProjectIdExecutionsRoute,
+  PProjectIdMediaRoute: PProjectIdMediaRoute,
   PProjectIdMembersRoute: PProjectIdMembersRoute,
   PProjectIdModelsRoute: PProjectIdModelsRoute,
 }
