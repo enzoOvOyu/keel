@@ -8,7 +8,9 @@ mkdir "$test_lock" 2>/dev/null || { echo 'Another Keel integration suite is acti
 umask 077
 test_work=$(mktemp -d /tmp/keel-integration.XXXXXX)
 test_api_pid=
+test_worker_pid=
 cleanup() {
+  if [ -n "$test_worker_pid" ]; then kill "$test_worker_pid" 2>/dev/null || true; wait "$test_worker_pid" 2>/dev/null || true; fi
   if [ -n "$test_api_pid" ]; then kill "$test_api_pid" 2>/dev/null || true; wait "$test_api_pid" 2>/dev/null || true; fi
   rm -f "$test_work/browser-credentials.json"
   rmdir "$test_lock"
@@ -24,6 +26,7 @@ make check
 docker exec keel-auth-test-postgres psql -X -U keel_test -d keel_test_http -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null
 go build -o "$test_work/keel-api" ./cmd/keel-api
 go build -o "$test_work/keel-admin" ./cmd/keel-admin
+go build -o "$test_work/keel-worker" ./cmd/keel-worker
 export KEEL_DATABASE_URL KEEL_TEST_DATABASE_URL KEEL_ADMIN_BINARY KEEL_AUTH_BROWSER_CREDENTIALS_FILE
 KEEL_DATABASE_URL=$(python3 -c 'import os; print(os.environ["KEEL_TEST_DATABASE_URL"].replace("/keel_test_auth?", "/keel_test_http?"))')
 KEEL_TEST_DATABASE_URL=$KEEL_DATABASE_URL
@@ -38,10 +41,17 @@ test_api_pid=$!
 curl --retry 20 --retry-delay 1 --retry-connrefused --fail --silent http://127.0.0.1:3102/healthz >/dev/null
 python3 scripts/check-auth-integration.py
 python3 scripts/check-control-integration.py
+export KEEL_WORKER_ID=keel-integration-worker
+export KEEL_WORKER_CONCURRENCY=${KEEL_WORKER_CONCURRENCY:-8}
+export KEEL_SIM_REPORT_FILE="$test_work/simulation-report.json"
+"$test_work/keel-worker" >"$test_work/worker.log" 2>&1 &
+test_worker_pid=$!
+python3 scripts/check-execution-integration.py
 export KEEL_PLAYWRIGHT_MODULE=${KEEL_PLAYWRIGHT_MODULE:-/tmp/keel-browser-check/node_modules/playwright/index.mjs}
 test -f "$KEEL_PLAYWRIGHT_MODULE" || { echo 'Install the pinned Playwright package/browser from docs/DEPLOYMENT.md first.' >&2; exit 1; }
 node scripts/check-auth-browser.mjs
 node scripts/check-control-browser.mjs
 KEEL_BASE_URL=http://127.0.0.1:3102 node scripts/check-browser.mjs
 echo "Integration suite passed; non-secret process logs are in $test_work"
+echo "Simulation capacity report: $test_work/simulation-report.json"
 echo 'Disposable PostgreSQL is preserved for inspection; remove it with python3 scripts/test-environment.py stop.'
