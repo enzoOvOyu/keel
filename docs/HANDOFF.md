@@ -21,7 +21,7 @@
 - Playwright1.64.0/Chromium实际浏览器8组场景通过：中英亮暗、390px布局、禁提交且无凭据网络/存储、密码显示、偏好持久化、根路由、健康入口、故障注入与重试；正常页面无控制台错误和外部请求。
 - 浏览器截图见screenshots/login-light.png、login-dark.png、login-mobile.png；检查脚本scripts/check-browser.mjs。
 - 数据检查脚本scripts/check-data.py实际验证MinIO创建桶/PUT/GET内容一致/DELETE，PostgreSQL密码认证TCP SELECT1，Redis PING。keel-dev-smoke桶可保留，探测对象已删除。
-- Docker开机启动已启用，服务unless-stopped。容器重启可验证恢复；本轮未执行真实服务器重启。
+- Docker开机启动已启用，服务unless-stopped。本轮四个容器实际重启后恢复healthy，并通过数据读写复检；未执行真实服务器重启。
 
 ## GitHub与备份
 
