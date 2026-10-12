@@ -28,7 +28,9 @@ ssh -i /path/to/enzo-using.pem -N -L 3000:127.0.0.1:3000 ubuntu@13.158.38.7
 
 打开 `http://localhost:3000/login`。密钥路径由各电脑自己配置。
 
-开发热更新：服务器分别运行 `make dev-api`（3001）和 `make dev-web`（5173，代理到3001），电脑额外映射5173端口。已部署3000不受开发进程影响。
+持久开发会话：服务器运行 `sh scripts/dev-session.sh`，再 `tmux attach -t keel`；窗口为work/api/web/logs。按Ctrl-b再按d退出会话，进程继续。新电脑登录后再次attach即可。
+
+开发热更新：也可以在服务器分别运行 `make dev-api`（3001）和 `make dev-web`（5173，代理到3001），电脑额外映射5173端口。已部署3000不受开发进程影响。
 
 ## 设计入口
 

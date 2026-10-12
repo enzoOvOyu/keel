@@ -12,7 +12,7 @@ npm run build --workspace @keel/web
 npm run dev --workspace @keel/web
 ```
 
-Vite listens on `127.0.0.1:5173`, proxying `/api` and `/healthz` to `127.0.0.1:3000`. Production serves `web/dist` from the Go server; Vite preview is for static inspection only and does not proxy the API.
+Vite listens on `127.0.0.1:5173`, proxying `/api` and `/healthz` to `127.0.0.1:3001`. Production serves `web/dist` from the Go server; Vite preview is for static inspection only and does not proxy the API.
 
 `src/styles/tokens.json` is the sole color/token source. `npm run tokens` generates matching light/dark CSS. Local storage contains only `keel.theme` and `keel.language`; never credentials or bearer tokens. The site uses local SVG and system fonts, with no third-party assets.
 

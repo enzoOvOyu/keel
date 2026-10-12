@@ -5,6 +5,7 @@
 - 先读本文件、README.md、docs/HANDOFF.md、docs/DEPLOYMENT.md，再看本次相关设计章节和 git status。
 - 用户已批准 v2.5 复审修订、keel 品牌和登录设计；当前工作为设计落地与 Go/React 开发环境准备。功能是否实现以 HANDOFF 的验证证据为准。
 - 主开发环境是 `ubuntu@13.158.38.7:/opt/keel`，代码归档目标是 `https://github.com/enzoOvOyu/keel`。本地设计目录可编辑后同步；业务代码、构建与环境验证在远端完成。
+- 持久开发用 `sh scripts/dev-session.sh` / `tmux attach -t keel`，沿用已有会话，不重启或覆盖用户正在使用的窗口。api3001/web5173用于开发，部署预览3000独立。SSH断开不终止tmux；主机重启后需重建开发会话。
 - 首次接通先检查代码、进程、容器、磁盘、监听端口，不覆盖用户改动、不自动卸载软件。保留数据库卷和可回滚版本。
 
 ## 文档职责与优先级

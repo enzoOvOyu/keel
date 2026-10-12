@@ -38,7 +38,7 @@ curl --fail http://127.0.0.1:3000/healthz
 
 ## 热更新与预览
 
-生产构建预览3000；本地开发API3001；Vite5173。服务器用两个终端 `make dev-api` 与 `make dev-web`，浏览器通过SSH隧道访问5173。根目录 `make build` 生成web/dist和bin/keel-api。
+生产构建预览3000；本地开发API3001；Vite5173。服务器用 `sh scripts/dev-session.sh` 启动持久tmux会话并 `tmux attach -t keel`；也可用两个终端 `make dev-api` 与 `make dev-web`，浏览器通过SSH隧道访问5173。根目录 `make build` 生成web/dist和bin/keel-api。
 
 ## GitHub与换电脑
 

@@ -14,7 +14,7 @@ RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
 ARG APP_VERSION=development
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${APP_VERSION}" -o /keel-api ./cmd/keel-api
+RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${APP_VERSION}" -o /keel-api ./cmd/keel-api
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*

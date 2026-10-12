@@ -9,7 +9,7 @@
 - AGENTS.md已整理为助手协作约定，业务判据仍由PRD等专门文档维护。
 - Go/gin替代Node临时API，React19/TypeScript5/Vite6前端可构建；TanStack Router/Query、中英与明暗主题、令牌生成、OpenAPI类型生成已接通。ent领域模型/数据库迁移尚待P1。
 - `/login` 已实做桌面和移动预览，身份未启用时明确提示并禁提交。没有默认账户、假登录、业务KPI或真实会话。
-- Go/Node固定工具链、编译器、protoc、Docker/Compose、Makefile、CI、部署脚本与数据服务已准备。版本详见TOOLCHAIN.json和锁文件。
+- Go/Node固定工具链、编译器、protoc、Docker/Compose、tmux3.6持久会话、Makefile、CI、部署脚本与数据服务已准备。版本详见TOOLCHAIN.json和锁文件。
 - PostgreSQL16、Redis7、开发MinIO采用命名卷，原有数据库/Redis卷保留。MinIO官方社区镜像不可获取，已改从固定官方源码校验构建，具体约束见DEPLOYMENT。
 
 ## 实际验证证据
@@ -25,7 +25,7 @@
 
 ## GitHub与备份
 
-目标 `https://github.com/enzoOvOyu/keel`；origin使用服务器默认SSH身份 `git@github.com:enzoOvOyu/keel.git`，认证与仓库读取已成功。专用keel-github别名的另一把key失败，不影响默认身份。推送状态以 `git status -sb` 与 `git ls-remote origin refs/heads/main` 对比HEAD核验。
+GitHub main已成功推送并核对服务器/远端同一提交；后续状态仍按下方命令核验。目标 `https://github.com/enzoOvOyu/keel`；origin使用服务器默认SSH身份 `git@github.com:enzoOvOyu/keel.git`，认证与仓库读取已成功。专用keel-github别名的另一把key失败，不影响默认身份。推送状态以 `git status -sb` 与 `git ls-remote origin refs/heads/main` 对比HEAD核验。
 
 CI配置存在、远端本机检查通过与GitHub Actions通过是不同证据；本轮未通过Actions API确认CI结果。无需为了代码推送把个人token写入服务器或仓库。
 
@@ -44,6 +44,17 @@ docker compose --profile data ps
 预览：电脑执行 `ssh -i /path/to/enzo-using.pem -N -L 3000:127.0.0.1:3000 ubuntu@13.158.38.7`，浏览器打开 `http://localhost:3000/login`。服务器上的开发进程 `make dev-api` 用3001、`make dev-web`用5173，与部署预览分开；需要热更新时另映射5173。
 
 浏览器复检：当前服务器已在 `/tmp/keel-browser-check` 安装Playwright和Chromium，可运行 `KEEL_PLAYWRIGHT_MODULE=/tmp/keel-browser-check/node_modules/playwright/index.mjs node scripts/check-browser.mjs`。新服务器先独立安装同版Playwright及浏览器。截图/测试探测数据不是硬件业务证据。
+
+## tmux持久开发
+
+服务器已有tmux3.6，已创建`keel`会话：work是交互工作台，api运行3001开发后端，web运行5173热更新，logs跟随Compose日志。会话设置限定在keel，没有覆盖个人.tmux.conf。
+
+```sh
+sh scripts/dev-session.sh  # 幂等；已有会话不会重启任何窗口
+tmux attach -t keel
+```
+
+Ctrl-b再按d仅分离，SSH断开后进程继续。Ctrl-b再按w切窗口。进程退出时保留窗口错误输出，排除问题后可 `tmux respawn-window -t keel:api`（或web）。脚本遇到已有非本会话占用3001/5173会停止，不杀未知进程。开发会话不跨主机重启自动恢复；重启后重跑脚本。Compose服务独立由Docker自动启动。
 
 ## 下一步
 
