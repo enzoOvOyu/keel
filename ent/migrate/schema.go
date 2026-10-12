@@ -126,6 +126,45 @@ var (
 		Columns:    LoginThrottlesColumns,
 		PrimaryKey: []*schema.Column{LoginThrottlesColumns[0]},
 	}
+	// MediaItemsColumns holds the columns for the "media_items" table.
+	MediaItemsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Size: 32},
+		{Name: "scope_key", Type: field.TypeString, Size: 120},
+		{Name: "type", Type: field.TypeString, Size: 20},
+		{Name: "name", Type: field.TypeString, Size: 120},
+		{Name: "version", Type: field.TypeString, Size: 120},
+		{Name: "sha256", Type: field.TypeString, Size: 64},
+		{Name: "size", Type: field.TypeInt64},
+		{Name: "arch", Type: field.TypeString, Size: 8},
+		{Name: "os_scope", Type: field.TypeString, Size: 120, Default: ""},
+		{Name: "hw_scope", Type: field.TypeString, Size: 120, Default: ""},
+		{Name: "deps", Type: field.TypeJSON},
+		{Name: "manifest_ref", Type: field.TypeString, Size: 200, Default: ""},
+		{Name: "signature_ref", Type: field.TypeString, Size: 200, Default: ""},
+		{Name: "state", Type: field.TypeEnum, Enums: []string{"uploaded", "verified", "approved", "retired"}, Default: "uploaded"},
+		{Name: "uploaded_by", Type: field.TypeString, Size: 32},
+		{Name: "approved_by", Type: field.TypeString, Size: 32, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// MediaItemsTable holds the schema information for the "media_items" table.
+	MediaItemsTable = &schema.Table{
+		Name:       "media_items",
+		Columns:    MediaItemsColumns,
+		PrimaryKey: []*schema.Column{MediaItemsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "mediaitem_scope_key_type_name_version",
+				Unique:  true,
+				Columns: []*schema.Column{MediaItemsColumns[1], MediaItemsColumns[2], MediaItemsColumns[3], MediaItemsColumns[4]},
+			},
+			{
+				Name:    "mediaitem_state",
+				Unique:  false,
+				Columns: []*schema.Column{MediaItemsColumns[13]},
+			},
+		},
+	}
 	// MembershipsColumns holds the columns for the "memberships" table.
 	MembershipsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, Size: 32},
@@ -208,6 +247,7 @@ var (
 		DeviceModelVersionsTable,
 		IdempotenciesTable,
 		LoginThrottlesTable,
+		MediaItemsTable,
 		MembershipsTable,
 		ProjectsTable,
 		SessionsTable,

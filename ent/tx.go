@@ -24,6 +24,8 @@ type Tx struct {
 	Idempotency *IdempotencyClient
 	// LoginThrottle is the client for interacting with the LoginThrottle builders.
 	LoginThrottle *LoginThrottleClient
+	// MediaItem is the client for interacting with the MediaItem builders.
+	MediaItem *MediaItemClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
 	// Project is the client for interacting with the Project builders.
@@ -169,6 +171,7 @@ func (tx *Tx) init() {
 	tx.DeviceModelVersion = NewDeviceModelVersionClient(tx.config)
 	tx.Idempotency = NewIdempotencyClient(tx.config)
 	tx.LoginThrottle = NewLoginThrottleClient(tx.config)
+	tx.MediaItem = NewMediaItemClient(tx.config)
 	tx.Membership = NewMembershipClient(tx.config)
 	tx.Project = NewProjectClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)

@@ -20,6 +20,7 @@ import (
 	"github.com/enzoOvOyu/keel/ent/devicemodelversion"
 	"github.com/enzoOvOyu/keel/ent/idempotency"
 	"github.com/enzoOvOyu/keel/ent/loginthrottle"
+	"github.com/enzoOvOyu/keel/ent/mediaitem"
 	"github.com/enzoOvOyu/keel/ent/membership"
 	"github.com/enzoOvOyu/keel/ent/project"
 	"github.com/enzoOvOyu/keel/ent/session"
@@ -43,6 +44,8 @@ type Client struct {
 	Idempotency *IdempotencyClient
 	// LoginThrottle is the client for interacting with the LoginThrottle builders.
 	LoginThrottle *LoginThrottleClient
+	// MediaItem is the client for interacting with the MediaItem builders.
+	MediaItem *MediaItemClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
 	// Project is the client for interacting with the Project builders.
@@ -68,6 +71,7 @@ func (c *Client) init() {
 	c.DeviceModelVersion = NewDeviceModelVersionClient(c.config)
 	c.Idempotency = NewIdempotencyClient(c.config)
 	c.LoginThrottle = NewLoginThrottleClient(c.config)
+	c.MediaItem = NewMediaItemClient(c.config)
 	c.Membership = NewMembershipClient(c.config)
 	c.Project = NewProjectClient(c.config)
 	c.Session = NewSessionClient(c.config)
@@ -170,6 +174,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		DeviceModelVersion: NewDeviceModelVersionClient(cfg),
 		Idempotency:        NewIdempotencyClient(cfg),
 		LoginThrottle:      NewLoginThrottleClient(cfg),
+		MediaItem:          NewMediaItemClient(cfg),
 		Membership:         NewMembershipClient(cfg),
 		Project:            NewProjectClient(cfg),
 		Session:            NewSessionClient(cfg),
@@ -199,6 +204,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		DeviceModelVersion: NewDeviceModelVersionClient(cfg),
 		Idempotency:        NewIdempotencyClient(cfg),
 		LoginThrottle:      NewLoginThrottleClient(cfg),
+		MediaItem:          NewMediaItemClient(cfg),
 		Membership:         NewMembershipClient(cfg),
 		Project:            NewProjectClient(cfg),
 		Session:            NewSessionClient(cfg),
@@ -233,7 +239,7 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Audit, c.DeviceModel, c.DeviceModelSlot, c.DeviceModelVersion, c.Idempotency,
-		c.LoginThrottle, c.Membership, c.Project, c.Session, c.User,
+		c.LoginThrottle, c.MediaItem, c.Membership, c.Project, c.Session, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -244,7 +250,7 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Audit, c.DeviceModel, c.DeviceModelSlot, c.DeviceModelVersion, c.Idempotency,
-		c.LoginThrottle, c.Membership, c.Project, c.Session, c.User,
+		c.LoginThrottle, c.MediaItem, c.Membership, c.Project, c.Session, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -265,6 +271,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Idempotency.mutate(ctx, m)
 	case *LoginThrottleMutation:
 		return c.LoginThrottle.mutate(ctx, m)
+	case *MediaItemMutation:
+		return c.MediaItem.mutate(ctx, m)
 	case *MembershipMutation:
 		return c.Membership.mutate(ctx, m)
 	case *ProjectMutation:
@@ -1076,6 +1084,139 @@ func (c *LoginThrottleClient) mutate(ctx context.Context, m *LoginThrottleMutati
 	}
 }
 
+// MediaItemClient is a client for the MediaItem schema.
+type MediaItemClient struct {
+	config
+}
+
+// NewMediaItemClient returns a client for the MediaItem from the given config.
+func NewMediaItemClient(c config) *MediaItemClient {
+	return &MediaItemClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mediaitem.Hooks(f(g(h())))`.
+func (c *MediaItemClient) Use(hooks ...Hook) {
+	c.hooks.MediaItem = append(c.hooks.MediaItem, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mediaitem.Intercept(f(g(h())))`.
+func (c *MediaItemClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MediaItem = append(c.inters.MediaItem, interceptors...)
+}
+
+// Create returns a builder for creating a MediaItem entity.
+func (c *MediaItemClient) Create() *MediaItemCreate {
+	mutation := newMediaItemMutation(c.config, OpCreate)
+	return &MediaItemCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MediaItem entities.
+func (c *MediaItemClient) CreateBulk(builders ...*MediaItemCreate) *MediaItemCreateBulk {
+	return &MediaItemCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MediaItemClient) MapCreateBulk(slice any, setFunc func(*MediaItemCreate, int)) *MediaItemCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MediaItemCreateBulk{err: fmt.Errorf("calling to MediaItemClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MediaItemCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MediaItemCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MediaItem.
+func (c *MediaItemClient) Update() *MediaItemUpdate {
+	mutation := newMediaItemMutation(c.config, OpUpdate)
+	return &MediaItemUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MediaItemClient) UpdateOne(_m *MediaItem) *MediaItemUpdateOne {
+	mutation := newMediaItemMutation(c.config, OpUpdateOne, withMediaItem(_m))
+	return &MediaItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MediaItemClient) UpdateOneID(id string) *MediaItemUpdateOne {
+	mutation := newMediaItemMutation(c.config, OpUpdateOne, withMediaItemID(id))
+	return &MediaItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MediaItem.
+func (c *MediaItemClient) Delete() *MediaItemDelete {
+	mutation := newMediaItemMutation(c.config, OpDelete)
+	return &MediaItemDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MediaItemClient) DeleteOne(_m *MediaItem) *MediaItemDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MediaItemClient) DeleteOneID(id string) *MediaItemDeleteOne {
+	builder := c.Delete().Where(mediaitem.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MediaItemDeleteOne{builder}
+}
+
+// Query returns a query builder for MediaItem.
+func (c *MediaItemClient) Query() *MediaItemQuery {
+	return &MediaItemQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMediaItem},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MediaItem entity by its id.
+func (c *MediaItemClient) Get(ctx context.Context, id string) (*MediaItem, error) {
+	return c.Query().Where(mediaitem.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MediaItemClient) GetX(ctx context.Context, id string) *MediaItem {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *MediaItemClient) Hooks() []Hook {
+	return c.hooks.MediaItem
+}
+
+// Interceptors returns the client interceptors.
+func (c *MediaItemClient) Interceptors() []Interceptor {
+	return c.inters.MediaItem
+}
+
+func (c *MediaItemClient) mutate(ctx context.Context, m *MediaItemMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MediaItemCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MediaItemUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MediaItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MediaItemDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MediaItem mutation op: %q", m.Op())
+	}
+}
+
 // MembershipClient is a client for the Membership schema.
 type MembershipClient struct {
 	config
@@ -1612,10 +1753,10 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 type (
 	hooks struct {
 		Audit, DeviceModel, DeviceModelSlot, DeviceModelVersion, Idempotency,
-		LoginThrottle, Membership, Project, Session, User []ent.Hook
+		LoginThrottle, MediaItem, Membership, Project, Session, User []ent.Hook
 	}
 	inters struct {
 		Audit, DeviceModel, DeviceModelSlot, DeviceModelVersion, Idempotency,
-		LoginThrottle, Membership, Project, Session, User []ent.Interceptor
+		LoginThrottle, MediaItem, Membership, Project, Session, User []ent.Interceptor
 	}
 )

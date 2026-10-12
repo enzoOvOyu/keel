@@ -81,6 +81,18 @@ func (f LoginThrottleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Valu
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LoginThrottleMutation", m)
 }
 
+// The MediaItemFunc type is an adapter to allow the use of ordinary
+// function as MediaItem mutator.
+type MediaItemFunc func(context.Context, *ent.MediaItemMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MediaItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MediaItemMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MediaItemMutation", m)
+}
+
 // The MembershipFunc type is an adapter to allow the use of ordinary
 // function as Membership mutator.
 type MembershipFunc func(context.Context, *ent.MembershipMutation) (ent.Value, error)

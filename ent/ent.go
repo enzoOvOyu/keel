@@ -18,6 +18,7 @@ import (
 	"github.com/enzoOvOyu/keel/ent/devicemodelversion"
 	"github.com/enzoOvOyu/keel/ent/idempotency"
 	"github.com/enzoOvOyu/keel/ent/loginthrottle"
+	"github.com/enzoOvOyu/keel/ent/mediaitem"
 	"github.com/enzoOvOyu/keel/ent/membership"
 	"github.com/enzoOvOyu/keel/ent/project"
 	"github.com/enzoOvOyu/keel/ent/session"
@@ -88,6 +89,7 @@ func checkColumn(t, c string) error {
 			devicemodelversion.Table: devicemodelversion.ValidColumn,
 			idempotency.Table:        idempotency.ValidColumn,
 			loginthrottle.Table:      loginthrottle.ValidColumn,
+			mediaitem.Table:          mediaitem.ValidColumn,
 			membership.Table:         membership.ValidColumn,
 			project.Table:            project.ValidColumn,
 			session.Table:            session.ValidColumn,

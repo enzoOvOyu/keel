@@ -11,6 +11,7 @@ import (
 	"github.com/enzoOvOyu/keel/ent/devicemodelversion"
 	"github.com/enzoOvOyu/keel/ent/idempotency"
 	"github.com/enzoOvOyu/keel/ent/loginthrottle"
+	"github.com/enzoOvOyu/keel/ent/mediaitem"
 	"github.com/enzoOvOyu/keel/ent/membership"
 	"github.com/enzoOvOyu/keel/ent/project"
 	"github.com/enzoOvOyu/keel/ent/schema"
@@ -178,6 +179,86 @@ func init() {
 	loginthrottleDescID := loginthrottleFields[0].Descriptor()
 	// loginthrottle.IDValidator is a validator for the "id" field. It is called by the builders before save.
 	loginthrottle.IDValidator = loginthrottleDescID.Validators[0].(func(string) error)
+	mediaitemFields := schema.MediaItem{}.Fields()
+	_ = mediaitemFields
+	// mediaitemDescScopeKey is the schema descriptor for scope_key field.
+	mediaitemDescScopeKey := mediaitemFields[1].Descriptor()
+	// mediaitem.ScopeKeyValidator is a validator for the "scope_key" field. It is called by the builders before save.
+	mediaitem.ScopeKeyValidator = mediaitemDescScopeKey.Validators[0].(func(string) error)
+	// mediaitemDescType is the schema descriptor for type field.
+	mediaitemDescType := mediaitemFields[2].Descriptor()
+	// mediaitem.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	mediaitem.TypeValidator = mediaitemDescType.Validators[0].(func(string) error)
+	// mediaitemDescName is the schema descriptor for name field.
+	mediaitemDescName := mediaitemFields[3].Descriptor()
+	// mediaitem.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	mediaitem.NameValidator = mediaitemDescName.Validators[0].(func(string) error)
+	// mediaitemDescVersion is the schema descriptor for version field.
+	mediaitemDescVersion := mediaitemFields[4].Descriptor()
+	// mediaitem.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	mediaitem.VersionValidator = mediaitemDescVersion.Validators[0].(func(string) error)
+	// mediaitemDescSha256 is the schema descriptor for sha256 field.
+	mediaitemDescSha256 := mediaitemFields[5].Descriptor()
+	// mediaitem.Sha256Validator is a validator for the "sha256" field. It is called by the builders before save.
+	mediaitem.Sha256Validator = mediaitemDescSha256.Validators[0].(func(string) error)
+	// mediaitemDescSize is the schema descriptor for size field.
+	mediaitemDescSize := mediaitemFields[6].Descriptor()
+	// mediaitem.SizeValidator is a validator for the "size" field. It is called by the builders before save.
+	mediaitem.SizeValidator = mediaitemDescSize.Validators[0].(func(int64) error)
+	// mediaitemDescArch is the schema descriptor for arch field.
+	mediaitemDescArch := mediaitemFields[7].Descriptor()
+	// mediaitem.ArchValidator is a validator for the "arch" field. It is called by the builders before save.
+	mediaitem.ArchValidator = mediaitemDescArch.Validators[0].(func(string) error)
+	// mediaitemDescOsScope is the schema descriptor for os_scope field.
+	mediaitemDescOsScope := mediaitemFields[8].Descriptor()
+	// mediaitem.DefaultOsScope holds the default value on creation for the os_scope field.
+	mediaitem.DefaultOsScope = mediaitemDescOsScope.Default.(string)
+	// mediaitem.OsScopeValidator is a validator for the "os_scope" field. It is called by the builders before save.
+	mediaitem.OsScopeValidator = mediaitemDescOsScope.Validators[0].(func(string) error)
+	// mediaitemDescHwScope is the schema descriptor for hw_scope field.
+	mediaitemDescHwScope := mediaitemFields[9].Descriptor()
+	// mediaitem.DefaultHwScope holds the default value on creation for the hw_scope field.
+	mediaitem.DefaultHwScope = mediaitemDescHwScope.Default.(string)
+	// mediaitem.HwScopeValidator is a validator for the "hw_scope" field. It is called by the builders before save.
+	mediaitem.HwScopeValidator = mediaitemDescHwScope.Validators[0].(func(string) error)
+	// mediaitemDescDeps is the schema descriptor for deps field.
+	mediaitemDescDeps := mediaitemFields[10].Descriptor()
+	// mediaitem.DefaultDeps holds the default value on creation for the deps field.
+	mediaitem.DefaultDeps = mediaitemDescDeps.Default.(map[string]interface{})
+	// mediaitemDescManifestRef is the schema descriptor for manifest_ref field.
+	mediaitemDescManifestRef := mediaitemFields[11].Descriptor()
+	// mediaitem.DefaultManifestRef holds the default value on creation for the manifest_ref field.
+	mediaitem.DefaultManifestRef = mediaitemDescManifestRef.Default.(string)
+	// mediaitem.ManifestRefValidator is a validator for the "manifest_ref" field. It is called by the builders before save.
+	mediaitem.ManifestRefValidator = mediaitemDescManifestRef.Validators[0].(func(string) error)
+	// mediaitemDescSignatureRef is the schema descriptor for signature_ref field.
+	mediaitemDescSignatureRef := mediaitemFields[12].Descriptor()
+	// mediaitem.DefaultSignatureRef holds the default value on creation for the signature_ref field.
+	mediaitem.DefaultSignatureRef = mediaitemDescSignatureRef.Default.(string)
+	// mediaitem.SignatureRefValidator is a validator for the "signature_ref" field. It is called by the builders before save.
+	mediaitem.SignatureRefValidator = mediaitemDescSignatureRef.Validators[0].(func(string) error)
+	// mediaitemDescUploadedBy is the schema descriptor for uploaded_by field.
+	mediaitemDescUploadedBy := mediaitemFields[14].Descriptor()
+	// mediaitem.UploadedByValidator is a validator for the "uploaded_by" field. It is called by the builders before save.
+	mediaitem.UploadedByValidator = mediaitemDescUploadedBy.Validators[0].(func(string) error)
+	// mediaitemDescApprovedBy is the schema descriptor for approved_by field.
+	mediaitemDescApprovedBy := mediaitemFields[15].Descriptor()
+	// mediaitem.DefaultApprovedBy holds the default value on creation for the approved_by field.
+	mediaitem.DefaultApprovedBy = mediaitemDescApprovedBy.Default.(string)
+	// mediaitem.ApprovedByValidator is a validator for the "approved_by" field. It is called by the builders before save.
+	mediaitem.ApprovedByValidator = mediaitemDescApprovedBy.Validators[0].(func(string) error)
+	// mediaitemDescCreatedAt is the schema descriptor for created_at field.
+	mediaitemDescCreatedAt := mediaitemFields[16].Descriptor()
+	// mediaitem.DefaultCreatedAt holds the default value on creation for the created_at field.
+	mediaitem.DefaultCreatedAt = mediaitemDescCreatedAt.Default.(func() time.Time)
+	// mediaitemDescUpdatedAt is the schema descriptor for updated_at field.
+	mediaitemDescUpdatedAt := mediaitemFields[17].Descriptor()
+	// mediaitem.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	mediaitem.DefaultUpdatedAt = mediaitemDescUpdatedAt.Default.(func() time.Time)
+	// mediaitemDescID is the schema descriptor for id field.
+	mediaitemDescID := mediaitemFields[0].Descriptor()
+	// mediaitem.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	mediaitem.IDValidator = mediaitemDescID.Validators[0].(func(string) error)
 	membershipFields := schema.Membership{}.Fields()
 	_ = membershipFields
 	// membershipDescUserID is the schema descriptor for user_id field.

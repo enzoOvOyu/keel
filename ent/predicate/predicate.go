@@ -24,6 +24,9 @@ type Idempotency func(*sql.Selector)
 // LoginThrottle is the predicate function for loginthrottle builders.
 type LoginThrottle func(*sql.Selector)
 
+// MediaItem is the predicate function for mediaitem builders.
+type MediaItem func(*sql.Selector)
+
 // Membership is the predicate function for membership builders.
 type Membership func(*sql.Selector)
 
