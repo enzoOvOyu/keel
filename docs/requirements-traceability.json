@@ -1096,7 +1096,14 @@
         "F-14.3",
         "F-14.4"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Device model library implemented: stable DeviceModel identities with global/project scopes, immutable DeviceModelVersion publishes with content hashes, slot expectations (PCIe slot, expected NIC model, panel port, default role), retirement blocking new references, and a DeviceModelEditor UI per DESIGN-SYSTEM 4.12d. Verified: scope/name and model/version uniqueness (F-14.2), immutable publishes and retirement keeping history readable (F-14.1). BOM binding validation (F-14.3/14.4), panel preview and role plan overrides remain planned with WP-1.7.",
+      "evidence_refs": [
+        "scripts/check-model-integration.py",
+        "internal/platform/device_models.go",
+        "web/src/features/models/ModelsPage.tsx",
+        "docs/HANDOFF.md"
+      ]
     },
     {
       "id": "WP-1.13",
