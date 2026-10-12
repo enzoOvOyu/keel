@@ -1070,11 +1070,13 @@
         "F-1.8"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Media registry implemented: MediaItem with one-way lifecycle uploaded->verified->approved->retired, scope uniqueness (scope,type,name,version), sha256/arch/dependency validation, manifest gate before verification, uploader/approver separation rejecting self-approval, irreversible retirement keeping history readable. Verified: uniqueness 409, digest validation, second-reviewer approval, retired rejects transitions, cross-scope invisible. Artifact storage bytes (MinIO), distribution logs, cache accounting (F-1.7), media:// admission (F-1.8), ParamSelect sync (F-1.9) remain planned.",
+      "implementation_notes": "Media registry implemented: MediaItem with one-way lifecycle uploaded->verified->approved->retired, scope uniqueness (scope,type,name,version), sha256/arch/dependency validation, manifest gate before verification, uploader/approver separation rejecting self-approval, irreversible retirement keeping history readable. Verified: uniqueness 409, digest validation, second-reviewer approval, retired rejects transitions, cross-scope invisible. UI added: project Media tab with registration dialog, one-way transition dialogs and retirement impact notices; real-browser checks cover registration, second-reviewer approval, self-approval rejection and retirement (7 groups). F-1.8 admission is implemented: execution parameters gated by the catalog reject unapproved versions. Artifact bytes (MinIO), distribution logs and cache accounting (F-1.7) remain planned.",
       "evidence_refs": [
         "scripts/check-media-integration.py",
         "internal/platform/media.go",
-        "docs/HANDOFF.md"
+        "docs/HANDOFF.md",
+        "web/src/features/media/MediaPage.tsx",
+        "scripts/check-media-browser.mjs"
       ]
     },
     {
