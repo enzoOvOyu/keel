@@ -101,6 +101,166 @@ paths:
                   business_ready:
                     type: boolean
                     const: false
+  /api/v1/models:
+    get:
+      operationId: listDeviceModels
+      tags: [Foundation]
+      x-permission: model:read
+      x-scope: platform
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Device model identities with their latest published version
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviceModelPage' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/projects/{id}/models:
+    get:
+      operationId: listProjectDeviceModels
+      tags: [Foundation]
+      x-permission: model:read
+      x-scope: project
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-f0-9]{32}$' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Project-scoped and global models
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviceModelPage' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createDeviceModel
+      tags: [Foundation]
+      x-permission: model:manage
+      x-scope: project
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-f0-9]{32}$' }
+        - $ref: '#/components/parameters/Origin'
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateDeviceModelInput' }
+      responses:
+        '201':
+          description: Created model identity
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviceModelSummary' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/models/{modelId}/versions:
+    get:
+      operationId: listDeviceModelVersions
+      tags: [Foundation]
+      x-permission: model:read
+      x-scope: project
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-f0-9]{32}$' }
+        - name: modelId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-f0-9]{32}$' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Immutable published version history
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviceModelVersionPage' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: publishDeviceModelVersion
+      tags: [Foundation]
+      x-permission: model:manage
+      x-scope: project
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-f0-9]{32}$' }
+        - name: modelId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-f0-9]{32}$' }
+        - $ref: '#/components/parameters/Origin'
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublishModelVersionInput' }
+      responses:
+        '201':
+          description: Published immutable version
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviceModelVersionDetail' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+  /api/v1/projects/{id}/models/{modelId}/retire:
+    post:
+      operationId: retireDeviceModel
+      tags: [Foundation]
+      x-permission: model:manage
+      x-scope: project
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-f0-9]{32}$' }
+        - name: modelId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-f0-9]{32}$' }
+        - $ref: '#/components/parameters/Origin'
+        - $ref: '#/components/parameters/CSRFToken'
+      responses:
+        '200':
+          description: Retired model identity
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviceModelSummary' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /api/v1/auth/providers:
     get:
       tags:
@@ -901,6 +1061,7 @@ paths:
         '503':
           $ref: '#/components/responses/Unavailable'
 components:
+
   securitySchemes:
     preLoginCookie:
       type: apiKey
@@ -955,6 +1116,82 @@ components:
         maximum: 100
         default: 20
   schemas:
+    DeviceModelSummary:
+      type: object
+      additionalProperties: false
+      required: [id, scope_key, name, kind, state, latest_version, created_at, updated_at]
+      properties:
+        id: { type: string, pattern: '^[a-f0-9]{32}$' }
+        scope_key: { type: string, enum: [global], description: 'Reserved for the platform scope; project scopes use project:<id>.' }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        kind: { type: string, enum: [rack, server, compute-tray] }
+        state: { type: string, enum: [active, retired] }
+        latest_version: { type: integer, format: int64, minimum: 0 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    DeviceModelPage:
+      type: object
+      additionalProperties: false
+      required: [items, total, page, page_size]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/DeviceModelSummary' } }
+        total: { type: integer }
+        page: { type: integer }
+        page_size: { type: integer }
+    ModelSlot:
+      type: object
+      additionalProperties: false
+      required: [slot_no, pcie_slot, expect_nic_model, panel_port, default_role]
+      properties:
+        slot_no: { type: integer, minimum: 1, maximum: 1024 }
+        pcie_slot: { type: string, minLength: 1, maxLength: 64 }
+        expect_nic_model: { type: string, minLength: 1, maxLength: 120 }
+        panel_port: { type: string, minLength: 1, maxLength: 64 }
+        default_role: { type: string, enum: [management, storage, compute, oob, unused] }
+    CreateDeviceModelInput:
+      type: object
+      additionalProperties: false
+      required: [name, kind]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        kind: { type: string, enum: [rack, server, compute-tray] }
+    PublishModelVersionInput:
+      type: object
+      additionalProperties: false
+      properties:
+        hw_spec: { type: object, additionalProperties: true }
+        expected_topology: { type: object, additionalProperties: true }
+        panel_layout: { type: object, additionalProperties: true }
+        bom_expect: { type: object, additionalProperties: true }
+        default_role_plan: { type: object, additionalProperties: true }
+        slots:
+          type: array
+          items: { $ref: '#/components/schemas/ModelSlot' }
+    DeviceModelVersionDetail:
+      type: object
+      additionalProperties: false
+      required: [id, model_id, version, hw_spec, expected_topology, panel_layout, bom_expect, default_role_plan, content_hash, published_at, slots]
+      properties:
+        id: { type: string, pattern: '^[a-f0-9]{32}$' }
+        model_id: { type: string, pattern: '^[a-f0-9]{32}$' }
+        version: { type: integer, format: int64, minimum: 1 }
+        hw_spec: {}
+        expected_topology: {}
+        panel_layout: {}
+        bom_expect: {}
+        default_role_plan: {}
+        content_hash: { type: string, minLength: 64, maxLength: 64 }
+        published_at: { type: string, format: date-time }
+        slots: { type: array, items: { $ref: '#/components/schemas/ModelSlot' } }
+    DeviceModelVersionPage:
+      type: object
+      additionalProperties: false
+      required: [items, total, page, page_size]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/DeviceModelVersionDetail' } }
+        total: { type: integer }
+        page: { type: integer }
+        page_size: { type: integer }
     EntityID:
       type: string
       pattern: ^[a-f0-9]{32}$

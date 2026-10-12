@@ -19,6 +19,7 @@ import { Route as PProjectIdRouteImport } from './routes/p.$projectId'
 import { Route as PProjectIdAuditsRouteImport } from './routes/p_.$projectId.audits'
 import { Route as PProjectIdExecutionsRouteImport } from './routes/p_.$projectId.executions'
 import { Route as PProjectIdMembersRouteImport } from './routes/p_.$projectId.members'
+import { Route as PProjectIdModelsRouteImport } from './routes/p_.$projectId.models'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -70,6 +71,11 @@ const PProjectIdMembersRoute = PProjectIdMembersRouteImport.update({
   path: '/p/$projectId/members',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PProjectIdModelsRoute = PProjectIdModelsRouteImport.update({
+  id: '/p_/$projectId/models',
+  path: '/p/$projectId/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/p/$projectId/audits': typeof PProjectIdAuditsRoute
   '/p/$projectId/executions': typeof PProjectIdExecutionsRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
+  '/p/$projectId/models': typeof PProjectIdModelsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/p/$projectId/audits': typeof PProjectIdAuditsRoute
   '/p/$projectId/executions': typeof PProjectIdExecutionsRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
+  '/p/$projectId/models': typeof PProjectIdModelsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/p_/$projectId/audits': typeof PProjectIdAuditsRoute
   '/p_/$projectId/executions': typeof PProjectIdExecutionsRoute
   '/p_/$projectId/members': typeof PProjectIdMembersRoute
+  '/p_/$projectId/models': typeof PProjectIdModelsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/audits'
     | '/p/$projectId/executions'
     | '/p/$projectId/members'
+    | '/p/$projectId/models'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/audits'
     | '/p/$projectId/executions'
     | '/p/$projectId/members'
+    | '/p/$projectId/models'
   id:
     | '__root__'
     | '/'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/p_/$projectId/audits'
     | '/p_/$projectId/executions'
     | '/p_/$projectId/members'
+    | '/p_/$projectId/models'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -158,6 +170,7 @@ export interface RootRouteChildren {
   PProjectIdAuditsRoute: typeof PProjectIdAuditsRoute
   PProjectIdExecutionsRoute: typeof PProjectIdExecutionsRoute
   PProjectIdMembersRoute: typeof PProjectIdMembersRoute
+  PProjectIdModelsRoute: typeof PProjectIdModelsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -232,6 +245,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectIdMembersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p_/$projectId/models': {
+      id: '/p_/$projectId/models'
+      path: '/p/$projectId/models'
+      fullPath: '/p/$projectId/models'
+      preLoaderRoute: typeof PProjectIdModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -246,6 +266,7 @@ const rootRouteChildren: RootRouteChildren = {
   PProjectIdAuditsRoute: PProjectIdAuditsRoute,
   PProjectIdExecutionsRoute: PProjectIdExecutionsRoute,
   PProjectIdMembersRoute: PProjectIdMembersRoute,
+  PProjectIdModelsRoute: PProjectIdModelsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

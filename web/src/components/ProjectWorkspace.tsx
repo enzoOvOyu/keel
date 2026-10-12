@@ -40,6 +40,7 @@ function ProjectScope({ projectId, children }: { projectId: string; children: Re
       {manage && session.permissions.includes('project:members:read') && <Link to="/p/$projectId/members" params={{ projectId }}>{t('membersTitle')}</Link>}
       {manage && session.permissions.includes('project:audit:read') && <Link to="/p/$projectId/audits" params={{ projectId }}>{t('auditTitle')}</Link>}
       {session.permissions.includes("execution:read") && <Link to="/p/$projectId/executions" params={{ projectId }}>{t("executionsTab")}</Link>}
+      {session.permissions.includes("model:read") && <Link to="/p/$projectId/models" params={{ projectId }}>{t("modelsTab")}</Link>}
     </nav>{children}
   </ProjectContext.Provider>
 }

@@ -36,6 +36,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listDeviceModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listProjectDeviceModels"];
+        put?: never;
+        post: operations["createDeviceModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/models/{modelId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listDeviceModelVersions"];
+        put?: never;
+        post: operations["publishDeviceModelVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/models/{modelId}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retireDeviceModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/providers": {
         parameters: {
             query?: never;
@@ -318,6 +382,83 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        DeviceModelSummary: {
+            id: string;
+            /**
+             * @description Reserved for the platform scope; project scopes use project:<id>.
+             * @enum {string}
+             */
+            scope_key: "global";
+            name: string;
+            /** @enum {string} */
+            kind: "rack" | "server" | "compute-tray";
+            /** @enum {string} */
+            state: "active" | "retired";
+            /** Format: int64 */
+            latest_version: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        DeviceModelPage: {
+            items: components["schemas"]["DeviceModelSummary"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        ModelSlot: {
+            slot_no: number;
+            pcie_slot: string;
+            expect_nic_model: string;
+            panel_port: string;
+            /** @enum {string} */
+            default_role: "management" | "storage" | "compute" | "oob" | "unused";
+        };
+        CreateDeviceModelInput: {
+            name: string;
+            /** @enum {string} */
+            kind: "rack" | "server" | "compute-tray";
+        };
+        PublishModelVersionInput: {
+            hw_spec?: {
+                [key: string]: unknown;
+            };
+            expected_topology?: {
+                [key: string]: unknown;
+            };
+            panel_layout?: {
+                [key: string]: unknown;
+            };
+            bom_expect?: {
+                [key: string]: unknown;
+            };
+            default_role_plan?: {
+                [key: string]: unknown;
+            };
+            slots?: components["schemas"]["ModelSlot"][];
+        };
+        DeviceModelVersionDetail: {
+            id: string;
+            model_id: string;
+            /** Format: int64 */
+            version: number;
+            hw_spec: unknown;
+            expected_topology: unknown;
+            panel_layout: unknown;
+            bom_expect: unknown;
+            default_role_plan: unknown;
+            content_hash: string;
+            /** Format: date-time */
+            published_at: string;
+            slots: components["schemas"]["ModelSlot"][];
+        };
+        DeviceModelVersionPage: {
+            items: components["schemas"]["DeviceModelVersionDetail"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
         /** @description Opaque 128-bit identifier serialized as lowercase hexadecimal. */
         EntityID: string;
         /** @enum {string} */
@@ -647,6 +788,196 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    listDeviceModels: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Device model identities with their latest published version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceModelPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listProjectDeviceModels: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped and global models */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceModelPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createDeviceModel: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDeviceModelInput"];
+            };
+        };
+        responses: {
+            /** @description Created model identity */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceModelSummary"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listDeviceModelVersions: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path: {
+                id: string;
+                modelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable published version history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceModelVersionPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    publishDeviceModelVersion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+                modelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishModelVersionInput"];
+            };
+        };
+        responses: {
+            /** @description Published immutable version */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceModelVersionDetail"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
+        };
+    };
+    retireDeviceModel: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+                modelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retired model identity */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceModelSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     authProviders: {
