@@ -8,7 +8,7 @@
 
 ## 本地开发
 
-需要 Node.js 22；容器开发另需 Docker Engine 和支持 `up --wait` 的 Compose v2。
+主开发目录为远端 `/opt/keel`，服务器已安装 Node.js 22、Docker 和 Compose，后续在远端开发。其他电脑仅需配置 SSH 连接即可继续；本地开发也可使用 Node.js 22。Compose 需支持 `up --wait`。
 
 ```sh
 npm ci
@@ -35,7 +35,7 @@ docker compose logs --tail=100 api
 ssh -i /path/to/enzo-using.pem -L 3000:127.0.0.1:3000 ubuntu@13.158.38.7
 ```
 
-PostgreSQL 和 Redis 配置放在可选的 `data` profile，尚未接入 API，默认不启动。启用前设置 `.env` 内的 `POSTGRES_PASSWORD`：
+PostgreSQL 和 Redis 配置放在可选的 `data` profile，尚未接入 API。当前服务器已启动它们作为开发基础资源；新环境默认不启动。启用前设置 `.env` 内的 `POSTGRES_PASSWORD`：
 
 ```sh
 docker compose --profile data up -d --wait
