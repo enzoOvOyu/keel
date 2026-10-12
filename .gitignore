@@ -1,11 +1,12 @@
 node_modules/
+web/dist/
 .env
 .env.*
 !.env.example
 *.pem
 *.key
-coverage/
-backups/
-.DS_Store
+*.bundle
+bin/
 .deploy-lock/
 .env.deploy.*
+.DS_Store

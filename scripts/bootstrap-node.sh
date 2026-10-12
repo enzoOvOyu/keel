@@ -1,9 +1,10 @@
 #!/bin/sh
 set -eu
+version=$(cat "$(dirname "$0")/../.nvmrc")
 test "$(id -u)" = 0 || { echo 'Run with sudo' >&2; exit 1; }
 if command -v node >/dev/null 2>&1; then
   node --version
-  node -e 'if (process.versions.node.split(".")[0] !== "22") process.exit(1)'
+  test "$(node --version)" = "v$version" || { echo "Expected Node $version; review existing toolchain" >&2; exit 1; }
   npm --version
   exit 0
 fi
@@ -15,10 +16,10 @@ esac
 task_tmp=$(mktemp -d)
 trap 'rm -rf "$task_tmp"' EXIT
 cd "$task_tmp"
-curl -fsSLO https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt
+curl -fsSLO "https://nodejs.org/dist/v$version/SHASUMS256.txt"
 archive=$(awk -v suffix="linux-$arch.tar.xz" '$2 ~ suffix "$" {print $2}' SHASUMS256.txt)
 test -n "$archive"
-curl -fsSLO "https://nodejs.org/dist/latest-v22.x/$archive"
+curl -fsSLO "https://nodejs.org/dist/v$version/$archive"
 awk -v file="$archive" '$2 == file {print}' SHASUMS256.txt | sha256sum -c -
 install -d /opt/keel-tools/node
 tar -xJf "$archive" -C /opt/keel-tools/node --strip-components=1

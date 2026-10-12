@@ -1,64 +1,49 @@
-# 远端环境与部署
+# 远端开发与部署
 
-目标：ubuntu@13.158.38.7。约定项目路径 `/opt/keel`，已在服务器创建，归 ubuntu 所有。
+主机 `ubuntu@13.158.38.7`，工作目录 `/opt/keel`。运行版本以 `curl http://127.0.0.1:3000/healthz` 为准，源码版本以 `git log -1` 为准。
 
-## 首次连接
+## 工具链
 
-私钥只存在各电脑本地，新电脑应通过安全方式配置自己的密钥。当前电脑提供的路径为 `/Users/yubing/Downloads/enzo-using.pem`；另有 `/private/var/root/enzo-using.pem` 副本。私钥不在仓库中。
+Ubuntu 26.04、Go 1.27.2、Node 22.23.3/npm 10.9.9、Docker 29.9.0/Compose 5.6.0；安装了 make、C/C++编译器、protobuf-compiler、ripgrep 和 Python3。Go/Node 的安装脚本验证官方SHA256，版本固定在 `.go-version`、`.nvmrc`。JS依赖使用 package-lock，Go依赖使用go.mod/go.sum。Go主机安装脚本当前支持Linux amd64。
+
+现有服务器已安装。新服务器先检查已有软件和端口；按需 `sudo sh scripts/bootstrap-ubuntu.sh` 安装Docker，再运行 `sh scripts/bootstrap-dev.sh`。脚本不覆盖不同版本的已有Node；首次`.env`需单独初始化。Docker组有主机管理能力，只授予开发管理员。
+
+## 配置与数据
+
+`.env` 只在服务器，权限600；从 `.env.example` 建立时需为 PostgreSQL 与 MinIO 生成随机凭据。禁止提交或输出实际配置。PostgreSQL/Redis没有宿主机端口；MinIO API/Console仅绑定127.0.0.1:9000/9001；前端/API预览仅绑定127.0.0.1:3000。
 
 ```sh
-chmod 600 /path/to/enzo-using.pem
-ssh -i /path/to/enzo-using.pem -o IdentitiesOnly=yes ubuntu@13.158.38.7
+docker compose --profile data up -d --build --wait postgres redis minio
+docker compose --profile data ps
 ```
 
-首次在新电脑连接时核验服务器主机指纹。查看 `/etc/os-release`、`df -h`、`ss -lntp`、`docker ps` 和现有项目目录，确认没有需要保留的冲突服务。
+数据保存在 postgres_data、redis_data、minio_data 命名卷。不要用 `down -v` 更新环境。API目前不连接数据服务，健康接口不表示数据库就绪。开发连接数据库可通过 `docker compose exec`，将来主机进程确有需要时另加回环端口覆盖配置。
 
-如果服务器是受支持的 Ubuntu、尚未安装 Docker 且没有冲突软件，运行仓库中的 `sudo sh scripts/bootstrap-ubuntu.sh`。脚本会安装 Git、Docker 和 Compose，并启用 Docker 开机启动；发现已有 Docker 或冲突包会停止自动安装。其他系统需另行适配。
+MinIO社区已转源码分发、官方仓库归档；当前仅开发使用固定官方提交 `9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a`（RELEASE.2025-10-15T17-29-55Z）编译，源包SHA256固定在 infra/minio/Dockerfile，保留LICENSE/CREDITS。构建源码来自[官方发布](https://github.com/minio/minio/releases/tag/RELEASE.2025-10-15T17-29-55Z)，项目状态见[官方仓库](https://github.com/minio/minio)。这不是生产存储选型结论：生产前必须评估持续安全维护、备份恢复和部署授权要求，暂不改已批准的业务S3接口。源码版本通过镜像标签及OCI revision标识，不依赖二进制默认版本字符串。
 
-## 获取代码
-
-以下仅在仓库已经推送且路径不存在时执行。私有仓库用服务器专用的只读 GitHub deploy key；避免使用含令牌的 URL。
+## 检查与部署
 
 ```sh
-sudo install -d -o ubuntu -g ubuntu /opt/keel
-git clone git@keel-github:enzoOvOyu/keel.git /opt/keel
-cd /opt/keel
-cp .env.example .env
-chmod 600 .env
-```
-
-部署账户需要 Docker 权限。将用户加入 docker 组等同于授予主机管理权限，应在确认账户用途后配置。没有权限时由管理员运行 Docker 命令。
-
-服务器的 `keel-github` SSH 别名使用专用密钥 `~/.ssh/keel_github_ed25519`，GitHub 主机公钥从官方 HTTPS metadata 接口取得。新服务器需要重新配置自己的别名和 deploy key。
-
-主机开发运行时由 `sudo sh scripts/bootstrap-node.sh` 安装 Node.js 22；脚本从 Node 官方站点下载并校验 SHA256。ubuntu 已加入 docker 组，新登录会话生效。
-
-## 部署已提交版本
-
-```sh
-cd /opt/keel
+npm ci
+make check
 sh scripts/preflight.sh
+# 提交经检查的工作后，要求干净工作区：
 sh scripts/deploy.sh
 curl --fail http://127.0.0.1:3000/healthz
 ```
 
-脚本要求干净的 Git 工作区，镜像使用完整 commit SHA 标记，等待健康检查通过后才记录新版本到 `.env`。并发部署用目录锁阻止。进程被强制终止留下锁时，确认没有部署仍在运行，再手动删除 `.deploy-lock`。构建过程需要访问容器镜像源。
+部署脚本构建 `keel:<完整Git SHA>`，等待API健康才更新.env的KEEL_IMAGE；旧镜像保留。目录锁防止并发部署，强制终止留下的锁须确认无部署进程后清理。单机部署可能短暂中断，不承诺零停机。失败不自动回滚，依据健康和日志选定保留镜像。
 
-这是单服务器重建部署，可能短暂中断服务。失败不会自动回滚；旧镜像保留，可按以下步骤回滚。
+回滚：把 `.env` 的 KEEL_IMAGE 更新为已保留的 `keel:<旧SHA>`，再运行 `docker compose up -d --no-build --wait --wait-timeout 90 api` 并核对 healthz版本。回滚镜像不回滚数据库，业务迁移引入时须另做备份/迁移恢复计划。
 
-## 更新与回滚
+## 热更新与预览
 
-更新前检查工作区与分支，采用 `git pull --ff-only`，随后运行部署脚本。查看 `.env` 的 `KEEL_IMAGE` 并记录旧镜像标签。
+生产构建预览3000；本地开发API3001；Vite5173。服务器用两个终端 `make dev-api` 与 `make dev-web`，浏览器通过SSH隧道访问5173。根目录 `make build` 生成web/dist和bin/keel-api。
 
-回滚时，将 `.env` 的 `KEEL_IMAGE` 改为已保留的 `keel:<旧完整SHA>`，然后执行：
+## GitHub与换电脑
 
-```sh
-docker compose up -d --no-build --wait --wait-timeout 90 api
-curl --fail http://127.0.0.1:3000/healthz
-```
+origin是 `git@github.com:enzoOvOyu/keel.git`，使用服务器已有且认证成功的默认SSH身份。此前 `keel-github` 专用别名使用的另一把key未被仓库接受，不用于当前origin。私钥留服务器，不放进Git。不要因为专用别名失败而误判默认GitHub身份不可用。
 
-镜像回滚不处理数据库迁移。将来引入迁移时要补充独立的迁移和备份恢复流程。暂不执行镜像清理，以保留回滚版本。
+推送前先fetch查看远端分支，再正常push，禁止强推未知历史。CI定义已加入仓库，只有GitHub实际执行成功才算CI通过；SSH部署key不提供GitHub Actions API读取能力。当前没有自动连接服务器的发布workflow。
 
-## 后续自动发布
-
-先完成远端基础验证，再配置 GitHub 环境和部署专用 SSH 凭据、可信主机指纹及目标分支。当前 workflow 只做 CI，没有自动连接服务器。域名、HTTPS、平台登录、审计、项目接入、任务队列和独立部署执行器均是后续工作。
+换电脑只需安全配置SSH密钥并连接同一远端目录，先读AGENTS/HANDOFF；GitHub可用后可clone浏览代码。离线bundle可保存完整已提交历史，但不包含.env/数据卷/私钥；这些需独立备份策略。

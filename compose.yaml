@@ -22,7 +22,7 @@ services:
         max-file: "3"
   postgres:
     profiles: [data]
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-keel}
@@ -37,7 +37,7 @@ services:
       retries: 5
   redis:
     profiles: [data]
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
     restart: unless-stopped
     command: [redis-server, --appendonly, 'yes']
     volumes:
@@ -47,6 +47,26 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+  minio:
+    profiles: [data]
+    image: keel-minio:2025-10-15-9e49d5e
+    command: [server, /data, --console-address, ":9001", --certs-dir, /tmp/certs]
+    build:
+      context: ./infra/minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    tmpfs: [/tmp]
 volumes:
   postgres_data:
   redis_data:
+  minio_data:

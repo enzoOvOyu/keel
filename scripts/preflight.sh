@@ -1,16 +1,10 @@
 #!/bin/sh
 set -eu
-printf 'OS: '
-uname -srm
-id
-for tool in git docker curl; do
-  command -v "$tool" >/dev/null || { echo "Missing: $tool" >&2; exit 1; }
-done
+cd "$(dirname "$0")/.."
 git --version
-docker version
+go version
+node --version
+npm --version
 docker compose version
-docker compose up --help | grep -q -- '--wait' || {
-  echo 'Docker Compose with --wait support is required' >&2
-  exit 1
-}
-df -h .
+test -f .env || { echo 'Missing server .env; follow docs/DEPLOYMENT.md' >&2; exit 1; }
+docker compose config --quiet

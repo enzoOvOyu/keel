@@ -1,0 +1,1708 @@
+{
+  "schema_version": 1,
+  "design_version": "v2.5",
+  "product": "keel",
+  "updated_at": "2026-10-12",
+  "status_semantics": "Design mappings are requirements, not evidence that implementation or validation has passed.",
+  "requirements": [
+    {
+      "id": "FR-1",
+      "title": "自动作业平台",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.1 FR-1 "
+        }
+      ],
+      "work_packages": [
+        "WP-1.4",
+        "WP-1.5",
+        "WP-1.10",
+        "WP-1.11"
+      ],
+      "acceptance": [
+        "F-1.1",
+        "F-1.3",
+        "F-1.8",
+        "F-1.10",
+        "F-1.11",
+        "F-1.12",
+        "F-1.13"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-2",
+      "title": "PXE 与互信",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.2 FR-2 "
+        }
+      ],
+      "work_packages": [
+        "WP-1.7",
+        "WP-1.9"
+      ],
+      "acceptance": [
+        "F-2.1",
+        "F-2.2",
+        "F-2.4",
+        "H-1"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-3",
+      "title": "硬件采集",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.3 FR-3 "
+        }
+      ],
+      "work_packages": [
+        "WP-2.1",
+        "WP-2.2"
+      ],
+      "acceptance": [
+        "F-3.1",
+        "F-3.2",
+        "F-3.3",
+        "H-2"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-4",
+      "title": "验机映射与工单",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.4 FR-4 "
+        }
+      ],
+      "work_packages": [
+        "WP-2.3",
+        "WP-2.4",
+        "WP-2.5",
+        "WP-2.7",
+        "WP-2.8",
+        "WP-2.12",
+        "WP-2.13"
+      ],
+      "acceptance": [
+        "F-4.3",
+        "F-4.7",
+        "F-4.13",
+        "F-4.16",
+        "F-4.17",
+        "F-4.18",
+        "F-4.19",
+        "H-13"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-5",
+      "title": "服务器配置",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.5 FR-5 "
+        }
+      ],
+      "work_packages": [
+        "WP-3.1",
+        "WP-3.2",
+        "WP-3.4",
+        "WP-3.5"
+      ],
+      "acceptance": [
+        "F-5.1",
+        "F-5.2",
+        "F-5.3",
+        "F-5.9.3",
+        "H-7",
+        "H-10"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-6",
+      "title": "NCCL",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.6 FR-6 "
+        }
+      ],
+      "work_packages": [
+        "WP-3.6",
+        "WP-3.7",
+        "WP-3.13"
+      ],
+      "acceptance": [
+        "F-6.1",
+        "F-6.4",
+        "F-6.9",
+        "F-6.10",
+        "H-8"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-7",
+      "title": "自定义作业",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.7 FR-7 "
+        }
+      ],
+      "work_packages": [
+        "WP-1.4",
+        "WP-3.8"
+      ],
+      "acceptance": [
+        "F-7.1",
+        "F-7.2",
+        "F-7.3"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-8",
+      "title": "AI 与知识库",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.8 FR-8 "
+        }
+      ],
+      "work_packages": [
+        "WP-3.9",
+        "WP-4.1",
+        "WP-4.2",
+        "WP-4.3",
+        "WP-4.9"
+      ],
+      "acceptance": [
+        "F-8.1",
+        "F-8.3",
+        "F-8.4",
+        "F-8.5",
+        "S-4"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-9",
+      "title": "优雅退出",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.9 FR-9 "
+        }
+      ],
+      "work_packages": [
+        "WP-4.4",
+        "WP-4.8"
+      ],
+      "acceptance": [
+        "F-9.1",
+        "F-9.2",
+        "F-9.3",
+        "F-9.4",
+        "F-9.5",
+        "H-9"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-10",
+      "title": "平台认证授权审计",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.10 FR-10 "
+        }
+      ],
+      "work_packages": [
+        "WP-1.6",
+        "WP-1.14"
+      ],
+      "acceptance": [
+        "F-10.1",
+        "F-10.2",
+        "F-10.4",
+        "F-10.5",
+        "F-10.6",
+        "S-5",
+        "S-6"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-11",
+      "title": "网络连通性",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.11 FR-11 "
+        }
+      ],
+      "work_packages": [
+        "WP-3.3",
+        "WP-3.10"
+      ],
+      "acceptance": [
+        "F-11.1",
+        "F-11.2",
+        "F-11.3",
+        "H-6"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-12",
+      "title": "项目模板",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.12 FR-12 "
+        }
+      ],
+      "work_packages": [
+        "WP-4.5"
+      ],
+      "acceptance": [
+        "F-12.1",
+        "F-12.2",
+        "F-12.3",
+        "F-12.4"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-13",
+      "title": "监控与告警",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.13 FR-13 "
+        }
+      ],
+      "work_packages": [
+        "WP-2.6",
+        "WP-2.10",
+        "WP-2.11",
+        "WP-4.8"
+      ],
+      "acceptance": [
+        "F-13.1",
+        "F-13.3",
+        "F-13.5",
+        "F-13.8",
+        "P-4",
+        "P-6",
+        "P-9"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-14",
+      "title": "型号库",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.14 FR-14 "
+        }
+      ],
+      "work_packages": [
+        "WP-1.12"
+      ],
+      "acceptance": [
+        "F-14.1",
+        "F-14.2",
+        "F-14.3",
+        "F-14.5"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-15",
+      "title": "CMDB",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.15 FR-15 "
+        }
+      ],
+      "work_packages": [
+        "WP-3.11"
+      ],
+      "acceptance": [
+        "F-15.1",
+        "F-15.2",
+        "F-15.3",
+        "H-12"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-16",
+      "title": "BMC 与固件",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.16 FR-16 "
+        }
+      ],
+      "work_packages": [
+        "WP-3.12"
+      ],
+      "acceptance": [
+        "F-16.1",
+        "F-16.5",
+        "F-16.6",
+        "H-14"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "FR-17",
+      "title": "项目与双平面",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.17 FR-17 "
+        }
+      ],
+      "work_packages": [
+        "WP-1.13",
+        "WP-4.7a",
+        "WP-4.7b",
+        "WP-4.7c",
+        "WP-4.7d"
+      ],
+      "acceptance": [
+        "F-17.1",
+        "F-17.2",
+        "F-17.3",
+        "F-17.4",
+        "F-17.5"
+      ],
+      "implementation_status": "planned"
+    }
+  ],
+  "review_items": [
+    {
+      "id": "R01",
+      "title": "修复 I-1~I-4 准入闭环",
+      "design_refs": [
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "[I-1]"
+        },
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "[I-4]"
+        }
+      ],
+      "work_packages": [
+        "WP-1.4",
+        "WP-1.5",
+        "WP-1.10"
+      ],
+      "acceptance": [
+        "F-1.13"
+      ],
+      "validation_requirement": "正反例测试受限 bootstrap/repair、无介质查询、tested 重测和绑定工单复测；不能扩大授权范围。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R02",
+      "title": "范围化门禁与依赖版本",
+      "design_refs": [
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "### 4.4 门禁证据"
+        }
+      ],
+      "work_packages": [
+        "WP-2.3",
+        "WP-2.8"
+      ],
+      "acceptance": [
+        "F-4.19"
+      ],
+      "validation_requirement": "A–B/C–D 的证据不能放行 A–C；改目标/端口对/配置/映射/规则或过期即复核。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R03",
+      "title": "物理身份先于映射",
+      "design_refs": [
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "### 5.2 验机全链"
+        },
+        {
+          "file": "PRD.md",
+          "marker": "### 3.4 FR-4 "
+        }
+      ],
+      "work_packages": [
+        "WP-1.3",
+        "WP-2.3",
+        "WP-2.5"
+      ],
+      "acceptance": [
+        "F-4.18"
+      ],
+      "validation_requirement": "G2 失败可关联 PhysicalPort/部件，换件保留历史；独立型号预期不能由实际结果自证。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R04",
+      "title": "NCCL 通信组调度",
+      "design_refs": [
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "### 4.5 NCCL GroupRun"
+        }
+      ],
+      "work_packages": [
+        "WP-3.6",
+        "WP-3.7"
+      ],
+      "acceptance": [
+        "F-6.10"
+      ],
+      "validation_requirement": "资源预留、固定 rank、屏障、失败整组恢复与报告覆盖范围和来源断言。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R05",
+      "title": "执行可靠性和跨通道互斥",
+      "design_refs": [
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "### 4.3 执行一致性"
+        }
+      ],
+      "work_packages": [
+        "WP-1.3",
+        "WP-1.4",
+        "WP-1.5"
+      ],
+      "acceptance": [
+        "F-1.11",
+        "F-1.12"
+      ],
+      "validation_requirement": "注入 commit/publish 崩溃、重投、租约过期、回执丢失；Agent/SSH/BMC 占用冲突拒绝。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R06",
+      "title": "项目隔离前置与多标签页",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.17 FR-17 "
+        },
+        {
+          "file": "DESIGN-SYSTEM.md",
+          "marker": "### 3.1 页面作用域"
+        }
+      ],
+      "work_packages": [
+        "WP-1.13",
+        "WP-4.7d"
+      ],
+      "acceptance": [
+        "F-17.2",
+        "F-17.5"
+      ],
+      "validation_requirement": "URL 与显式 project_id 一致，缓存/SSE/确认目标冻结，多标签切换和全局授权聚合注入。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R07",
+      "title": "硬件规格和实测基线",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.6 FR-6 "
+        },
+        {
+          "file": "PRD.md",
+          "marker": "NFR-8"
+        }
+      ],
+      "work_packages": [
+        "WP-3.13",
+        "WP-2.12"
+      ],
+      "acceptance": [
+        "F-6.9",
+        "H-8",
+        "H-13"
+      ],
+      "validation_requirement": "HGX B300 与 GB300 Arm/rack 分档，兼容矩阵固定版本，缺基线不通过，量纲与公式可查。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R08",
+      "title": "BMC 与 cleanup 的恢复边界",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.16 FR-16 "
+        },
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "### 5.6 优雅退出链"
+        }
+      ],
+      "work_packages": [
+        "WP-3.12",
+        "WP-4.4",
+        "WP-4.8"
+      ],
+      "acceptance": [
+        "F-16.5",
+        "F-16.6",
+        "F-4.16",
+        "F-9.1",
+        "F-9.2",
+        "F-9.3",
+        "F-9.5",
+        "F-5.3"
+      ],
+      "validation_requirement": "Nmi 独立，超时 unknown 查询先行，T7 证据处置；客户资源保留、归档与撤销独立验证。 驱动/固件恢复按组件能力选择已验证回滚或人工恢复；unknown 先对账，不盲重试。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R09",
+      "title": "行内操作固定本行",
+      "design_refs": [
+        {
+          "file": "DESIGN-SYSTEM.md",
+          "marker": "### 4.3 批量动作条"
+        }
+      ],
+      "work_packages": [
+        "WP-1.8",
+        "WP-2.11"
+      ],
+      "acceptance": [
+        "U-2",
+        "U-13"
+      ],
+      "validation_requirement": "选中 A/B 后 C 行操作仅 C；批量条明确目标数/项目/排除项。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R10",
+      "title": "拖拽执行业务动作",
+      "design_refs": [
+        {
+          "file": "DESIGN-SYSTEM.md",
+          "marker": "### 4.14 工单池"
+        }
+      ],
+      "work_packages": [
+        "WP-2.7"
+      ],
+      "acceptance": [
+        "U-11",
+        "U-13"
+      ],
+      "validation_requirement": "流转按动作权限/证据/版本校验；不能只 PATCH status 绕过复测。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R11",
+      "title": "目标级门禁消除95%放行",
+      "design_refs": [
+        {
+          "file": "DESIGN-SYSTEM.md",
+          "marker": "### 5.3 LLDP 线序验证页"
+        }
+      ],
+      "work_packages": [
+        "WP-2.8"
+      ],
+      "acceptance": [
+        "F-4.13",
+        "U-13"
+      ],
+      "validation_requirement": "95% 为统计，剩余目标分别阻断或限定审批豁免，不冒充 PASS。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R12",
+      "title": "单位与未知状态",
+      "design_refs": [
+        {
+          "file": "DESIGN-SYSTEM.md",
+          "marker": "### 5.5 NCCL 报告页"
+        },
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "### 4.7 指标、历史"
+        }
+      ],
+      "work_packages": [
+        "WP-2.11",
+        "WP-3.7"
+      ],
+      "acceptance": [
+        "F-6.4",
+        "U-8",
+        "U-15"
+      ],
+      "validation_requirement": "指标有单位来源时间范围，Gbps/GB/s 换算正确，Agent 失联不判机器宕机。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R13",
+      "title": "页面数据契约",
+      "design_refs": [
+        {
+          "file": "DESIGN-SYSTEM.md",
+          "marker": "### 3.1 页面作用域"
+        },
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "### 4.7 指标、历史"
+        }
+      ],
+      "work_packages": [
+        "WP-1.8",
+        "WP-2.10",
+        "WP-2.11"
+      ],
+      "acceptance": [
+        "U-14",
+        "P-6"
+      ],
+      "validation_requirement": "1h/24h/7d 历史和未来调度真实查询；首开快照/活动订阅/后台取消/断线补齐。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R14",
+      "title": "型号和角色约束",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.14 FR-14 "
+        },
+        {
+          "file": "PRD.md",
+          "marker": "### 3.5 FR-5 "
+        }
+      ],
+      "work_packages": [
+        "WP-1.12",
+        "WP-3.2"
+      ],
+      "acceptance": [
+        "F-14.1",
+        "F-14.2",
+        "F-5.9.3"
+      ],
+      "validation_requirement": "引用型号可退役不可删除，新版本不改存量；storage 禁用可零绑定。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R15",
+      "title": "依赖顺序和容量验证",
+      "design_refs": [
+        {
+          "file": "IMPLEMENTATION-PLAN.md",
+          "marker": "### 5.2 设备模拟器"
+        },
+        {
+          "file": "IMPLEMENTATION-PLAN.md",
+          "marker": "### 5.3 性能测试"
+        }
+      ],
+      "work_packages": [
+        "WP-2.10",
+        "WP-2.6",
+        "WP-5.1"
+      ],
+      "acceptance": [
+        "D-7",
+        "P-1",
+        "P-2",
+        "P-9",
+        "F-13.8"
+      ],
+      "validation_requirement": "验证 DAG、端到端计时、资源预算、逻辑设备与真实连接/字节分开，不将 mock 当硬件性能证据。 BMC 延长轮询实际 interval 时必须 degraded 并记录默认 5min SLO 未达，不以调整后的间隔冒充 PASS。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R16",
+      "title": "需求到证据追踪",
+      "design_refs": [
+        {
+          "file": "IMPLEMENTATION-PLAN.md",
+          "marker": "## 13. v2.5 复审验收落点"
+        },
+        {
+          "file": "REVIEW-FINDINGS.md",
+          "marker": "## 历史开放项的当前处置"
+        }
+      ],
+      "work_packages": [
+        "WP-1.1",
+        "WP-5.3"
+      ],
+      "acceptance": [
+        "D-1",
+        "D-5",
+        "D-6",
+        "D-8"
+      ],
+      "validation_requirement": "17 FR、34 组件、17 IA 自检、H-1~H-14；追踪 ID 和文档 marker 存在、旧审计状态分明。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R17",
+      "title": "AI 可审查草稿与授权检索",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.8 FR-8 "
+        },
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "### 4.8 AI 检索"
+        }
+      ],
+      "work_packages": [
+        "WP-4.1",
+        "WP-4.3",
+        "WP-4.9"
+      ],
+      "acceptance": [
+        "F-8.1",
+        "F-8.3",
+        "F-8.4",
+        "F-8.5",
+        "S-4"
+      ],
+      "validation_requirement": "Anthropic 等三 Provider，ACL 检索前置、出处/拒答评测；合法草稿可生成、越权执行不可；采纳率源于真实反馈。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "BRAND",
+      "title": "平台名称 keel",
+      "design_refs": [
+        {
+          "file": "DESIGN-SYSTEM.md",
+          "marker": "### 5.17 登录页"
+        }
+      ],
+      "work_packages": [
+        "WP-1.1",
+        "WP-1.8"
+      ],
+      "acceptance": [
+        "U-12"
+      ],
+      "validation_requirement": "品牌/页面标题/favicon/空态统一 keel，进程与目录 keel-*、环境变量 KEEL_。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "AUTH18",
+      "title": "登录与会话",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "FR-10.1"
+        },
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "### 4.6 登录"
+        },
+        {
+          "file": "DESIGN-SYSTEM.md",
+          "marker": "### 5.17 登录页"
+        }
+      ],
+      "work_packages": [
+        "WP-1.14",
+        "WP-1.8"
+      ],
+      "acceptance": [
+        "F-10.5",
+        "F-10.6",
+        "U-12",
+        "S-6"
+      ],
+      "validation_requirement": "本地/OIDC/LDAP 后端认证，同源 Cookie/CSRF、退出/过期、next、限流、回调和无默认密码；不回放危险提交。",
+      "design_status": "specified_v2.5",
+      "implementation_status": "planned"
+    }
+  ],
+  "work_package_index": [
+    {
+      "id": "WP-1.1",
+      "phase": "P1",
+      "depends_on": [],
+      "acceptance": [
+        "D-8",
+        "E-1",
+        "E-2"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.2",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.1"
+      ],
+      "acceptance": [
+        "E-8",
+        "F-1.2",
+        "F-1.3"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.3",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.1"
+      ],
+      "acceptance": [
+        "F-1.11",
+        "F-14.2",
+        "F-17.2"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.4",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.3",
+        "WP-1.13"
+      ],
+      "acceptance": [
+        "F-1.1",
+        "F-1.10",
+        "F-1.11",
+        "F-1.12",
+        "F-1.13"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.5",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.4",
+        "WP-1.6"
+      ],
+      "acceptance": [
+        "F-1.2",
+        "F-1.3",
+        "F-1.12",
+        "S-3"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.6",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.3",
+        "WP-1.13"
+      ],
+      "acceptance": [
+        "F-10.1",
+        "F-10.2",
+        "F-10.3",
+        "F-10.4",
+        "S-5"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.7",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.3",
+        "WP-1.10",
+        "WP-1.5",
+        "WP-1.12"
+      ],
+      "acceptance": [
+        "F-2.1",
+        "F-2.2",
+        "F-2.3",
+        "F-2.4",
+        "F-2.5",
+        "F-2.6"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.8",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.4",
+        "WP-1.14"
+      ],
+      "acceptance": [
+        "F-1.5",
+        "U-2",
+        "U-5",
+        "U-11",
+        "U-12",
+        "U-14",
+        "U-15"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.9",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.2",
+        "WP-1.4",
+        "WP-1.5",
+        "WP-1.7",
+        "WP-1.8",
+        "WP-1.11"
+      ],
+      "acceptance": [
+        "F-1.4",
+        "F-1.6",
+        "F-2.4",
+        "E-6",
+        "H-1"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.10",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.3",
+        "WP-1.13"
+      ],
+      "acceptance": [
+        "F-1.6",
+        "F-1.7",
+        "F-1.8"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.11",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.10"
+      ],
+      "acceptance": [
+        "F-1.9",
+        "U-4"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.12",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.3",
+        "WP-1.8"
+      ],
+      "acceptance": [
+        "F-14.1",
+        "F-14.2",
+        "F-14.3",
+        "F-14.4"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.13",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.3"
+      ],
+      "acceptance": [
+        "F-17.2",
+        "F-17.4",
+        "F-17.5"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.14",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.6"
+      ],
+      "acceptance": [
+        "F-10.5",
+        "F-10.6",
+        "S-6",
+        "U-12"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-2.1",
+      "phase": "P2",
+      "depends_on": [
+        "WP-1.3"
+      ],
+      "acceptance": [
+        "F-3.1",
+        "F-3.2",
+        "F-3.4"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-2.2",
+      "phase": "P2",
+      "depends_on": [
+        "WP-2.1"
+      ],
+      "acceptance": [
+        "F-3.3"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-2.3",
+      "phase": "P2",
+      "depends_on": [
+        "WP-1.4",
+        "WP-2.1",
+        "WP-1.12"
+      ],
+      "acceptance": [
+        "F-4.1",
+        "F-4.2",
+        "F-4.3",
+        "F-4.19"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-2.4",
+      "phase": "P2",
+      "depends_on": [
+        "WP-2.3"
+      ],
+      "acceptance": [
+        "F-4.4",
+        "F-4.5",
+        "F-4.6"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-2.5",
+      "phase": "P2",
+      "depends_on": [
+        "WP-2.13"
+      ],
+      "acceptance": [
+        "F-4.8",
+        "F-4.9",
+        "F-4.10",
+        "F-4.18"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-2.6",
+      "phase": "P2",
+      "depends_on": [
+        "WP-2.5",
+        "WP-2.10"
+      ],
+      "acceptance": [
+        "F-4.11",
+        "F-4.12",
+        "F-13.7"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-2.7",
+      "phase": "P2",
+      "depends_on": [
+        "WP-2.6"
+      ],
+      "acceptance": [
+        "F-4.7",
+        "U-11",
+        "U-13"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-2.8",
+      "phase": "P2",
+      "depends_on": [
+        "WP-2.3",
+        "WP-2.5",
+        "WP-2.6",
+        "WP-2.7"
+      ],
+      "acceptance": [
+        "F-4.13",
+        "F-4.19",
+        "U-13"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-2.9",
+      "phase": "P2",
+      "depends_on": [
+        "WP-2.1",
+        "WP-2.2",
+        "WP-2.4",
+        "WP-2.5",
+        "WP-2.7",
+        "WP-2.8",
+        "WP-2.11",
+        "WP-2.12",
+        "WP-2.13"
+      ],
+      "acceptance": [
+        "E-6",
+        "H-2",
+        "H-3",
+        "H-4",
+        "H-5",
+        "H-13"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-2.10",
+      "phase": "P2",
+      "depends_on": [
+        "WP-1.5",
+        "WP-2.3"
+      ],
+      "acceptance": [
+        "F-13.1",
+        "F-13.2",
+        "F-13.3",
+        "F-13.4",
+        "F-13.5",
+        "F-13.6"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-2.11",
+      "phase": "P2",
+      "depends_on": [
+        "WP-2.5",
+        "WP-2.6",
+        "WP-2.10"
+      ],
+      "acceptance": [
+        "F-14.5",
+        "U-5",
+        "U-8",
+        "U-14"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-2.12",
+      "phase": "P2",
+      "depends_on": [
+        "WP-2.3",
+        "WP-1.12"
+      ],
+      "acceptance": [
+        "F-4.14",
+        "F-4.15",
+        "F-4.16",
+        "F-4.18",
+        "H-13"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-2.13",
+      "phase": "P2",
+      "depends_on": [
+        "WP-2.4",
+        "WP-2.12"
+      ],
+      "acceptance": [
+        "F-4.17"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-3.1",
+      "phase": "P3",
+      "depends_on": [
+        "WP-2.5",
+        "WP-1.11"
+      ],
+      "acceptance": [
+        "F-5.1",
+        "F-5.5"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-3.2",
+      "phase": "P3",
+      "depends_on": [
+        "WP-3.1",
+        "WP-1.12"
+      ],
+      "acceptance": [
+        "F-5.2",
+        "F-5.9.1",
+        "F-5.9.2",
+        "F-5.9.3"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-3.3",
+      "phase": "P3",
+      "depends_on": [
+        "WP-2.7",
+        "WP-3.2"
+      ],
+      "acceptance": [
+        "F-11.1",
+        "F-11.2",
+        "F-11.3",
+        "F-11.4",
+        "F-11.5"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-3.4",
+      "phase": "P3",
+      "depends_on": [
+        "WP-1.10",
+        "WP-3.1"
+      ],
+      "acceptance": [
+        "F-5.3"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-3.5",
+      "phase": "P3",
+      "depends_on": [
+        "WP-1.10",
+        "WP-2.5"
+      ],
+      "acceptance": [
+        "F-5.4"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-3.6",
+      "phase": "P3",
+      "depends_on": [
+        "WP-3.3",
+        "WP-1.11"
+      ],
+      "acceptance": [
+        "F-6.1",
+        "F-6.2",
+        "F-6.3",
+        "F-6.5",
+        "F-6.10"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-3.7",
+      "phase": "P3",
+      "depends_on": [
+        "WP-3.6"
+      ],
+      "acceptance": [
+        "F-6.4",
+        "F-6.6",
+        "F-6.7",
+        "F-6.8",
+        "U-15"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-3.8",
+      "phase": "P3",
+      "depends_on": [
+        "WP-1.8",
+        "WP-1.11"
+      ],
+      "acceptance": [
+        "F-7.1",
+        "F-7.2",
+        "F-7.3"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-3.9",
+      "phase": "P3",
+      "depends_on": [
+        "WP-3.6"
+      ],
+      "acceptance": [
+        "K-1",
+        "K-2",
+        "K-3",
+        "K-4"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-3.10",
+      "phase": "P3",
+      "depends_on": [
+        "WP-3.3",
+        "WP-3.4",
+        "WP-3.6",
+        "WP-3.7",
+        "WP-3.12",
+        "WP-3.13"
+      ],
+      "acceptance": [
+        "E-6",
+        "H-6",
+        "H-7",
+        "H-8",
+        "H-10",
+        "H-14"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-3.11",
+      "phase": "P3",
+      "depends_on": [
+        "WP-1.7",
+        "WP-2.1",
+        "WP-2.5",
+        "WP-2.7",
+        "WP-3.1",
+        "WP-3.7"
+      ],
+      "acceptance": [
+        "F-15.1",
+        "F-15.2",
+        "F-15.3",
+        "F-15.4",
+        "F-15.5"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-3.12",
+      "phase": "P3",
+      "depends_on": [
+        "WP-1.4",
+        "WP-1.10",
+        "WP-2.1"
+      ],
+      "acceptance": [
+        "F-16.1",
+        "F-16.2",
+        "F-16.3",
+        "F-16.4",
+        "F-16.5",
+        "F-16.6",
+        "H-14"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-3.13",
+      "phase": "P3",
+      "depends_on": [
+        "WP-3.6",
+        "WP-2.12"
+      ],
+      "acceptance": [
+        "F-6.9"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-4.1",
+      "phase": "P4",
+      "depends_on": [
+        "WP-1.6"
+      ],
+      "acceptance": [
+        "F-8.1"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-4.2",
+      "phase": "P4",
+      "depends_on": [
+        "WP-4.1",
+        "WP-3.9"
+      ],
+      "acceptance": [
+        "F-8.2",
+        "F-8.3"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-4.3",
+      "phase": "P4",
+      "depends_on": [
+        "WP-3.9",
+        "WP-4.1"
+      ],
+      "acceptance": [
+        "F-8.3",
+        "F-8.4",
+        "K-4",
+        "S-4"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-4.4",
+      "phase": "P4",
+      "depends_on": [
+        "WP-1.5",
+        "WP-3.5",
+        "WP-3.11"
+      ],
+      "acceptance": [
+        "F-9.1",
+        "F-9.2",
+        "F-9.3",
+        "F-9.4",
+        "F-9.5"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-4.5",
+      "phase": "P4",
+      "depends_on": [
+        "WP-1.11",
+        "WP-1.12",
+        "WP-3.8"
+      ],
+      "acceptance": [
+        "F-12.1",
+        "F-12.2",
+        "F-12.3",
+        "F-12.4"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-4.6",
+      "phase": "P4",
+      "depends_on": [
+        "WP-4.2",
+        "WP-4.4",
+        "WP-4.5",
+        "WP-4.7d",
+        "WP-4.8",
+        "WP-4.9"
+      ],
+      "acceptance": [
+        "F-1.10.1",
+        "F-1.10.2",
+        "F-1.10.3",
+        "E-6",
+        "H-9",
+        "H-11",
+        "H-12"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-4.7a",
+      "phase": "P4",
+      "depends_on": [
+        "WP-1.13",
+        "WP-4.5"
+      ],
+      "acceptance": [
+        "F-17.4"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-4.7b",
+      "phase": "P4",
+      "depends_on": [
+        "WP-4.7a",
+        "WP-1.8"
+      ],
+      "acceptance": [
+        "F-17.1",
+        "F-17.3"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-4.7c",
+      "phase": "P4",
+      "depends_on": [
+        "WP-4.7b"
+      ],
+      "acceptance": [
+        "F-17.1",
+        "U-3"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-4.7d",
+      "phase": "P4",
+      "depends_on": [
+        "WP-4.7c"
+      ],
+      "acceptance": [
+        "F-17.2",
+        "F-17.5"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-4.8",
+      "phase": "P4",
+      "depends_on": [
+        "WP-2.10",
+        "WP-4.4",
+        "WP-3.12"
+      ],
+      "acceptance": [
+        "F-13.8",
+        "F-9.5"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-4.9",
+      "phase": "P4",
+      "depends_on": [
+        "WP-4.3",
+        "WP-2.7"
+      ],
+      "acceptance": [
+        "F-8.5"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-5.1",
+      "phase": "P5",
+      "depends_on": [
+        "WP-4.6"
+      ],
+      "acceptance": [
+        "P-1",
+        "P-2",
+        "P-3",
+        "P-4",
+        "P-5",
+        "P-6",
+        "P-7",
+        "P-8",
+        "P-9",
+        "P-10"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-5.2",
+      "phase": "P5",
+      "depends_on": [
+        "WP-4.6"
+      ],
+      "acceptance": [
+        "S-1",
+        "S-2",
+        "S-3",
+        "S-4",
+        "S-5",
+        "S-6"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-5.3",
+      "phase": "P5",
+      "depends_on": [
+        "WP-4.6"
+      ],
+      "acceptance": [
+        "D-8",
+        "K-5"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-5.4",
+      "phase": "P5",
+      "depends_on": [
+        "WP-5.1",
+        "WP-5.2",
+        "WP-5.3"
+      ],
+      "acceptance": [
+        "E-6",
+        "K-5",
+        "K-6"
+      ],
+      "implementation_status": "planned"
+    }
+  ]
+}

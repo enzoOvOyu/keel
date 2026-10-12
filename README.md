@@ -1,50 +1,45 @@
-# Keel
+# keel
 
-自动交付部署平台。目前准备开发与部署基础，等待设计文件后再实现界面和业务。
+自动交付部署平台。项目需求与技术设计基线为 v2.5，覆盖17个功能域；当前工程处于基础环境和登录页预览阶段。
 
-目标仓库：https://github.com/enzoOvOyu/keel
+## 已可运行
 
-目标服务器：`ubuntu@13.158.38.7`。实际连接与部署状态见 [开发交接](docs/HANDOFF.md)。
+- Go/gin API、React/TypeScript/Vite 前端，`/login` 支持中英、明暗主题与移动布局。
+- `/healthz` 仅表示进程存活；`/api/v1` 明确返回 `business_ready: false`。
+- 登录页读取公开身份配置；认证尚未实现，禁止提交凭据，不产生会话。业务接口拒绝未认证访问。
+- PostgreSQL、Redis、开发用 MinIO 数据服务由 Compose 管理；API 尚未接入业务存储。
+- OpenAPI → TypeScript 类型、CSS tokens、文件路由生成，以及构建、检查和部署脚本。
 
-## 本地开发
+## 在服务器继续开发
 
-主开发目录为远端 `/opt/keel`，服务器已安装 Node.js 22、Docker 和 Compose，后续在远端开发。其他电脑仅需配置 SSH 连接即可继续；本地开发也可使用 Node.js 22。Compose 需支持 `up --wait`。
+主工作区：`ubuntu@13.158.38.7:/opt/keel`。先读 [AGENTS.md](AGENTS.md) 和 [交接记录](docs/HANDOFF.md)，再检查工作区。
 
 ```sh
+cd /opt/keel
 npm ci
-npm run check
-npm test
-npm run dev
+make check
 ```
 
-`GET /healthz` 返回进程健康和代码版本；`GET /api/v1` 返回基础版本信息。没有用户认证、项目管理、流水线或部署执行接口。健康检查目前不检查数据库或队列，不能代表业务就绪。
-
-## 容器启动
+已部署预览只监听服务器 `127.0.0.1:3000`，在自己的电脑建立隧道：
 
 ```sh
-cp .env.example .env
-chmod 600 .env
-docker compose up -d --build --wait api
-curl --fail http://127.0.0.1:3000/healthz
-docker compose logs --tail=100 api
+ssh -i /path/to/enzo-using.pem -N -L 3000:127.0.0.1:3000 ubuntu@13.158.38.7
 ```
 
-默认只监听宿主机回环地址。远端开发使用 SSH 隧道，待域名和认证方案确定后接入 HTTPS 反向代理。
+打开 `http://localhost:3000/login`。密钥路径由各电脑自己配置。
 
-```sh
-ssh -i /path/to/enzo-using.pem -L 3000:127.0.0.1:3000 ubuntu@13.158.38.7
-```
+开发热更新：服务器分别运行 `make dev-api`（3001）和 `make dev-web`（5173，代理到3001），电脑额外映射5173端口。已部署3000不受开发进程影响。
 
-PostgreSQL 和 Redis 配置放在可选的 `data` profile，尚未接入 API。当前服务器已启动它们作为开发基础资源；新环境默认不启动。启用前设置 `.env` 内的 `POSTGRES_PASSWORD`：
+## 设计入口
 
-```sh
-docker compose --profile data up -d --wait
-```
+| 文档 | 职责 |
+|---|---|
+| [PRD](PRD.md) | 功能与业务判据 |
+| [架构](ARCHITECTURE.md) | 数据模型、协议、状态与边界 |
+| [前端设计](DESIGN-SYSTEM.md) | keel品牌、登录、页面与交互 |
+| [实施计划](IMPLEMENTATION-PLAN.md) | 56个工作包与依赖 |
+| [验收](ACCEPTANCE.md) | 189项验收ID与证据要求 |
+| [需求追踪](docs/requirements-traceability.json) | FR、复审、工作包及验收映射 |
+| [部署](docs/DEPLOYMENT.md) | 工具链、部署、回滚与服务连接 |
 
-这两个服务没有发布宿主机端口，数据保存在命名卷。首次初始化后更改 `.env` 密码不会改变已有数据库用户密码；不得使用 `down -v` 处理更新，否则会删除数据卷。
-
-## 服务器准备与部署
-
-先确认服务器系统、现有服务和 Docker 状态，再执行 [部署说明](docs/DEPLOYMENT.md)。GitHub Actions 配置会检查代码、构建镜像和验证容器健康；目前没有启用服务器自动发布。CI 在 GitHub 的实际结果尚未验证。
-
-Docker 安装脚本采用[官方 Ubuntu 安装方法](https://docs.docker.com/engine/install/ubuntu/)。
+设计通过检查不等于业务已实现。真实认证、项目隔离、ent迁移、执行调度、Agent、硬件联调和万台容量验证按实施计划推进。

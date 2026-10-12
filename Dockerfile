@@ -1,11 +1,28 @@
-FROM node:22-alpine
+FROM node:22.23.3-bookworm-slim AS web
+WORKDIR /src
+COPY package.json package-lock.json ./
+COPY web/package.json ./web/package.json
+RUN npm ci
+COPY web ./web
+COPY api ./api
+RUN npm run build
+
+FROM golang:1.27.2-bookworm AS backend
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY cmd ./cmd
+COPY internal ./internal
 ARG APP_VERSION=development
-ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 APP_VERSION=${APP_VERSION}
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${APP_VERSION}" -o /keel-api ./cmd/keel-api
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY --chown=node:node package.json package-lock.json ./
-COPY --chown=node:node src ./src
-USER node
+COPY --from=backend /keel-api /app/keel-api
+COPY --from=web /src/web/dist /app/web/dist
+ENV KEEL_LISTEN_ADDR=0.0.0.0:3000 KEEL_STATIC_DIR=/app/web/dist
+USER 65532:65532
 EXPOSE 3000
-HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["node", "src/server.mjs"]
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=5 CMD curl --fail --silent http://127.0.0.1:3000/healthz || exit 1
+CMD ["/app/keel-api"]

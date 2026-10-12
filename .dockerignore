@@ -1,10 +1,11 @@
+node_modules
+web/node_modules
+web/dist
 .git
-.github
 .env
 .env.*
-node_modules
-backups
-docs
-test
+!.env.example
+bin
 *.pem
 *.key
+*.bundle

@@ -1,0 +1,76 @@
+openapi: 3.1.0
+info:
+  title: keel foundation API
+  version: 0.2.0
+  description: Implemented foundation only. Business/authentication contracts in ARCHITECTURE v2.5 are pending P1 implementation.
+paths:
+  /healthz:
+    get:
+      operationId: health
+      responses:
+        '200':
+          description: Process liveness only; does not assert database or business readiness.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service, version, scope]
+                properties:
+                  status: {type: string, const: ok}
+                  service: {type: string, const: keel}
+                  version: {type: string}
+                  scope: {type: string, const: process}
+    head:
+      operationId: healthHead
+      responses:
+        '200': {description: Process is alive}
+  /api/v1:
+    get:
+      operationId: foundationInfo
+      responses:
+        '200':
+          description: Foundation version and explicit business readiness.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name, version, phase, authentication, business_ready]
+                properties:
+                  name: {type: string, const: keel}
+                  version: {type: string}
+                  phase: {type: string, const: foundation}
+                  authentication: {type: string, const: not_configured}
+                  business_ready: {type: boolean, const: false}
+  /api/v1/auth/providers:
+    get:
+      operationId: authProviders
+      responses:
+        '200':
+          description: Public login availability; no credentials or project data.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, methods]
+                properties:
+                  status: {type: string, const: not_configured}
+                  methods: {type: array, items: {type: string}, maxItems: 0}
+  /api/v1/auth/login:
+    post:
+      operationId: loginUnavailable
+      responses:
+        '503':
+          description: Identity service is not implemented; no credentials are processed and no session is issued.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+components:
+  schemas:
+    Error:
+      type: object
+      required: [code, message, details, trace_id]
+      properties:
+        code: {type: string}
+        message: {type: string}
+        details: {type: array, items: {type: string}}
+        trace_id: {type: string}

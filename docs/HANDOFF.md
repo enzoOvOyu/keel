@@ -1,55 +1,50 @@
-# 开发交接
+# keel 开发交接
 
-记录日期：2026-10-12。
+记录日期：2026-10-12。主工作区 `ubuntu@13.158.38.7:/opt/keel`，分支main。当前提交用 `git log -1 --oneline` 查看；运行镜像提交用 `/healthz` 的version查看。上轮Node基础版本37e72b5保留在Git历史与旧Docker镜像中。
 
-## 用户目标
+## 本轮完成
 
-在 ubuntu@13.158.38.7 的远端服务器开发自动交付部署平台，代码保存到 https://github.com/enzoOvOyu/keel，方便换电脑继续。当前准备基础环境，等待后续设计文件。
+- 用户批准的设计修订全部纳入v2.5：17个功能域、34个前端领域组件、56个WP与189个验收ID，追踪表区分设计完成与业务待实现。
+- 统一品牌keel；新增登录设计、项目/角色/危险操作边界，补门禁证据版本、分布式执行、资源锁与未知结果恢复、时序/来源/单位、固件恢复与归档清理顺序。
+- AGENTS.md已整理为助手协作约定，业务判据仍由PRD等专门文档维护。
+- Go/gin替代Node临时API，React19/TypeScript5/Vite6前端可构建；TanStack Router/Query、中英与明暗主题、令牌生成、OpenAPI类型生成已接通。ent领域模型/数据库迁移尚待P1。
+- `/login` 已实做桌面和移动预览，身份未启用时明确提示并禁提交。没有默认账户、假登录、业务KPI或真实会话。
+- Go/Node固定工具链、编译器、protoc、Docker/Compose、Makefile、CI、部署脚本与数据服务已准备。版本详见TOOLCHAIN.json和锁文件。
+- PostgreSQL16、Redis7、开发MinIO采用命名卷，原有数据库/Redis卷保留。MinIO官方社区镜像不可获取，已改从固定官方源码校验构建，具体约束见DEPLOYMENT。
 
-## 当前工作位置
+## 实际验证证据
 
-- 服务器：Ubuntu 26.04 LTS，约 16 GiB 内存、193 GiB 根磁盘。
-- 主开发目录：`/opt/keel`，归 ubuntu 所有。后续代码修改与检查均在此目录执行。
-- `/home/ubuntu` 的原始 Git 仓库保留，未把其 .ssh、历史记录等文件移入新仓库。
-- Git main 基于原始提交 abb6822；沿用该提交的 Git 作者身份。
-- Node.js 22.23.3、npm 10.9.9、Docker Engine 29.9.0、Compose 5.6.0 已安装。
-- Docker 已启用开机启动，ubuntu 已加入 docker 组。
-- Git origin 使用服务器专用 SSH 别名：`git@keel-github:enzoOvOyu/keel.git`。
-- GitHub deploy key 已生成，等待用户添加仓库写权限；尚未确认推送成功。
+- `python3 scripts/check-design.py`：17FR、34组件、引用、权限表列数、56工作包依赖无环通过；不表示业务验收通过。
+- Go静态检查、`go test -race ./...`通过；测试含业务API未认证拒绝、未启用认证不发session，以及关闭服务等待在途请求排空。
+- 前端类型检查、OpenAPI类型生成、生产构建通过；npm生产依赖审计0条报告漏洞。TanStack生成器有上游循环依赖提示，构建及浏览器运行均通过。
+- Docker多阶段镜像构建、Compose配置、四服务健康检查通过。
+- Playwright1.64.0/Chromium实际浏览器8组场景通过：中英亮暗、390px布局、禁提交且无凭据网络/存储、密码显示、偏好持久化、根路由、健康入口、故障注入与重试；正常页面无控制台错误和外部请求。
+- 浏览器截图见screenshots/login-light.png、login-dark.png、login-mobile.png；检查脚本scripts/check-browser.mjs。
+- 数据检查脚本scripts/check-data.py实际验证MinIO创建桶/PUT/GET内容一致/DELETE，PostgreSQL密码认证TCP SELECT1，Redis PING。keel-dev-smoke桶可保留，探测对象已删除。
+- Docker开机启动已启用，服务unless-stopped。容器重启可验证恢复；本轮未执行真实服务器重启。
 
-## 当前实现
+## GitHub与备份
 
-- Node 基础 API：GET /healthz 和 GET /api/v1，尚无业务接口或认证。
-- Docker 容器以非 root 用户运行，文件系统只读，API 端口仅绑定宿主机 127.0.0.1:3000。
-- API、PostgreSQL 16、Redis 7 容器已启动并通过健康检查；数据服务尚未接入 API。
-- .env 中数据库随机密码只保存在服务器，文件权限 600，不提交到 Git。
-- CI 检查、环境安装、预检、基于 commit SHA 的部署脚本和回滚操作说明已准备。
-- 业务认证、项目管理、流水线、GitHub webhook、部署执行器、HTTPS 和前端等待后续实现。
+目标 `https://github.com/enzoOvOyu/keel`；origin使用服务器默认SSH身份 `git@github.com:enzoOvOyu/keel.git`，认证与仓库读取已成功。专用keel-github别名的另一把key失败，不影响默认身份。推送状态以 `git status -sb` 与 `git ls-remote origin refs/heads/main` 对比HEAD核验。
 
-## 继续开发
+CI配置存在、远端本机检查通过与GitHub Actions通过是不同证据；本轮未通过Actions API确认CI结果。无需为了代码推送把个人token写入服务器或仓库。
 
-在新电脑配置自己的服务器登录密钥：
+离线Git bundle放 `/tmp/keel-v25.bundle`（交付时创建）并带回当前电脑；包含已提交历史，不含.env、密钥或数据卷。旧环境备份 `/tmp/keel-before-v25.bundle` 保留。bundle不是数据库备份。
+
+## 换电脑接续
 
 ```sh
 ssh -i /path/to/enzo-using.pem ubuntu@13.158.38.7
 cd /opt/keel
 cat AGENTS.md docs/HANDOFF.md
+git status -sb
+docker compose --profile data ps
 ```
 
-告诉后续开发助手：在远端 `/opt/keel` 工作，先读 AGENTS.md、README.md、docs/HANDOFF.md 和 docs/DEPLOYMENT.md，再检查 git status 与当前运行状态。GitHub 推送完成后也可在新电脑 clone 仓库查看文档，但远端是主开发环境。
+预览：电脑执行 `ssh -i /path/to/enzo-using.pem -N -L 3000:127.0.0.1:3000 ubuntu@13.158.38.7`，浏览器打开 `http://localhost:3000/login`。服务器上的开发进程 `make dev-api` 用3001、`make dev-web`用5173，与部署预览分开；需要热更新时另映射5173。
 
-不得复制 .env、私钥或个人令牌进 Git。当前本地的绝对私钥路径不会自动适用于新电脑。
+浏览器复检：当前服务器已在 `/tmp/keel-browser-check` 安装Playwright和Chromium，可运行 `KEEL_PLAYWRIGHT_MODULE=/tmp/keel-browser-check/node_modules/playwright/index.mjs node scripts/check-browser.mjs`。新服务器先独立安装同版Playwright及浏览器。截图/测试探测数据不是硬件业务证据。
 
-## 验证与待办
+## 下一步
 
-- Node 官方 SHA256 校验和 Docker hello-world 通过。
-- 远端 npm run check、npm test 的 4 项测试通过。
-- Docker 镜像构建和 compose config 检查通过。
-- 三个服务健康启动；API /healthz 返回实际 commit SHA。
-- PostgreSQL 使用密码通过 TCP 执行 SELECT 1，Redis PING 返回 PONG。
-- 三个容器重启后重新达到 healthy，API 的 POST/未知路径分别返回 405/404。
-- 已实际切回上一版本镜像并验证版本号，再恢复当前版本，回滚验收通过。
-- Docker 开机启动已启用、三个容器为 unless-stopped；尚未实际重启服务器。
-- GitHub deploy key 尚未被仓库接受，推送和 GitHub CI 尚未验证。
-
-GitHub 权限配置完成后需要读取远端分支，确认与原始提交一致，再推送并验证 CI。
+按P1先建立ent模型/迁移、项目隔离、真实本地/LDAP/OIDC认证与六角色权限，再推进执行器等业务。API当前没有连接持久化服务，`healthz`只证明进程存活。暂未接入真实BMC/GPU设备，也未做万台容量PoC；RAG/pgvector及生产对象存储维护方案按计划评估。设计中的接口与状态不要标成现有功能。

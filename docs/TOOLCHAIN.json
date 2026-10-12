@@ -1,0 +1,21 @@
+{
+  "checked_at": "2026-10-12",
+  "go": "1.27.2",
+  "node": "22.23.3",
+  "npm": "10.9.9",
+  "docker": "29.9.0",
+  "compose": "5.6.0",
+  "protoc": "3.21.12",
+  "os": "Ubuntu 26.04 LTS amd64",
+  "sources": {
+    "go": "https://go.dev/dl/",
+    "node": "https://nodejs.org/dist/v22.23.3/"
+  },
+  "minio": {
+    "scope": "development only",
+    "release": "RELEASE.2025-10-15T17-29-55Z",
+    "revision": "9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a",
+    "archive_sha256": "45521908307306e925c98d629e1c17d78c8b72b6ee242b1bfb1409f7d8ee5841"
+  },
+  "dependency_versions": "go.mod/go.sum and package-lock.json are authoritative"
+}
