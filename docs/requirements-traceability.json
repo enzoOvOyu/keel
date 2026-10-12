@@ -1069,7 +1069,13 @@
         "F-1.7",
         "F-1.8"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Media registry implemented: MediaItem with one-way lifecycle uploaded->verified->approved->retired, scope uniqueness (scope,type,name,version), sha256/arch/dependency validation, manifest gate before verification, uploader/approver separation rejecting self-approval, irreversible retirement keeping history readable. Verified: uniqueness 409, digest validation, second-reviewer approval, retired rejects transitions, cross-scope invisible. Artifact storage bytes (MinIO), distribution logs, cache accounting (F-1.7), media:// admission (F-1.8), ParamSelect sync (F-1.9) remain planned.",
+      "evidence_refs": [
+        "scripts/check-media-integration.py",
+        "internal/platform/media.go",
+        "docs/HANDOFF.md"
+      ]
     },
     {
       "id": "WP-1.11",
