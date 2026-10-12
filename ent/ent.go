@@ -13,6 +13,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/enzoOvOyu/keel/ent/audit"
+	"github.com/enzoOvOyu/keel/ent/devicemodel"
+	"github.com/enzoOvOyu/keel/ent/devicemodelslot"
+	"github.com/enzoOvOyu/keel/ent/devicemodelversion"
 	"github.com/enzoOvOyu/keel/ent/idempotency"
 	"github.com/enzoOvOyu/keel/ent/loginthrottle"
 	"github.com/enzoOvOyu/keel/ent/membership"
@@ -79,13 +82,16 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			audit.Table:         audit.ValidColumn,
-			idempotency.Table:   idempotency.ValidColumn,
-			loginthrottle.Table: loginthrottle.ValidColumn,
-			membership.Table:    membership.ValidColumn,
-			project.Table:       project.ValidColumn,
-			session.Table:       session.ValidColumn,
-			user.Table:          user.ValidColumn,
+			audit.Table:              audit.ValidColumn,
+			devicemodel.Table:        devicemodel.ValidColumn,
+			devicemodelslot.Table:    devicemodelslot.ValidColumn,
+			devicemodelversion.Table: devicemodelversion.ValidColumn,
+			idempotency.Table:        idempotency.ValidColumn,
+			loginthrottle.Table:      loginthrottle.ValidColumn,
+			membership.Table:         membership.ValidColumn,
+			project.Table:            project.ValidColumn,
+			session.Table:            session.ValidColumn,
+			user.Table:               user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

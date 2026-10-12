@@ -25,6 +25,80 @@ var (
 		Columns:    AuditsColumns,
 		PrimaryKey: []*schema.Column{AuditsColumns[0]},
 	}
+	// DeviceModelsColumns holds the columns for the "device_models" table.
+	DeviceModelsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Size: 32},
+		{Name: "scope_key", Type: field.TypeString, Size: 120},
+		{Name: "name", Type: field.TypeString, Size: 120},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"rack", "server", "compute-tray"}},
+		{Name: "state", Type: field.TypeEnum, Enums: []string{"active", "retired"}, Default: "active"},
+		{Name: "created_by", Type: field.TypeString, Size: 32},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// DeviceModelsTable holds the schema information for the "device_models" table.
+	DeviceModelsTable = &schema.Table{
+		Name:       "device_models",
+		Columns:    DeviceModelsColumns,
+		PrimaryKey: []*schema.Column{DeviceModelsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "devicemodel_scope_key_name",
+				Unique:  true,
+				Columns: []*schema.Column{DeviceModelsColumns[1], DeviceModelsColumns[2]},
+			},
+		},
+	}
+	// DeviceModelSlotsColumns holds the columns for the "device_model_slots" table.
+	DeviceModelSlotsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Size: 32},
+		{Name: "model_version_id", Type: field.TypeString, Size: 32},
+		{Name: "slot_no", Type: field.TypeInt},
+		{Name: "pcie_slot", Type: field.TypeString, Size: 64},
+		{Name: "expect_nic_model", Type: field.TypeString, Size: 120},
+		{Name: "panel_port", Type: field.TypeString, Size: 64},
+		{Name: "default_role", Type: field.TypeEnum, Enums: []string{"management", "storage", "compute", "oob", "unused"}},
+	}
+	// DeviceModelSlotsTable holds the schema information for the "device_model_slots" table.
+	DeviceModelSlotsTable = &schema.Table{
+		Name:       "device_model_slots",
+		Columns:    DeviceModelSlotsColumns,
+		PrimaryKey: []*schema.Column{DeviceModelSlotsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "devicemodelslot_model_version_id_slot_no",
+				Unique:  true,
+				Columns: []*schema.Column{DeviceModelSlotsColumns[1], DeviceModelSlotsColumns[2]},
+			},
+		},
+	}
+	// DeviceModelVersionsColumns holds the columns for the "device_model_versions" table.
+	DeviceModelVersionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Size: 32},
+		{Name: "model_id", Type: field.TypeString, Size: 32},
+		{Name: "version", Type: field.TypeInt},
+		{Name: "hw_spec", Type: field.TypeJSON},
+		{Name: "expected_topology", Type: field.TypeJSON},
+		{Name: "capability_matrix", Type: field.TypeJSON},
+		{Name: "panel_layout", Type: field.TypeJSON},
+		{Name: "bom_expect", Type: field.TypeJSON},
+		{Name: "default_role_plan", Type: field.TypeJSON},
+		{Name: "content_hash", Type: field.TypeString, Size: 64},
+		{Name: "published_at", Type: field.TypeTime},
+	}
+	// DeviceModelVersionsTable holds the schema information for the "device_model_versions" table.
+	DeviceModelVersionsTable = &schema.Table{
+		Name:       "device_model_versions",
+		Columns:    DeviceModelVersionsColumns,
+		PrimaryKey: []*schema.Column{DeviceModelVersionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "devicemodelversion_model_id_version",
+				Unique:  true,
+				Columns: []*schema.Column{DeviceModelVersionsColumns[1], DeviceModelVersionsColumns[2]},
+			},
+		},
+	}
 	// IdempotenciesColumns holds the columns for the "idempotencies" table.
 	IdempotenciesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, Size: 64},
@@ -129,6 +203,9 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		AuditsTable,
+		DeviceModelsTable,
+		DeviceModelSlotsTable,
+		DeviceModelVersionsTable,
 		IdempotenciesTable,
 		LoginThrottlesTable,
 		MembershipsTable,

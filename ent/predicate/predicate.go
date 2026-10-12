@@ -9,6 +9,15 @@ import (
 // Audit is the predicate function for audit builders.
 type Audit func(*sql.Selector)
 
+// DeviceModel is the predicate function for devicemodel builders.
+type DeviceModel func(*sql.Selector)
+
+// DeviceModelSlot is the predicate function for devicemodelslot builders.
+type DeviceModelSlot func(*sql.Selector)
+
+// DeviceModelVersion is the predicate function for devicemodelversion builders.
+type DeviceModelVersion func(*sql.Selector)
+
 // Idempotency is the predicate function for idempotency builders.
 type Idempotency func(*sql.Selector)
 

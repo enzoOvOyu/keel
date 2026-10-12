@@ -21,6 +21,42 @@ func (f AuditFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AuditMutation", m)
 }
 
+// The DeviceModelFunc type is an adapter to allow the use of ordinary
+// function as DeviceModel mutator.
+type DeviceModelFunc func(context.Context, *ent.DeviceModelMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DeviceModelFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DeviceModelMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeviceModelMutation", m)
+}
+
+// The DeviceModelSlotFunc type is an adapter to allow the use of ordinary
+// function as DeviceModelSlot mutator.
+type DeviceModelSlotFunc func(context.Context, *ent.DeviceModelSlotMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DeviceModelSlotFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DeviceModelSlotMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeviceModelSlotMutation", m)
+}
+
+// The DeviceModelVersionFunc type is an adapter to allow the use of ordinary
+// function as DeviceModelVersion mutator.
+type DeviceModelVersionFunc func(context.Context, *ent.DeviceModelVersionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DeviceModelVersionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DeviceModelVersionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeviceModelVersionMutation", m)
+}
+
 // The IdempotencyFunc type is an adapter to allow the use of ordinary
 // function as Idempotency mutator.
 type IdempotencyFunc func(context.Context, *ent.IdempotencyMutation) (ent.Value, error)

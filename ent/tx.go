@@ -14,6 +14,12 @@ type Tx struct {
 	config
 	// Audit is the client for interacting with the Audit builders.
 	Audit *AuditClient
+	// DeviceModel is the client for interacting with the DeviceModel builders.
+	DeviceModel *DeviceModelClient
+	// DeviceModelSlot is the client for interacting with the DeviceModelSlot builders.
+	DeviceModelSlot *DeviceModelSlotClient
+	// DeviceModelVersion is the client for interacting with the DeviceModelVersion builders.
+	DeviceModelVersion *DeviceModelVersionClient
 	// Idempotency is the client for interacting with the Idempotency builders.
 	Idempotency *IdempotencyClient
 	// LoginThrottle is the client for interacting with the LoginThrottle builders.
@@ -158,6 +164,9 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.Audit = NewAuditClient(tx.config)
+	tx.DeviceModel = NewDeviceModelClient(tx.config)
+	tx.DeviceModelSlot = NewDeviceModelSlotClient(tx.config)
+	tx.DeviceModelVersion = NewDeviceModelVersionClient(tx.config)
 	tx.Idempotency = NewIdempotencyClient(tx.config)
 	tx.LoginThrottle = NewLoginThrottleClient(tx.config)
 	tx.Membership = NewMembershipClient(tx.config)

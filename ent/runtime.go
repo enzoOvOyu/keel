@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"github.com/enzoOvOyu/keel/ent/audit"
+	"github.com/enzoOvOyu/keel/ent/devicemodel"
+	"github.com/enzoOvOyu/keel/ent/devicemodelslot"
+	"github.com/enzoOvOyu/keel/ent/devicemodelversion"
 	"github.com/enzoOvOyu/keel/ent/idempotency"
 	"github.com/enzoOvOyu/keel/ent/loginthrottle"
 	"github.com/enzoOvOyu/keel/ent/membership"
@@ -45,6 +48,104 @@ func init() {
 	auditDescID := auditFields[0].Descriptor()
 	// audit.IDValidator is a validator for the "id" field. It is called by the builders before save.
 	audit.IDValidator = auditDescID.Validators[0].(func(string) error)
+	devicemodelFields := schema.DeviceModel{}.Fields()
+	_ = devicemodelFields
+	// devicemodelDescScopeKey is the schema descriptor for scope_key field.
+	devicemodelDescScopeKey := devicemodelFields[1].Descriptor()
+	// devicemodel.ScopeKeyValidator is a validator for the "scope_key" field. It is called by the builders before save.
+	devicemodel.ScopeKeyValidator = devicemodelDescScopeKey.Validators[0].(func(string) error)
+	// devicemodelDescName is the schema descriptor for name field.
+	devicemodelDescName := devicemodelFields[2].Descriptor()
+	// devicemodel.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	devicemodel.NameValidator = devicemodelDescName.Validators[0].(func(string) error)
+	// devicemodelDescCreatedBy is the schema descriptor for created_by field.
+	devicemodelDescCreatedBy := devicemodelFields[5].Descriptor()
+	// devicemodel.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	devicemodel.CreatedByValidator = devicemodelDescCreatedBy.Validators[0].(func(string) error)
+	// devicemodelDescCreatedAt is the schema descriptor for created_at field.
+	devicemodelDescCreatedAt := devicemodelFields[6].Descriptor()
+	// devicemodel.DefaultCreatedAt holds the default value on creation for the created_at field.
+	devicemodel.DefaultCreatedAt = devicemodelDescCreatedAt.Default.(func() time.Time)
+	// devicemodelDescUpdatedAt is the schema descriptor for updated_at field.
+	devicemodelDescUpdatedAt := devicemodelFields[7].Descriptor()
+	// devicemodel.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	devicemodel.DefaultUpdatedAt = devicemodelDescUpdatedAt.Default.(func() time.Time)
+	// devicemodelDescID is the schema descriptor for id field.
+	devicemodelDescID := devicemodelFields[0].Descriptor()
+	// devicemodel.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	devicemodel.IDValidator = devicemodelDescID.Validators[0].(func(string) error)
+	devicemodelslotFields := schema.DeviceModelSlot{}.Fields()
+	_ = devicemodelslotFields
+	// devicemodelslotDescModelVersionID is the schema descriptor for model_version_id field.
+	devicemodelslotDescModelVersionID := devicemodelslotFields[1].Descriptor()
+	// devicemodelslot.ModelVersionIDValidator is a validator for the "model_version_id" field. It is called by the builders before save.
+	devicemodelslot.ModelVersionIDValidator = devicemodelslotDescModelVersionID.Validators[0].(func(string) error)
+	// devicemodelslotDescSlotNo is the schema descriptor for slot_no field.
+	devicemodelslotDescSlotNo := devicemodelslotFields[2].Descriptor()
+	// devicemodelslot.SlotNoValidator is a validator for the "slot_no" field. It is called by the builders before save.
+	devicemodelslot.SlotNoValidator = devicemodelslotDescSlotNo.Validators[0].(func(int) error)
+	// devicemodelslotDescPcieSlot is the schema descriptor for pcie_slot field.
+	devicemodelslotDescPcieSlot := devicemodelslotFields[3].Descriptor()
+	// devicemodelslot.PcieSlotValidator is a validator for the "pcie_slot" field. It is called by the builders before save.
+	devicemodelslot.PcieSlotValidator = devicemodelslotDescPcieSlot.Validators[0].(func(string) error)
+	// devicemodelslotDescExpectNicModel is the schema descriptor for expect_nic_model field.
+	devicemodelslotDescExpectNicModel := devicemodelslotFields[4].Descriptor()
+	// devicemodelslot.ExpectNicModelValidator is a validator for the "expect_nic_model" field. It is called by the builders before save.
+	devicemodelslot.ExpectNicModelValidator = devicemodelslotDescExpectNicModel.Validators[0].(func(string) error)
+	// devicemodelslotDescPanelPort is the schema descriptor for panel_port field.
+	devicemodelslotDescPanelPort := devicemodelslotFields[5].Descriptor()
+	// devicemodelslot.PanelPortValidator is a validator for the "panel_port" field. It is called by the builders before save.
+	devicemodelslot.PanelPortValidator = devicemodelslotDescPanelPort.Validators[0].(func(string) error)
+	// devicemodelslotDescID is the schema descriptor for id field.
+	devicemodelslotDescID := devicemodelslotFields[0].Descriptor()
+	// devicemodelslot.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	devicemodelslot.IDValidator = devicemodelslotDescID.Validators[0].(func(string) error)
+	devicemodelversionFields := schema.DeviceModelVersion{}.Fields()
+	_ = devicemodelversionFields
+	// devicemodelversionDescModelID is the schema descriptor for model_id field.
+	devicemodelversionDescModelID := devicemodelversionFields[1].Descriptor()
+	// devicemodelversion.ModelIDValidator is a validator for the "model_id" field. It is called by the builders before save.
+	devicemodelversion.ModelIDValidator = devicemodelversionDescModelID.Validators[0].(func(string) error)
+	// devicemodelversionDescVersion is the schema descriptor for version field.
+	devicemodelversionDescVersion := devicemodelversionFields[2].Descriptor()
+	// devicemodelversion.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	devicemodelversion.VersionValidator = devicemodelversionDescVersion.Validators[0].(func(int) error)
+	// devicemodelversionDescHwSpec is the schema descriptor for hw_spec field.
+	devicemodelversionDescHwSpec := devicemodelversionFields[3].Descriptor()
+	// devicemodelversion.DefaultHwSpec holds the default value on creation for the hw_spec field.
+	devicemodelversion.DefaultHwSpec = devicemodelversionDescHwSpec.Default.(map[string]interface{})
+	// devicemodelversionDescExpectedTopology is the schema descriptor for expected_topology field.
+	devicemodelversionDescExpectedTopology := devicemodelversionFields[4].Descriptor()
+	// devicemodelversion.DefaultExpectedTopology holds the default value on creation for the expected_topology field.
+	devicemodelversion.DefaultExpectedTopology = devicemodelversionDescExpectedTopology.Default.(map[string]interface{})
+	// devicemodelversionDescCapabilityMatrix is the schema descriptor for capability_matrix field.
+	devicemodelversionDescCapabilityMatrix := devicemodelversionFields[5].Descriptor()
+	// devicemodelversion.DefaultCapabilityMatrix holds the default value on creation for the capability_matrix field.
+	devicemodelversion.DefaultCapabilityMatrix = devicemodelversionDescCapabilityMatrix.Default.(map[string]interface{})
+	// devicemodelversionDescPanelLayout is the schema descriptor for panel_layout field.
+	devicemodelversionDescPanelLayout := devicemodelversionFields[6].Descriptor()
+	// devicemodelversion.DefaultPanelLayout holds the default value on creation for the panel_layout field.
+	devicemodelversion.DefaultPanelLayout = devicemodelversionDescPanelLayout.Default.(map[string]interface{})
+	// devicemodelversionDescBomExpect is the schema descriptor for bom_expect field.
+	devicemodelversionDescBomExpect := devicemodelversionFields[7].Descriptor()
+	// devicemodelversion.DefaultBomExpect holds the default value on creation for the bom_expect field.
+	devicemodelversion.DefaultBomExpect = devicemodelversionDescBomExpect.Default.(map[string]interface{})
+	// devicemodelversionDescDefaultRolePlan is the schema descriptor for default_role_plan field.
+	devicemodelversionDescDefaultRolePlan := devicemodelversionFields[8].Descriptor()
+	// devicemodelversion.DefaultDefaultRolePlan holds the default value on creation for the default_role_plan field.
+	devicemodelversion.DefaultDefaultRolePlan = devicemodelversionDescDefaultRolePlan.Default.(map[string]interface{})
+	// devicemodelversionDescContentHash is the schema descriptor for content_hash field.
+	devicemodelversionDescContentHash := devicemodelversionFields[9].Descriptor()
+	// devicemodelversion.ContentHashValidator is a validator for the "content_hash" field. It is called by the builders before save.
+	devicemodelversion.ContentHashValidator = devicemodelversionDescContentHash.Validators[0].(func(string) error)
+	// devicemodelversionDescPublishedAt is the schema descriptor for published_at field.
+	devicemodelversionDescPublishedAt := devicemodelversionFields[10].Descriptor()
+	// devicemodelversion.DefaultPublishedAt holds the default value on creation for the published_at field.
+	devicemodelversion.DefaultPublishedAt = devicemodelversionDescPublishedAt.Default.(func() time.Time)
+	// devicemodelversionDescID is the schema descriptor for id field.
+	devicemodelversionDescID := devicemodelversionFields[0].Descriptor()
+	// devicemodelversion.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	devicemodelversion.IDValidator = devicemodelversionDescID.Validators[0].(func(string) error)
 	idempotencyFields := schema.Idempotency{}.Fields()
 	_ = idempotencyFields
 	// idempotencyDescActorID is the schema descriptor for actor_id field.

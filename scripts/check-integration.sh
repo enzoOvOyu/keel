@@ -47,6 +47,7 @@ export KEEL_SIM_REPORT_FILE="$test_work/simulation-report.json"
 "$test_work/keel-worker" >"$test_work/worker.log" 2>&1 &
 test_worker_pid=$!
 python3 scripts/check-execution-integration.py
+python3 scripts/check-model-integration.py
 export KEEL_PLAYWRIGHT_MODULE=${KEEL_PLAYWRIGHT_MODULE:-/tmp/keel-browser-check/node_modules/playwright/index.mjs}
 test -f "$KEEL_PLAYWRIGHT_MODULE" || { echo 'Install the pinned Playwright package/browser from docs/DEPLOYMENT.md first.' >&2; exit 1; }
 node scripts/check-auth-browser.mjs

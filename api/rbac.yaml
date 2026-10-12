@@ -35,6 +35,10 @@ implemented_permissions:
     scope: project_admin_de_dl_sre_or_platform_admin
   execution:reconcile:
     scope: project_admin_dl_sre_or_platform_admin
+  model:read:
+    scope: authorized_project_membership_or_platform_admin
+  model:manage:
+    scope: project_admin_or_platform_admin
 roles:
   Viewer:
   - project:read
@@ -42,12 +46,14 @@ roles:
   - sim:target:read
   - flow:read
   - execution:read
+  - model:read
   DE:
   - project:read
   - account:password
   - sim:target:read
   - flow:read
   - execution:read
+  - model:read
   - execution:create
   - execution:control
   DL:
@@ -65,6 +71,7 @@ roles:
   - sim:target:read
   - flow:read
   - execution:read
+  - model:read
   SRE:
   - project:read
   - account:password

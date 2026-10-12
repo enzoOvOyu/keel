@@ -15,6 +15,9 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"github.com/enzoOvOyu/keel/ent/audit"
+	"github.com/enzoOvOyu/keel/ent/devicemodel"
+	"github.com/enzoOvOyu/keel/ent/devicemodelslot"
+	"github.com/enzoOvOyu/keel/ent/devicemodelversion"
 	"github.com/enzoOvOyu/keel/ent/idempotency"
 	"github.com/enzoOvOyu/keel/ent/loginthrottle"
 	"github.com/enzoOvOyu/keel/ent/membership"
@@ -30,6 +33,12 @@ type Client struct {
 	Schema *migrate.Schema
 	// Audit is the client for interacting with the Audit builders.
 	Audit *AuditClient
+	// DeviceModel is the client for interacting with the DeviceModel builders.
+	DeviceModel *DeviceModelClient
+	// DeviceModelSlot is the client for interacting with the DeviceModelSlot builders.
+	DeviceModelSlot *DeviceModelSlotClient
+	// DeviceModelVersion is the client for interacting with the DeviceModelVersion builders.
+	DeviceModelVersion *DeviceModelVersionClient
 	// Idempotency is the client for interacting with the Idempotency builders.
 	Idempotency *IdempotencyClient
 	// LoginThrottle is the client for interacting with the LoginThrottle builders.
@@ -54,6 +63,9 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.Audit = NewAuditClient(c.config)
+	c.DeviceModel = NewDeviceModelClient(c.config)
+	c.DeviceModelSlot = NewDeviceModelSlotClient(c.config)
+	c.DeviceModelVersion = NewDeviceModelVersionClient(c.config)
 	c.Idempotency = NewIdempotencyClient(c.config)
 	c.LoginThrottle = NewLoginThrottleClient(c.config)
 	c.Membership = NewMembershipClient(c.config)
@@ -150,15 +162,18 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:           ctx,
-		config:        cfg,
-		Audit:         NewAuditClient(cfg),
-		Idempotency:   NewIdempotencyClient(cfg),
-		LoginThrottle: NewLoginThrottleClient(cfg),
-		Membership:    NewMembershipClient(cfg),
-		Project:       NewProjectClient(cfg),
-		Session:       NewSessionClient(cfg),
-		User:          NewUserClient(cfg),
+		ctx:                ctx,
+		config:             cfg,
+		Audit:              NewAuditClient(cfg),
+		DeviceModel:        NewDeviceModelClient(cfg),
+		DeviceModelSlot:    NewDeviceModelSlotClient(cfg),
+		DeviceModelVersion: NewDeviceModelVersionClient(cfg),
+		Idempotency:        NewIdempotencyClient(cfg),
+		LoginThrottle:      NewLoginThrottleClient(cfg),
+		Membership:         NewMembershipClient(cfg),
+		Project:            NewProjectClient(cfg),
+		Session:            NewSessionClient(cfg),
+		User:               NewUserClient(cfg),
 	}, nil
 }
 
@@ -176,15 +191,18 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:           ctx,
-		config:        cfg,
-		Audit:         NewAuditClient(cfg),
-		Idempotency:   NewIdempotencyClient(cfg),
-		LoginThrottle: NewLoginThrottleClient(cfg),
-		Membership:    NewMembershipClient(cfg),
-		Project:       NewProjectClient(cfg),
-		Session:       NewSessionClient(cfg),
-		User:          NewUserClient(cfg),
+		ctx:                ctx,
+		config:             cfg,
+		Audit:              NewAuditClient(cfg),
+		DeviceModel:        NewDeviceModelClient(cfg),
+		DeviceModelSlot:    NewDeviceModelSlotClient(cfg),
+		DeviceModelVersion: NewDeviceModelVersionClient(cfg),
+		Idempotency:        NewIdempotencyClient(cfg),
+		LoginThrottle:      NewLoginThrottleClient(cfg),
+		Membership:         NewMembershipClient(cfg),
+		Project:            NewProjectClient(cfg),
+		Session:            NewSessionClient(cfg),
+		User:               NewUserClient(cfg),
 	}, nil
 }
 
@@ -214,8 +232,8 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.Audit, c.Idempotency, c.LoginThrottle, c.Membership, c.Project, c.Session,
-		c.User,
+		c.Audit, c.DeviceModel, c.DeviceModelSlot, c.DeviceModelVersion, c.Idempotency,
+		c.LoginThrottle, c.Membership, c.Project, c.Session, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -225,8 +243,8 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Audit, c.Idempotency, c.LoginThrottle, c.Membership, c.Project, c.Session,
-		c.User,
+		c.Audit, c.DeviceModel, c.DeviceModelSlot, c.DeviceModelVersion, c.Idempotency,
+		c.LoginThrottle, c.Membership, c.Project, c.Session, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -237,6 +255,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *AuditMutation:
 		return c.Audit.mutate(ctx, m)
+	case *DeviceModelMutation:
+		return c.DeviceModel.mutate(ctx, m)
+	case *DeviceModelSlotMutation:
+		return c.DeviceModelSlot.mutate(ctx, m)
+	case *DeviceModelVersionMutation:
+		return c.DeviceModelVersion.mutate(ctx, m)
 	case *IdempotencyMutation:
 		return c.Idempotency.mutate(ctx, m)
 	case *LoginThrottleMutation:
@@ -384,6 +408,405 @@ func (c *AuditClient) mutate(ctx context.Context, m *AuditMutation) (Value, erro
 		return (&AuditDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Audit mutation op: %q", m.Op())
+	}
+}
+
+// DeviceModelClient is a client for the DeviceModel schema.
+type DeviceModelClient struct {
+	config
+}
+
+// NewDeviceModelClient returns a client for the DeviceModel from the given config.
+func NewDeviceModelClient(c config) *DeviceModelClient {
+	return &DeviceModelClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `devicemodel.Hooks(f(g(h())))`.
+func (c *DeviceModelClient) Use(hooks ...Hook) {
+	c.hooks.DeviceModel = append(c.hooks.DeviceModel, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `devicemodel.Intercept(f(g(h())))`.
+func (c *DeviceModelClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DeviceModel = append(c.inters.DeviceModel, interceptors...)
+}
+
+// Create returns a builder for creating a DeviceModel entity.
+func (c *DeviceModelClient) Create() *DeviceModelCreate {
+	mutation := newDeviceModelMutation(c.config, OpCreate)
+	return &DeviceModelCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DeviceModel entities.
+func (c *DeviceModelClient) CreateBulk(builders ...*DeviceModelCreate) *DeviceModelCreateBulk {
+	return &DeviceModelCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DeviceModelClient) MapCreateBulk(slice any, setFunc func(*DeviceModelCreate, int)) *DeviceModelCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DeviceModelCreateBulk{err: fmt.Errorf("calling to DeviceModelClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DeviceModelCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DeviceModelCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DeviceModel.
+func (c *DeviceModelClient) Update() *DeviceModelUpdate {
+	mutation := newDeviceModelMutation(c.config, OpUpdate)
+	return &DeviceModelUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DeviceModelClient) UpdateOne(_m *DeviceModel) *DeviceModelUpdateOne {
+	mutation := newDeviceModelMutation(c.config, OpUpdateOne, withDeviceModel(_m))
+	return &DeviceModelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DeviceModelClient) UpdateOneID(id string) *DeviceModelUpdateOne {
+	mutation := newDeviceModelMutation(c.config, OpUpdateOne, withDeviceModelID(id))
+	return &DeviceModelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DeviceModel.
+func (c *DeviceModelClient) Delete() *DeviceModelDelete {
+	mutation := newDeviceModelMutation(c.config, OpDelete)
+	return &DeviceModelDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DeviceModelClient) DeleteOne(_m *DeviceModel) *DeviceModelDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DeviceModelClient) DeleteOneID(id string) *DeviceModelDeleteOne {
+	builder := c.Delete().Where(devicemodel.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DeviceModelDeleteOne{builder}
+}
+
+// Query returns a query builder for DeviceModel.
+func (c *DeviceModelClient) Query() *DeviceModelQuery {
+	return &DeviceModelQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDeviceModel},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DeviceModel entity by its id.
+func (c *DeviceModelClient) Get(ctx context.Context, id string) (*DeviceModel, error) {
+	return c.Query().Where(devicemodel.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DeviceModelClient) GetX(ctx context.Context, id string) *DeviceModel {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DeviceModelClient) Hooks() []Hook {
+	return c.hooks.DeviceModel
+}
+
+// Interceptors returns the client interceptors.
+func (c *DeviceModelClient) Interceptors() []Interceptor {
+	return c.inters.DeviceModel
+}
+
+func (c *DeviceModelClient) mutate(ctx context.Context, m *DeviceModelMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DeviceModelCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DeviceModelUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DeviceModelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DeviceModelDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DeviceModel mutation op: %q", m.Op())
+	}
+}
+
+// DeviceModelSlotClient is a client for the DeviceModelSlot schema.
+type DeviceModelSlotClient struct {
+	config
+}
+
+// NewDeviceModelSlotClient returns a client for the DeviceModelSlot from the given config.
+func NewDeviceModelSlotClient(c config) *DeviceModelSlotClient {
+	return &DeviceModelSlotClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `devicemodelslot.Hooks(f(g(h())))`.
+func (c *DeviceModelSlotClient) Use(hooks ...Hook) {
+	c.hooks.DeviceModelSlot = append(c.hooks.DeviceModelSlot, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `devicemodelslot.Intercept(f(g(h())))`.
+func (c *DeviceModelSlotClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DeviceModelSlot = append(c.inters.DeviceModelSlot, interceptors...)
+}
+
+// Create returns a builder for creating a DeviceModelSlot entity.
+func (c *DeviceModelSlotClient) Create() *DeviceModelSlotCreate {
+	mutation := newDeviceModelSlotMutation(c.config, OpCreate)
+	return &DeviceModelSlotCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DeviceModelSlot entities.
+func (c *DeviceModelSlotClient) CreateBulk(builders ...*DeviceModelSlotCreate) *DeviceModelSlotCreateBulk {
+	return &DeviceModelSlotCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DeviceModelSlotClient) MapCreateBulk(slice any, setFunc func(*DeviceModelSlotCreate, int)) *DeviceModelSlotCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DeviceModelSlotCreateBulk{err: fmt.Errorf("calling to DeviceModelSlotClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DeviceModelSlotCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DeviceModelSlotCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DeviceModelSlot.
+func (c *DeviceModelSlotClient) Update() *DeviceModelSlotUpdate {
+	mutation := newDeviceModelSlotMutation(c.config, OpUpdate)
+	return &DeviceModelSlotUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DeviceModelSlotClient) UpdateOne(_m *DeviceModelSlot) *DeviceModelSlotUpdateOne {
+	mutation := newDeviceModelSlotMutation(c.config, OpUpdateOne, withDeviceModelSlot(_m))
+	return &DeviceModelSlotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DeviceModelSlotClient) UpdateOneID(id string) *DeviceModelSlotUpdateOne {
+	mutation := newDeviceModelSlotMutation(c.config, OpUpdateOne, withDeviceModelSlotID(id))
+	return &DeviceModelSlotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DeviceModelSlot.
+func (c *DeviceModelSlotClient) Delete() *DeviceModelSlotDelete {
+	mutation := newDeviceModelSlotMutation(c.config, OpDelete)
+	return &DeviceModelSlotDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DeviceModelSlotClient) DeleteOne(_m *DeviceModelSlot) *DeviceModelSlotDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DeviceModelSlotClient) DeleteOneID(id string) *DeviceModelSlotDeleteOne {
+	builder := c.Delete().Where(devicemodelslot.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DeviceModelSlotDeleteOne{builder}
+}
+
+// Query returns a query builder for DeviceModelSlot.
+func (c *DeviceModelSlotClient) Query() *DeviceModelSlotQuery {
+	return &DeviceModelSlotQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDeviceModelSlot},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DeviceModelSlot entity by its id.
+func (c *DeviceModelSlotClient) Get(ctx context.Context, id string) (*DeviceModelSlot, error) {
+	return c.Query().Where(devicemodelslot.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DeviceModelSlotClient) GetX(ctx context.Context, id string) *DeviceModelSlot {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DeviceModelSlotClient) Hooks() []Hook {
+	return c.hooks.DeviceModelSlot
+}
+
+// Interceptors returns the client interceptors.
+func (c *DeviceModelSlotClient) Interceptors() []Interceptor {
+	return c.inters.DeviceModelSlot
+}
+
+func (c *DeviceModelSlotClient) mutate(ctx context.Context, m *DeviceModelSlotMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DeviceModelSlotCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DeviceModelSlotUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DeviceModelSlotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DeviceModelSlotDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DeviceModelSlot mutation op: %q", m.Op())
+	}
+}
+
+// DeviceModelVersionClient is a client for the DeviceModelVersion schema.
+type DeviceModelVersionClient struct {
+	config
+}
+
+// NewDeviceModelVersionClient returns a client for the DeviceModelVersion from the given config.
+func NewDeviceModelVersionClient(c config) *DeviceModelVersionClient {
+	return &DeviceModelVersionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `devicemodelversion.Hooks(f(g(h())))`.
+func (c *DeviceModelVersionClient) Use(hooks ...Hook) {
+	c.hooks.DeviceModelVersion = append(c.hooks.DeviceModelVersion, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `devicemodelversion.Intercept(f(g(h())))`.
+func (c *DeviceModelVersionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DeviceModelVersion = append(c.inters.DeviceModelVersion, interceptors...)
+}
+
+// Create returns a builder for creating a DeviceModelVersion entity.
+func (c *DeviceModelVersionClient) Create() *DeviceModelVersionCreate {
+	mutation := newDeviceModelVersionMutation(c.config, OpCreate)
+	return &DeviceModelVersionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DeviceModelVersion entities.
+func (c *DeviceModelVersionClient) CreateBulk(builders ...*DeviceModelVersionCreate) *DeviceModelVersionCreateBulk {
+	return &DeviceModelVersionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DeviceModelVersionClient) MapCreateBulk(slice any, setFunc func(*DeviceModelVersionCreate, int)) *DeviceModelVersionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DeviceModelVersionCreateBulk{err: fmt.Errorf("calling to DeviceModelVersionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DeviceModelVersionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DeviceModelVersionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DeviceModelVersion.
+func (c *DeviceModelVersionClient) Update() *DeviceModelVersionUpdate {
+	mutation := newDeviceModelVersionMutation(c.config, OpUpdate)
+	return &DeviceModelVersionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DeviceModelVersionClient) UpdateOne(_m *DeviceModelVersion) *DeviceModelVersionUpdateOne {
+	mutation := newDeviceModelVersionMutation(c.config, OpUpdateOne, withDeviceModelVersion(_m))
+	return &DeviceModelVersionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DeviceModelVersionClient) UpdateOneID(id string) *DeviceModelVersionUpdateOne {
+	mutation := newDeviceModelVersionMutation(c.config, OpUpdateOne, withDeviceModelVersionID(id))
+	return &DeviceModelVersionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DeviceModelVersion.
+func (c *DeviceModelVersionClient) Delete() *DeviceModelVersionDelete {
+	mutation := newDeviceModelVersionMutation(c.config, OpDelete)
+	return &DeviceModelVersionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DeviceModelVersionClient) DeleteOne(_m *DeviceModelVersion) *DeviceModelVersionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DeviceModelVersionClient) DeleteOneID(id string) *DeviceModelVersionDeleteOne {
+	builder := c.Delete().Where(devicemodelversion.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DeviceModelVersionDeleteOne{builder}
+}
+
+// Query returns a query builder for DeviceModelVersion.
+func (c *DeviceModelVersionClient) Query() *DeviceModelVersionQuery {
+	return &DeviceModelVersionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDeviceModelVersion},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DeviceModelVersion entity by its id.
+func (c *DeviceModelVersionClient) Get(ctx context.Context, id string) (*DeviceModelVersion, error) {
+	return c.Query().Where(devicemodelversion.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DeviceModelVersionClient) GetX(ctx context.Context, id string) *DeviceModelVersion {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DeviceModelVersionClient) Hooks() []Hook {
+	return c.hooks.DeviceModelVersion
+}
+
+// Interceptors returns the client interceptors.
+func (c *DeviceModelVersionClient) Interceptors() []Interceptor {
+	return c.inters.DeviceModelVersion
+}
+
+func (c *DeviceModelVersionClient) mutate(ctx context.Context, m *DeviceModelVersionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DeviceModelVersionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DeviceModelVersionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DeviceModelVersionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DeviceModelVersionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DeviceModelVersion mutation op: %q", m.Op())
 	}
 }
 
@@ -1188,10 +1611,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Audit, Idempotency, LoginThrottle, Membership, Project, Session, User []ent.Hook
+		Audit, DeviceModel, DeviceModelSlot, DeviceModelVersion, Idempotency,
+		LoginThrottle, Membership, Project, Session, User []ent.Hook
 	}
 	inters struct {
-		Audit, Idempotency, LoginThrottle, Membership, Project, Session,
-		User []ent.Interceptor
+		Audit, DeviceModel, DeviceModelSlot, DeviceModelVersion, Idempotency,
+		LoginThrottle, Membership, Project, Session, User []ent.Interceptor
 	}
 )
