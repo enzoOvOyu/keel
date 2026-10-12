@@ -17,6 +17,7 @@ import { Route as AdminAuditsRouteImport } from './routes/admin.audits'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as PProjectIdRouteImport } from './routes/p.$projectId'
 import { Route as PProjectIdAuditsRouteImport } from './routes/p_.$projectId.audits'
+import { Route as PProjectIdExecutionsRouteImport } from './routes/p_.$projectId.executions'
 import { Route as PProjectIdMembersRouteImport } from './routes/p_.$projectId.members'
 
 const IndexRoute = IndexRouteImport.update({
@@ -59,6 +60,11 @@ const PProjectIdAuditsRoute = PProjectIdAuditsRouteImport.update({
   path: '/p/$projectId/audits',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PProjectIdExecutionsRoute = PProjectIdExecutionsRouteImport.update({
+  id: '/p_/$projectId/executions',
+  path: '/p/$projectId/executions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PProjectIdMembersRoute = PProjectIdMembersRouteImport.update({
   id: '/p_/$projectId/members',
   path: '/p/$projectId/members',
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/p/$projectId': typeof PProjectIdRoute
   '/p/$projectId/audits': typeof PProjectIdAuditsRoute
+  '/p/$projectId/executions': typeof PProjectIdExecutionsRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
 }
 export interface FileRoutesByTo {
@@ -85,6 +92,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/p/$projectId': typeof PProjectIdRoute
   '/p/$projectId/audits': typeof PProjectIdAuditsRoute
+  '/p/$projectId/executions': typeof PProjectIdExecutionsRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
 }
 export interface FileRoutesById {
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/p/$projectId': typeof PProjectIdRoute
   '/p_/$projectId/audits': typeof PProjectIdAuditsRoute
+  '/p_/$projectId/executions': typeof PProjectIdExecutionsRoute
   '/p_/$projectId/members': typeof PProjectIdMembersRoute
 }
 export interface FileRouteTypes {
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/p/$projectId'
     | '/p/$projectId/audits'
+    | '/p/$projectId/executions'
     | '/p/$projectId/members'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/p/$projectId'
     | '/p/$projectId/audits'
+    | '/p/$projectId/executions'
     | '/p/$projectId/members'
   id:
     | '__root__'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/p/$projectId'
     | '/p_/$projectId/audits'
+    | '/p_/$projectId/executions'
     | '/p_/$projectId/members'
   fileRoutesById: FileRoutesById
 }
@@ -144,6 +156,7 @@ export interface RootRouteChildren {
   AdminUsersRoute: typeof AdminUsersRoute
   PProjectIdRoute: typeof PProjectIdRoute
   PProjectIdAuditsRoute: typeof PProjectIdAuditsRoute
+  PProjectIdExecutionsRoute: typeof PProjectIdExecutionsRoute
   PProjectIdMembersRoute: typeof PProjectIdMembersRoute
 }
 
@@ -205,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectIdAuditsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p_/$projectId/executions': {
+      id: '/p_/$projectId/executions'
+      path: '/p/$projectId/executions'
+      fullPath: '/p/$projectId/executions'
+      preLoaderRoute: typeof PProjectIdExecutionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p_/$projectId/members': {
       id: '/p_/$projectId/members'
       path: '/p/$projectId/members'
@@ -224,6 +244,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminUsersRoute: AdminUsersRoute,
   PProjectIdRoute: PProjectIdRoute,
   PProjectIdAuditsRoute: PProjectIdAuditsRoute,
+  PProjectIdExecutionsRoute: PProjectIdExecutionsRoute,
   PProjectIdMembersRoute: PProjectIdMembersRoute,
 }
 export const routeTree = rootRouteImport
