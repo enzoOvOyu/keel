@@ -162,6 +162,14 @@ func (s *Store) SessionResponse(ctx context.Context, a *AuthSession) (*SessionRe
 	if readExecution {
 		permissions = append(permissions, "sim:target:read", "flow:read", "execution:read")
 	}
+	// Model and media libraries share the delivery scope: any member reads,
+	// project administrators manage. Platform administrators manage globally.
+	if projectAdmin || a.User.IsAdmin {
+		permissions = append(permissions, "model:manage")
+	}
+	if projectAdmin || len(projects) > 0 || a.User.IsAdmin {
+		permissions = append(permissions, "model:read")
+	}
 	if publishExecution {
 		permissions = append(permissions, "sim:target:register", "flow:publish")
 	}

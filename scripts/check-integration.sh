@@ -54,6 +54,7 @@ export KEEL_PLAYWRIGHT_MODULE=${KEEL_PLAYWRIGHT_MODULE:-/tmp/keel-browser-check/
 test -f "$KEEL_PLAYWRIGHT_MODULE" || { echo 'Install the pinned Playwright package/browser from docs/DEPLOYMENT.md first.' >&2; exit 1; }
 node scripts/check-auth-browser.mjs
 node scripts/check-control-browser.mjs
+node scripts/check-media-browser.mjs
 KEEL_BASE_URL=http://127.0.0.1:3102 node scripts/check-browser.mjs
 echo "Integration suite passed; non-secret process logs are in $test_work"
 echo "Simulation capacity report: $test_work/simulation-report.json"

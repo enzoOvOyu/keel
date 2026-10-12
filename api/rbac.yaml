@@ -115,6 +115,9 @@ platform_admin:
 - execution:create
 - execution:control
 - execution:reconcile
+- model:read
+- model:manage
+
 notes:
 - Project Admin authority applies only to that project's members and redacted audit,
   not platform accounts.
