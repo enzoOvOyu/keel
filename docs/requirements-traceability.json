@@ -1087,7 +1087,13 @@
         "F-1.9",
         "U-4"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Parameter catalog implemented: ParamKey with typed keys (string/enum/version), scope uniqueness, default-in-options validation, retirement blocking checks. Version-typed options derive at read time from approved non-retired media in the same scope, keeping read-only transactions valid. Value checks gate execution parameters against the derived list. Verified: key validation, empty options before approval, approvals extending options with no manual edit, retired keys rejecting resurrection. ParamSelect UI wiring, dependency-matrix interception and template linkage remain planned with WP-3.8/WP-4.5.",
+      "evidence_refs": [
+        "scripts/check-param-integration.py",
+        "internal/platform/params.go",
+        "docs/HANDOFF.md"
+      ]
     },
     {
       "id": "WP-1.12",
