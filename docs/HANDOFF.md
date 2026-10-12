@@ -47,7 +47,9 @@ cat AGENTS.md docs/HANDOFF.md
 - Docker 镜像构建和 compose config 检查通过。
 - 三个服务健康启动；API /healthz 返回实际 commit SHA。
 - PostgreSQL 使用密码通过 TCP 执行 SELECT 1，Redis PING 返回 PONG。
-- 三个容器重启恢复验收进行中；Docker 开机启动已启用，尚未实际重启服务器。
+- 三个容器重启后重新达到 healthy，API 的 POST/未知路径分别返回 405/404。
+- 已实际切回上一版本镜像并验证版本号，再恢复当前版本，回滚验收通过。
+- Docker 开机启动已启用、三个容器为 unless-stopped；尚未实际重启服务器。
 - GitHub deploy key 尚未被仓库接受，推送和 GitHub CI 尚未验证。
 
 GitHub 权限配置完成后需要读取远端分支，确认与原始提交一致，再推送并验证 CI。
