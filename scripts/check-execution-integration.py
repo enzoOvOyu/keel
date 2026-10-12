@@ -149,6 +149,13 @@ other=admin.call('POST','/projects',{'name':'Other execution scope','slug':prefi
 viewer.call('GET','/projects/'+other['id']+'/executions',code=404)
 admin.call('GET','/projects/'+other['id']+'/executions/'+run['id'],code=404)
 passed('Viewer execution actions denied and foreign-project executions hidden')
+admin.call('PUT',path+'/params',{'key':'sim_driver','value_type':'version','source_media_type':'driver'},code=201)
+gated_def=definition()
+gated_def['inputs']['sim_driver']={'type':'string','required':True}
+gated=publish('gated',gated_def)
+rej=admin.call('POST',path+'/executions',{'mode':'sim','flow_version_id':gated['id'],'target_ids':[targets[0]['id']],'parameters':{'profile':'smoke','sim_driver':'9.9.9-notapproved'}},code=422)
+assert rej['code']=='PARAM_VALUE_REJECTED',rej
+passed('Catalog-gated parameters reject unapproved media versions at execution admission')
 events=admin.call('GET',path+'/executions/'+run['id']+'/events?after=0')
 assert events['items'] and events['next_cursor']>=1
 next_events=admin.call('GET',path+'/executions/'+run['id']+'/events?after='+str(events['next_cursor']))

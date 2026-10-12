@@ -3,9 +3,10 @@ package execution
 import (
 	"context"
 	"database/sql"
-		"errors"
+	"encoding/json"
+	"errors"
 	"github.com/enzoOvOyu/keel/internal/platform"
-			"time"
+	"time"
 )
 
 const executionColumns = "id,project_id,flow_version_id,mode,state,state_version,desired_state,parameters,snapshot,target_set_hash,concurrency,circuit_breaker_percent,created_by,created_at,started_at,finished_at"
@@ -66,6 +67,41 @@ func (s *Service) Create(ctx context.Context, a *Actor, projectID string, in Cre
 	params, e := flow.Definition.Parameters(in.Parameters, true)
 	if e != nil {
 		return nil, e
+	}
+	// Registered catalog keys gate their values against approved media, so an
+	// execution cannot carry an unapproved version (F-1.8). Unregistered keys
+	// remain free parameters owned by the Flow definition itself.
+	for key, value := range params {
+		text, ok := value.(string)
+		if !ok {
+			continue
+		}
+		var optionsRaw []byte
+		var valueType string
+		err := tx.QueryRowContext(ctx, `SELECT value_type, coalesce((SELECT jsonb_agg(m.version ORDER BY m.version) FROM media_items m
+					WHERE m.scope_key=k.scope_key AND m.type=k.source_media_type AND m.state='approved'), k.options)
+				FROM param_keys k WHERE (k.scope_key='global' OR k.scope_key=$1) AND k.key=$2 AND k.state='active'
+				ORDER BY k.scope_key DESC LIMIT 1`, "project:"+projectID, key).Scan(&valueType, &optionsRaw)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		var options []string
+		if e := json.Unmarshal(optionsRaw, &options); e != nil {
+			return nil, e
+		}
+		allowed := false
+		for _, option := range options {
+			if option == text {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			return nil, failure(422, "PARAM_VALUE_REJECTED", "Parameter "+key+" value is not in the approved option list")
+		}
 	}
 	rows, e := tx.QueryContext(ctx, "SELECT id,project_id,name,seed,revision,model_version,created_at FROM exec_sim_targets WHERE project_id=$1 AND id IN(SELECT jsonb_array_elements_text($2::jsonb)) ORDER BY id FOR SHARE", projectID, jsonBytes(ids))
 	if e != nil {
@@ -144,31 +180,101 @@ func (s *Service) Get(ctx context.Context, projectID, id string) (*Detail, error
 	if e != nil {
 		return nil, e
 	}
- page, e := s.Attempts(ctx,projectID,id,platform.Pagination{Page:1,PageSize:100})
- if e != nil { return nil,e }
- out:=&Detail{Execution:x,Attempts:page.Items,AttemptsTotal:page.Total,Counts:map[string]int{}}
- rows,e:=s.DB.QueryContext(ctx,"SELECT state,count(*) FROM (SELECT DISTINCT ON(target_id,task_id) state FROM exec_task_attempts WHERE execution_id=$1 ORDER BY target_id,task_id,attempt_no DESC) latest GROUP BY state",id)
- if e!=nil{return nil,e};defer rows.Close()
- for rows.Next(){var state string;var n int;if e=rows.Scan(&state,&n);e!=nil{return nil,e};out.Counts[state]=n}
- return out,rows.Err()
+	page, e := s.Attempts(ctx, projectID, id, platform.Pagination{Page: 1, PageSize: 100})
+	if e != nil {
+		return nil, e
+	}
+	out := &Detail{Execution: x, Attempts: page.Items, AttemptsTotal: page.Total, Counts: map[string]int{}}
+	rows, e := s.DB.QueryContext(ctx, "SELECT state,count(*) FROM (SELECT DISTINCT ON(target_id,task_id) state FROM exec_task_attempts WHERE execution_id=$1 ORDER BY target_id,task_id,attempt_no DESC) latest GROUP BY state", id)
+	if e != nil {
+		return nil, e
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var state string
+		var n int
+		if e = rows.Scan(&state, &n); e != nil {
+			return nil, e
+		}
+		out.Counts[state] = n
+	}
+	return out, rows.Err()
 }
-func (s *Service) Attempts(ctx context.Context,projectID,id string,p platform.Pagination)(platform.Page[Attempt],error){
- out:=platform.NewPage[Attempt](p);if e:=p.Validate();e!=nil{return out,e}
- var exists bool;if e:=s.DB.QueryRowContext(ctx,"SELECT EXISTS(SELECT 1 FROM exec_executions WHERE id=$1 AND project_id=$2)",id,projectID).Scan(&exists);e!=nil{return out,e};if !exists{return out,failure(404,"NOT_FOUND","Execution not found")}
- if e:=s.DB.QueryRowContext(ctx,"SELECT count(*) FROM exec_task_attempts WHERE execution_id=$1",id).Scan(&out.Total);e!=nil{return out,e}
- rows,e:=s.DB.QueryContext(ctx,"SELECT "+attemptColumns+" FROM exec_task_attempts WHERE execution_id=$1 ORDER BY target_id,task_index,attempt_no LIMIT $2 OFFSET $3",id,p.PageSize,p.Offset());if e!=nil{return out,e};defer rows.Close()
- ids:=[]string{};index:=map[string]int{}
- for rows.Next(){a,e:=scanAttempt(rows);if e!=nil{return out,e};index[a.ID]=len(out.Items);ids=append(ids,a.ID);out.Items=append(out.Items,a)}
- if e=rows.Err();e!=nil{return out,e};rows.Close()
- receipts,e:=s.DB.QueryContext(ctx,"SELECT attempt_id,payload FROM exec_runner_receipts WHERE attempt_id IN(SELECT jsonb_array_elements_text($1::jsonb))",jsonBytes(ids));if e!=nil{return out,e};defer receipts.Close()
- for receipts.Next(){var id string;var data []byte;if e=receipts.Scan(&id,&data);e!=nil{return out,e};r,e:=decode[Receipt](data);if e!=nil{return out,e};out.Items[index[id]].Receipt=&r};return out,receipts.Err()
+func (s *Service) Attempts(ctx context.Context, projectID, id string, p platform.Pagination) (platform.Page[Attempt], error) {
+	out := platform.NewPage[Attempt](p)
+	if e := p.Validate(); e != nil {
+		return out, e
+	}
+	var exists bool
+	if e := s.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM exec_executions WHERE id=$1 AND project_id=$2)", id, projectID).Scan(&exists); e != nil {
+		return out, e
+	}
+	if !exists {
+		return out, failure(404, "NOT_FOUND", "Execution not found")
+	}
+	if e := s.DB.QueryRowContext(ctx, "SELECT count(*) FROM exec_task_attempts WHERE execution_id=$1", id).Scan(&out.Total); e != nil {
+		return out, e
+	}
+	rows, e := s.DB.QueryContext(ctx, "SELECT "+attemptColumns+" FROM exec_task_attempts WHERE execution_id=$1 ORDER BY target_id,task_index,attempt_no LIMIT $2 OFFSET $3", id, p.PageSize, p.Offset())
+	if e != nil {
+		return out, e
+	}
+	defer rows.Close()
+	ids := []string{}
+	index := map[string]int{}
+	for rows.Next() {
+		a, e := scanAttempt(rows)
+		if e != nil {
+			return out, e
+		}
+		index[a.ID] = len(out.Items)
+		ids = append(ids, a.ID)
+		out.Items = append(out.Items, a)
+	}
+	if e = rows.Err(); e != nil {
+		return out, e
+	}
+	rows.Close()
+	receipts, e := s.DB.QueryContext(ctx, "SELECT attempt_id,payload FROM exec_runner_receipts WHERE attempt_id IN(SELECT jsonb_array_elements_text($1::jsonb))", jsonBytes(ids))
+	if e != nil {
+		return out, e
+	}
+	defer receipts.Close()
+	for receipts.Next() {
+		var id string
+		var data []byte
+		if e = receipts.Scan(&id, &data); e != nil {
+			return out, e
+		}
+		r, e := decode[Receipt](data)
+		if e != nil {
+			return out, e
+		}
+		out.Items[index[id]].Receipt = &r
+	}
+	return out, receipts.Err()
 }
 func (s *Service) List(ctx context.Context, projectID string, p platform.Pagination) (platform.Page[ExecutionSummary], error) {
- out := platform.NewPage[ExecutionSummary](p)
- if e := p.Validate(); e != nil { return out,e }
- if e:=s.DB.QueryRowContext(ctx,"SELECT count(*) FROM exec_executions WHERE project_id=$1",projectID).Scan(&out.Total);e!=nil{return out,e}
- rows,e:=s.DB.QueryContext(ctx,"SELECT id,project_id,flow_version_id,mode,state,state_version,desired_state,target_set_hash,jsonb_array_length(snapshot->'targets'),concurrency,circuit_breaker_percent,created_by,created_at,started_at,finished_at FROM exec_executions WHERE project_id=$1 ORDER BY created_at DESC,id DESC LIMIT $2 OFFSET $3",projectID,p.PageSize,p.Offset());if e!=nil{return out,e};defer rows.Close()
- for rows.Next(){var x ExecutionSummary;if e=rows.Scan(&x.ID,&x.ProjectID,&x.FlowVersionID,&x.Mode,&x.State,&x.StateVersion,&x.DesiredState,&x.TargetSetHash,&x.TargetCount,&x.Concurrency,&x.CircuitBreakerPercent,&x.CreatedBy,&x.CreatedAt,&x.StartedAt,&x.FinishedAt);e!=nil{return out,e};out.Items=append(out.Items,x)};return out,rows.Err()
+	out := platform.NewPage[ExecutionSummary](p)
+	if e := p.Validate(); e != nil {
+		return out, e
+	}
+	if e := s.DB.QueryRowContext(ctx, "SELECT count(*) FROM exec_executions WHERE project_id=$1", projectID).Scan(&out.Total); e != nil {
+		return out, e
+	}
+	rows, e := s.DB.QueryContext(ctx, "SELECT id,project_id,flow_version_id,mode,state,state_version,desired_state,target_set_hash,jsonb_array_length(snapshot->'targets'),concurrency,circuit_breaker_percent,created_by,created_at,started_at,finished_at FROM exec_executions WHERE project_id=$1 ORDER BY created_at DESC,id DESC LIMIT $2 OFFSET $3", projectID, p.PageSize, p.Offset())
+	if e != nil {
+		return out, e
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var x ExecutionSummary
+		if e = rows.Scan(&x.ID, &x.ProjectID, &x.FlowVersionID, &x.Mode, &x.State, &x.StateVersion, &x.DesiredState, &x.TargetSetHash, &x.TargetCount, &x.Concurrency, &x.CircuitBreakerPercent, &x.CreatedBy, &x.CreatedAt, &x.StartedAt, &x.FinishedAt); e != nil {
+			return out, e
+		}
+		out.Items = append(out.Items, x)
+	}
+	return out, rows.Err()
 }
 
 func (s *Service) Control(ctx context.Context, a *Actor, projectID, id string, in ControlInput, key, trace string) (*Execution, error) {
@@ -374,4 +480,3 @@ func (s *Service) Events(ctx context.Context, projectID, id string, after int64)
 	}
 	return out, rows.Err()
 }
-
