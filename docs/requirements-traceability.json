@@ -948,7 +948,13 @@
         "F-1.12",
         "F-1.13"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Simulated execution engine implemented and verified: flows with immutable versions, logical simulation targets, outbox-driven worker, task attempts, run control and reconciliation. Capacity evidence: 2,000 persisted logical targets completed at 100% in 301.6s (seed 42, worker concurrency 8), satisfying the P1 fan-out criterion of 99.5%. Simulation only: no device transport and no hardware acceptance. Hardware channels (SSH, keel-agent, BMC runners) remain planned.",
+      "evidence_refs": [
+        "scripts/check-execution-integration.py",
+        "scripts/check-integration.sh",
+        "docs/HANDOFF.md"
+      ]
     },
     {
       "id": "WP-1.5",
@@ -1024,12 +1030,11 @@
         "U-15"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Implemented Keel keel/rib login illustration, slogan, local login and project shell. Execution views, OIDC callback, full component catalog and subscriptions remain planned.",
+      "implementation_notes": "Keel keel/rib login illustration, slogan, local login, project shell, and a project-scoped simulated executions view with target registration, execution detail, run control and paginated task attempts. OIDC callback, the Flow designer and the full component catalog remain planned.",
       "evidence_refs": [
-        "docs/HANDOFF.md",
-        "internal/platform/store_integration_test.go",
-        "scripts/check-auth-integration.py",
-        "scripts/check-auth-browser.mjs"
+        "web/src/features/execution/ExecutionsPage.tsx",
+        "scripts/check-control-browser.mjs",
+        "docs/HANDOFF.md"
       ]
     },
     {
@@ -1762,7 +1767,7 @@
     }
   ],
   "implementation_checkpoint": {
-    "stage": "P1 partial: local authentication and project workspace",
+    "stage": "P1 partial: local authentication, project workspace and a verified simulated execution kernel",
     "brand_slogan": "Knowledge-led Execution, Enforcement & Lifecycle",
     "scope": "No claim of complete P1, hardware acceptance, LDAP/OIDC or deployment scheduling."
   }

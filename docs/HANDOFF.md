@@ -1,15 +1,16 @@
 # Keel 开发交接
 
-## 暂停检查点（2026-10-12，用户明确要求）
+## 收口记录（2026-10-12，P1 收口已完成）
 
-- 用户要求“先暂停吧”；已中断三个并行开发任务，不继续实施、迁移、发布或推送，等用户恢复指令。
-- 最新开发保留在远端 `/opt/keel` 工作区，**尚未提交或推送**。已部署预览仍为 `66fecbe5facf050e0f2deac351e85277af5ca553`；API、PostgreSQL、Redis、MinIO 本次暂停检查均 healthy。不要将下述工作区变更当作已部署版本。
-- 控制面账号/成员/审计前后端已实现。原12组认证+9组管理HTTP曾通过、管理真实浏览器10组通过；随后成员删除重建的ABA版本修复与CLI保护通过Go PostgreSQL -race。新增HTTP ABA断言仍待最终整轮执行。
-- 执行引擎模拟实现、独立worker/sim、003迁移、执行OpenAPI片段正在开发；暂停前尚未冻结、未完成整轮测试。root已接入router和Docker/Compose/Makefile，但这些集成修改尚未验证。`scripts/check-execution-integration.py`刚写入，尚未运行；不能声称2,000目标扇出已通过。执行UI和inventory下一任务已派发后中断，应先看实际文件及git diff，不假设已完成。
-- `scripts/test-environment.py`创建的带disposable标签PostgreSQL在127.0.0.1:15433，独立auth/http/execution库；测试凭据仅服务器/tmp下0600文件。`keel:control-test`窗口继续运行3102隔离测试API（旧快照），其HTTP库的003校验和可能落后于工作区。恢复时协调停止该测试窗口，**只重建隔离HTTP库**再以最终源码迁移；不得重置正式数据库。
-- 新增`make integration`及`check-integration.sh`尚未整体运行；已串联auth/control HTTP与browser，尚须接执行worker/执行测试。正式数据库仍仅已发布001，本轮没有执行正式迁移。
-- 恢复顺序：检查git差异/代理留下的文件→冻结003及契约、完成执行UI→隔离数据库最终回归（含权限/锁/unknown/2k容量证据）→备份正式数据库→显式迁移与最小权限核验→提交推送并部署同SHA→更新本交接记录。继续按IMPLEMENTATION-PLAN推进剩余P1及后续阶段，不能把模拟执行内核称为完整平台。
+- 暂停点已固化并提交：`7ba6b6b`（控制面与模拟执行内核）、`0c572a8`（集成套件接入 worker）、`d339850`（执行契约补全）、`388d10b`（执行 UI）。分支 main，ahead 4，**未推送**。
+- 集成套件已跑通：make check + 认证 12 组 + 控制 9 组 + 执行 8 组 + 真实浏览器 26 组全绿。
+- **执行引擎已有真实证据**：2,000 个持久化逻辑目标 100% 完成，301.6s，seed 42，worker 并发 8，满足 P1 扇出 ≥99.5% 判据。报告 `sim-capacity-2000-20261012T144047Z.json`。**模拟内核，非硬件验收**（hardware_evidence false、real_device_connections 0）。
+- 正式库已迁移至 003（002_control + 003_execution），keel_app 最小权限已核验：审计仅 SELECT/INSERT，迁移历史只读。迁移前备份 `pre-migration-20261012T145432Z.dump`。
+- 已部署 `388d10b`，`/healthz` 与 `/api/v1` 版本一致，authentication=ready，business_ready 仍为 false。
+- **回滚**：镜像保留 66fecbe 等历史版本；数据库有 pre-p1 / pre-commit / pre-migration 三份 dump。已在隔离库演练恢复：8 张表与用户、项目数据完整还原（9 条 GRANT 报错仅因隔离库无 keel_app 角色）。**回滚代码必须同步回滚数据库**：旧代码遇 003 schema 会拒绝启动。正式库本身尚未做实际恢复演练。
+- 追踪矩阵：WP-1.4 由 planned 更新为 partial；P2~P5 仍全部 planned。
 
+遗留：隔离测试库 127.0.0.1:15433 待清理（用 `python3 scripts/test-environment.py stop`）。
 
 记录日期：2026-10-12。主工作区 `ubuntu@13.158.38.7:/opt/keel`，分支main。品牌字标为 **Keel**，slogan 为 **Knowledge-led Execution, Enforcement & Lifecycle**；仓库、命令、包名和服务标识保留 `keel`。
 
