@@ -13,7 +13,7 @@
     "typecheck": "npm run api:generate && npm run tokens && npm run routes && tsc --noEmit",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "api:generate": "openapi-typescript ../api/openapi.yaml -o src/generated/api.d.ts"
+    "api:generate": "openapi-typescript ../api/openapi.yaml -o src/generated/api.d.ts && openapi-typescript ../api/execution.openapi.yaml -o src/generated/execution.d.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "5.104.2",

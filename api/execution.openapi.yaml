@@ -1,4 +1,15 @@
 {
+  "openapi": "3.1.0",
+  "info": {
+    "title": "keel simulated execution API",
+    "version": "0.1.0",
+    "description": "Simulated execution contracts for flows, immutable flow versions, logical simulation targets, executions, task attempts, run control and reconciliation. The worker runs only explicitly simulated adapters: there is no device transport, so these contracts are not hardware acceptance. State-changing requests require an exact configured Origin, a session-bound X-CSRF-Token and an Idempotency-Key. Responses never include credential values or infrastructure secrets."
+  },
+  "tags": [
+    {
+      "name": "Simulation execution"
+    }
+  ],
   "paths": {
     "/api/v1/projects/{id}/sim-targets": {
       "get": {
@@ -1039,6 +1050,174 @@
     }
   },
   "components": {
+    "securitySchemes": {
+      "preLoginCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "keel_session",
+        "description": "Short-lived unauthenticated CSRF context returned by authCSRF; consumed and rotated by successful local login."
+      },
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "keel_session",
+        "description": "Random opaque server-side session; HttpOnly, SameSite=Lax, Path=/, and Secure outside explicit loopback HTTP development."
+      }
+    },
+    "parameters": {
+      "Origin": {
+        "name": "Origin",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uri"
+        },
+        "description": "Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust."
+      },
+      "CSRFToken": {
+        "name": "X-CSRF-Token",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Bound to the current pre-login or authenticated session; retained in application memory only."
+      },
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "description": "Reuse for a retry of the exact same account, operation and payload; use a new key for a new action."
+      },
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000,
+          "default": 1
+        }
+      },
+      "PageSize": {
+        "name": "page_size",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        }
+      }
+    },
+    "responses": {
+      "InvalidRequest": {
+        "description": "Invalid JSON, unsupported fields, validation failure, or missing idempotency key.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthenticated": {
+        "description": "Missing, invalid, expired or revoked session; on login, a uniform account or credential failure.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Origin or CSRF rejected, or the account does not have the required action permission.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "The requested project is not visible to this account; used for both absent and unauthorized IDs.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Version conflict, duplicate username/membership/project slug, idempotency content mismatch, or removal of the last active platform/project administrator.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "UnsupportedMediaType": {
+        "description": "Request Content-Type must be application/json.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "TooLarge": {
+        "description": "JSON request exceeds 64 KiB.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Account or source throttled. The default failure policy is 5 failed attempts within 15 minutes.",
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Minimum seconds before retrying."
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unavailable": {
+        "description": "Authentication is not configured or initialized, or an essential service is unavailable. No authenticated session is issued on failure.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
     "schemas": {
       "FlowInput": {
         "type": "object",
@@ -2204,6 +2383,34 @@
           "page",
           "page_size"
         ]
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message",
+          "details",
+          "trace_id"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "trace_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       }
     }
   }
