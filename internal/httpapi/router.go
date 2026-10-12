@@ -3,18 +3,38 @@ package httpapi
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"github.com/enzoOvOyu/keel/internal/platform"
 	"github.com/gin-gonic/gin"
+	"io"
+	"log/slog"
 	"net/http"
 	"path"
 	"strings"
 )
 
-// New serves only foundation metadata and static UI. Domain APIs remain denied
-// until the session/project authorization implementation is delivered.
+// New preserves the fail-closed preview mode when no database is configured.
 func New(version, staticDir string) http.Handler {
+	return newRouter(version, staticDir, nil, platform.Config{})
+}
+
+func NewWithStore(version, staticDir string, store *platform.Store, config platform.Config) http.Handler {
+	if store == nil {
+		panic("NewWithStore requires a store")
+	}
+	if err := config.Validate(); err != nil {
+		panic(err)
+	}
+	return newRouter(version, staticDir, store, config)
+}
+func newRouter(version, staticDir string, store *platform.Store, config platform.Config) http.Handler {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
-	r.Use(gin.Recovery())
+	r.SetTrustedProxies(nil)
+	r.Use(gin.CustomRecoveryWithWriter(io.Discard, func(c *gin.Context, recovered any) {
+		slog.Error("request panic", "trace_id", c.GetString("trace_id"))
+		failure(c, 500, "INTERNAL_ERROR", "Internal server error")
+		c.Abort()
+	}))
 	r.HandleMethodNotAllowed = true
 	r.Use(func(c *gin.Context) {
 		var id [16]byte
@@ -38,10 +58,28 @@ func New(version, staticDir string) http.Handler {
 	r.GET("/healthz", health)
 	r.HEAD("/healthz", func(c *gin.Context) { c.Status(200) })
 	r.GET("/api/v1", func(c *gin.Context) {
-		c.JSON(200, gin.H{"name": "keel", "version": version, "phase": "foundation", "authentication": "not_configured", "business_ready": false})
+		authentication := "not_configured"
+		if store != nil {
+			ready, err := store.HasAdministrator(c.Request.Context())
+			if err != nil {
+				failure(c, 503, "SERVICE_UNAVAILABLE", "Service temporarily unavailable")
+				return
+			}
+			authentication = "setup_required"
+			if ready {
+				authentication = "ready"
+			}
+		}
+		c.JSON(200, gin.H{"name": "keel", "version": version, "phase": "p1-foundation", "authentication": authentication, "business_ready": false})
 	})
-	r.GET("/api/v1/auth/providers", func(c *gin.Context) { c.JSON(200, gin.H{"status": "not_configured", "methods": []string{}}) })
-	r.POST("/api/v1/auth/login", func(c *gin.Context) { failure(c, 503, "AUTH_NOT_CONFIGURED", "Identity service is not enabled") })
+	if store == nil {
+		r.GET("/api/v1/auth/providers", func(c *gin.Context) {
+			c.JSON(200, gin.H{"status": "not_configured", "methods": []string{}, "environment": "development"})
+		})
+		r.POST("/api/v1/auth/login", func(c *gin.Context) { failure(c, 503, "AUTH_NOT_CONFIGURED", "Identity service is not enabled") })
+	} else {
+		(&authAPI{store: store, config: config, preRequests: make(map[string]preRate)}).register(r)
+	}
 	r.NoMethod(func(c *gin.Context) { failure(c, 405, "METHOD_NOT_ALLOWED", "Method not allowed") })
 	fs := http.Dir(staticDir)
 	server := http.FileServer(fs)

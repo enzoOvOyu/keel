@@ -1,19 +1,13 @@
-# keel web
+# Keel web
 
-React 19 / TypeScript 5 / Vite 6 foundation. `/` redirects to `/login` through TanStack Router file routes; TanStack Query fetches the public identity bootstrap contract.
+React / TypeScript / Vite 前端；代码、安装与构建在远端 `/opt/keel` 完成。
 
-The login page is an environment preview. Its submit button stays disabled and credentials are never submitted. The backend currently reports `{"status":"not_configured","methods":[]}` at `GET /api/v1/auth/providers`. Real identity/session flows remain P1 work. Unexpected identity configuration fails closed instead of enabling a fake login.
+- `/login`：Keel 船体龙骨动画、完整英文 slogan、本地登录、预会话 CSRF、明确的未配置/未初始化/统一错误/限流状态。
+- `/projects`：真实授权项目列表、空态、平台管理员创建项目（防重复提交与请求幂等）。
+- `/p/<projectId>`：真实项目基础信息、当前角色和规划状态；没有模拟设备指标或交付执行入口。
+- HttpOnly 会话由后端维护，CSRF与认证数据仅存内存；浏览器持久化只保存语言和主题。
+- LDAP/OIDC、成员编辑和交付业务模块按后续工作包实现。
 
-From the repository root after workspace installation:
+从仓库根目录运行 `npm run check`、`npm run build`。`npm run dev:web` 在127.0.0.1:5173提供热更新，并代理 API 到3001。生产预览由 Go 服务提供构建文件，见根目录部署文档。
 
-```sh
-npm run typecheck --workspace @keel/web
-npm run build --workspace @keel/web
-npm run dev --workspace @keel/web
-```
-
-Vite listens on `127.0.0.1:5173`, proxying `/api` and `/healthz` to `127.0.0.1:3001`. Production serves `web/dist` from the Go server; Vite preview is for static inspection only and does not proxy the API.
-
-`src/styles/tokens.json` is the sole color/token source. `npm run tokens` generates matching light/dark CSS. Local storage contains only `keel.theme` and `keel.language`; never credentials or bearer tokens. The site uses local SVG and system fonts, with no third-party assets.
-
-Validation: run typecheck/build; verify `/login` in light/dark and mobile layouts; keyboard labels, password visibility and disabled submit; provider connection failures with retry; and independent `/healthz` access. No business data or success metrics are fabricated.
+OpenAPI 类型由 `api/openapi.yaml` 生成，主题CSS从 `src/styles/tokens.json` 生成；不要手动维护生成文件。路由使用 TanStack 文件路由。

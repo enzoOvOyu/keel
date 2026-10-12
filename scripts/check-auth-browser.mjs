@@ -1,0 +1,55 @@
+/** Real browser against an isolated migrated PostgreSQL authentication service. */
+import assert from 'node:assert/strict'
+import { readFile, stat } from 'node:fs/promises'
+import { pathToFileURL } from 'node:url'
+const file=process.env.KEEL_AUTH_BROWSER_CREDENTIALS_FILE || '/tmp/keel-auth-browser-credentials.json'
+assert(file.startsWith('/tmp/keel-'))
+assert.equal((await stat(file)).mode & 0o077,0,'Test credentials must be private')
+const credentials=JSON.parse(await readFile(file,'utf8'))
+assert(['http://127.0.0.1:3102','http://localhost:3102'].includes(credentials.base_url))
+const { chromium }=await import(pathToFileURL(process.env.KEEL_PLAYWRIGHT_MODULE || '/tmp/keel-browser-check/node_modules/playwright/index.mjs').href)
+const browser=await chromium.launch({headless:true})
+const context=await browser.newContext({baseURL:credentials.base_url,viewport:{width:1440,height:960},locale:'zh-CN',reducedMotion:'reduce'})
+const page=await context.newPage();page.setDefaultTimeout(15000)
+const errors=[];const requests=[]
+page.on('pageerror',e=>errors.push(e.message))
+page.on('console',m=>{if(m.type()!=='error')return;const url=m.location().url||'';if(m.text().includes('401')&&url.includes('/api/v1/auth/session'))return;errors.push(m.text())})
+page.on('request',r=>{if(r.postData()?.includes(credentials.password))requests.push({url:r.url(),method:r.method()})})
+const pass=name=>console.log('PASS '+name)
+async function login(expected='/projects'){await page.locator('#username').fill(credentials.username);await page.locator('#password').fill(credentials.password);await page.locator('#login-form button[type=submit]').click();await page.waitForURL(url=>url.pathname===expected)}
+async function noOverflow(){assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))}
+try{
+ await page.goto('/login?next=https%3A%2F%2Fexample.com',{waitUntil:'networkidle'})
+ assert.equal((await page.locator('#brand-heading').innerText()).replace(/\s+/g,' ').trim(),'Knowledge-led Execution, Enforcement & Lifecycle')
+ assert.equal(await page.locator('.wordmark').innerText(),'Keel')
+ await page.locator('#login-form button:not([disabled])[type=submit]').waitFor()
+ await page.screenshot({path:'/tmp/keel-p1-login-light.png',fullPage:true})
+ await page.getByRole('button',{name:'切换到深色主题',exact:true}).click()
+ await page.screenshot({path:'/tmp/keel-p1-login-dark.png',fullPage:true})
+ await page.getByRole('button',{name:'切换到浅色主题',exact:true}).click()
+ await login();await page.getByRole('heading',{name:'项目',exact:true}).waitFor().catch(()=>page.locator('#new-project-button').waitFor())
+ assert.equal(new URL(page.url()).pathname,'/projects');pass('Real local login and external next rejection')
+ const cookie=(await context.cookies()).find(c=>c.name==='keel_session');assert(cookie?.httpOnly);assert.equal(cookie.sameSite,'Lax');assert(!(await page.evaluate(()=>document.cookie)).includes('keel_session'))
+ assert(!(await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}))).includes(credentials.password));pass('HttpOnly session; no credentials in browser storage')
+ await page.locator('#new-project-button').click();await page.locator('#project-name').fill('Keel 隔离验收项目');await page.locator('#project-slug').fill('browser-'+Date.now());await page.locator('#project-description').fill('隔离测试数据库中的实际验收记录')
+ const sessionRefresh=page.waitForResponse(r=>r.url().endsWith('/api/v1/auth/session'))
+ await page.evaluate(()=>window.dispatchEvent(new Event('visibilitychange')))
+ assert.equal((await sessionRefresh).status(),200)
+ assert.equal(await page.locator('#project-name').inputValue(),'Keel 隔离验收项目')
+ pass('Same-user background session recheck preserves unsaved project form')
+ const created=page.waitForResponse(r=>r.url().endsWith('/api/v1/projects')&&r.request().method()==='POST')
+ await page.locator('.project-create button[type=submit]').click()
+ const response=await created;assert.equal(response.status(),201);const project=await response.json();await page.waitForURL('**/p/'+project.id)
+ await page.getByRole('heading',{name:project.name,exact:true}).waitFor();await noOverflow()
+ await page.screenshot({path:'/tmp/keel-p1-project.png',fullPage:true});pass('Authenticated project creation and real project detail')
+ await page.reload({waitUntil:'networkidle'});await page.getByRole('heading',{name:project.name,exact:true}).waitFor();pass('Project and session survive browser reload')
+ await page.setViewportSize({width:390,height:844});await noOverflow();await page.screenshot({path:'/tmp/keel-p1-project-mobile.png',fullPage:true})
+ await page.getByRole('button',{name:'退出登录',exact:true}).click();await page.waitForURL('**/login');assert(!(await context.cookies()).some(c=>c.name==='keel_session'))
+ await page.goto('/p/'+project.id,{waitUntil:'networkidle'});await page.waitForURL('**/login?**');assert(!(await page.locator('body').innerText()).includes(project.name));pass('Logout revokes session and blocks cached private navigation')
+ await page.screenshot({path:'/tmp/keel-p1-login-mobile.png',fullPage:true});await noOverflow()
+ await page.getByRole('button',{name:'Switch to English',exact:true}).click();assert.equal(await page.title(),'Sign in · Keel')
+ await login('/p/'+project.id);await noOverflow();await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.waitForURL('**/login');pass('English mobile login/project/logout flow without horizontal overflow')
+ assert(requests.every(r=>r.method==='POST'&&r.url===credentials.base_url+'/api/v1/auth/login'))
+ assert.deepEqual(errors,[]);pass('No unexpected console/runtime errors or credential destinations')
+ console.log('Real browser P1 integration passed')
+}finally{await browser.close()}

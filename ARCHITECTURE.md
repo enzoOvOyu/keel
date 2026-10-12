@@ -597,6 +597,8 @@ algbw/busbw 为 collective 或 group 测量，单位 GB/s，并保存 nccl-tests
 
 RBAC 的六类角色（DE/DL/NE/SRE/Viewer/Admin）和权限代码维护在 `api/rbac.yaml`，OpenAPI 每个操作引用权限及 scope，前端消费 session.permissions；后端始终再校验。issue assign/verify/close、trust bootstrap/repair、固件、电源、清理、门禁豁免、介质批准分别为独立动作；Viewer 仅在获授权范围导出，Admin 不隐式绕过交付审批。
 
+P1资源错误约定：未认证返回401，无动作权限返回403；项目详情等资源读取在不存在或无项目授权时均返回404，避免泄露资源存在性。此行为保持拒绝跨项目访问的判据。
+
 ### 4.7 指标、历史与页面刷新
 
 所有指标使用 `{value, unit, source, observed_at, received_at, freshness, method, scope, quality}`，区分网络 Gb/s 与 NCCL GB/s；空值/未知/不支持显式编码。在线率分别表示 Agent 通道、SSH 可达或 BMC 电源状态，Agent 失联不能推断设备断电；unknown 区间单列并显示覆盖率，不悄悄计入可用或不可用。

@@ -1,10 +1,23 @@
-name: keel foundation checks
+name: Keel platform checks
 on: [push, pull_request]
 permissions:
   contents: read
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+        env:
+          POSTGRES_USER: keel_test
+          POSTGRES_DB: keel_test_auth
+          POSTGRES_PASSWORD: isolated-ci-only
+        ports: ['15433:5432']
+        options: >-
+          --health-cmd "pg_isready -U keel_test -d keel_test_auth"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      KEEL_TEST_DATABASE_URL: postgresql://keel_test:isolated-ci-only@127.0.0.1:15433/keel_test_auth?sslmode=disable
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -17,6 +30,31 @@ jobs:
           cache: npm
       - run: npm ci
       - run: make check
+      - name: PostgreSQL authentication, authorization, and browser integration
+        env:
+          KEEL_ADMIN_BINARY: /tmp/keel-ci-admin
+          KEEL_AUTH_TEST_BASE_URL: http://127.0.0.1:3102
+          KEEL_AUTH_BROWSER_CREDENTIALS_FILE: /tmp/keel-auth-browser-credentials.json
+          KEEL_ENV: development
+          KEEL_INSECURE_DEV_COOKIE: 'true'
+          KEEL_PUBLIC_ORIGINS: http://127.0.0.1:3102,http://localhost:3102
+          KEEL_LISTEN_ADDR: 127.0.0.1:3102
+        run: |
+          docker exec '${{ job.services.postgres.id }}' createdb -U keel_test keel_test_http
+          export KEEL_DATABASE_URL='postgresql://keel_test:isolated-ci-only@127.0.0.1:15433/keel_test_http?sslmode=disable'
+          export KEEL_TEST_DATABASE_URL="$KEEL_DATABASE_URL"
+          go build -o /tmp/keel-ci-admin ./cmd/keel-admin
+          go build -o /tmp/keel-ci-api ./cmd/keel-api
+          /tmp/keel-ci-admin migrate
+          /tmp/keel-ci-api > /tmp/keel-ci-api.log 2>&1 &
+          keel_ci_api_pid=$!
+          trap 'kill "$keel_ci_api_pid" 2>/dev/null || true; rm -f /tmp/keel-auth-browser-credentials.json' EXIT
+          curl --retry 20 --retry-delay 1 --retry-connrefused --fail http://127.0.0.1:3102/healthz
+          python3 scripts/check-auth-integration.py
+          npm install --prefix /tmp/keel-browser-check --save-exact playwright@1.64.0
+          /tmp/keel-browser-check/node_modules/.bin/playwright install --with-deps chromium
+          node scripts/check-auth-browser.mjs
+          KEEL_BASE_URL=http://127.0.0.1:3102 KEEL_PLAYWRIGHT_MODULE=/tmp/keel-browser-check/node_modules/playwright/index.mjs node scripts/check-browser.mjs
       - run: docker compose config --quiet
       - run: docker compose up -d --build --wait --wait-timeout 120 api
       - run: curl --fail http://127.0.0.1:3000/healthz

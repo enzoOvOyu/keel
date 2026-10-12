@@ -18,5 +18,30 @@
     "archive_sha256": "45521908307306e925c98d629e1c17d78c8b72b6ee242b1bfb1409f7d8ee5841"
   },
   "dependency_versions": "go.mod/go.sum and package-lock.json are authoritative",
-  "tmux": "3.6"
+  "tmux": "3.6",
+  "backend_foundation": {
+    "gin": "v1.11.0",
+    "ent": "v0.14.6",
+    "pgx": "v5.11.0",
+    "x_crypto": "v0.58.0",
+    "x_term": "v0.47.0",
+    "ent_generation": "go generate ./ent (go.mod tool dependency)",
+    "migrations": "internal/platform/migrations/*.sql; embedded, versioned, checksum validated; keel-admin migrate only"
+  },
+  "integration_testing": {
+    "postgres": "16-alpine (digest pinned in compose.yaml and CI)",
+    "playwright": "1.64.0",
+    "browser": "Chromium installed by the pinned Playwright package",
+    "databases": [
+      "keel_test_auth",
+      "keel_test_http"
+    ],
+    "loopback_postgres_port": 15433,
+    "loopback_api_port": 3102
+  },
+  "development_database": {
+    "loopback_port": 15432,
+    "application_role": "keel_app",
+    "privileged_operations": "keel-admin with separate server-only admin.env"
+  }
 }

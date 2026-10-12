@@ -6,6 +6,11 @@ services:
       context: .
     restart: unless-stopped
     init: true
+    environment:
+      KEEL_ENV: ${KEEL_ENV:-development}
+      KEEL_DATABASE_URL: ${KEEL_DATABASE_URL:-}
+      KEEL_PUBLIC_ORIGINS: ${KEEL_PUBLIC_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      KEEL_INSECURE_DEV_COOKIE: ${KEEL_INSECURE_DEV_COOKIE:-false}
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-3000}:3000"
     read_only: true
@@ -28,6 +33,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-keel}
       POSTGRES_DB: ${POSTGRES_DB:-keel}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    ports:
+      - "127.0.0.1:15432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

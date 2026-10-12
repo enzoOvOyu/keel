@@ -1,5 +1,6 @@
 /**
- * Browser acceptance for the keel foundation, run on the development server.
+ * Disabled-provider UI safety regression using explicit API fixtures.
+ * Real authentication is covered separately by check-auth-browser.mjs.
  * Requires an existing Playwright install + Chromium; does not install anything.
  * node /tmp/keel-browser-check.mjs
  * Optional KEEL_PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs
@@ -41,6 +42,8 @@ async function createPage(options = {}, { fault = false } = {}) {
   })
   contexts.push(context)
   const page = await context.newPage()
+  await page.route('**/api/v1/auth/providers', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({status:'not_configured',methods:[],environment:'development'})}))
+  await page.route('**/api/v1/auth/session', route => route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({code:'UNAUTHENTICATED',message:'Authentication required',details:[],trace_id:'ui-fixture'})}))
   page.setDefaultTimeout(15_000)
   const errors = []
   const requests = []
@@ -50,6 +53,7 @@ async function createPage(options = {}, { fault = false } = {}) {
     const text = message.text()
     // Only the intentionally injected provider 503 may produce a browser resource error.
     const location = message.location().url ?? ''
+    if (/401/.test(text) && location.includes('/api/v1/auth/session')) return
     if (fault && /503/.test(text) && (location.includes('/api/v1/auth/providers') || !location)) {
       report.expectedFaultConsoleErrors.push(text)
     } else errors.push(`Console: ${text}`)
@@ -62,7 +66,7 @@ async function createPage(options = {}, { fault = false } = {}) {
 async function ready(page, language = 'zh') {
   await page.getByText(language === 'zh' ? '身份服务尚未启用' : 'Identity service is not enabled', { exact: true }).waitFor()
   assert(await page.locator('#login-form button[type="submit"]').isDisabled(), 'Login must remain disabled')
-  assert.equal(await page.title(), language === 'zh' ? '登录 · keel' : 'Sign in · keel')
+  assert.equal(await page.title(), language === 'zh' ? '登录 · Keel' : 'Sign in · Keel')
   assert.equal(await page.locator('html').getAttribute('lang'), language === 'zh' ? 'zh-CN' : 'en')
 }
 async function theme(page, target, language = 'zh') {
@@ -148,7 +152,7 @@ try {
   assert.equal(await page.locator('html').getAttribute('data-theme'), 'light')
   assert.equal(await page.locator('#password').inputValue(), '')
   await page.goto('/', { waitUntil: 'networkidle' })
-  await page.waitForURL('**/login')
+  await page.waitForURL(url => url.pathname === '/login')
   await ready(page, 'en')
   pass('Language/theme persist across reload; root route redirects to /login')
 
@@ -190,7 +194,7 @@ try {
     providerRequests += 1
     if (injectFailure) {
       await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'test_service_unavailable' }) })
-    } else await route.continue()
+    } else await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({status:'not_configured',methods:[],environment:'development'})})
   })
   await failure.page.goto('/login', { waitUntil: 'networkidle' })
   await failure.page.getByText('暂时无法连接身份服务', { exact: true }).waitFor()
@@ -204,7 +208,7 @@ try {
   assert(!(await failure.page.getByText('暂时无法连接身份服务', { exact: true }).isVisible()))
   assertNoErrors(failure.errors)
   assertSafeRequests(failure.requests)
-  pass('Injected provider 503 fails closed; retry fetches real configuration and restores not-enabled state')
+  pass('Injected provider 503 fails closed; retry fetches disabled-provider fixture and restores not-enabled state')
 
   console.log(JSON.stringify({ status: 'passed', ...report }, null, 2))
 } catch (error) {

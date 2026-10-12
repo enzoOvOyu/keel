@@ -14,6 +14,7 @@ func TestFoundationBoundary(t *testing.T) {
 		contains     string
 	}{
 		{"GET", "/healthz", 200, "test-version"},
+		{"GET", "/api/v1", 200, "p1-foundation"},
 		{"POST", "/healthz", 405, "METHOD_NOT_ALLOWED"},
 		{"GET", "/api/v1/auth/providers", 200, "not_configured"},
 		{"POST", "/api/v1/auth/login", 503, "AUTH_NOT_CONFIGURED"},

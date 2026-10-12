@@ -3,7 +3,7 @@
 ## 开始与工作位置
 
 - 先读本文件、README.md、docs/HANDOFF.md、docs/DEPLOYMENT.md，再看本次相关设计章节和 git status。
-- 用户已批准 v2.5 复审修订、keel 品牌和登录设计；当前工作为设计落地与 Go/React 开发环境准备。功能是否实现以 HANDOFF 的验证证据为准。
+- 用户已批准 v2.5 复审修订、keel 品牌和登录设计；当前进入P1本地认证、项目与权限闭环开发。功能是否实现以 HANDOFF 的验证证据为准。
 - 主开发环境是 `ubuntu@13.158.38.7:/opt/keel`，代码归档目标是 `https://github.com/enzoOvOyu/keel`。本地设计目录可编辑后同步；业务代码、构建与环境验证在远端完成。
 - 持久开发用 `sh scripts/dev-session.sh` / `tmux attach -t keel`，沿用已有会话，不重启或覆盖用户正在使用的窗口。api3001/web5173用于开发，部署预览3000独立。SSH断开不终止tmux；主机重启后需重建开发会话。
 - 首次接通先检查代码、进程、容器、磁盘、监听端口，不覆盖用户改动、不自动卸载软件。保留数据库卷和可回滚版本。
@@ -17,7 +17,7 @@
 
 ## 实现边界
 
-- 品牌字标 `keel`；后端 Go/gin/ent、模块化单体，前端 React/TypeScript/Vite、TanStack Router/Query/Table/Virtual、Radix + 自有 CSS 令牌。版本以 go.mod、package-lock.json、工具链清单为准。
+- 品牌字标 `Keel`，slogan为 `Knowledge-led Execution, Enforcement & Lifecycle`，仓库/包名/技术标识仍为 `keel`；后端 Go/gin/ent、模块化单体，前端 React/TypeScript/Vite、TanStack Router/Query/Table/Virtual、Radix + 自有 CSS 令牌。版本以 go.mod、package-lock.json、工具链清单为准。
 - 按需加载领域依赖；不因为环境准备就实现全部业务或把占位 API 标成可用。认证就绪前只允许公开只读健康/版本/公开认证配置，所有业务资源先认证授权。
 - 外部交付设备、BMC、网络平台、GPU 工具与 AI 适配器开发默认 mock/sim；远端开发服务器属于获授权的工程环境，可以 SSH 开发。真机 PoC 必须独立记录，不用模拟结果冒充硬件达标。
 - 接口契约先行，前端类型由正式契约生成。页面复用 DESIGN-SYSTEM 组件和令牌；版本选择、就绪门、危险确认、项目作用域遵循规范。登录不使用默认口令或浏览器持久化 bearer token。

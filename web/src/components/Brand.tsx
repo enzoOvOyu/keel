@@ -13,8 +13,8 @@ export function KeelMark({ className = '' }: { className?: string }) {
 }
 export function Brand() {
   const { t } = useTranslation()
-  return <div className="brand" aria-label={`keel ${t('product')}`}>
+  return <div className="brand" aria-label={`Keel ${t('product')}`}>
     <KeelMark className="brand-mark" />
-    <div aria-hidden="true"><span className="wordmark">keel</span><span className="brand-caption">{t('product')}</span></div>
+    <div aria-hidden="true"><span className="wordmark">Keel</span><span className="brand-caption">{t('product')}</span></div>
   </div>
 }

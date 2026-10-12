@@ -1,0 +1,19 @@
+version: 1
+default: deny
+implemented_permissions:
+  project:read:
+    scope: authorized_project_membership_or_platform_admin
+  project:create:
+    scope: platform_admin
+roles:
+  Viewer: [project:read]
+  DE: [project:read]
+  DL: [project:read]
+  NE: [project:read]
+  SRE: [project:read]
+  Admin: [project:read]
+platform_admin: [project:read, project:create]
+notes:
+  - Membership Admin applies only to its project and does not grant platform project creation.
+  - Permissions not implemented here are denied; Admin never implicitly bypasses delivery approvals.
+  - Membership changes increment security_version and invalidate existing sessions.

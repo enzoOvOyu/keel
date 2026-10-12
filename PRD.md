@@ -446,7 +446,7 @@
 
 ### 3.10 FR-10 平台级功能
 
-**FR-10.1 认证、登录与会话**：提供独立 `/login` 页面，以小写 keel 字标和“交付部署平台”副标题呈现；支持本地账号、OIDC 与由后端验证的 LDAP，按管理员启用的方式展示入口。登录前只返回公开认证方式/品牌配置，不暴露项目、用户或环境秘密。无公开注册或默认口令；初始管理员通过服务器一次性初始化命令创建。
+**FR-10.1 认证、登录与会话**：提供独立 `/login` 页面，以 Keel 字标、`Knowledge-led Execution, Enforcement & Lifecycle` slogan 和“交付部署平台”副标题呈现；支持本地账号、OIDC 与由后端验证的 LDAP，按管理员启用的方式展示入口。登录前只返回公开认证方式/品牌配置，不暴露项目、用户或环境秘密。无公开注册或默认口令；初始管理员通过服务器一次性初始化命令创建。
 - 浏览器使用服务端会话，Cookie 为 HttpOnly、Secure、SameSite=Lax；写请求校验 CSRF token 与 Origin，令牌不存 localStorage。OIDC 使用 Authorization Code + PKCE、state/nonce 与允许回调 URI；LDAP 凭据经 TLS 送后端验证，不在浏览器持久化。
 - 登录失败统一“账号或凭据不正确”，不透露账号存在性；按 IP 与账号限流，默认 `auth.login_max_failures=5`、`auth.lockout_window=15min`，临时锁定支持管理员审计解锁。审计记录结果与来源，不记录口令。
 - 会话默认 `auth.idle_timeout=30min`、`auth.absolute_timeout=12h`；会话过期返回 401，保留站内返回地址并重新登录。退出通过受 CSRF 保护的 POST 撤销服务端会话、清缓存和关闭订阅；禁用账号/收回权限后既有会话立即失效。无项目权限展示明确空状态。

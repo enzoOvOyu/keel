@@ -43,7 +43,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description Public availability only; no user, project, credentials, or internal provider addresses. */
         get: operations["authProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/csrf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns CSRF context for an existing valid session, or creates a short-lived pre-login cookie. Responses must not be cached. */
+        get: operations["authCSRF"];
         put?: never;
         post?: never;
         delete?: never;
@@ -61,7 +79,91 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["loginUnavailable"];
+        /**
+         * @description Requires the pre-login cookie and its CSRF token. Success consumes that
+         *     context and rotates the session identity. Unknown accounts, wrong passwords,
+         *     and disabled accounts use the same public credential failure response.
+         *     Account/source throttling is server-side; there is no public registration or default account.
+         */
+        post: operations["authLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Returns the current active account, current authorization, visible projects,
+         *     CSRF token and effective expiry. Checks account and authorization on each request.
+         *     Defaults are 30-minute idle and 12-hour absolute lifetime.
+         */
+        get: operations["authSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Revokes the server-side session and expires the cookie. Frontend clears user/project caches and subscriptions; the prior session cannot be replayed. */
+        post: operations["authLogout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns only projects visible to the authenticated account. This first foundation increment is an unpaginated project selector, not a fleet/detail listing. */
+        get: operations["listProjects"];
+        put?: never;
+        /**
+         * @description Platform Admin only in this increment. Atomically creates a planning
+         *     project, its creator membership, audit record and idempotency result.
+         *     Idempotency-Key is scoped to account and operation; reusing it with a
+         *     different request payload is rejected. No template or gate progress is fabricated.
+         */
+        post: operations["createProject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Revalidates membership and project scope on every request. Nonexistent and unauthorized IDs both return 404 to avoid existence disclosure. */
+        get: operations["getProject"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -72,6 +174,58 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Opaque 128-bit identifier serialized as lowercase hexadecimal. */
+        EntityID: string;
+        /** @enum {string} */
+        AuthStatus: "ready" | "setup_required" | "not_configured";
+        LoginRequest: {
+            /** @description Trimmed and converted to lowercase; canonical account names use a-z, 0-9, dot, underscore and hyphen. */
+            username: string;
+            /** @description Maximum 1024 UTF-8 bytes; newly provisioned passwords require at least 12 bytes. */
+            password: string;
+            /** @constant */
+            method: "local";
+        };
+        CreateProjectRequest: {
+            name: string;
+            slug: string;
+            /** @default  */
+            description: string;
+        };
+        User: {
+            id: components["schemas"]["EntityID"];
+            username: string;
+            display_name: string;
+            is_admin: boolean;
+        };
+        Session: {
+            user: components["schemas"]["User"];
+            permissions: string[];
+            projects: components["schemas"]["ProjectSummary"][];
+            csrf_token: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        /** @enum {string} */
+        ProjectRole: "Admin" | "DE" | "DL" | "NE" | "SRE" | "Viewer";
+        /**
+         * @description FR-17 project lifecycle; this increment only creates planning projects and exposes no transitions.
+         * @enum {string}
+         */
+        ProjectState: "planning" | "deploying" | "verifying" | "delivered" | "archived";
+        ProjectSummary: {
+            id: components["schemas"]["EntityID"];
+            name: string;
+            slug: string;
+            description: string;
+            state: components["schemas"]["ProjectState"];
+            role: components["schemas"]["ProjectRole"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            version: number;
+        };
         Error: {
             code: string;
             message: string;
@@ -79,8 +233,99 @@ export interface components {
             trace_id: string;
         };
     };
-    responses: never;
-    parameters: never;
+    responses: {
+        /** @description Invalid JSON, unsupported fields, validation failure, or missing idempotency key. */
+        InvalidRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Missing, invalid, expired or revoked session; on login, a uniform account or credential failure. */
+        Unauthenticated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Origin or CSRF rejected, or the account does not have the required action permission. */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description The requested project is not visible to this account; used for both absent and unauthorized IDs. */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Project slug already exists, or an idempotency key was reused with different content. */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Request Content-Type must be application/json. */
+        UnsupportedMediaType: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description JSON request exceeds 64 KiB. */
+        TooLarge: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Account or source throttled. The default failure policy is 5 failed attempts within 15 minutes. */
+        RateLimited: {
+            headers: {
+                /** @description Minimum seconds before retrying. */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Authentication is not configured or initialized, or an essential service is unavailable. No authenticated session is issued on failure. */
+        Unavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+    };
+    parameters: {
+        /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+        Origin: string;
+        /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+        CSRFToken: string;
+        /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+        IdempotencyKey: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -124,7 +369,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Process is alive */
+            /** @description Process is alive; no response body. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -142,7 +387,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Foundation version and explicit business readiness. */
+            /** @description Version and explicit foundation readiness. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -153,9 +398,8 @@ export interface operations {
                         name: "keel";
                         version: string;
                         /** @constant */
-                        phase: "foundation";
-                        /** @constant */
-                        authentication: "not_configured";
+                        phase: "p1-foundation";
+                        authentication: components["schemas"]["AuthStatus"];
                         /** @constant */
                         business_ready: false;
                     };
@@ -172,22 +416,24 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Public login availability; no credentials or project data. */
+            /** @description Only configured and initialized methods are offered. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        /** @constant */
-                        status: "not_configured";
-                        methods: string[];
+                        status: components["schemas"]["AuthStatus"];
+                        /** @description Contains local when ready; otherwise empty. Federated methods are not implemented in this increment. */
+                        methods: "local"[];
+                        environment: string;
                     };
                 };
             };
+            503: components["responses"]["Unavailable"];
         };
     };
-    loginUnavailable: {
+    authCSRF: {
         parameters: {
             query?: never;
             header?: never;
@@ -196,8 +442,60 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Identity service is not implemented; no credentials are processed and no session is issued. */
-            503: {
+            /** @description Pre-login CSRF context; cookie uses HttpOnly and SameSite=Lax, plus Secure outside explicit loopback HTTP development. */
+            200: {
+                headers: {
+                    /** @description Opaque pre-login cookie; never persisted in browser storage by frontend code. */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        csrf_token: string;
+                        /** Format: date-time */
+                        expires_at: string;
+                    };
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    authLogin: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Authentication succeeded; a new opaque session cookie replaces the pre-login context. */
+            200: {
+                headers: {
+                    /** @description HttpOnly; SameSite=Lax; Path=/; Secure outside explicit loopback HTTP development. */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description Already authenticated; sign out before changing accounts. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -205,6 +503,148 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            413: components["responses"]["TooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    authSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authenticated session; Cache-Control no-store. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    authLogout: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session revoked; no response body. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listProjects: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authorized project summaries; an account with no projects receives an empty items array. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ProjectSummary"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createProject: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProjectRequest"];
+            };
+        };
+        responses: {
+            /** @description Project created, or original create result returned for an identical idempotent retry. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectSummary"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authorized project. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
         };
     };
 }

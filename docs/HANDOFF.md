@@ -1,35 +1,52 @@
-# keel 开发交接
+# Keel 开发交接
 
-记录日期：2026-10-12。主工作区 `ubuntu@13.158.38.7:/opt/keel`，分支main。当前提交用 `git log -1 --oneline` 查看；运行镜像提交用 `/healthz` 的version查看。上轮Node基础版本37e72b5保留在Git历史与旧Docker镜像中。
+记录日期：2026-10-12。主工作区 `ubuntu@13.158.38.7:/opt/keel`，分支main。品牌字标为 **Keel**，slogan 为 **Knowledge-led Execution, Enforcement & Lifecycle**；仓库、命令、包名和服务标识保留 `keel`。
 
-## 本轮完成
+当前源码已进入 **P1 本地认证与项目基础闭环**，不是全部P1或全部交付功能完成。版本不写死在本文件：源码用 `git log -1 --oneline`，运行镜像用 `/healthz` 的version，GitHub用 `git ls-remote origin refs/heads/main` 对照。
 
-- 用户批准的设计修订全部纳入v2.5：17个功能域、34个前端领域组件、56个WP与189个验收ID，追踪表区分设计完成与业务待实现。
-- 统一品牌keel；新增登录设计、项目/角色/危险操作边界，补门禁证据版本、分布式执行、资源锁与未知结果恢复、时序/来源/单位、固件恢复与归档清理顺序。
-- AGENTS.md已整理为助手协作约定，业务判据仍由PRD等专门文档维护。
-- Go/gin替代Node临时API，React19/TypeScript5/Vite6前端可构建；TanStack Router/Query、中英与明暗主题、令牌生成、OpenAPI类型生成已接通。ent领域模型/数据库迁移尚待P1。
-- `/login` 已实做桌面和移动预览，身份未启用时明确提示并禁提交。没有默认账户、假登录、业务KPI或真实会话。
-- Go/Node固定工具链、编译器、protoc、Docker/Compose、tmux3.6持久会话、Makefile、CI、部署脚本与数据服务已准备。版本详见TOOLCHAIN.json和锁文件。
-- PostgreSQL16、Redis7、开发MinIO采用命名卷，原有数据库/Redis卷保留。MinIO官方社区镜像不可获取，已改从固定官方源码校验构建，具体约束见DEPLOYMENT。
+## 本轮实现
 
-## 实际验证证据
+- 登录页替换为船体龙骨/肋骨线条动画；保留中英、明暗、移动布局与减少动画偏好。
+- 本地登录、预会话CSRF、同源Origin校验、随机不透明HttpOnly会话、退出撤销、账号和真实连接IP双维度限流。密码使用Argon2id，验证并发受限；口令、Cookie和token不进入日志或浏览器持久存储。
+- 会话空闲30分钟、绝对12小时；预会话15分钟。禁用账号、修改密码、授予或撤回成员权限会使原会话立即失效。
+- 项目列表、平台管理员创建项目、URL明确项目域的详情页；无权限项目统一404。项目角色支持Admin/DE/DL/NE/SRE/Viewer；项目Admin不等于平台管理员。
+- 项目创建、创建者成员关系、幂等响应与审计在同一事务；重试同一请求不重复创建，不同请求复用key返回409。事务内复核用户和会话状态，退出已提交后旧请求不能继续写入。
+- ent七个实体及生成代码、原生PostgreSQL事务、嵌入的版本化SQL迁移。API启动只检查版本与checksum，数据库连接或schema不匹配时拒绝启动。
+- `keel-admin` 支持迁移、一次性管理员初始化、创建/禁用账号、密码重设、账号及显式IP解锁、成员授予/撤销；CLI审计记录实际操作系统用户和独立请求ID。
+- 应用账号 `keel_app` 与数据库owner配置分离；应用角色不能修改/删除审计或写迁移历史。审计表另有只追加触发器；数据库管理员仍有改变结构的能力，生产归档与恢复方案继续按设计落实。
 
-- `python3 scripts/check-design.py`：17FR、34组件、引用、权限表列数、56工作包依赖无环通过；不表示业务验收通过。
-- Go静态检查、`go test -race ./...`通过；测试含业务API未认证拒绝、未启用认证不发session，以及关闭服务等待在途请求排空。
-- 前端类型检查、OpenAPI类型生成、生产构建通过；npm生产依赖审计0条报告漏洞。TanStack生成器有上游循环依赖提示，构建及浏览器运行均通过。
-- Docker多阶段镜像构建、Compose配置、四服务健康检查通过。
-- Playwright1.64.0/Chromium实际浏览器8组场景通过：中英亮暗、390px布局、禁提交且无凭据网络/存储、密码显示、偏好持久化、根路由、健康入口、故障注入与重试；正常页面无控制台错误和外部请求。
-- 浏览器截图见screenshots/login-light.png、login-dark.png、login-mobile.png；检查脚本scripts/check-browser.mjs。
-- 数据检查脚本scripts/check-data.py实际验证MinIO创建桶/PUT/GET内容一致/DELETE，PostgreSQL密码认证TCP SELECT1，Redis PING。keel-dev-smoke桶可保留，探测对象已删除。
-- Docker开机启动已启用，服务unless-stopped。本轮四个容器实际重启后恢复healthy，并通过数据读写复检；未执行真实服务器重启。
+## 验证证据与范围
 
-## GitHub与备份
+本轮后端已实际完成：
 
-GitHub main已成功推送并核对服务器/远端同一提交；后续状态仍按下方命令核验。目标 `https://github.com/enzoOvOyu/keel`；origin使用服务器默认SSH身份 `git@github.com:enzoOvOyu/keel.git`，认证与仓库读取已成功。专用keel-github别名的另一把key失败，不影响默认身份。推送状态以 `git status -sb` 与 `git ls-remote origin refs/heads/main` 对比HEAD核验。
+- Go vet、完整Go测试、ent再生成；真实PostgreSQL集成测试通过 `-race`。
+- 隔离 `keel_test_auth` 数据库验证迁移重复执行/checksum篡改拒绝、实体字段、首次管理员并发唯一、项目四路并发幂等及事务原子性。
+- 验证预会话/空闲/绝对到期，CSRF跨会话拒绝，退出/成员变更/密码重设/禁用撤销，最后有效管理员保护，审计不可改删。
+- 独立 `keel_test_http` + 3102 API 的12组HTTP黑盒通过：真实本地登录与Cookie、非法输入、Origin/CSRF、六角色授权、跨项目404、项目创建幂等、撤销、统一失败响应、账号/IP限流，以及伪造X-Forwarded-For不能绕过限流。
+- 最后复核补了 `/api/v1` 信息契约断言：`phase=p1-foundation`，认证状态使用ready/setup_required/not_configured；对应后端单测及最终版本12组HTTP复检通过。
 
-CI配置存在、远端本机检查通过与GitHub Actions通过是不同证据；本轮未通过Actions API确认CI结果。无需为了代码推送把个人token写入服务器或仓库。
+前端类型检查/构建、含隔离PG的完整make check与preflight通过。`scripts/check-auth-browser.mjs` 的8组真实浏览器检查全部通过，覆盖登录、实际项目创建/刷新/退出、外域next拒绝、私有页面拒绝、英文移动布局、秘密不落浏览器存储，以及会话后台验证不重置编辑表单。`scripts/check-browser.mjs` 的身份源未启用fixture 8组检查也通过；docs/screenshots已更新为本轮真实ready登录明暗和移动截图。
 
-离线Git bundle放 `/tmp/keel-v25.bundle`（交付时创建）并带回当前电脑；包含已提交历史，不含.env、密钥或数据卷。旧环境备份 `/tmp/keel-before-v25.bundle` 保留。bundle不是数据库备份。
+设计检查仍覆盖17FR、34领域组件及工作包依赖，不代表所有业务验收完成。测试数据库结果不替代正式数据库迁移、正式账号初始化、已部署镜像健康或GitHub Actions执行证据。
+
+## 服务器配置与账号
+
+- 部署预览：`127.0.0.1:3000`；tmux开发API：3001；Vite：5173。
+- 开发PostgreSQL宿主机连接：`127.0.0.1:15432`，仅回环开放；容器内使用postgres:5432。Redis与开发MinIO保留原命名卷。
+- 应用配置：`/home/ubuntu/.config/keel/development.env`；迁移/账号管理owner配置：同目录 `admin.env`。目录700、文件600，均不进Git。
+- 一次性初始化目标账号为 `enzo`；初始随机口令文件为 `/home/ubuntu/.config/keel/bootstrap-admin.password`，权限600。没有代码内默认密码；不要把文件内容复制到日志、文档或Git。
+- 初始化是否完成以 `GET /api/v1/auth/providers` 为准：setup_required表示仍需服务器CLI初始化，ready表示已存在有效管理员。初始化命令再次运行会拒绝覆盖已有管理员。
+- `python3 scripts/configure-development.py` 准备受限应用账号及配置；迁移成功后使用 `--grant` 授权。详细顺序和备份见 [DEPLOYMENT](DEPLOYMENT.md)。
+
+正式数据库的本轮实际记录：
+
+- 迁移前public业务表数量为0；备份为 `/home/ubuntu/.local/state/keel/backups/pre-p1-20261012T122307Z.dump`，权限600，pg_restore -l已确认可读取备份目录；尚未进行实际恢复演练。
+- 嵌入001迁移、keel_app授权、enzo首管理员初始化均成功；初始随机口令文件已按上述位置和权限保存。
+- 应用角色对审计仅可SELECT/INSERT，UPDATE/DELETE/TRUNCATE拒绝；迁移历史不可INSERT，权限检查通过。
+- 使用正式development配置的受限应用连接、enzo登录、空项目列表与退出已验证。正式库没有写入测试项目或模拟业务数据。
+- 最终源码提交与运行镜像按发布步骤对照healthz及GitHub refs核验；本文件不提前声称GitHub Actions结果。
+
+隔离测试使用临时的 `keel-auth-test-postgres` 容器及auth-test窗口；验收后移除测试容器、窗口、临时数据库配置和浏览器凭据。长期保留正式四个Compose服务及work/api/web/logs，不依赖临时测试数据。需要复检时按CI定义重建独立测试环境。
 
 ## 换电脑接续
 
@@ -39,23 +56,25 @@ cd /opt/keel
 cat AGENTS.md docs/HANDOFF.md
 git status -sb
 docker compose --profile data ps
-```
-
-预览：电脑执行 `ssh -i /path/to/enzo-using.pem -N -L 3000:127.0.0.1:3000 ubuntu@13.158.38.7`，浏览器打开 `http://localhost:3000/login`。服务器上的开发进程 `make dev-api` 用3001、`make dev-web`用5173，与部署预览分开；需要热更新时另映射5173。
-
-浏览器复检：当前服务器已在 `/tmp/keel-browser-check` 安装Playwright和Chromium，可运行 `KEEL_PLAYWRIGHT_MODULE=/tmp/keel-browser-check/node_modules/playwright/index.mjs node scripts/check-browser.mjs`。新服务器先独立安装同版Playwright及浏览器。截图/测试探测数据不是硬件业务证据。
-
-## tmux持久开发
-
-服务器已有tmux3.6，已创建`keel`会话：work是交互工作台，api运行3001开发后端，web运行5173热更新，logs跟随Compose日志。会话设置限定在keel，没有覆盖个人.tmux.conf。
-
-```sh
-sh scripts/dev-session.sh  # 幂等；已有会话不会重启任何窗口
+sh scripts/dev-session.sh
 tmux attach -t keel
 ```
 
-Ctrl-b再按d仅分离，SSH断开后进程继续。Ctrl-b再按w切窗口。进程退出时保留窗口错误输出，排除问题后可 `tmux respawn-window -t keel:api`（或web）。脚本遇到已有非本会话占用3001/5173会停止，不杀未知进程。开发会话不跨主机重启自动恢复；重启后重跑脚本。Compose服务独立由Docker自动启动。
+已有会话不重启；Ctrl-b再按d仅分离。API窗口使用 `make dev-api`，自动加载受限应用配置。修改Go后需在确认窗口属于本项目且进程已退出后重启该窗口；不重启或覆盖其他人的会话。部署3000与开发3001独立。
+
+本地访问：SSH映射3000→3000，开发热更新另映射5173→5173。API与前端通过同源Cookie工作；开发HTTP例外仅用于显式development与localhost/127.0.0.1 Origin。生产需HTTPS、Secure Cookie和独立配置。
+
+## GitHub、备份与发布
+
+origin为 `git@github.com:enzoOvOyu/keel.git`，使用服务器现有默认SSH身份，GitHub通信已正常。旧 `keel-github` 别名的专用key曾失败，不能据此误判当前origin。
+
+提交前先fetch/检查分支，再正常push，禁止强推。CI已接入隔离PostgreSQL与HTTP/浏览器检查，但当前没有通过Actions API确认本轮结果；本机检查成功和GitHub Actions成功分别记录。
+
+历史Git bundle与旧镜像保留；bundle仅包含提交历史，不含.env、SSH密钥和数据库卷。迁移前必须另做数据库备份；回滚镜像不会回滚数据库，当前API对schema版本或checksum不匹配会拒绝启动。
 
 ## 下一步
 
-按P1先建立ent模型/迁移、项目隔离、真实本地/LDAP/OIDC认证与六角色权限，再推进执行器等业务。API当前没有连接持久化服务，`healthz`只证明进程存活。暂未接入真实BMC/GPU设备，也未做万台容量PoC；RAG/pgvector及生产对象存储维护方案按计划评估。设计中的接口与状态不要标成现有功能。
+- 优先继续WP-1.13：项目成员管理UI、列表分页与身份管理，把现有CLI权限能力接入可审计的管理界面；随后补齐LDAP/OIDC联合登录。
+- 再按P1依赖推进ProjectAsset、领域实体与项目隔离、执行回执/outbox/资源锁/Agent基础；真实硬件默认仍使用mock/sim适配器。
+- 项目生命周期、资产/BOM、型号/介质、调度与交付流程按原工作包逐步落实。当前项目状态仅planning，不展示模拟设备KPI或可执行交付入口。
+- 生产TLS/身份源、备份恢复、会话与限流记录维护、审计归档、万台容量和硬件PoC仍需独立验证。

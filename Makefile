@@ -10,8 +10,9 @@ build:
 	npm run build
 	mkdir -p bin
 	go build -trimpath -o bin/keel-api ./cmd/keel-api
+	go build -trimpath -o bin/keel-admin ./cmd/keel-admin
 dev-api:
-	KEEL_LISTEN_ADDR=127.0.0.1:3001 go run ./cmd/keel-api
+	sh scripts/dev-api.sh
 dev-web:
 	npm run dev:web
 up:

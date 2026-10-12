@@ -241,7 +241,14 @@
         "S-5",
         "S-6"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Implemented local sign-in/session/logout, CLI bootstrap and six-role project reads. LDAP/OIDC, user-management UI, full permission catalog and audit UI remain planned.",
+      "evidence_refs": [
+        "docs/HANDOFF.md",
+        "internal/platform/store_integration_test.go",
+        "scripts/check-auth-integration.py",
+        "scripts/check-auth-browser.mjs"
+      ]
     },
     {
       "id": "FR-11",
@@ -393,7 +400,14 @@
         "F-17.4",
         "F-17.5"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Implemented persisted project creation/list/detail and member authorization. Lifecycle transitions, asset assignment/history, cross-project operations and SSE remain planned.",
+      "evidence_refs": [
+        "docs/HANDOFF.md",
+        "internal/platform/store_integration_test.go",
+        "scripts/check-auth-integration.py",
+        "scripts/check-auth-browser.mjs"
+      ]
     }
   ],
   "review_items": [
@@ -878,7 +892,14 @@
         "E-1",
         "E-2"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Go/React skeleton, versioned OpenAPI generation and checks implemented; Agent/sim/proto pipelines remain planned.",
+      "evidence_refs": [
+        "docs/HANDOFF.md",
+        "internal/platform/store_integration_test.go",
+        "scripts/check-auth-integration.py",
+        "scripts/check-auth-browser.mjs"
+      ]
     },
     {
       "id": "WP-1.2",
@@ -904,7 +925,14 @@
         "F-14.2",
         "F-17.2"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Implemented User/Session/LoginThrottle/Project/Membership/Audit/Idempotency ent schemas and checksum-verified migration. Machine/asset/model/port schemas, queue and outbox remain planned.",
+      "evidence_refs": [
+        "docs/HANDOFF.md",
+        "internal/platform/store_integration_test.go",
+        "scripts/check-auth-integration.py",
+        "scripts/check-auth-browser.mjs"
+      ]
     },
     {
       "id": "WP-1.4",
@@ -951,7 +979,14 @@
         "F-10.4",
         "S-5"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Implemented deny-by-default project access, append-only audit writes and create idempotency. Notifications, broader permissions, secret rotation and pagination remain planned.",
+      "evidence_refs": [
+        "docs/HANDOFF.md",
+        "internal/platform/store_integration_test.go",
+        "scripts/check-auth-integration.py",
+        "scripts/check-auth-browser.mjs"
+      ]
     },
     {
       "id": "WP-1.7",
@@ -988,7 +1023,14 @@
         "U-14",
         "U-15"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Implemented Keel keel/rib login illustration, slogan, local login and project shell. Execution views, OIDC callback, full component catalog and subscriptions remain planned.",
+      "evidence_refs": [
+        "docs/HANDOFF.md",
+        "internal/platform/store_integration_test.go",
+        "scripts/check-auth-integration.py",
+        "scripts/check-auth-browser.mjs"
+      ]
     },
     {
       "id": "WP-1.9",
@@ -1062,7 +1104,14 @@
         "F-17.4",
         "F-17.5"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Implemented project list/create/detail and six-role membership isolation. Asset history, SSE and broader project resource scopes remain planned.",
+      "evidence_refs": [
+        "docs/HANDOFF.md",
+        "internal/platform/store_integration_test.go",
+        "scripts/check-auth-integration.py",
+        "scripts/check-auth-browser.mjs"
+      ]
     },
     {
       "id": "WP-1.14",
@@ -1076,7 +1125,14 @@
         "S-6",
         "U-12"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Implemented local credentials, operator bootstrap, server sessions, CSRF, Origin checks, throttling, logout/revocation and authorized next. LDAP/OIDC remain planned.",
+      "evidence_refs": [
+        "docs/HANDOFF.md",
+        "internal/platform/store_integration_test.go",
+        "scripts/check-auth-integration.py",
+        "scripts/check-auth-browser.mjs"
+      ]
     },
     {
       "id": "WP-2.1",
@@ -1704,5 +1760,10 @@
       ],
       "implementation_status": "planned"
     }
-  ]
+  ],
+  "implementation_checkpoint": {
+    "stage": "P1 partial: local authentication and project workspace",
+    "brand_slogan": "Knowledge-led Execution, Enforcement & Lifecycle",
+    "scope": "No claim of complete P1, hardware acceptance, LDAP/OIDC or deployment scheduling."
+  }
 }

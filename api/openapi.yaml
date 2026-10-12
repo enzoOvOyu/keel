@@ -1,12 +1,25 @@
 openapi: 3.1.0
 info:
-  title: keel foundation API
-  version: 0.2.0
-  description: Implemented foundation only. Business/authentication contracts in ARCHITECTURE v2.5 are pending P1 implementation.
+  title: keel API
+  version: 0.3.0
+  description: |
+    P1 foundation contracts for local authentication, revocable server sessions,
+    and authorized projects. LDAP/OIDC adapters, templates, delivery execution,
+    and the remaining business modules are pending; business_ready stays false.
+    Every JSON request is limited to 64 KiB and rejects unknown properties.
+    Responses never include password hashes, opaque cookie values, or infrastructure secrets.
+    State-changing browser requests require an exact configured Origin and a
+    session-bound X-CSRF-Token. Local HTTP is restricted to explicit loopback development.
+tags:
+  - {name: Foundation}
+  - {name: Authentication}
+  - {name: Projects}
 paths:
   /healthz:
     get:
+      tags: [Foundation]
       operationId: health
+      security: []
       responses:
         '200':
           description: Process liveness only; does not assert database or business readiness.
@@ -14,6 +27,7 @@ paths:
             application/json:
               schema:
                 type: object
+                additionalProperties: false
                 required: [status, service, version, scope]
                 properties:
                   status: {type: string, const: ok}
@@ -21,56 +35,356 @@ paths:
                   version: {type: string}
                   scope: {type: string, const: process}
     head:
+      tags: [Foundation]
       operationId: healthHead
+      security: []
       responses:
-        '200': {description: Process is alive}
+        '200': {description: Process is alive; no response body.}
   /api/v1:
     get:
+      tags: [Foundation]
       operationId: foundationInfo
+      security: []
       responses:
         '200':
-          description: Foundation version and explicit business readiness.
+          description: Version and explicit foundation readiness.
           content:
             application/json:
               schema:
                 type: object
+                additionalProperties: false
                 required: [name, version, phase, authentication, business_ready]
                 properties:
                   name: {type: string, const: keel}
                   version: {type: string}
-                  phase: {type: string, const: foundation}
-                  authentication: {type: string, const: not_configured}
+                  phase: {type: string, const: p1-foundation}
+                  authentication: {$ref: '#/components/schemas/AuthStatus'}
                   business_ready: {type: boolean, const: false}
   /api/v1/auth/providers:
     get:
+      tags: [Authentication]
       operationId: authProviders
+      security: []
+      description: Public availability only; no user, project, credentials, or internal provider addresses.
       responses:
         '200':
-          description: Public login availability; no credentials or project data.
+          description: Only configured and initialized methods are offered.
           content:
             application/json:
               schema:
                 type: object
-                required: [status, methods]
+                additionalProperties: false
+                required: [status, methods, environment]
                 properties:
-                  status: {type: string, const: not_configured}
-                  methods: {type: array, items: {type: string}, maxItems: 0}
-  /api/v1/auth/login:
-    post:
-      operationId: loginUnavailable
+                  status: {$ref: '#/components/schemas/AuthStatus'}
+                  methods:
+                    type: array
+                    uniqueItems: true
+                    maxItems: 1
+                    items: {type: string, enum: [local]}
+                    description: Contains local when ready; otherwise empty. Federated methods are not implemented in this increment.
+                  environment: {type: string}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/auth/csrf:
+    get:
+      tags: [Authentication]
+      operationId: authCSRF
+      security: []
+      description: Returns CSRF context for an existing valid session, or creates a short-lived pre-login cookie. Responses must not be cached.
       responses:
-        '503':
-          description: Identity service is not implemented; no credentials are processed and no session is issued.
+        '200':
+          description: Pre-login CSRF context; cookie uses HttpOnly and SameSite=Lax, plus Secure outside explicit loopback HTTP development.
+          headers:
+            Set-Cookie: {schema: {type: string}, description: Opaque pre-login cookie; never persisted in browser storage by frontend code.}
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Error'}
+              schema:
+                type: object
+                additionalProperties: false
+                required: [csrf_token, expires_at]
+                properties:
+                  csrf_token: {type: string, minLength: 1}
+                  expires_at: {type: string, format: date-time}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      operationId: authLogin
+      security: [{preLoginCookie: []}]
+      description: |
+        Requires the pre-login cookie and its CSRF token. Success consumes that
+        context and rotates the session identity. Unknown accounts, wrong passwords,
+        and disabled accounts use the same public credential failure response.
+        Account/source throttling is server-side; there is no public registration or default account.
+      parameters:
+        - {$ref: '#/components/parameters/Origin'}
+        - {$ref: '#/components/parameters/CSRFToken'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LoginRequest'}
+      responses:
+        '200':
+          description: Authentication succeeded; a new opaque session cookie replaces the pre-login context.
+          headers:
+            Set-Cookie: {schema: {type: string}, description: HttpOnly; SameSite=Lax; Path=/; Secure outside explicit loopback HTTP development.}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Session'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409':
+          description: Already authenticated; sign out before changing accounts.
+          content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/auth/session:
+    get:
+      tags: [Authentication]
+      operationId: authSession
+      security: [{sessionCookie: []}]
+      description: |
+        Returns the current active account, current authorization, visible projects,
+        CSRF token and effective expiry. Checks account and authorization on each request.
+        Defaults are 30-minute idle and 12-hour absolute lifetime.
+      responses:
+        '200':
+          description: Current authenticated session; Cache-Control no-store.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Session'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/auth/logout:
+    post:
+      tags: [Authentication]
+      operationId: authLogout
+      security: [{sessionCookie: []}]
+      description: Revokes the server-side session and expires the cookie. Frontend clears user/project caches and subscriptions; the prior session cannot be replayed.
+      parameters:
+        - {$ref: '#/components/parameters/Origin'}
+        - {$ref: '#/components/parameters/CSRFToken'}
+      responses:
+        '204': {description: Session revoked; no response body.}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/projects:
+    get:
+      tags: [Projects]
+      operationId: listProjects
+      security: [{sessionCookie: []}]
+      x-permission: project:read
+      x-resource-scope: authorized-projects
+      description: Returns only projects visible to the authenticated account. This first foundation increment is an unpaginated project selector, not a fleet/detail listing.
+      responses:
+        '200':
+          description: Authorized project summaries; an account with no projects receives an empty items array.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/ProjectSummary'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    post:
+      tags: [Projects]
+      operationId: createProject
+      security: [{sessionCookie: []}]
+      x-permission: project:create
+      x-resource-scope: platform-admin
+      description: |
+        Platform Admin only in this increment. Atomically creates a planning
+        project, its creator membership, audit record and idempotency result.
+        Idempotency-Key is scoped to account and operation; reusing it with a
+        different request payload is rejected. No template or gate progress is fabricated.
+      parameters:
+        - {$ref: '#/components/parameters/Origin'}
+        - {$ref: '#/components/parameters/CSRFToken'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateProjectRequest'}
+      responses:
+        '201':
+          description: Project created, or original create result returned for an identical idempotent retry.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ProjectSummary'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/projects/{id}:
+    get:
+      tags: [Projects]
+      operationId: getProject
+      security: [{sessionCookie: []}]
+      x-permission: project:read
+      x-resource-scope: path-project-id
+      description: Revalidates membership and project scope on every request. Nonexistent and unauthorized IDs both return 404 to avoid existence disclosure.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, minLength: 1}
+      responses:
+        '200':
+          description: Authorized project.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ProjectSummary'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
 components:
+  securitySchemes:
+    preLoginCookie:
+      type: apiKey
+      in: cookie
+      name: keel_session
+      description: Short-lived unauthenticated CSRF context returned by authCSRF; consumed and rotated by successful local login.
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: keel_session
+      description: Random opaque server-side session; HttpOnly, SameSite=Lax, Path=/, and Secure outside explicit loopback HTTP development.
+  parameters:
+    Origin:
+      name: Origin
+      in: header
+      required: true
+      schema: {type: string, format: uri}
+      description: Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust.
+    CSRFToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema: {type: string, minLength: 1}
+      description: Bound to the current pre-login or authenticated session; retained in application memory only.
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 128}
+      description: Reuse for a retry of the exact same account, operation and payload; use a new key for a new action.
   schemas:
+    EntityID:
+      type: string
+      pattern: '^[a-f0-9]{32}$'
+      description: Opaque 128-bit identifier serialized as lowercase hexadecimal.
+    AuthStatus:
+      type: string
+      enum: [ready, setup_required, not_configured]
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password, method]
+      properties:
+        username: {type: string, minLength: 1, maxLength: 128, description: 'Trimmed and converted to lowercase; canonical account names use a-z, 0-9, dot, underscore and hyphen.'}
+        password: {type: string, minLength: 1, maxLength: 1024, writeOnly: true, description: 'Maximum 1024 UTF-8 bytes; newly provisioned passwords require at least 12 bytes.'}
+        method: {type: string, const: local}
+    CreateProjectRequest:
+      type: object
+      additionalProperties: false
+      required: [name, slug]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 120}
+        slug: {type: string, minLength: 1, maxLength: 64, pattern: '^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$'}
+        description: {type: string, maxLength: 2000, default: ''}
+    User:
+      type: object
+      additionalProperties: false
+      required: [id, username, display_name, is_admin]
+      properties:
+        id: {$ref: '#/components/schemas/EntityID'}
+        username: {type: string}
+        display_name: {type: string}
+        is_admin: {type: boolean}
+    Session:
+      type: object
+      additionalProperties: false
+      required: [user, permissions, projects, csrf_token, expires_at]
+      properties:
+        user: {$ref: '#/components/schemas/User'}
+        permissions: {type: array, uniqueItems: true, items: {type: string}}
+        projects: {type: array, items: {$ref: '#/components/schemas/ProjectSummary'}}
+        csrf_token: {type: string, minLength: 1}
+        expires_at: {type: string, format: date-time}
+    ProjectRole:
+      type: string
+      enum: [Admin, DE, DL, NE, SRE, Viewer]
+    ProjectState:
+      type: string
+      enum: [planning, deploying, verifying, delivered, archived]
+      description: FR-17 project lifecycle; this increment only creates planning projects and exposes no transitions.
+    ProjectSummary:
+      type: object
+      additionalProperties: false
+      required: [id, name, slug, description, state, role, created_at, updated_at, version]
+      properties:
+        id: {$ref: '#/components/schemas/EntityID'}
+        name: {type: string}
+        slug: {type: string}
+        description: {type: string}
+        state: {$ref: '#/components/schemas/ProjectState'}
+        role: {$ref: '#/components/schemas/ProjectRole'}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        version: {type: integer, minimum: 1}
     Error:
       type: object
+      additionalProperties: false
       required: [code, message, details, trace_id]
       properties:
         code: {type: string}
         message: {type: string}
         details: {type: array, items: {type: string}}
-        trace_id: {type: string}
+        trace_id: {type: string, minLength: 1}
+  responses:
+    InvalidRequest:
+      description: Invalid JSON, unsupported fields, validation failure, or missing idempotency key.
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    Unauthenticated:
+      description: Missing, invalid, expired or revoked session; on login, a uniform account or credential failure.
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    Forbidden:
+      description: Origin or CSRF rejected, or the account does not have the required action permission.
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    NotFound:
+      description: The requested project is not visible to this account; used for both absent and unauthorized IDs.
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    Conflict:
+      description: Project slug already exists, or an idempotency key was reused with different content.
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    UnsupportedMediaType:
+      description: Request Content-Type must be application/json.
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    TooLarge:
+      description: JSON request exceeds 64 KiB.
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    RateLimited:
+      description: Account or source throttled. The default failure policy is 5 failed attempts within 15 minutes.
+      headers:
+        Retry-After: {schema: {type: integer, minimum: 1}, description: Minimum seconds before retrying.}
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    Unavailable:
+      description: Authentication is not configured or initialized, or an essential service is unavailable. No authenticated session is issued on failure.
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
