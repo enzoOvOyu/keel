@@ -1313,7 +1313,12 @@
         "F-4.19",
         "U-13"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "Gate board aggregation verified (DESIGN-SYSTEM 4.4 backend): GET /projects/{id}/dashboard answers six gate cards (G1 reads the newest evidence conclusion: no_evidence/fail/pass/waived; G2 reads no_evidence until a judge exists; G3-G6 honestly report not_implemented — the board never fabricates a pass), plus the PRD KPIs: trust states (established/unverified/revoked), open and in-repair issues, unresolved LLDP differences. 6 isolated check groups green. The six-card UI with pass-rate rings, the waiver dialog and the Fleet-side KPI surfaces remain planned frontend work.",
+      "evidence_refs": [
+        "internal/platform/dashboard.go",
+        "scripts/check-dashboard.py"
+      ]
     },
     {
       "id": "WP-2.9",
