@@ -1246,7 +1246,12 @@
         "F-4.5",
         "F-4.6"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "LLDP mock channel with the T1-T5 engine verified (FR-4 G2): per-machine versioned snapshots (revision chain), G2 comparison against BOM ports with per-port classification (T1 dead link, T2 peer mismatch only when the BOM carries a peer expectation, T3 DOM thresholds, T4 flapping, T5 escalation when every port of a machine is down), differences keep snapshot evidence and history is never deleted — targeted re-verification submits a new snapshot and closes non-reproduced differences with a resolution note; read-only roles read but cannot submit; snapshots refuse foreign machines. 8 isolated check groups green. lldpd deployment, readiness handshake, real switch-platform ingestion and the difference detail UI remain planned (real-channel scope).",
+      "evidence_refs": [
+        "internal/platform/lldp.go",
+        "scripts/check-lldp.py"
+      ]
     },
     {
       "id": "WP-2.5",
