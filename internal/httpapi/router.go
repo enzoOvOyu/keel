@@ -97,6 +97,7 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 	auth.registerMachinePorts(r)
 	auth.registerPortmon(r)
 	auth.registerPcie(r)
+	auth.registerFleetStatus(r)
 		auth.registerMedia(r)
 		auth.registerParams(r)
 	}

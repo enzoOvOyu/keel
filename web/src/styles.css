@@ -1,0 +1,15 @@
+
+.drawer-mask { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 60; }
+.server-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(720px, 92vw); background: var(--surface, #fff); border-left: 1px solid rgba(125, 125, 125, 0.35); box-shadow: -12px 0 32px rgba(15, 23, 42, 0.18); z-index: 61; display: flex; flex-direction: column; }
+.drawer-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 20px 8px; }
+.drawer-tabs { display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid rgba(125, 125, 125, 0.25); flex-wrap: wrap; }
+.drawer-tab { border: 0; background: transparent; padding: 8px 12px; cursor: pointer; border-bottom: 2px solid transparent; color: inherit; }
+.drawer-tab.active { border-bottom-color: currentColor; font-weight: 600; }
+.drawer-body { overflow-y: auto; padding: 16px 20px; flex: 1; }
+.pill-pair { display: inline-flex; gap: 6px; }
+.status-pill { border: 1px solid rgba(125, 125, 125, 0.4); background: transparent; border-radius: 999px; padding: 2px 8px; font-size: 12px; cursor: pointer; color: inherit; }
+.pill-ok { border-color: #2e7d32; color: #2e7d32; }
+.pill-error { border-color: #c62828; color: #c62828; }
+.pill-unset, .pill-unknown { border-color: rgba(125, 125, 125, 0.6); color: rgba(125, 125, 125, 0.9); }
+[data-theme="dark"] .pill-ok { color: #81c784; border-color: #81c784; }
+[data-theme="dark"] .pill-error { color: #e57373; border-color: #e57373; }

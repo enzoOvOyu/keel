@@ -6,6 +6,7 @@ import { ActionDialog, ActionError, Pagination, PermissionDenied, SuccessNotice 
 import { useAction } from '../../lib/management'
 import { commitBomImport, listCollectionMatrix, listProjectAssets, previewBomImport, runCollection, runTrustAction, type BomImportInput, type BomPreview, type ProjectAsset } from '../../lib/bom'
 import { parseBomCsv } from '../../lib/bom-csv'
+import { ServerDetailDrawer, StatusPillPair, useDrawerPills, type DrawerTab } from '../fleet/ServerDetailDrawer'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 
 function BomImportDialog({ projectId, onClose, onDone }: { projectId: string; onClose: () => void; onDone: (message: string) => Promise<void> }) {
@@ -123,6 +124,8 @@ function CollectionPanel({ projectId }: { projectId: string }) {
 }
 function AssetsContent() {
   const project = useProject()
+  const [drawer, setDrawer] = useState<{ machineId: string; hostname: string; serial: string; tab?: DrawerTab } | null>(null)
+  const pills = useDrawerPills(project.id)
   const { t } = useTranslation(), session = useSession(), client = useQueryClient()
   const [page, setPage] = useState(1), [importing, setImporting] = useState(false), [trustTarget, setTrustTarget] = useState<ProjectAsset[] | null>(null), [success, setSuccess] = useState('')
   const allowed = session.permissions.includes('model:read')
@@ -148,13 +151,15 @@ function AssetsContent() {
           <tbody>{(assets.data.items ?? []).map((asset) => <tr key={asset.id}>{manage && <td><input type="checkbox" aria-label={asset.hostname} checked={selected.has(asset.machine_id)} onChange={(event) => { const next = new Set(selected); if (event.target.checked) next.add(asset.machine_id); else next.delete(asset.machine_id); setSelected(next) }} /></td>}<td><strong>{asset.hostname}</strong><span className="cell-subtitle">v{asset.version}</span></td>
             <td className="mono-value">{asset.serial_number}</td><td>{asset.model_name || '—'}</td><td>{asset.rack}{asset.unit_position ? ` / ${asset.unit_position}` : ''}</td><td className="mono-value">{asset.ip_reference || '—'}</td>
             <td><span className={`status-label ${asset.state === 'provisioned' ? 'enabled' : asset.state === 'failed' ? 'disabled' : ''}`}>{t('bom_state_' + asset.state)}</span></td>
-            <td><span className={`status-label ${asset.ssh_trust === 'established' ? 'enabled' : asset.ssh_trust === 'revoked' ? 'disabled' : ''}`}>{t('trust_state_' + asset.ssh_trust)}</span></td></tr>)}</tbody></table>
+            <td><span className={`status-label ${asset.ssh_trust === 'established' ? 'enabled' : asset.ssh_trust === 'revoked' ? 'disabled' : ''}`}>{t('trust_state_' + asset.ssh_trust)}</span></td>
+            <td>{(() => { const pill = pills.find((entry) => entry.machine_id === asset.machine_id); return pill ? <StatusPillPair pill={pill} onOpen={(tab) => setDrawer({ machineId: asset.machine_id, hostname: asset.hostname, serial: asset.serial_number, tab })} /> : null })()}</td></tr>)}</tbody></table>
           {!(assets.data.items ?? []).length && <p className="table-loading">{t('bomNoAssets')}</p>}</div>
         <Pagination offset={(page - 1) * assets.data.page_size} limit={assets.data.page_size} total={assets.data.total} busy={assets.isFetching} onChange={(offset) => setPage(offset / assets.data.page_size + 1)} /></>}
     </section>
     <CollectionPanel projectId={project.id} />
     {importing && <BomImportDialog projectId={project.id} onClose={() => setImporting(false)} onDone={(message) => done(message)} />}
     {trustTarget && <TrustDialog projectId={project.id} machines={trustTarget} onClose={() => setTrustTarget(null)} onDone={(message) => { setSelected(new Set()); return done(message) }} />}
+  {drawer && <ServerDetailDrawer projectId={project.id} machineId={drawer.machineId} hostname={drawer.hostname} serial={drawer.serial} initialTab={drawer.tab} onClose={() => setDrawer(null)} />}
   </>
 }
 export function AssetsPage({ projectId }: { projectId: string }) {

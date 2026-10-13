@@ -1399,7 +1399,13 @@
         "U-8",
         "U-14"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "ServerDetailDrawer + StatusPillPair verified (DS 4.12/4.12a): per-machine mapping/network badges triple-encoded and clickable (network column independent of mapping existence per the SSOT), a five-tab slide-over drawer (ledger/mapping/port panel/PCIe topology/monitoring) opening directly on the pill's tab, Esc/mask close keeping list context; a one-read fleet-status aggregate backs the whole page plus a machine event stream for the monitoring tab. 5 browser check groups green. ServerLampPanel (needs BMC out-of-band data, FR-16), drawer resize, prev/next navigation, trend charts and SSE live updates remain planned.",
+      "evidence_refs": [
+        "web/src/features/fleet/ServerDetailDrawer.tsx",
+        "internal/platform/fleetstatus.go",
+        "scripts/check-drawer-browser.mjs"
+      ]
     },
     {
       "id": "WP-2.12",
