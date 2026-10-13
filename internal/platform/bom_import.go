@@ -86,7 +86,7 @@ func normalizeMAC(value string) (string, bool) {
 
 // validateBomRows checks every row and returns the classified issue list.
 func validateBomRows(input BomImportInput) []BomMachineIssue {
-	var issues []BomMachineIssue
+	issues := []BomMachineIssue{}
 	seenSN := map[string]bool{}
 	seenMAC := map[string]string{}
 	for _, machine := range input.Machines {
@@ -257,7 +257,11 @@ func (s *Store) PreviewBomImport(ctx context.Context, a *AuthSession, project *P
 		preview.NewAssets = 0
 	}
 	// Merge file-level issues last so both classes appear together.
-	preview.Issues = append(validateBomRows(input), preview.Issues...)
+	fileIssues := validateBomRows(input)
+	for _, db := range preview.Issues {
+		fileIssues = append(fileIssues, db)
+	}
+	preview.Issues = fileIssues
 	return preview, nil
 }
 

@@ -58,6 +58,7 @@ node scripts/check-auth-browser.mjs
 node scripts/check-control-browser.mjs
 node scripts/check-media-browser.mjs
 node scripts/check-model-import-browser.mjs
+node scripts/check-bom-browser.mjs
 KEEL_BASE_URL=http://127.0.0.1:3102 node scripts/check-browser.mjs
 echo "Integration suite passed; non-secret process logs are in $test_work"
 echo "Simulation capacity report: $test_work/simulation-report.json"
