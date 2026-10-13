@@ -549,6 +549,12 @@
 
 **FR-14.2 设备-型号绑定**：BOM 导入时每台设备必须绑定型号（按 SN 前缀/机柜/手动映射）；绑定后该机的端口期望、角色默认值、面板布局全部来自型号库定义——**单机数据不重复存规格**，只存型号引用 + 本机差异项（如某口 RMA 过）。
 
+**FR-14.4 扫描导入（单机采集 → 型号草稿）**：平台提供"扫描一台服务器自动导入型号"的通道：在目标机上运行采集脚本（PoC 执行包形态，属 ADR-14 mock-first 开发策略；真机采集通道随 WP-1.5 双通道交付）产出标准清单 JSON（hw_spec、槽位实况），经 `POST /projects/{id}/models/import` 提交。语义约束：
+- **只产草稿，绝不自动发布**：导入产出 draft（`device_model_drafts`），人工核对后走既有 PublishModelVersion 路径发布——不可变版本的创建路径保持唯一，防止采集噪声直接污染权威型号库；
+- **幂等去重**：清单 content_hash 与既有草稿一致 → 返回既有草稿；与最新已发布版本一致 → 409 ALREADY_CURRENT（告知已是现行内容），型号库不堆积重复副本；
+- **型号自动建档**：清单携带 model 字段时自动创建/定位同名 active 型号，扫描导入不要求先手工建型号；
+- **全链审计**：model.import / model.import.reuse / model.import.discard 全部记审计（含 source_host 与 content_hash），草稿可废弃（discard），已发布版本永不被导入路径触碰。
+
 **FR-14.3 数据条目冲突防护（严格）**：
 - 型号库内：`(scope, scope_id, 型号名)` 型号身份唯一；`(model_id, version)` 版本唯一，**禁止同名同版本重复创建**（API 唯一性校验 + DB 唯一约束双保险）；
 - 设备绑定：一台设备同一时刻仅一个型号引用（`ProjectAsset.model_version_id` 指向不可变版本的单值外键），重绑定走版本化记录（旧绑定留痕）；

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "design_version": "v2.5",
   "product": "keel",
-  "updated_at": "2026-10-12",
+  "updated_at": "2026-10-13",
   "status_semantics": "Design mappings are requirements, not evidence that implementation or validation has passed.",
   "requirements": [
     {
@@ -1111,12 +1111,15 @@
         "F-14.4"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Device model library implemented: stable DeviceModel identities with global/project scopes, immutable DeviceModelVersion publishes with content hashes, slot expectations (PCIe slot, expected NIC model, panel port, default role), retirement blocking new references, and a DeviceModelEditor UI per DESIGN-SYSTEM 4.12d. Verified: scope/name and model/version uniqueness (F-14.2), immutable publishes and retirement keeping history readable (F-14.1). BOM binding validation (F-14.3/14.4), panel preview and role plan overrides remain planned with WP-1.7.",
+      "implementation_notes": "Device model library implemented: stable DeviceModel identities with global/project scopes, immutable DeviceModelVersion publishes with content hashes, slot expectations (PCIe slot, expected NIC model, panel port, default role), retirement blocking new references, and a DeviceModelEditor UI per DESIGN-SYSTEM 4.12d. Verified: scope/name and model/version uniqueness (F-14.2), immutable publishes and retirement keeping history readable (F-14.1). BOM binding validation (F-14.3/14.4), panel preview and role plan overrides remain planned with WP-1.7. Scan import added (FR-14.4): one collected server inventory becomes a draft via POST /projects/{id}/models/import; drafts are idempotent by content_hash, never auto-published, and discarded or published through the existing immutable-version path. Also fixed a latent ListModelVersions slot-scan column mismatch exposed by the first slot-bearing publish.",
       "evidence_refs": [
         "scripts/check-model-integration.py",
         "internal/platform/device_models.go",
         "web/src/features/models/ModelsPage.tsx",
-        "docs/HANDOFF.md"
+        "docs/HANDOFF.md",
+        "internal/platform/model_drafts.go",
+        "scripts/check-model-import.py",
+        "scripts/collect-model-inventory.py"
       ]
     },
     {

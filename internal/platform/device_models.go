@@ -366,7 +366,7 @@ func (s *Store) ListModelVersions(ctx context.Context, a *AuthSession, project *
 	if e = rows.Err(); e != nil {
 		return out, e
 	}
-	slotRows, e := tx.QueryContext(ctx, "SELECT slot_no,pcie_slot,expect_nic_model,panel_port,default_role FROM device_model_slots WHERE model_version_id=ANY($1) ORDER BY slot_no", versionIDs(out.Items))
+	slotRows, e := tx.QueryContext(ctx, "SELECT model_version_id,slot_no,pcie_slot,expect_nic_model,panel_port,default_role FROM device_model_slots WHERE model_version_id=ANY($1) ORDER BY slot_no", versionIDs(out.Items))
 	if e != nil {
 		return out, e
 	}
