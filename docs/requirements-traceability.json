@@ -1286,7 +1286,12 @@
         "F-4.12",
         "F-13.7"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "Port panel query view verified (FR-4 3.4.5 PortModel, mock): GET machines/{id}/port-panel aggregates per stable PhysicalPort ID the planned OS interface (latest mapping revision), latest link state with source and timestamp (unknown keeps provenance, empty panels never fabricate), DOM summary, LLDP peer from the newest snapshot, and open flapping alerts attached per port; a monitored flag marks whether dynamic monitoring data exists (maintenance keeps last data). 4 isolated check groups green. SSE live updates, the ServerDetailDrawer five-tab UI, PortPanel rendering and event history remain planned.",
+      "evidence_refs": [
+        "internal/platform/portmon.go",
+        "scripts/check-portmon.py"
+      ]
     },
     {
       "id": "WP-2.7",
