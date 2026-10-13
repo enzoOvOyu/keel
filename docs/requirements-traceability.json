@@ -1228,7 +1228,12 @@
         "F-4.3",
         "F-4.19"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "Gate evidence contract verified (G1 mock): G1 judges every target machine for a fresh successful L1 collection plus MAC evidence against the BOM, per-machine failures carry reasons; evidence rows are immutable history (re-evaluation appends), conclusions are PASS/FAIL/BLOCKED/WAIVED with skipping never recording PASS; waivers store approver, reason, scope and expiry as their own evidence rows and demand a meaningful reason; evidence carries valid_until (24h default) and downstream lookups treat expired/missing as blocked; read-only roles read but cannot judge or waive; unimplemented gates are rejected instead of pretending; evaluation is project-scoped. 8 isolated check groups green. Pre-collection job fanout (GPU/NIC/system fields, DOM degradation markers), G2-G6 judges and the gate dashboard UI remain planned.",
+      "evidence_refs": [
+        "internal/platform/gates.go",
+        "scripts/check-gates.py"
+      ]
     },
     {
       "id": "WP-2.4",
