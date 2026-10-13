@@ -1065,7 +1065,14 @@
         "E-6",
         "H-1"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "planned",
+      "evidence": "PoC execution package #P1 produced (H-1): poc/selfcheck.sh (prerequisite self-check against the live platform + tool/key/BOM window assertions), poc/run-h1.sh (real-machine driver asserting the ACCEPTANCE H-1 criteria verbatim: HTTP-first boot observation, hostname-vs-BOM, 100% auto trust via platform readback AND direct keel-ctrl SSH probes, ED25519 fingerprint capture), poc/ENVIRONMENT.md (prerequisites checklist), poc/results/CHECKLIST.md (operator observation template). Scripts are POSIX sh; self-check smoke PASSed against the deployed platform and the driver correctly FAILs without real machines. Real-machine execution and backfill remain with the engineering owner (GA gate).",
+      "evidence_refs": [
+        "poc/selfcheck.sh",
+        "poc/run-h1.sh",
+        "poc/ENVIRONMENT.md",
+        "poc/results/CHECKLIST.md"
+      ]
     },
     {
       "id": "WP-1.10",

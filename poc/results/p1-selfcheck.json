@@ -1,0 +1,9 @@
+{
+  "package": "#P1",
+  "item": "H-1",
+  "stage": "selfcheck",
+  "executed_at": "2026-10-13T03:29:07Z",
+  "base_url": "http://127.0.0.1:3000",
+  "failures": 0,
+  "report": "PASS platform-reachable: {\"authentication\":\"ready\",\"business_ready\":false,\"name\":\"keel\",\"phase\":\"p1-foundation\",\"version\":\"9ff14bc244b6ba2e3201df\\nPASS tool-ssh-keygen: /usr/bin/ssh-keygen\\nPASS tool-ssh: /usr/bin/ssh\\nPASS tool-ssh-keyscan: /usr/bin/ssh-keyscan\\nPASS tool-jq: /usr/bin/jq\\nPASS tool-curl: /usr/bin/curl\\nPASS keel-ctrl keypair present: 256 SHA256:FyJGoQq98ddrfGlCbANjV9uwEz+affEXIsFqLeNlF70 keel-ctrl PoC (ED25519)\\nPASS bom-h1.csv: 10 distinct machines (H-1 window 8-12, target 10)\\nNOTE pxe-http-base not set; set PXE_HTTP_BASE before run-h1.sh\\n"
+}

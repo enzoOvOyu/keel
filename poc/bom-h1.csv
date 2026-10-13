@@ -1,0 +1,11 @@
+SN,hostname,model_name,mac_address,port_name,rail
+B300-POC-0001,poc-b300-n01,B300-8U,aa:bb:cc:00:10:01,port1,0
+B300-POC-0002,poc-b300-n02,B300-8U,aa:bb:cc:00:10:02,port1,0
+B300-POC-0003,poc-b300-n03,B300-8U,aa:bb:cc:00:10:03,port1,0
+B300-POC-0004,poc-b300-n04,B300-8U,aa:bb:cc:00:10:04,port1,0
+B300-POC-0005,poc-b300-n05,B300-8U,aa:bb:cc:00:10:05,port1,0
+B300-POC-0006,poc-b300-n06,B300-8U,aa:bb:cc:00:10:06,port1,0
+B300-POC-0007,poc-b300-n07,B300-8U,aa:bb:cc:00:10:07,port1,0
+B300-POC-0008,poc-b300-n08,B300-8U,aa:bb:cc:00:10:08,port1,0
+B300-POC-0009,poc-b300-n09,B300-8U,aa:bb:cc:00:10:09,port1,0
+B300-POC-0010,poc-b300-n10,B300-8U,aa:bb:cc:00:10:0a,port1,0
