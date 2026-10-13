@@ -59,6 +59,7 @@ python3 scripts/check-dashboard.py
 python3 scripts/check-circuit.py
 python3 scripts/check-rerun.py
 python3 scripts/check-mon.py
+python3 scripts/check-mapping.py
 python3 scripts/check-media-integration.py
 python3 scripts/check-param-integration.py
 export KEEL_PLAYWRIGHT_MODULE=${KEEL_PLAYWRIGHT_MODULE:-/tmp/keel-browser-check/node_modules/playwright/index.mjs}

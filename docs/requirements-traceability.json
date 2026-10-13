@@ -1267,7 +1267,12 @@
         "F-4.10",
         "F-4.18"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "G3 mapping revisions verified (FR-4/3.4.4 mock): publishing is the only write path and appends immutable history — every physical port of the machine is frozen with planned OS interface naming, permanent MAC, BDF, switch port and GPU affinity; guards demand a valid non-expired G1 PASS/waiver covering the machine, zero unresolved line-order differences and exact once-only coverage of every BOM port; republish (part replacement) appends the next sequence referencing the previous revision, never overwriting. BOM ports became referenceable per FR-2.1 via GET machines/{id}/ports. 6 isolated check groups green. BDF synthesis from DeviceModelVersion topology, the mapping detail UI and CMDB feeds remain planned.",
+      "evidence_refs": [
+        "internal/platform/mapping.go",
+        "scripts/check-mapping.py"
+      ]
     },
     {
       "id": "WP-2.6",
