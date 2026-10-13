@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ProjectWorkspace, canManageProject, useProject } from '../../components/ProjectWorkspace'
 import { ActionDialog, ActionError, Pagination, PermissionDenied, SuccessNotice } from '../../components/Management'
 import { useAction } from '../../lib/management'
-import { commitBomImport, listProjectAssets, previewBomImport, runTrustAction, type BomImportInput, type BomPreview, type ProjectAsset } from '../../lib/bom'
+import { commitBomImport, listCollectionMatrix, listProjectAssets, previewBomImport, runCollection, runTrustAction, type BomImportInput, type BomPreview, type ProjectAsset } from '../../lib/bom'
 import { parseBomCsv } from '../../lib/bom-csv'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 
@@ -84,6 +84,43 @@ function TrustDialog({ projectId, machines, onClose, onDone }: { projectId: stri
     <div className="field"><label htmlFor="trust-fp">{t('trustFingerprint')}</label><input id="trust-fp" value={fingerprint} onChange={(event) => setFingerprint(event.target.value)} placeholder="SHA256:..." maxLength={120} disabled={action.busy} className="mono-value" /><span className="field-hint">{t('trustFingerprintHint')}</span></div>
   </ActionDialog>
 }
+const collectLevels = ['L1', 'L2', 'L3'] as const
+function CollectionPanel({ projectId }: { projectId: string }) {
+  const { t } = useTranslation(), session = useSession(), client = useQueryClient(), action = useAction()
+  const [level, setLevel] = useState<(typeof collectLevels)[number]>('L1'), [page, setPage] = useState(1), [success, setSuccess] = useState('')
+  const matrix = useQuery({ queryKey: ['private', session.user.id, 'project', projectId, 'collections', level, page], queryFn: ({ signal }) => listCollectionMatrix(projectId, level, page, signal) })
+  useExpireOnUnauthorized(matrix.error)
+  const manage = session.permissions.includes('model:manage')
+  async function collectSelected() {
+    const ids = (matrix.data?.items ?? []).map((r) => r.machine_id)
+    if (!ids.length) return
+    const result = await action.run(() => runCollection(projectId, level, ids, '', session.csrf_token, crypto.randomUUID()))
+    if (result.ok) {
+      const ok = result.value.results.filter((r) => r.status === 'success').length
+      setSuccess(t('collectDone', { level, successes: ok, total: ids.length }))
+      await client.invalidateQueries({ queryKey: ['private', session.user.id, 'project', projectId, 'collections'] })
+    }
+  }
+  return <div className="model-versions">
+    <h2>{t('collectTitle')}</h2>
+    <ActionError error={matrix.error} />
+    {success && <SuccessNotice>{success}</SuccessNotice>}
+    <div className="field"><label htmlFor="collect-level">{t('collectLevel')}</label>
+      <select id="collect-level" value={level} onChange={(event) => { setLevel(event.target.value as (typeof collectLevels)[number]); setPage(1) }}>
+        {collectLevels.map((value) => <option key={value} value={value}>{t('collect_level_' + value)}</option>)}
+      </select>
+      {manage && <button type="button" className="secondary-button" disabled={action.busy || !(matrix.data?.items ?? []).length} onClick={() => void collectSelected()} style={{ marginLeft: 12 }}>{t('collectRun')}</button>}
+      <span className="field-hint">{t('collectHint')}</span></div>
+    {matrix.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : matrix.data && <>
+      <div className="table-scroll" tabIndex={0} role="region" aria-label={t('collectTitle')}><table className="data-table"><thead><tr><th scope="col">{t('bomHostname')}</th><th scope="col">{t('collectStatus')}</th><th scope="col">{t('collectRevision')}</th><th scope="col">{t('collectFreshness')}</th></tr></thead>
+        <tbody>{(matrix.data.items ?? []).map((record) => <tr key={record.machine_id}><td><strong>{record.hostname}</strong><span className="cell-subtitle mono-value">{record.serial_number}</span></td>
+          <td>{record.status === 'success' ? t('collect_status_success') : record.status === 'never_collected' ? t('collect_status_never') : `${t('collect_status_failed')} (${record.failure_class})`}</td>
+          <td>v{record.collection_revision}</td>
+          <td><span className={`status-label ${record.freshness === 'fresh' ? 'enabled' : record.freshness === 'stale' ? 'disabled' : ''}`}>{t('freshness_' + record.freshness)}</span></td></tr>)}</tbody></table>
+        {!(matrix.data.items ?? []).length && <p className="table-loading">{t('bomNoAssets')}</p>}</div>
+      <Pagination offset={(page - 1) * matrix.data.page_size} limit={matrix.data.page_size} total={matrix.data.total} busy={matrix.isFetching} onChange={(offset) => setPage(offset / matrix.data.page_size + 1)} /></>}
+  </div>
+}
 function AssetsContent() {
   const project = useProject()
   const { t } = useTranslation(), session = useSession(), client = useQueryClient()
@@ -97,6 +134,7 @@ function AssetsContent() {
   async function done(message: string) {
     setImporting(false); setTrustTarget(null); setSuccess(message)
     await client.invalidateQueries({ queryKey: ['private', session.user.id, 'project', project.id, 'assets'] })
+    await client.invalidateQueries({ queryKey: ['private', session.user.id, 'project', project.id, 'collections'] })
   }
   if (!allowed) return <PermissionDenied />
   return <>
@@ -114,6 +152,7 @@ function AssetsContent() {
           {!(assets.data.items ?? []).length && <p className="table-loading">{t('bomNoAssets')}</p>}</div>
         <Pagination offset={(page - 1) * assets.data.page_size} limit={assets.data.page_size} total={assets.data.total} busy={assets.isFetching} onChange={(offset) => setPage(offset / assets.data.page_size + 1)} /></>}
     </section>
+    <CollectionPanel projectId={project.id} />
     {importing && <BomImportDialog projectId={project.id} onClose={() => setImporting(false)} onDone={(message) => done(message)} />}
     {trustTarget && <TrustDialog projectId={project.id} machines={trustTarget} onClose={() => setTrustTarget(null)} onDone={(message) => { setSelected(new Set()); return done(message) }} />}
   </>

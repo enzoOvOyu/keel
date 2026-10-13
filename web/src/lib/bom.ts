@@ -35,3 +35,10 @@ export const previewBomImport = (projectId: string, body: BomImportInput, csrf: 
   request<BomPreview>(`/projects/${encodeURIComponent(projectId)}/bom/preview`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: JSON.stringify(body) })
 export const commitBomImport = (projectId: string, body: BomImportInput, csrf: string, key: string) =>
   request<BomCommitResult>(`/projects/${encodeURIComponent(projectId)}/bom/commit`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify(body) })
+
+export type CollectResult = { machine_id: string; serial_number: string; level: string; status: string; failure_class?: string; collection_revision: number; record_id?: string; freshness?: string; collected_at: string }
+export type CollectionRecord = { machine_id: string; serial_number: string; hostname: string; level: string; status: string; failure_class: string; structured: string; collection_revision: number; freshness: string; freshness_max_age_seconds: number; collected_at: string }
+export const runCollection = (projectId: string, level: string, machineIds: string[], injectFailure: string, csrf: string, key: string) =>
+  request<{ results: CollectResult[] }>(`/projects/${encodeURIComponent(projectId)}/collections`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify({ level, machine_ids: machineIds, inject_failure: injectFailure }) })
+export const listCollectionMatrix = (projectId: string, level: string, page: number, signal: AbortSignal) =>
+  request<{ items: CollectionRecord[]; total: number; page: number; page_size: number }>(`/projects/${encodeURIComponent(projectId)}/collections?level=${level}&page=${page}&page_size=20`, { signal })

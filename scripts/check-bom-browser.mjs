@@ -149,7 +149,22 @@ await page.waitForSelector('.field-error')
 await page.click('.action-dialog button:has-text("取消"), .action-dialog button:has-text("Cancel")')
 pass('Bootstrap without a fingerprint is blocked before any request')
 
-// 8. English page renders after the language switch.
+// 8. Collection panel: unknown until collected, then fresh after a pass.
+// Scope selectors to the collection panel so the asset table's status labels
+// (same hostname rows) cannot match.
+// The matrix row appears once React Query finishes and re-renders; wait for
+// the unknown freshness label on the machine's row inside the panel.
+const panel = page.locator('div.model-versions', { hasText: '采集状态' }).first()
+if (!(await panel.count())) panel = page.locator('div.model-versions', { hasText: 'Collection status' }).first()
+await panel.locator('h2').waitFor()
+await panel.locator('tbody tr:has-text("bom-node-01")').first().waitFor()
+await panel.locator('tr:has-text("bom-node-01") .status-label:has-text("未知"), tr:has-text("bom-node-01") .status-label:has-text("Unknown")').first().waitFor()
+await panel.locator('button:has-text("采集本页设备"), button:has-text("Collect this page")').click()
+await page.waitForSelector('.success-notice')
+await panel.locator('tr:has-text("bom-node-01") .status-label:has-text("新鲜"), tr:has-text("bom-node-01") .status-label:has-text("Fresh")').first().waitFor()
+pass('Collection matrix flips from unknown to fresh through the UI')
+
+// 9. English page renders after the language switch.
 await page.click('.language-button')
 await page.goto(pageURL)
 await page.waitForSelector('h1:has-text("Device assets")')

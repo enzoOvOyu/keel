@@ -1207,7 +1207,12 @@
       "acceptance": [
         "F-3.3"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "Assets page collection matrix UI verified: per-level (L1/L2/L3) matrix with status/revision/freshness columns, unknown shown for never-collected machines with the FR-3.5 gate hint, batch collect action for managers with a per-pass success summary. Browser acceptance includes the unknown-to-fresh flip through the UI; a real cache-staleness bug surfaced (the matrix query was not invalidated when BOM imports changed the asset set) and is fixed. JSONPath custom views, conditional coloring and export remain planned (WP-2.2 full scope).",
+      "evidence_refs": [
+        "web/src/features/assets/AssetsPage.tsx",
+        "scripts/check-bom-browser.mjs"
+      ]
     },
     {
       "id": "WP-2.3",
