@@ -16,7 +16,7 @@
 - **SSH 互信状态机（FR-1.2 mock 通道）**：unverified→established→revoked 单向 + 指纹粘性；bootstrap 受控首登、verify 核对指纹、repair 审计恢复、revoke 退出；资产页互信列与批量动作。
 - **PoC 执行包 #P1（H-1）**：`poc/` 自检脚本 + 真机驱动 + 环境清单 + 观察项模板（真机执行由工程所有者回填，GA 门槛）。
 
-### 验机链（P2，全部十个工作包后端闭环）
+### 验机链（P2 全线闭环：13 个工作包，后端 + 前端主链路）
 
 - **Redfish 采集（FR-3.2/3.5，WP-2.1/2.2）**：L1/L2/L3 分级独立采集，revision 成功才递增，失败五分类可重试（auth_failed/timeout/version_unsupported/partial/credential_expired），freshness 读时计算（fresh/aging/stale），**never_collected=unknown 永不等于门禁 PASS**；资产页采集矩阵（状态/版本/保鲜度 + 一键采集）。
 - **门禁证据（FR-4 契约，WP-2.3）**：证据不可变历史（append-only），G1 判定（新鲜 L1 采集 + MAC 对 BOM），豁免四要素（审批人/理由/范围/到期），过期=blocked 永不 pass，G2-G6 未实现即诚实拒绝。
@@ -29,16 +29,18 @@
 - **mon-svc（FR-13）**：阶段档位表逐档精确（M1-M4/maintenance），变化项 ingest（带宽 O(变化数)），flapping 告警（10 分钟窗 3 次且不重复开），maintenance 拒收。
 - **PCIe 拓扑（FR-4.8）**：四维判定（槽位路径/NUMA/NVLink 行语义/LnkSta 达标），预期来自型号声明不反推，T7 两次失败只升级绝不自动 RMA。
 - **PoC 执行包 #P2**：H-2~H-5/H-13 四件套（自检绿；真机回填是 GA 门槛）。
+- **T7 工单闭环（FR-4.8.3→FR-4.7）**：拓扑差异进同一工单环（source=topology），close 门禁按证据类型分流。
+- **ServerDetailDrawer + 双状态列（DS §4.12）**：五标签抽屉（台账/映射/网口面板/PCIe 拓扑/监控），映射+网络双徽标三重编码可点直达，网络列独立于映射存在（SSOT），Esc 关闭保列表上下文。
 
 ### 验证规模
 
-隔离套件约 **220 组检查全绿**（真实 PostgreSQL HTTP 检查 + 真实 Chromium 浏览器验收），覆盖每个语义约束：不可变发布、幂等导入、状态机边界、权限隔离、项目隔离、失败分类、证据诚实性。
+隔离套件约 **230 组检查全绿**（真实 PostgreSQL HTTP 检查 + 真实 Chromium 浏览器验收），覆盖每个语义约束：不可变发布、幂等导入、状态机边界、权限隔离、项目隔离、失败分类、证据诚实性。
 
 `/healthz` 只表示进程存活。`/api/v1` 返回 `phase: p1-foundation`；`business_ready: false` 表示整体交付业务尚未就绪。
 
 ### 尚未实现（诚实声明）
 
-ProxyDHCP/iPXE/cloud-init/首启回调（真实通道）、keel-ctrl 密钥托管与 authorized_keys 注入、gRPC Agent/mTLS、G2-G6 判定引擎、SSE 实时推送、ServerDetailDrawer 五标签 UI、CMDB 联邦视图、NCCL 测试链——按 ADR-14 mock-first 推进，**页面与 API 对未实现能力如实标注，不虚构通过**。
+ProxyDHCP/iPXE/cloud-init/首启回调（真实通道）、keel-ctrl 密钥托管与 authorized_keys 注入、gRPC Agent/mTLS、G2-G6 判定引擎、SSE 实时推送、ServerLampPanel 状态灯（需 FR-16 BMC 带外）、抽屉拉宽/翻页导航、趋势图、CMDB 联邦视图、NCCL 测试链——按 ADR-14 mock-first 推进，**页面与 API 对未实现能力如实标注，不虚构通过**。
 
 ## 在远端继续开发
 
