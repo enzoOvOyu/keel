@@ -427,7 +427,7 @@ func (s *Store) ListProjectAssets(ctx context.Context, a *AuthSession, project *
 		return out, e
 	}
 	rows, e := tx.QueryContext(ctx, `SELECT pa.id,pa.machine_id,m.serial_number,pa.hostname,pa.ip_reference,pa.state,pa.version,
-			COALESCE(dm.name,''), m.rack, m.unit_position
+			COALESCE(dm.name,''), m.rack, m.unit_position, m.ssh_trust
 		FROM project_assets pa
 		JOIN machines m ON m.id=pa.machine_id
 		LEFT JOIN device_models dm ON dm.id=pa.model_id
@@ -439,7 +439,7 @@ func (s *Store) ListProjectAssets(ctx context.Context, a *AuthSession, project *
 	defer rows.Close()
 	for rows.Next() {
 		var item ProjectAssetSummary
-		if e = rows.Scan(&item.ID, &item.MachineID, &item.SerialNumber, &item.Hostname, &item.IpReference, &item.State, &item.Version, &item.ModelName, &item.Rack, &item.UnitPosition); e != nil {
+		if e = rows.Scan(&item.ID, &item.MachineID, &item.SerialNumber, &item.Hostname, &item.IpReference, &item.State, &item.Version, &item.ModelName, &item.Rack, &item.UnitPosition, &item.SshTrust); e != nil {
 			return out, e
 		}
 		out.Items = append(out.Items, item)
@@ -464,4 +464,5 @@ type ProjectAssetSummary struct {
 	ModelName    string `json:"model_name"`
 	Rack         string `json:"rack"`
 	UnitPosition string `json:"unit_position"`
+	SshTrust     string `json:"ssh_trust"`
 }

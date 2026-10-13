@@ -76,7 +76,7 @@ await page.waitForSelector('.impact-notice')
 await page.click('.action-dialog button:has-text("确认导入"), .action-dialog button:has-text("Commit import")')
 await page.waitForSelector('.success-notice')
 await page.waitForSelector('tr:has-text("bom-node-01")')
-const modelName = await page.locator('tr:has-text("bom-node-01") td').nth(2).textContent()
+const modelName = await page.locator('tr:has-text("bom-node-01") td').nth(3).textContent()
 assert((modelName ?? '').includes(`BomUI-${suffix}`), `model binding visible: ${modelName}`)
 pass('Commit materializes the asset with its model binding in the list')
 
@@ -125,7 +125,31 @@ assert(/mac/i.test(csvError ?? ''), `expected MAC header error: ${csvError}`)
 await page.click('.action-dialog button:has-text("取消"), .action-dialog button:has-text("Cancel")')
 pass('Malformed CSV headers surface a field error before any request')
 
-// 6. English page renders after the language switch.
+// 6. Trust flow: select machines, bootstrap with a fingerprint, watch the column.
+await page.click('button:has-text("导入 BOM"), button:has-text("Import BOM")')
+await page.click('.action-dialog button:has-text("取消"), .action-dialog button:has-text("Cancel")')  // reopen-free path below uses fresh dialog if open
+// (the dialog from group 5 is already closed; open the trust flow directly)
+const fp = `SHA256:${suffix}${suffix}${suffix}`
+await page.check('tbody tr:has-text("bom-node-01") input[type=checkbox]')
+await page.click('button:has-text("SSH 互信"), button:has-text("SSH trust")')
+await page.selectOption('#trust-action', 'trust.bootstrap')
+await page.fill('#trust-fp', fp)
+await page.click('.action-dialog button[type=submit]')
+await page.waitForSelector('.success-notice')
+await page.waitForSelector('tr:has-text("bom-node-01") .status-label:has-text("已建立"), tr:has-text("bom-node-01") .status-label:has-text("Established")')
+pass('Bootstrap through the UI flips the trust column to established')
+
+// 7. Bootstrap without a fingerprint is blocked client-side.
+await page.check('tbody tr:has-text("csv-node-01") input[type=checkbox]')
+await page.click('button:has-text("SSH 互信"), button:has-text("SSH trust")')
+await page.selectOption('#trust-action', 'trust.bootstrap')
+await page.fill('#trust-fp', '')
+await page.click('.action-dialog button[type=submit]')
+await page.waitForSelector('.field-error')
+await page.click('.action-dialog button:has-text("取消"), .action-dialog button:has-text("Cancel")')
+pass('Bootstrap without a fingerprint is blocked before any request')
+
+// 8. English page renders after the language switch.
 await page.click('.language-button')
 await page.goto(pageURL)
 await page.waitForSelector('h1:has-text("Device assets")')

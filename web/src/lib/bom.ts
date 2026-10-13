@@ -18,8 +18,14 @@ export type BomCommitResult = {
 }
 export type ProjectAsset = {
   id: string; machine_id: string; serial_number: string; hostname: string; ip_reference: string
-  state: string; version: number; model_name: string; rack: string; unit_position: string
+  state: string; version: number; model_name: string; rack: string; unit_position: string; ssh_trust: string
 }
+export type TrustResult = { machine_id: string; serial_number: string; before_state: string; after_state: string; outcome: string; reason?: string; checked_at: string }
+export type TrustLogEntry = { id: string; machine_id: string; serial_number: string; action: string; outcome: string; fingerprint: string; created_by: string; created_at: string }
+export const runTrustAction = (projectId: string, action: string, machineIds: string[], fingerprint: string, csrf: string, key: string) =>
+  request<{ results: TrustResult[] }>(`/projects/${encodeURIComponent(projectId)}/trust/actions`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify({ action, machine_ids: machineIds, fingerprint }) })
+export const listTrustLogs = (projectId: string, page: number, signal: AbortSignal) =>
+  request<{ items: TrustLogEntry[]; total: number; page: number; page_size: number }>(`/projects/${encodeURIComponent(projectId)}/trust/logs?page=${page}&page_size=20`, { signal })
 
 const pageQuery = (page: number) => new URLSearchParams({ page: String(page), page_size: '20' }).toString()
 
