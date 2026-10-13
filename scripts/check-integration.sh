@@ -61,6 +61,7 @@ python3 scripts/check-rerun.py
 python3 scripts/check-mon.py
 python3 scripts/check-mapping.py
 python3 scripts/check-portmon.py
+python3 scripts/check-configset.py
 python3 scripts/check-pcie.py
 python3 scripts/check-media-integration.py
 python3 scripts/check-param-integration.py

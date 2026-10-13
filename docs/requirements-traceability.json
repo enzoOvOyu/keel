@@ -1456,7 +1456,12 @@
         "F-5.1",
         "F-5.5"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "ConfigSet engine verified (FR-5.1 mock): configuration as data with keys/schema/scope/template; version-class variables are parameter-catalog placeholders resolved from the frozen snapshot via dotted paths (missing parameters refuse, never half-render); versioned approval with the self-approval block (drafts -> immutable approved, single publish path); per-machine render previews with line diffs against the newest apply; the G3 mapping precondition gates applies only (previews stay read-only); authority precedes validation. 4 isolated check groups green. The four FR-5.2-5.5 renderers, apply-time watchdog/rollback and the ConfigSet UI remain planned (WP-3.2+).",
+      "evidence_refs": [
+        "internal/platform/configset.go",
+        "scripts/check-configset.py"
+      ]
     },
     {
       "id": "WP-3.2",
