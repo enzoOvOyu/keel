@@ -27,6 +27,7 @@ type ModelDraftSummary struct {
 	PanelLayout     json.RawMessage `json:"panel_layout"`
 	BomExpect       json.RawMessage `json:"bom_expect"`
 	DefaultRolePlan json.RawMessage `json:"default_role_plan"`
+	Slots           []ModelSlot    `json:"slots"`
 	ContentHash     string          `json:"content_hash"`
 	CreatedBy       string          `json:"created_by"`
 	CreatedAt       time.Time       `json:"created_at"`
@@ -149,9 +150,13 @@ func (s *Store) ImportModelScan(ctx context.Context, a *AuthSession, project *Pr
 
 	draftID := RandomID()
 	now := time.Now().UTC()
-	if _, e = tx.ExecContext(ctx, `INSERT INTO device_model_drafts(id,model_id,source_host,hw_spec,expected_topology,panel_layout,bom_expect,default_role_plan,content_hash,created_by,created_at)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-		draftID, modelID, input.SourceHost, modelSpecJSON(input.HwSpec), modelSpecJSON(input.ExpectedTopology), modelSpecJSON(input.PanelLayout), modelSpecJSON(input.BomExpect), modelSpecJSON(input.DefaultRolePlan), hash, a.User.ID, now); e != nil {
+	slotsJSON, e := json.Marshal(input.Slots)
+	if e != nil {
+		return nil, e
+	}
+	if _, e = tx.ExecContext(ctx, `INSERT INTO device_model_drafts(id,model_id,source_host,hw_spec,expected_topology,panel_layout,bom_expect,default_role_plan,content_hash,created_by,created_at,slots)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+		draftID, modelID, input.SourceHost, modelSpecJSON(input.HwSpec), modelSpecJSON(input.ExpectedTopology), modelSpecJSON(input.PanelLayout), modelSpecJSON(input.BomExpect), modelSpecJSON(input.DefaultRolePlan), hash, a.User.ID, now, slotsJSON); e != nil {
 		var pg *pgconn.PgError
 		if errors.As(e, &pg) && pg.Code == "23505" {
 			// Raced with a concurrent import of the same inventory.
@@ -198,7 +203,7 @@ func (s *Store) ListModelDrafts(ctx context.Context, a *AuthSession, project *Pr
 	if _, e = modelForScope(ctx, tx, modelID, scope); e != nil {
 		return nil, e
 	}
-	rows, e := s.DB.QueryContext(ctx, `SELECT d.id,d.model_id,m.name,d.source_host,d.hw_spec,d.expected_topology,d.panel_layout,d.bom_expect,d.default_role_plan,d.content_hash,d.created_by,d.created_at
+	rows, e := s.DB.QueryContext(ctx, `SELECT d.id,d.model_id,m.name,d.source_host,d.hw_spec,d.expected_topology,d.panel_layout,d.bom_expect,d.default_role_plan,d.content_hash,d.created_by,d.created_at,d.slots
 		FROM device_model_drafts d JOIN device_models m ON m.id=d.model_id
 		WHERE d.model_id=$1 AND m.scope_key=$2 ORDER BY d.created_at DESC`, modelID, scope)
 	if e != nil {
@@ -208,12 +213,21 @@ func (s *Store) ListModelDrafts(ctx context.Context, a *AuthSession, project *Pr
 	var out []ModelDraftSummary
 	for rows.Next() {
 		var item ModelDraftSummary
-		if e = rows.Scan(&item.ID, &item.ModelID, &item.ModelName, &item.SourceHost, &item.HwSpec, &item.ExpectedTopology, &item.PanelLayout, &item.BomExpect, &item.DefaultRolePlan, &item.ContentHash, &item.CreatedBy, &item.CreatedAt); e != nil {
+		var slotsRaw []byte
+		if e = rows.Scan(&item.ID, &item.ModelID, &item.ModelName, &item.SourceHost, &item.HwSpec, &item.ExpectedTopology, &item.PanelLayout, &item.BomExpect, &item.DefaultRolePlan, &item.ContentHash, &item.CreatedBy, &item.CreatedAt, &slotsRaw); e != nil {
 			return nil, e
 		}
+		item.Slots = []ModelSlot{}
+		_ = json.Unmarshal(slotsRaw, &item.Slots)
 		out = append(out, item)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if out == nil {
+		out = []ModelDraftSummary{}
+	}
+	return out, nil
 }
 
 // DeleteModelDraft removes an unreviewed draft. Published versions are
