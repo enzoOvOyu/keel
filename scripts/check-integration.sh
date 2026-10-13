@@ -18,7 +18,7 @@ cleanup() {
 trap cleanup EXIT
 python3 scripts/test-environment.py start
 set -a
-. /tmp/keel-test-db.env
+. /opt/keel-tools/state/keel-test-db.env
 set +a
 export KEEL_TEST_EXECUTION_DATABASE_URL
 KEEL_TEST_EXECUTION_DATABASE_URL=$(python3 -c 'import os; print(os.environ["KEEL_TEST_DATABASE_URL"].replace("/keel_test_auth?", "/keel_test_execution?"))')
@@ -65,6 +65,7 @@ node scripts/check-control-browser.mjs
 node scripts/check-media-browser.mjs
 node scripts/check-model-import-browser.mjs
 node scripts/check-bom-browser.mjs
+node scripts/check-dashboard-browser.mjs
 KEEL_BASE_URL=http://127.0.0.1:3102 node scripts/check-browser.mjs
 echo "Integration suite passed; non-secret process logs are in $test_work"
 echo "Simulation capacity report: $test_work/simulation-report.json"

@@ -108,12 +108,12 @@ make build生成bin/keel-api与bin/keel-admin。make dev-api调用scripts/dev-ap
 
 make check默认运行设计、Go vet/race、前端类型及构建检查。真实PostgreSQL测试需要 `KEEL_TEST_DATABASE_URL`；缺失时明确Skip。测试会重建目标数据库的public schema，**仅允许独立的keel_test_命名数据库**，不能填写开发数据库连接。
 
-本轮验收临时使用127.0.0.1:15433的独立PG、数据库keel_test_auth，测试配置为/tmp/keel-test-db.env（600）。验收后移除测试容器、auth-test窗口与临时凭据；它们不是长期运行的开发依赖。复检先参考CI定义重建隔离环境，确认临时配置存在后再执行：
+本轮验收临时使用127.0.0.1:15433的独立PG、数据库keel_test_auth，测试配置为/opt/keel-tools/state/keel-test-db.env（600，位于持久盘避免误删）。验收后移除测试容器、auth-test窗口与临时凭据；它们不是长期运行的开发依赖。复检先参考CI定义重建隔离环境，确认临时配置存在后再执行：
 
 ```sh
 (
   set -a
-  . /tmp/keel-test-db.env
+  . /opt/keel-tools/state/keel-test-db.env
   set +a
   make check
 )

@@ -11,7 +11,7 @@ import time
 NAME = 'keel-auth-test-postgres'
 LABEL = 'io.keel.test-environment'
 IMAGE = 'postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea'
-FILES = [Path('/tmp/keel-test-postgres.env'), Path('/tmp/keel-test-db.env')]
+FILES = [Path('/opt/keel-tools/state/keel-test-postgres.env'), Path('/opt/keel-tools/state/keel-test-db.env')]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('action', choices=['start', 'stop', 'status'])
 args = parser.parse_args()
@@ -66,4 +66,4 @@ else:
 for db in ('keel_test_http','keel_test_execution'):
     run(['docker','exec',NAME,'createdb','-U','keel_test',db])
 print('Disposable PostgreSQL healthy on 127.0.0.1:15433: keel_test_auth, keel_test_http, keel_test_execution.')
-print('Private test configuration: /tmp/keel-test-db.env (0600).')
+print('Private test configuration: /opt/keel-tools/state/keel-test-db.env (0600).')

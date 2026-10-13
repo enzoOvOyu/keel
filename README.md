@@ -2,19 +2,37 @@
 
 **Knowledge-led Execution, Enforcement & Lifecycle**
 
-自动交付部署平台。品牌字标使用 **Keel**，仓库、包名与服务标识使用 `keel`。设计基线覆盖17个功能域；当前代码完成 **P1 的本地认证与项目基础闭环**，整体交付业务仍在开发。
+自动交付部署平台。品牌字标使用 **Keel**，仓库、包名与服务标识使用 `keel`。设计基线覆盖 17 个功能域；**P1 已全部闭环**（项目/登录隔离、执行恢复与锁、2000 目标扇出、介质校验、型号不可变版本、互信全链、PoC 执行包 #P1 产出），**P2 验机主链已完成六个工作包的 mock 通道闭环**，整体交付业务持续开发中。
 
 ## 当前可用能力
 
+### 平台基础（P1，全部闭环）
+
 - `/login`：船体龙骨与肋骨线条动画、中文/英文、明暗主题、移动布局与减少动画偏好。
 - 本地账号登录、预登录 CSRF、HttpOnly 服务端会话、退出撤销、账号/IP 失败限流。没有默认口令或公开注册；首个管理员通过服务器 CLI 初始化。
-- `/projects`：真实授权项目列表与空状态；平台管理员可创建项目。`/p/<projectId>` 显示该项目的真实基础信息和当前角色。
-- PostgreSQL 持久化用户、会话、项目、成员、审计与幂等回执；项目创建、创建者成员关系和审计同事务。六种项目角色已建立，当前只开放已实现的项目权限。
-- Go/gin/ent 后端、React/TypeScript/Vite 前端、OpenAPI 类型生成、受校验的版本迁移、Compose 与 tmux 开发环境。
+- `/projects`：真实授权项目列表与空状态；平台管理员可创建项目。六种项目角色与项目内权限隔离。
+- **设备型号库（FR-14）**：型号/版本发布不可变（唯一发布路径）、扫描导入只产草稿（FR-14.4，粘贴采集清单 → 草稿审阅 → 预填发布）、幂等三段判定、介质生命周期与自审批拦截。
+- **BOM 导入（FR-2.1）**：两段式（只读预检分类冲突 → 单事务提交），CSV/JSON 双格式（每行一个 MAC 的宽表按 SN 折叠），全局 Machine/PhysicalPort 身份 + 项目内 ProjectAsset 绑定型号，文件版本幂等。
+- **SSH 互信状态机（FR-1.2 mock 通道）**：unverified→established→revoked 单向 + 指纹粘性；bootstrap 受控首登、verify 核对指纹、repair 审计恢复、revoke 退出；资产页互信列与批量动作。
+- **PoC 执行包 #P1（H-1）**：`poc/` 自检脚本 + 真机驱动 + 环境清单 + 观察项模板（真机执行由工程所有者回填，GA 门槛）。
 
-`/healthz` 只表示进程存活。`/api/v1` 返回 `phase: p1-foundation`；`business_ready: false` 表示整体交付业务尚未就绪。认证状态为 `not_configured`、`setup_required` 或 `ready`，登录页据此展示真实入口。
+### 验机链（P2，六个工作包 mock 通道闭环）
 
-LDAP/OIDC、成员管理网页、项目生命周期变更、ProjectAsset、执行调度、Agent 与硬件联调属于后续工作；页面没有虚构设备指标或执行能力。
+- **Redfish 采集（FR-3.2/3.5，WP-2.1/2.2）**：L1/L2/L3 分级独立采集，revision 成功才递增，失败五分类可重试（auth_failed/timeout/version_unsupported/partial/credential_expired），freshness 读时计算（fresh/aging/stale），**never_collected=unknown 永不等于门禁 PASS**；资产页采集矩阵（状态/版本/保鲜度 + 一键采集）。
+- **门禁证据（FR-4 契约，WP-2.3）**：证据不可变历史（append-only），G1 判定（新鲜 L1 采集 + MAC 对 BOM），豁免四要素（审批人/理由/范围/到期），过期=blocked 永不 pass，G2-G6 未实现即诚实拒绝。
+- **LLDP 线序（FR-4.2，WP-2.4）**：快照版本化，T1-T5 差异分类引擎（T5 整机升级不被逐口噪声淹没；T2 仅当 BOM 携带对端期望时判错插），差异历史永删，定向重验自动关闭未复现差异。
+- **工单闭环（FR-4.7，WP-2.7）**：严格配对状态机（open→assigned→in_repair→verify→closed，reopen 仅从 closed），版本乐观锁，九种处置枚举 + 新旧实物标签核对，close 须绑定差异已被复测解决，全事件历史留痕。
+- **门禁看板（DS §4.4，WP-2.8）**：G1-G6 六卡横向布局（G1 读最新证据结论，G2-G6 如实标注未实现/无证据，**绝不伪造 PASS**），通过率环 + 豁免弹窗（理由必填 + 范围 + 有效期）；KPI 行（互信三态/开放工单/未解决线序差异）。
+
+### 验证规模
+
+隔离套件约 **150 组检查全绿**（真实 PostgreSQL HTTP 检查 + 真实 Chromium 浏览器验收），覆盖每个语义约束：不可变发布、幂等导入、状态机边界、权限隔离、项目隔离、失败分类、证据诚实性。
+
+`/healthz` 只表示进程存活。`/api/v1` 返回 `phase: p1-foundation`；`business_ready: false` 表示整体交付业务尚未就绪。
+
+### 尚未实现（诚实声明）
+
+ProxyDHCP/iPXE/cloud-init/首启回调（真实通道）、keel-ctrl 密钥托管与 authorized_keys 注入、gRPC Agent/mTLS、G2-G6 判定引擎、mon-svc 网口监控、CMDB 联邦视图、NCCL 测试链——按 ADR-14 mock-first 推进，**页面与 API 对未实现能力如实标注，不虚构通过**。
 
 ## 在远端继续开发
 
@@ -29,36 +47,4 @@ tmux attach -t keel
 
 已有 `keel` 会话包含 work/api/web/logs；脚本不重启已有窗口。按 **Ctrl-b，再按 d** 分离，SSH 断开后进程继续。开发 API 使用3001，Vite使用5173，部署预览使用3000。
 
-从自己的电脑建立隧道：
-
-```sh
-ssh -i /path/to/enzo-using.pem -N   -L 3000:127.0.0.1:3000   -L 5173:127.0.0.1:5173   ubuntu@13.158.38.7
-```
-
-访问 `http://localhost:3000/login`，或打开 `http://localhost:5173` 进行热更新开发。每台电脑自行配置私钥路径，不把密钥放进仓库。
-
-## 检查与持久化
-
-```sh
-npm ci
-make check
-make build
-```
-
 `make check` 包含设计检查、Go vet/race、前端类型检查和构建。真实 PostgreSQL 单测需另设 `KEEL_TEST_DATABASE_URL`；未配置时会明确跳过这部分，不能据此声称集成验证通过。隔离数据库及 HTTP/浏览器验证方式见 [部署说明](docs/DEPLOYMENT.md)。
-
-`make dev-api` 自动读取服务器 `/home/ubuntu/.config/keel/development.env`，使用受限数据库账号 `keel_app`。数据库迁移和账号管理使用独立 `admin.env`，通过 `keel-admin` CLI 执行；API 启动不会自动修改数据库结构。两份配置及初始密码文件均仅保留服务器，权限600。
-
-## 设计入口
-
-| 文档 | 职责 |
-|---|---|
-| [PRD](PRD.md) | 功能与业务判据 |
-| [架构](ARCHITECTURE.md) | 模型、协议、状态与边界 |
-| [前端设计](DESIGN-SYSTEM.md) | Keel品牌、登录、页面与交互 |
-| [实施计划](IMPLEMENTATION-PLAN.md) | 工作包与依赖 |
-| [验收](ACCEPTANCE.md) | 验收ID与证据要求 |
-| [需求追踪](docs/requirements-traceability.json) | 需求、设计和实现状态 |
-| [工具链](docs/TOOLCHAIN.json) | 固定版本与来源 |
-
-GitHub：`https://github.com/enzoOvOyu/keel`。服务器 origin 使用 `git@github.com:enzoOvOyu/keel.git`，通信已恢复；源码提交、运行镜像和 GitHub Actions 的结果分别核验。
