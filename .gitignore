@@ -15,3 +15,4 @@ keys/keel-ctrl
 keys/keel-ctrl.pub
 node_modules/
 web/dist/
+*.swp
