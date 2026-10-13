@@ -969,7 +969,12 @@
         "F-1.12",
         "S-3"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "SSH trust state machine verified (FR-1.2 mock channel): Machine.ssh_trust unverified->established->revoked with sticky first-fingerprint capture, restricted trust.bootstrap only on unverified machines, verify rejects fingerprint mismatches without state change, revoked machines recover solely through audited trust.repair (fingerprint rotation), all transitions land in trust_logs with per-machine outcomes and project scoping. 8 isolated check groups green. keel-ctrl key management, authorized_keys injection, agent gRPC/mTLS and the real runner remain planned (real-channel scope).",
+      "evidence_refs": [
+        "internal/platform/ssh_trust.go",
+        "scripts/check-trust.py"
+      ]
     },
     {
       "id": "WP-1.6",

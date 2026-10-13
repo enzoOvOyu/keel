@@ -50,6 +50,7 @@ python3 scripts/check-execution-integration.py
 python3 scripts/check-model-integration.py
 python3 scripts/check-model-import.py
 python3 scripts/check-bom-import.py
+python3 scripts/check-trust.py
 python3 scripts/check-media-integration.py
 python3 scripts/check-param-integration.py
 export KEEL_PLAYWRIGHT_MODULE=${KEEL_PLAYWRIGHT_MODULE:-/tmp/keel-browser-check/node_modules/playwright/index.mjs}
