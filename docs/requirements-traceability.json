@@ -1292,7 +1292,12 @@
         "U-11",
         "U-13"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "Issue lifecycle verified (FR-4.7, mock channel): issues created from G2 differences carry the evidence snapshot and source/phase dual markers (source=g2/topology/g5/g6/portmon/bmc, phase=delivery/post-delivery); the state machine is strictly paired open->assigned->in_repair->verify->closed with reopen from closed only — every action matches exactly one status so a mislabelled action can never sneak a state forward; transitions demand the expected version (stale versions answer the current state, ISSUE_VERSION); repairs register the nine-action enumeration with old/new physical tags and meaningful-note validation; closing from verify requires the bound difference to be resolved by a passing targeted re-verification; the full event history persists in issue_events; the board filters by status/source/phase; read-only roles read but cannot act; project scoping refuses foreign differences. 8 isolated check groups green. Drag-swimlane UI, execution binding for targeted re-verification runs and the remaining source feeds (g5/g6/portmon/bmc) remain planned.",
+      "evidence_refs": [
+        "internal/platform/issues.go",
+        "scripts/check-issues.py"
+      ]
     },
     {
       "id": "WP-2.8",

@@ -54,6 +54,7 @@ python3 scripts/check-trust.py
 python3 scripts/check-collections.py
 python3 scripts/check-gates.py
 python3 scripts/check-lldp.py
+python3 scripts/check-issues.py
 python3 scripts/check-media-integration.py
 python3 scripts/check-param-integration.py
 export KEEL_PLAYWRIGHT_MODULE=${KEEL_PLAYWRIGHT_MODULE:-/tmp/keel-browser-check/node_modules/playwright/index.mjs}
