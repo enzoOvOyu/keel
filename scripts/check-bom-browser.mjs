@@ -90,9 +90,42 @@ const notice = await page.locator('.impact-notice[role="alert"]').first().textCo
 assert(/已导入过|already imported/.test(notice ?? ''), `unexpected notice: ${notice}`)
 pass('Duplicate file versions are rejected with a friendly notice')
 
-// 4. English page renders after the language switch. The modal dialog blocks
-// page interaction, so close it first with its cancel button.
+// 4. CSV import: Chinese headers fold MAC rows into one machine per SN.
+// The ALREADY_CURRENT dialog from group 3 is modal and blocks page clicks.
 await page.click('.action-dialog button:has-text("取消"), .action-dialog button:has-text("Cancel")')
+const csvBom = [
+  'SN,主机名,型号,MAC 地址,端口,rail',
+  `SN-CS-${suffix}-1,csv-node-01,BomUI-${suffix},aa:bb:cc:20:00:01,port1,0`,
+  `SN-CS-${suffix}-1,csv-node-01,BomUI-${suffix},aa:bb:cc:20:00:02,port2,1`,
+  `SN-CS-${suffix}-2,csv-node-02,BomUI-${suffix},aa:bb:cc:20:00:03,port1,0`,
+].join('\n')
+await page.click('button:has-text("导入 BOM"), button:has-text("Import BOM")')
+await page.selectOption('#bom-format', 'csv')
+await page.fill('#bom-version', `csv-v-${suffix}`)
+await page.fill('#bom-raw', csvBom)
+await page.click('.action-dialog button[type=submit]')
+await page.waitForSelector('.impact-notice')
+await page.click('.action-dialog button:has-text("确认导入"), .action-dialog button:has-text("Commit import")')
+await page.waitForSelector('.success-notice')
+await page.waitForSelector('tr:has-text("csv-node-01")')
+await page.waitForSelector('tr:has-text("csv-node-02")')
+const csvRow = await page.locator('tr:has-text("csv-node-01")').first().textContent()
+assert((csvRow ?? '').includes(`BomUI-${suffix}`), 'CSV machine binds the model')
+pass('CSV rows fold per SN and commit through the same pipeline')
+
+// 5. A CSV missing the MAC column is rejected client-side with a message.
+await page.click('button:has-text("导入 BOM"), button:has-text("Import BOM")')
+await page.selectOption('#bom-format', 'csv')
+await page.fill('#bom-version', 'csv-bad')
+await page.fill('#bom-raw', 'SN,hostname\nSN-1,node-1')
+await page.click('.action-dialog button[type=submit]')
+await page.waitForSelector('.field-error')
+const csvError = await page.locator('.field-error').first().textContent()
+assert(/mac/i.test(csvError ?? ''), `expected MAC header error: ${csvError}`)
+await page.click('.action-dialog button:has-text("取消"), .action-dialog button:has-text("Cancel")')
+pass('Malformed CSV headers surface a field error before any request')
+
+// 6. English page renders after the language switch.
 await page.click('.language-button')
 await page.goto(pageURL)
 await page.waitForSelector('h1:has-text("Device assets")')

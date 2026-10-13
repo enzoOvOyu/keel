@@ -5,12 +5,19 @@ import { ProjectWorkspace, canManageProject, useProject } from '../../components
 import { ActionDialog, ActionError, Pagination, PermissionDenied, SuccessNotice } from '../../components/Management'
 import { useAction } from '../../lib/management'
 import { commitBomImport, listProjectAssets, previewBomImport, type BomImportInput, type BomPreview } from '../../lib/bom'
+import { parseBomCsv } from '../../lib/bom-csv'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 
 function BomImportDialog({ projectId, onClose, onDone }: { projectId: string; onClose: () => void; onDone: (message: string) => Promise<void> }) {
   const { t } = useTranslation(), session = useSession(), action = useAction()
-  const [raw, setRaw] = useState(''), [preview, setPreview] = useState<BomPreview | null>(null), [validation, setValidation] = useState('')
+  const [format, setFormat] = useState<'json' | 'csv'>('json'), [raw, setRaw] = useState(''), [fileVersion, setFileVersion] = useState(''), [preview, setPreview] = useState<BomPreview | null>(null), [validation, setValidation] = useState('')
   function parse(): BomImportInput | null {
+    if (format === 'csv') {
+      const result = parseBomCsv(raw, fileVersion)
+      if (result.ok) return result.input as BomImportInput
+      setValidation(t('bomCsvInvalid') + ' ' + result.errors.slice(0, 3).join('; '))
+      return null
+    }
     try {
       const parsed = JSON.parse(raw) as BomImportInput
       if (!parsed || typeof parsed !== 'object' || !parsed.file_version || !Array.isArray(parsed.machines) || !parsed.machines.length) throw new Error('invalid')
@@ -42,7 +49,12 @@ function BomImportDialog({ projectId, onClose, onDone }: { projectId: string; on
   return <ActionDialog title={t('bomImport')} description={t('bomImportDetail')} busy={action.busy} confirm={t('bomPreviewRun')} onSubmit={(event) => void runPreview(event)} onClose={onClose}>
     {friendly ? <p className="impact-notice" role="alert">{friendly}</p> : <ActionError error={action.error} />}
     {validation && <p className="field-error" role="alert">{validation}</p>}
-    <div className="field"><label htmlFor="bom-raw">{t('bomImport')}</label><textarea id="bom-raw" value={raw} onChange={(event) => { setRaw(event.target.value); setPreview(null) }} rows={10} placeholder={t('bomImportPlaceholder')} disabled={action.busy} className="mono-value" /></div>
+    <div className="field"><label htmlFor="bom-format">{t('bomFormat')}</label><select id="bom-format" value={format} onChange={(event) => { setFormat(event.target.value as 'json' | 'csv'); setPreview(null) }} disabled={action.busy}>
+      <option value="json">{t('bomFormatJson')}</option>
+      <option value="csv">{t('bomFormatCsv')}</option>
+    </select><span className="field-hint">{format === 'csv' ? t('bomCsvHint') : t('bomImportDetail')}</span></div>
+    {format === 'csv' && <div className="field"><label htmlFor="bom-version">{t('bomFileVersion')}</label><input id="bom-version" value={fileVersion} onChange={(event) => { setFileVersion(event.target.value); setPreview(null) }} maxLength={120} required disabled={action.busy} /></div>}
+    <div className="field"><label htmlFor="bom-raw">{format === 'csv' ? t('bomCsvLabel') : t('bomImport')}</label><textarea id="bom-raw" value={raw} onChange={(event) => { setRaw(event.target.value); setPreview(null) }} rows={10} placeholder={format === 'csv' ? t('bomCsvPlaceholder') : t('bomImportPlaceholder')} disabled={action.busy} className="mono-value" /></div>
     {preview && <>
       <p className="impact-notice">{t('bomPreviewSummary', { machines: preview.machines, ports: preview.ports, newMachines: preview.new_machines, existingMachines: preview.existing_machines, newAssets: preview.new_assets, updatedAssets: preview.updated_assets })}</p>
       {(preview.issues ?? []).length > 0 && <div className="table-scroll" tabIndex={0} role="region" aria-label={t('bomPreviewIssues', { count: (preview.issues ?? []).length })}><table className="data-table"><thead><tr><th scope="col">{t('bomSerial')}</th><th scope="col">{t('bomIssueReason')}</th></tr></thead>
