@@ -434,6 +434,30 @@ func applyReceipt(ctx context.Context, tx *sql.Tx, a Attempt, r Receipt, allowRe
 			return e
 		}
 	}
+	// FR-1.4 circuit breaker: after applying a failed receipt, compute the
+	// share of failed terminal attempts over all terminal attempts; when it
+	// exceeds the execution's configured threshold the execution flips to
+	// PAUSED automatically (no further dispatches) and records the event.
+	if r.Result == "failed" && x.DesiredState == "running" && x.CircuitBreakerPercent > 0 {
+		var failed, terminal int
+		if e = tx.QueryRowContext(ctx, `SELECT
+				COUNT(*) FILTER (WHERE state='failed'),
+				COUNT(*) FILTER (WHERE state IN('success','failed','cancelled'))
+			FROM exec_task_attempts WHERE execution_id=$1 AND attempt_no=(SELECT MAX(attempt_no) FROM exec_task_attempts t2 WHERE t2.execution_id=exec_task_attempts.execution_id AND t2.target_id=exec_task_attempts.target_id AND t2.task_id=exec_task_attempts.task_id)`,
+			a.ExecutionID).Scan(&failed, &terminal); e != nil {
+			return e
+		}
+		if terminal > 0 && failed*100 >= terminal*x.CircuitBreakerPercent {
+			if _, e = tx.ExecContext(ctx, "UPDATE exec_executions SET desired_state='paused',state_version=state_version+1 WHERE id=$1 AND desired_state='running'", a.ExecutionID); e != nil {
+				return e
+			}
+			if e = event(ctx, tx, a.ExecutionID, "execution.circuit_breaker_open", map[string]any{
+				"failed": failed, "terminal": terminal, "threshold_percent": x.CircuitBreakerPercent,
+			}); e != nil {
+				return e
+			}
+		}
+	}
 	return event(ctx, tx, a.ExecutionID, "attempt.receipt_applied", map[string]any{"attempt_id": a.ID, "result": r.Result, "fencing_token": a.FencingToken, "mode": "sim"})
 }
 func (s *Service) ReapExpired(ctx context.Context) (int, error) {

@@ -949,11 +949,12 @@
         "F-1.13"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Simulated execution engine implemented and verified: flows with immutable versions, logical simulation targets, outbox-driven worker, task attempts, run control and reconciliation. Capacity evidence: 2,000 persisted logical targets completed at 100% in 301.6s (seed 42, worker concurrency 8), satisfying the P1 fan-out criterion of 99.5%. Simulation only: no device transport and no hardware acceptance. Hardware channels (SSH, keel-agent, BMC runners) remain planned.",
+      "implementation_notes": "Simulated execution engine implemented and verified: flows with immutable versions, logical simulation targets, outbox-driven worker, task attempts, run control and reconciliation. Capacity evidence: 2,000 persisted logical targets completed at 100% in 301.6s (seed 42, worker concurrency 8), satisfying the P1 fan-out criterion of 99.5%. Simulation only: no device transport and no hardware acceptance. Hardware channels (SSH, keel-agent, BMC runners) remain planned. Circuit breaker (FR-1.4) verified: a failing flow over the configured threshold (default 5%) flips the execution to paused automatically inside the receipt transaction, with the failure accounting (failed/terminal counts and threshold) recorded as an execution.circuit_breaker_open event; healthy executions never trip. 3 isolated check groups green.",
       "evidence_refs": [
         "scripts/check-execution-integration.py",
         "scripts/check-integration.sh",
-        "docs/HANDOFF.md"
+        "docs/HANDOFF.md",
+        "scripts/check-circuit.py"
       ]
     },
     {
