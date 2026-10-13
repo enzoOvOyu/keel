@@ -41,9 +41,9 @@ func (a *authAPI) respondError(c *gin.Context, err error) {
 	}
 	var pg *pgconn.PgError
 	if errors.As(err, &pg) {
-		slog.Error("request storage operation failed", "trace_id", c.GetString("trace_id"), "sqlstate", pg.Code)
+		slog.Error("request storage operation failed", "trace_id", c.GetString("trace_id"), "sqlstate", pg.Code, "detail", err.Error())
 	} else {
-		slog.Error("request storage operation failed", "trace_id", c.GetString("trace_id"))
+		slog.Error("request storage operation failed", "trace_id", c.GetString("trace_id"), "detail", err.Error())
 	}
 	failure(c, 503, "SERVICE_UNAVAILABLE", "Service temporarily unavailable")
 }

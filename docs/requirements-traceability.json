@@ -1191,7 +1191,12 @@
         "F-3.2",
         "F-3.4"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "Redfish collection mock channel verified (FR-3.2/3.5 backend): L1/L2/L3 levels independently scoped and collected, per-machine collection records store raw+structured snapshots with a revision that only advances on success (failures record revision 0), FR-3.2 failure classes (auth_failed/timeout/version_unsupported/partial/credential_expired) are recorded retryably and never overwrite the last good snapshot, freshness derived at read time (fresh/aging/stale) with never-collected machines surfacing as unknown — never as PASS. 8 isolated check groups green. Real BMC HTTP traversal (FR-3.1 DMTF recursive walk), MinIO raw storage, credential-batch vault rotation (FR-3.6) and scheduling (cron/event triggers) remain planned (real-channel scope).",
+      "evidence_refs": [
+        "internal/platform/collections.go",
+        "scripts/check-collections.py"
+      ]
     },
     {
       "id": "WP-2.2",
