@@ -1,0 +1,17 @@
+{
+  "architecture": "GB300 HGX aarch64 (Arm)",
+  "note": "GB300 Arm 样机独立预期；工具链/Agent/介质适配需单独留证",
+  "gpus": 8,
+  "nics": 8,
+  "expect": {
+    "gpu_bdf_pattern": "^([0-9a-f]{2}:[0-9a-f]{2}\\.[0-9a-f])$",
+    "nvlink": {
+      "topology": "NV18 全互联",
+      "min_lnksta": "L0 或更高"
+    },
+    "pcie": {
+      "generation": "Gen5",
+      "min_lanes": 16
+    }
+  }
+}

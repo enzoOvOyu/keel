@@ -1344,7 +1344,14 @@
         "H-5",
         "H-13"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "PoC execution package #P2 produced (H-2 Redfish L1 + credential batches, H-3 LLDP readback, H-4 mapping compare with the pull-cable T2/T4 drill, H-5 DOM readout with degradation marking, H-13 PCIe topology with independent per-architecture expectations for B300 x86_64 and GB300 Arm). Selfcheck smoke PASSed against the deployed platform; drivers assert each criterion verbatim with operator checklists for the human halves. Real-machine execution and backfill remain with the engineering owner (GA gate).",
+      "evidence_refs": [
+        "poc/selfcheck-p2.sh",
+        "poc/run-p2.sh",
+        "poc/ENVIRONMENT-P2.md",
+        "poc/results/CHECKLIST-P2.md"
+      ]
     },
     {
       "id": "WP-2.10",

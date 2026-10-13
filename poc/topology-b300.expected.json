@@ -1,0 +1,1 @@
+{"architecture":"B300 HGX x86_64","note":"预期值按型号库规格预填，不得从实机输出反填","gpus":8,"nics":8,"expect":{"gpu_bdf_pattern":"^([0-9a-f]{2}:[0-9a-f]{2}\\.[0-9a-f])$","nvlink":{"topology":"NV18 全互联","min_lnksta":"L0 或更高"},"pcie":{"generation":"Gen5","min_lanes":16}}}

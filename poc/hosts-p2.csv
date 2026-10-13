@@ -1,0 +1,9 @@
+hostname,bmc_ip,bmc_user_ref,switch,switch_port
+poc-b300-n01,10.0.0.101,admin,sw-poc-a,Eth1/1
+poc-b300-n02,10.0.0.102,admin,sw-poc-a,Eth1/2
+poc-b300-n03,10.0.0.103,admin,sw-poc-a,Eth1/3
+poc-b300-n04,10.0.0.104,admin,sw-poc-a,Eth1/4
+poc-b300-n05,10.0.0.105,admin,sw-poc-b,Eth1/1
+poc-b300-n06,10.0.0.106,admin,sw-poc-b,Eth1/2
+poc-b300-n07,10.0.0.107,admin,sw-poc-b,Eth1/3
+poc-b300-n08,10.0.0.108,admin,sw-poc-b,Eth1/4

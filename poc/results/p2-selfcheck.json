@@ -1,0 +1,8 @@
+{
+  "package": "#P2",
+  "stage": "selfcheck",
+  "executed_at": "20261013T080104Z",
+  "base_url": "http://127.0.0.1:3000",
+  "failures": 0,
+  "report": "== #P2 selfcheck started 20261013T080104Z ==\\nPASS platform-reachable\\nPASS tool-jq\\nPASS tool-curl\\nPASS tool-ssh\\nPASS tool-ethtool\\nPASS tool-lspci\\nPASS hosts-p2.csv: 8 machines (window 8-10)\\nPASS topology-b300 expectations present\\nPASS topology-gb300 expectations present\\nNOTE KEEL_BMC_BATCH not set; H-2 needs the vault batch reference before run-h2.sh\\n"
+}
