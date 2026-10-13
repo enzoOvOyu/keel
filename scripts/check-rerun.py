@@ -123,7 +123,11 @@ flow_long = publish('long')
 run3 = execute(flow_long, sel=tids[:1])
 rej = rerun(run3, {'target_ids': [tids[0]]}, code=409)
 assert 'finished' in rej['message'], rej
-admin.call('POST', path + '/executions/' + run3['id'] + '/control', {'action': 'cancel', 'expected_version': detail(run3)['state_version']})
+try:
+    admin.call('POST', path + '/executions/' + run3['id'] + '/control', {'action': 'cancel', 'expected_version': detail(run3)['state_version']})
+except AssertionError as error:
+    if '409' not in str(error):
+        raise
 wait_terminal(run3)
 rej = rerun(run3, {'target_ids': ['foreign-target']}, code=409)
 assert 'does not belong' in rej['message'], rej

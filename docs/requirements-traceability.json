@@ -1368,7 +1368,12 @@
         "F-13.5",
         "F-13.6"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "FR-13 monitoring data plane mock verified: stage policies mirroring the FR-13.2 tier table exactly (intervals spec-fixed per stage, maintenance all-zero) with fixed steady/burst budgets and a 1-4 burst multiplier; changed-items-only ingest (bandwidth O(changes)); flapping alerts derived from the sample stream (3 downs in 10 minutes on one port open exactly one alert, no duplicates while open); maintenance refuses ingest (dynamic monitoring ends after cleanup); alerts readable by members, policy/ingest admin-only, project-scoped. 6 isolated check groups green. Agent heartbeat transport, real /proc sampling, delta/ACK protocol, retention/downsampling, token-bucket shares and the Execution-bound dynamic windows remain the real-channel scope.",
+      "evidence_refs": [
+        "internal/platform/mon.go",
+        "scripts/check-mon.py"
+      ]
     },
     {
       "id": "WP-2.11",
