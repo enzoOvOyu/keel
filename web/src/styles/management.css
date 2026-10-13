@@ -50,3 +50,58 @@ select:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3p
 .audit-details { font-size: var(--font-size-xs); }.audit-details summary { cursor: pointer; min-height: 36px; display: flex; align-items: center; color: var(--color-primary-readable); }.audit-details dl { margin: 0; }.audit-details dt { color: var(--color-text-secondary); margin-top: var(--space-2); }.audit-details dd { margin: 0; overflow-wrap: anywhere; }
 @media (max-width: 1000px) { .workspace-nav { padding-inline: var(--space-6); }.account-layout { grid-template-columns: minmax(0, 1fr); max-width: 680px; } }
 @media (max-width: 600px) { .workspace-nav { padding-inline: var(--space-3); gap: 0; }.workspace-nav a { padding-inline: var(--space-3); font-size: var(--font-size-sm); }.workspace-nav .account-link { margin-left: 0; }.management-panel { padding: var(--space-4); }.management-toolbar { align-items: stretch; }.management-toolbar form, .audit-filter-form { width: 100%; }.management-toolbar .field, .audit-filter-form .field { max-width: none; flex: 1 1 100%; }.management-toolbar > button { width: 100%; }.pagination { align-items: flex-start; flex-direction: column; }.pagination > div { width: 100%; }.pagination button { flex: 1; }.action-dialog { padding: var(--space-6); }.action-target { grid-template-columns: 82px minmax(0, 1fr); gap: var(--space-2); }.project-tabs a { padding-inline: var(--space-3); }.data-table th, .data-table td { padding: var(--space-3); } }
+
+/* Gate board (DS 4.4): six cards, one per gate, status badge + criterion
+   summary + pass-rate ring. The G5 card additionally carries the L1-L5
+   layer pass-rate mini bar. */
+.gate-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-5); }
+.gate-card { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); min-width: 0; }
+.gate-card[data-state="pass"] { border-color: var(--color-success); }
+.gate-card[data-state="fail"] { border-color: var(--color-danger); }
+.gate-card[data-state="waived"] { border-color: var(--color-waived); }
+.gate-card[data-state="no_evidence"] { border-color: var(--color-border-strong); }
+.gate-card[data-state="not_implemented"] { border-style: dashed; }
+.gate-card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.gate-card-head h2 { font-size: var(--font-size-xl); font-weight: 650; margin: 0; }
+.gate-card-title { font-size: var(--font-size-base); font-weight: 550; color: var(--color-text-primary); margin: 0; }
+.gate-card-summary { font-size: var(--font-size-sm); color: var(--color-text-secondary); line-height: 1.7; margin: 0; }
+.gate-ring { position: relative; width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; color: var(--color-text-secondary); }
+.gate-ring-fill { position: absolute; inset: 0; border-radius: 50%; }
+.gate-ring-text { position: relative; font-size: var(--font-size-base); font-weight: 650; }
+.gate-waive { align-self: flex-start; margin-top: auto; }
+.kpi-heading { font-size: var(--font-size-lg); font-weight: 600; margin: var(--space-8) 0 var(--space-4); }
+/* G5 five-segment layer pass-rate mini bar (DS 4.4). */
+.gate-layer-bars { display: flex; flex-direction: column; gap: var(--space-2); }
+.gate-layer-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 40px 52px; align-items: center; gap: var(--space-2); font-size: var(--font-size-xs); }
+.gate-layer-name { font-weight: 650; color: var(--color-text-primary); }
+.gate-layer-track { height: 4px; border-radius: 2px; background: var(--color-bg-muted); overflow: hidden; }
+.gate-layer-fill { height: 100%; border-radius: 2px; background: var(--color-success); }
+.gate-layer-fill[data-state="fail"] { background: var(--color-danger); }
+.gate-layer-fill[data-state="partial"] { background: var(--color-warning); }
+.gate-layer-rate { text-align: right; color: var(--color-text-secondary); }
+/* NetTest (WP-3.3): target picker, layer progress, chips, heat matrix. */
+.nettest-targets { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4); margin: 0 0 var(--space-5); display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--space-3); }
+.nettest-targets legend { font-size: var(--font-size-sm); font-weight: 550; color: var(--color-text-primary); padding-inline: var(--space-2); }
+.nettest-targets .field-hint { grid-column: 1 / -1; margin: 0; }
+.nettest-target { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-base); line-height: 1.5; }
+.nettest-target input { accent-color: var(--color-primary-600); width: 18px; height: 18px; }
+.nettest-layers { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-5); }
+.nettest-layer { display: grid; grid-template-columns: 24px minmax(120px, auto) 64px minmax(0, 1fr); align-items: center; gap: var(--space-3); font-size: var(--font-size-sm); }
+.nettest-layer-icon { font-weight: 700; text-align: center; color: var(--color-text-muted); }
+.nettest-layer-icon.pass { color: var(--color-success); }
+.nettest-layer-icon.fail { color: var(--color-danger); }
+.nettest-layer-name { color: var(--color-text-primary); font-weight: 550; }
+.nettest-layer-bar { height: 8px; border-radius: 4px; background: var(--color-bg-muted); overflow: hidden; display: flex; }
+.nettest-layer-fill { height: 100%; }
+.nettest-layer-fill.pass { background: var(--color-success); }
+.nettest-layer-fill.fail { background: var(--color-danger); }
+.nettest-precheck { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--font-size-sm); margin: 0 0 var(--space-4); }
+.nettest-run-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.nettest-run-head h2 { margin: 0; }
+.nettest-run-layers { display: flex; gap: var(--space-1); }
+.nettest-chip { display: inline-grid; place-items: center; min-width: 30px; padding: var(--space-1); border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-muted); }
+.nettest-chip.partial { color: var(--color-warning); border-color: var(--color-warning); }
+.nettest-chip.enabled { color: var(--color-success); border-color: var(--color-success); }
+.nettest-matrix { width: 100%; height: 340px; }
+.link-button { background: none; border: none; padding: 0; font: inherit; color: var(--color-primary-readable); cursor: pointer; text-decoration: underline; }
+.link-button:hover { filter: brightness(.9); }

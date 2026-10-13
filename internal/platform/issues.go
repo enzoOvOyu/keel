@@ -24,25 +24,25 @@ var repairActions = map[string]bool{
 }
 
 type Issue struct {
-	ID            string     `json:"id"`
-	MachineID     string     `json:"machine_id"`
-	Hostname      string     `json:"hostname"`
-	LocalPort     string     `json:"local_port,omitempty"`
-	DifferenceID  string     `json:"difference_id,omitempty"`
-	Source        string     `json:"source"`
-	Phase         string     `json:"phase"`
-	Category      string     `json:"category"`
-	Title         string     `json:"title"`
-	Evidence      string     `json:"evidence"`
-	RepairAction  string     `json:"repair_action,omitempty"`
-	RepairNote    string     `json:"repair_note,omitempty"`
-	Status        string     `json:"status"`
-	Assignee      string     `json:"assignee,omitempty"`
-	AssigneeName  string     `json:"assignee_name,omitempty"`
-	Version       int        `json:"version"`
-	CreatedBy     string     `json:"created_by"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
+	ID           string    `json:"id"`
+	MachineID    string    `json:"machine_id"`
+	Hostname     string    `json:"hostname"`
+	LocalPort    string    `json:"local_port,omitempty"`
+	DifferenceID string    `json:"difference_id,omitempty"`
+	Source       string    `json:"source"`
+	Phase        string    `json:"phase"`
+	Category     string    `json:"category"`
+	Title        string    `json:"title"`
+	Evidence     string    `json:"evidence"`
+	RepairAction string    `json:"repair_action,omitempty"`
+	RepairNote   string    `json:"repair_note,omitempty"`
+	Status       string    `json:"status"`
+	Assignee     string    `json:"assignee,omitempty"`
+	AssigneeName string    `json:"assignee_name,omitempty"`
+	Version      int       `json:"version"`
+	CreatedBy    string    `json:"created_by"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type CreateIssueInput struct {
@@ -52,11 +52,11 @@ type CreateIssueInput struct {
 }
 
 type RepairIssueInput struct {
-	IssueID  string `json:"issue_id"`
-	Action   string `json:"action"`
-	Note     string `json:"note"`
-	OldTag   string `json:"old_tag"`
-	NewTag   string `json:"new_tag"`
+	IssueID string `json:"issue_id"`
+	Action  string `json:"action"`
+	Note    string `json:"note"`
+	OldTag  string `json:"old_tag"`
+	NewTag  string `json:"new_tag"`
 }
 
 type TransitionIssueInput struct {
@@ -78,6 +78,25 @@ func (s *Store) CreateIssueFromDifference(ctx context.Context, a *AuthSession, p
 	defer tx.Rollback()
 	if e := requireProjectAdmin(ctx, tx, a, project.ID); e != nil {
 		return nil, e
+	}
+	if input.Source == "nettest" {
+		// FR-11.3: a failed connectivity pair enters the same FR-4.7 loop
+		// with source=nettest; the evidence is the pair row itself (the
+		// issues.difference_id foreign key was dropped in migration 019 for
+		// exactly this cross-table evidence pattern).
+		issue, e := issueFromNettestPairTx(ctx, tx, project.ID, a.User.ID, input.DifferenceID, input.Phase)
+		if e != nil {
+			return nil, e
+		}
+		if e = appendAudit(ctx, tx, a.User.ID, project.ID, "issue.create", issue.ID, trace, map[string]any{
+			"difference": input.DifferenceID, "category": issue.Category,
+		}); e != nil {
+			return nil, e
+		}
+		if e = tx.Commit(); e != nil {
+			return nil, e
+		}
+		return issue, nil
 	}
 	var machineID, localPort, category string
 	var resolvedAt sql.NullTime
@@ -130,7 +149,7 @@ func (s *Store) CreateIssueFromDifference(ctx context.Context, a *AuthSession, p
 	issue := Issue{
 		ID: RandomID(), MachineID: machineID, Hostname: hostname, LocalPort: localPort,
 		DifferenceID: input.DifferenceID, Source: issueSource, Phase: issuePhase, Category: category,
-		Title: title,
+		Title:    title,
 		Evidence: detail, Status: "open", Version: 1, CreatedBy: a.User.ID, CreatedAt: now, UpdatedAt: now,
 	}
 	if _, e = tx.ExecContext(ctx, `INSERT INTO issues(id,project_id,machine_id,difference_id,source,phase,category,title,evidence,status,version,created_by,created_at,updated_at)
@@ -154,6 +173,58 @@ func (s *Store) CreateIssueFromDifference(ctx context.Context, a *AuthSession, p
 	return &issue, nil
 }
 
+// issueFromNettestPairTx materializes the FR-4.7 issue for a failed
+// connectivity pair inside the caller's transaction: the run finish path
+// and the manual POST /issues path share it so a pair can never carry two
+// divergent tickets.
+func issueFromNettestPairTx(ctx context.Context, tx *sql.Tx, projectID, userID, pairID, phase string) (*Issue, error) {
+	var machineID, localPort, peerPort, category, detail, pairState string
+	if e := tx.QueryRowContext(ctx, `SELECT p.machine_id, pp.port_name, COALESCE(qp.port_name,''), p.classification, p.detail::text, p.state
+		FROM nettest_pairs p
+		JOIN physical_ports pp ON pp.id=p.port_id
+		LEFT JOIN physical_ports qp ON qp.id=p.peer_port_id
+		WHERE p.id=$1 AND p.project_id=$2`, pairID, projectID).Scan(&machineID, &localPort, &peerPort, &category, &detail, &pairState); e != nil {
+		if errors.Is(e, sql.ErrNoRows) {
+			return nil, apiError(409, "VALIDATION_ERROR", "connectivity pair not found in this project")
+		}
+		return nil, e
+	}
+	if pairState != "fail" {
+		return nil, apiError(409, "VALIDATION_ERROR", "pair is not failing; no issue needed")
+	}
+	if category == "" {
+		return nil, apiError(409, "VALIDATION_ERROR", "pair carries no T classification; classify before ticketing")
+	}
+	var hostname string
+	if e := tx.QueryRowContext(ctx, "SELECT hostname FROM project_assets WHERE project_id=$1 AND machine_id=$2", projectID, machineID).Scan(&hostname); e != nil {
+		return nil, e
+	}
+	if phase == "" {
+		phase = "delivery"
+	}
+	now := time.Now().UTC()
+	title := fmt.Sprintf("%s %s %s: %s", hostname, category, localPort, categoryTitle(category))
+	if peerPort != "" {
+		title = fmt.Sprintf("%s %s %s→%s: %s", hostname, category, localPort, peerPort, categoryTitle(category))
+	}
+	issue := Issue{
+		ID: RandomID(), MachineID: machineID, Hostname: hostname, LocalPort: localPort,
+		DifferenceID: pairID, Source: "nettest", Phase: phase, Category: category,
+		Title: title, Evidence: detail, Status: "open", Version: 1, CreatedBy: userID, CreatedAt: now, UpdatedAt: now,
+	}
+	if _, e := tx.ExecContext(ctx, `INSERT INTO issues(id,project_id,machine_id,difference_id,source,phase,category,title,evidence,status,version,created_by,created_at,updated_at)
+		VALUES($1,$2,$3,$4,'nettest',$5,$6,$7,$8,'open',1,$9,$10,$10)`,
+		issue.ID, projectID, machineID, pairID, phase, category, title, detail, userID, now); e != nil {
+		return nil, e
+	}
+	if _, e := tx.ExecContext(ctx, `INSERT INTO issue_events(id,issue_id,actor,action,from_status,to_status,note,created_at)
+		VALUES($1,$2,$3,'create','','open','',$4)`,
+		RandomID(), issue.ID, userID, now); e != nil {
+		return nil, e
+	}
+	return &issue, nil
+}
+
 func categoryTitle(category string) string {
 	switch category {
 	case "T1":
@@ -166,6 +237,8 @@ func categoryTitle(category string) string {
 		return "线缆更换"
 	case "T5":
 		return "网卡 RMA"
+	case "T6":
+		return "配置纠错"
 	case "T7":
 		return "拓扑混乱"
 	}
@@ -259,11 +332,24 @@ func (s *Store) TransitionIssue(ctx context.Context, a *AuthSession, project *Pr
 		// Closing requires the evidence difference to be resolved — the LLDP
 		// difference for g2 issues, the topology diff for T7 issues.
 		var resolvedAt sql.NullTime
-		if issue.Source == "topology" {
+		switch issue.Source {
+		case "topology":
 			if e = tx.QueryRowContext(ctx, "SELECT resolved_at FROM pcie_diffs WHERE id=$1", issue.DifferenceID).Scan(&resolvedAt); e != nil && !errors.Is(e, sql.ErrNoRows) {
 				return nil, e
 			}
-		} else {
+		case "nettest":
+			// The evidence is the pair row: a re-measured pass resolves it,
+			// and the pass itself is the resolution timestamp.
+			var pairState string
+			var measuredAt sql.NullTime
+			if e = tx.QueryRowContext(ctx, "SELECT state, measured_at FROM nettest_pairs WHERE id=$1", issue.DifferenceID).Scan(&pairState, &measuredAt); e != nil && !errors.Is(e, sql.ErrNoRows) {
+				return nil, e
+			}
+			if pairState != "pass" {
+				return nil, apiError(409, "ISSUE_STATE", "the pair has not passed re-measurement yet; run the targeted re-verification first")
+			}
+			resolvedAt = measuredAt
+		default:
 			if e = tx.QueryRowContext(ctx, "SELECT resolved_at FROM lldp_differences WHERE id=$1", issue.DifferenceID).Scan(&resolvedAt); e != nil && !errors.Is(e, sql.ErrNoRows) {
 				return nil, e
 			}

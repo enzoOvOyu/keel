@@ -60,13 +60,16 @@ export function ServerDetailDrawer({ projectId, machineId, hostname, serial, ini
           <ActionError error={panel.error} />
           {panel.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : panel.data && <>
             {!panel.data.monitored && <p className="empty-hint">{t('panelNotMonitored')}</p>}
-            <table className="data-table"><thead><tr><th>{t('panelPort')}</th><th>{t('panelOS')}</th><th>{t('panelLink')}</th><th>{t('panelPeer')}</th><th>{t('panelAlert')}</th></tr></thead>
+            <table className="data-table"><thead><tr><th>{t('panelPort')}</th><th>{t('panelOS')}</th><th>{t('panelLink')}</th><th>{t('panelPeer')}</th><th>{t('panelAlert')}</th><th>{t('nettestPortColumn')}</th></tr></thead>
               <tbody>{panel.data.ports.map((port) => <tr key={port.port_id}>
                 <td className="mono-value">{port.port_name}</td>
                 <td className="mono-value">{port.os_interface ?? '—'}</td>
                 <td><span className={`status-label ${port.link_state === 'up' ? 'enabled' : port.link_state === 'down' ? 'disabled' : ''}`}>{t('link_' + port.link_state)}</span></td>
                 <td>{port.lldp_peer ?? '—'}</td>
                 <td>{port.alert_rule ? <span className="status-label disabled">{t('alert_' + port.alert_rule)}</span> : '—'}</td>
+                <td>{port.nettest_failure
+                  ? <span className="status-label disabled" title={`${t('nettestPortFailure')} · ${port.nettest_failure}`}>{t('nettestPortFailure')} · {port.nettest_failure}</span>
+                  : '—'}</td>
               </tr>)}</tbody></table>
           </>}
         </>}

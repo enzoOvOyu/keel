@@ -3,14 +3,16 @@ package platform
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"time"
 )
 
 // Gate dashboard (WP-2.8, FR-4 / DESIGN-SYSTEM §4.4). One read aggregates
-// the six gate cards and the project KPIs. G1 and G4 read real evidence in
-// the mock channel (G1 the gate evidence rows, G4 the WP-3.2 read-back
-// receipts); the rest report their honest not-implemented state instead of a
-// fabricated pass. The KPIs count open issues and trust states from the
+// the six gate cards and the project KPIs. G1, G4 and G5 read real evidence
+// in the mock channel (G1 the gate evidence rows, G4 the WP-3.2 read-back
+// receipts, G5 the WP-3.3 connectivity conclusions); the rest report their
+// honest not-implemented state instead of a fabricated pass. The KPIs count open issues and trust states from the
 // existing tables.
 
 type GateCard struct {
@@ -21,6 +23,20 @@ type GateCard struct {
 	PassRate         int       `json:"pass_rate"`
 	LatestAt         time.Time `json:"latest_at,omitempty"`
 	LatestConclusion string    `json:"latest_conclusion,omitempty"`
+	// Layers is the G5 five-layer pass-rate breakdown (DS 4.4 mini bar).
+	Layers []GateLayerRate `json:"layers,omitempty"`
+}
+
+// GateLayerRate is one L1-L5 layer of the newest concluded connectivity
+// run: planned pairs from the frozen plan, measured/passed/failed from the
+// per-pair results, and the pass percentage of the plan.
+type GateLayerRate struct {
+	Layer    string `json:"layer"`
+	Planned  int    `json:"planned"`
+	Measured int    `json:"measured"`
+	Passed   int    `json:"passed"`
+	Failed   int    `json:"failed"`
+	Rate     int    `json:"rate"`
 }
 
 type DashboardKPIs struct {
@@ -87,6 +103,14 @@ func (s *Store) GetGateDashboard(ctx context.Context, a *AuthSession, project *P
 				return nil, e
 			}
 			setCard(&dashboard.Cards, gate, g4)
+			continue
+		}
+		if gate == "G5" {
+			g5, e := s.g5Card(ctx, tx, project.ID, card)
+			if e != nil {
+				return nil, e
+			}
+			setCard(&dashboard.Cards, gate, g5)
 			continue
 		}
 		if gate != "G1" {
@@ -186,7 +210,7 @@ func (s *Store) g4Card(ctx context.Context, tx *sql.Tx, projectID string, card G
 	}
 	total, passed, failed, unaligned := 0, 0, 0, 0
 	for machineID, kinds := range perMachine {
-		required := s.g4RequiredKinds(ctx, tx, projectID, machineID)
+		required := g4RequiredKinds(ctx, tx, projectID, machineID)
 		for _, kind := range required {
 			total++
 			entry, ok := kinds[kind]
@@ -222,7 +246,7 @@ func (s *Store) g4Card(ctx context.Context, tx *sql.Tx, projectID string, card G
 // active roles: every active rail needs the network plan and the partition,
 // a compute rail additionally needs the GPU-NIC binding, and the RoCE
 // parameters ride the same rails.
-func (s *Store) g4RequiredKinds(ctx context.Context, tx *sql.Tx, projectID, machineID string) []string {
+func g4RequiredKinds(ctx context.Context, tx *sql.Tx, projectID, machineID string) []string {
 	var active, compute int
 	if e := tx.QueryRowContext(ctx, `SELECT COUNT(*), COUNT(*) FILTER (WHERE role='compute')
 		FROM physical_ports WHERE machine_id=$1 AND role<>'unused'`, machineID).Scan(&active, &compute); e != nil {
@@ -236,6 +260,100 @@ func (s *Store) g4RequiredKinds(ctx context.Context, tx *sql.Tx, projectID, mach
 		kinds = append(kinds, "gpu_nic_binding")
 	}
 	return kinds
+}
+
+// g5Card judges the RoCE connectivity gate: the newest G5 evidence decides
+// the badge, and the run that evidence was written for provides the L1-L5
+// layer pass-rate breakdown. A missing gate is never a pass.
+func (s *Store) g5Card(ctx context.Context, tx *sql.Tx, projectID string, card GateCard) (GateCard, error) {
+	var conclusion, detail string
+	var createdAt time.Time
+	e := tx.QueryRowContext(ctx, `SELECT conclusion, created_at, detail FROM gate_evidences
+		WHERE project_id=$1 AND gate='G5' ORDER BY created_at DESC LIMIT 1`, projectID).Scan(&conclusion, &createdAt, &detail)
+	switch {
+	case e == nil:
+		card.LatestAt, card.LatestConclusion = createdAt, conclusion
+		switch conclusion {
+		case "PASS":
+			card.State, card.PassRate = "pass", 100
+		case "FAIL":
+			card.State, card.PassRate = "fail", 0
+		case "WAIVED":
+			card.State, card.PassRate = "waived", 0
+		default:
+			card.State = "no_evidence"
+		}
+	case errors.Is(e, sql.ErrNoRows):
+		card.State = "no_evidence"
+	default:
+		return card, e
+	}
+	runID := ""
+	if detail != "" {
+		var parsed map[string]any
+		if json.Unmarshal([]byte(detail), &parsed) == nil {
+			if value, ok := parsed["run_id"].(string); ok {
+				runID = value
+			}
+		}
+	}
+	if runID == "" {
+		// The evidence is written in the finish transaction, so the newest
+		// finished run is the same run in practice.
+		if e := tx.QueryRowContext(ctx, `SELECT id FROM nettest_runs
+			WHERE project_id=$1 AND state='finished' ORDER BY finished_at DESC LIMIT 1`, projectID).Scan(&runID); e != nil && !errors.Is(e, sql.ErrNoRows) {
+			return card, e
+		}
+	}
+	if runID == "" {
+		return card, nil
+	}
+	var layersJSON []byte
+	if e := tx.QueryRowContext(ctx, `SELECT layers FROM nettest_runs WHERE id=$1`, runID).Scan(&layersJSON); e != nil {
+		if errors.Is(e, sql.ErrNoRows) {
+			return card, nil
+		}
+		return card, e
+	}
+	plan := []NettestLayerPlan{}
+	if e := json.Unmarshal(layersJSON, &plan); e != nil {
+		return card, e
+	}
+	rows, e := tx.QueryContext(ctx, `SELECT layer,
+			COUNT(*) FILTER (WHERE state='pass'), COUNT(*) FILTER (WHERE state='fail')
+		FROM nettest_pairs WHERE run_id=$1 GROUP BY layer`, runID)
+	if e != nil {
+		return card, e
+	}
+	outcomes := map[string][2]int{}
+	for rows.Next() {
+		var layer string
+		var passed, failed int
+		if e = rows.Scan(&layer, &passed, &failed); e != nil {
+			rows.Close()
+			return card, e
+		}
+		outcomes[layer] = [2]int{passed, failed}
+	}
+	if e = rows.Err(); e != nil {
+		rows.Close()
+		return card, e
+	}
+	rows.Close()
+	layers := []GateLayerRate{}
+	for _, entry := range plan {
+		rate := GateLayerRate{Layer: entry.Layer, Planned: entry.Pairs}
+		if outcome, ok := outcomes[entry.Layer]; ok {
+			rate.Passed, rate.Failed = outcome[0], outcome[1]
+			rate.Measured = outcome[0] + outcome[1]
+		}
+		if rate.Planned > 0 {
+			rate.Rate = rate.Passed * 100 / rate.Planned
+		}
+		layers = append(layers, rate)
+	}
+	card.Layers = layers
+	return card, nil
 }
 
 func setCard(cards *GateCards, gate string, card GateCard) {

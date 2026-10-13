@@ -2,7 +2,7 @@
 
 **Knowledge-led Execution, Enforcement & Lifecycle**
 
-自动交付部署平台。品牌字标使用 **Keel**，仓库、包名与服务标识使用 `keel`。设计基线覆盖 17 个功能域；**P1 已全部闭环**（项目/登录隔离、执行恢复与锁、2000 目标扇出、介质校验、型号不可变版本、互信全链、PoC 执行包 #P1 产出），**P2 验机链 13 个工作包全部闭环**（后端 + 前端主链路），**P3 配置链已交付 ConfigSet 引擎与四类批量配置渲染器**（WP-3.1/WP-3.2），整体交付业务持续开发中。
+自动交付部署平台。品牌字标使用 **Keel**，仓库、包名与服务标识使用 `keel`。设计基线覆盖 17 个功能域；**P1 已全部闭环**（项目/登录隔离、执行恢复与锁、2000 目标扇出、介质校验、型号不可变版本、互信全链、PoC 执行包 #P1 产出），**P2 验机链 13 个工作包全部闭环**（后端 + 前端主链路），**P3 配置链已交付 ConfigSet 引擎、四类批量配置渲染器与 RoCE 五层连通测试服务**（WP-3.1/WP-3.2/WP-3.3），整体交付业务持续开发中。
 
 ## 当前可用能力
 
@@ -39,15 +39,23 @@
 - **统一读回契约（FR-5.2）**：四类渲染器共享同一抽检读回校验——读回样本与渲染计划逐键比对，全匹配才 verified；缺样本保持 pending，不一致样本在 apply 行记录 mismatch，绝不把静默当通过。
 - **角色化渲染（FR-5.9，WP-3.2）**：模板只引用逻辑角色（management/storage/compute/oob）；机型声明每槽位默认角色，项目可按槽位覆盖（二期 x710→unused 由覆盖吸收，机型与模板零改动）；仅 enabled 且 required 的角色要求零缺失绑定，禁用角色允许空绑，compute 角色不可关闭；角色方案管理页展示覆盖度与缺失影响。
 
+### 连通测试（P3：RoCE 五层连通测试服务，WP-3.3）
+
+- **五层连通测试（FR-11，WP-3.3）**：L1–L5 五层共享同一 per-NIC-pair 结果模型（ping/RDMA/集合通信/NCCL 分级）；FR-11.2 预检四查（G4 门禁、端口映射覆盖、活跃告警、平台握手 freshness>1h 拒收）；计划分 quick（`nettest.required_path_coverage=0.25`，matrix-sample）与 full（1.0）两档，端口集合来自最新发布映射版本。
+- **失败分类与工单闭环（FR-11.4/11.5→FR-4.7）**：T1–T6 分类（T6 配置类：ip_conflict/vlan_unreachable/pfc_misconfig/mtu_mismatch），失败对自动开 T 工单进同一工单环（source=nettest，repair 注册后方可请求验证），无法分类的失败如实保留 unclassified 绝不伪造归因。
+- **覆盖率核算与 G5 证据**：逐层按 `ceil(计划×required)` 判定 complete，任一层实测<计划即 sampled；G5 证据仅在运行结论（finish）时落库，未完成运行不出证据；flapping 告警阻止预检、issue-bound waiver 可放行。
+- **NCCL 准入（FR-11.6）**：net_verified = 最新 G5 证据 PASS/WAIVED 且未过期；准入面板按机器逐台展示，失败层点亮对应端口。
+- **看板与端口面板联动（DS §4.4/§4.12）**：G5 门禁卡展示 L1–L5 分层通过率 mini bar（读真实证据，无证据=no_evidence 绝不伪造 PASS）；ServerDetailDrawer 网口面板新增连通性列，失败端口高亮并带失败层提示。
+
 ### 验证规模
 
-隔离套件 **216 组检查全绿**（真实 PostgreSQL HTTP 检查 + 真实 Chromium 浏览器验收），覆盖每个语义约束：不可变发布、幂等导入、状态机边界、权限隔离、项目隔离、失败分类、渲染读回一致性、证据诚实性。
+隔离套件 **239 组检查全绿**（真实 PostgreSQL HTTP 检查 + 真实 Chromium 浏览器验收），覆盖每个语义约束：不可变发布、幂等导入、状态机边界、权限隔离、项目隔离、失败分类、渲染读回一致性、证据诚实性。
 
 `/healthz` 只表示进程存活。`/api/v1` 返回 `phase: p1-foundation`；`business_ready: false` 表示整体交付业务尚未就绪。
 
 ### 尚未实现（诚实声明）
 
-ProxyDHCP/iPXE/cloud-init/首启回调（真实通道）、keel-ctrl 密钥托管与 authorized_keys 注入、gRPC Agent/mTLS、G2-G6 判定引擎、SSE 实时推送、ServerLampPanel 状态灯（需 FR-16 BMC 带外）、抽屉拉宽/翻页导航、趋势图、CMDB 联邦视图、NCCL 测试链、配置 apply 的看门狗/回滚、FR-5.6 驱动升级链（介质库分发）、RoCE 连通性五层测试（nettest-svc）——按 ADR-14 mock-first 推进，**页面与 API 对未实现能力如实标注，不虚构通过**。
+ProxyDHCP/iPXE/cloud-init/首启回调（真实通道）、keel-ctrl 密钥托管与 authorized_keys 注入、gRPC Agent/mTLS、G2-G6 判定引擎（G5 证据判定已随 WP-3.3 落地，G2/G3/G4/G6 仍未实现）、SSE 实时推送、ServerLampPanel 状态灯（需 FR-16 BMC 带外）、抽屉拉宽/翻页导航、趋势图、CMDB 联邦视图、NCCL 测试链（S1–S9，消费 FR-11.6 准入）、配置 apply 的看门狗/回滚、FR-5.6 驱动升级链（介质库分发）——按 ADR-14 mock-first 推进，**页面与 API 对未实现能力如实标注，不虚构通过**。
 
 ## 在远端继续开发
 

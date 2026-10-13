@@ -100,6 +100,7 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 	auth.registerFleetStatus(r)
 	auth.registerConfigSet(r)
 	auth.registerRoles(r)
+	auth.registerNettest(r)
 		auth.registerMedia(r)
 		auth.registerParams(r)
 	}

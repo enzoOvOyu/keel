@@ -267,9 +267,24 @@
         "F-11.1",
         "F-11.2",
         "F-11.3",
+        "F-11.4",
+        "F-11.5",
+        "F-11.6",
         "H-6"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "WP-3.3 delivered the five-layer connectivity test service (F-11.1-F-11.5) and the FR-11.6 admission guard API. WP-3.10 (PoC #P3 real-hardware execution) and the end-to-end NCCL submission rejection (frontend half of F-11.6, WP-3.6) remain planned; network-platform counters stay mock per ADR-14.",
+      "evidence_refs": [
+        "internal/platform/nettest.go",
+        "internal/platform/nettest_http.go",
+        "internal/platform/migrations/024_nettest.sql",
+        "internal/platform/migrations/025_nettest_issues.sql",
+        "internal/platform/dashboard.go",
+        "scripts/check-nettest.py",
+        "scripts/check-nettest-browser.mjs",
+        "web/src/features/nettest/NettestPage.tsx",
+        "web/src/lib/nettest.ts"
+      ]
     },
     {
       "id": "FR-12",
@@ -1504,7 +1519,19 @@
         "F-11.4",
         "F-11.5"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Delivered: L1-L5 five-layer orchestration sharing one per-NIC-pair result model; FR-11.2 precheck (fresh G4 evidence, frozen mapping coverage, no blocking alerts, platform handshake freshness) with ReadinessGate integration; quick/full plans with required_path_coverage accounting (complete vs sampled, sampled never claims full-path coverage); T1-T6 failure classification (T6 config class) opening T-tickets into the FR-4.7 loop with source=nettest; G5 evidence persisted only at run conclusion, incomplete runs produce none; rail heat-matrix UI with port-panel linkage; FR-11.6 admission guard API (net_verified = newest G5 PASS/WAIVED unexpired). Network-platform counters are mock (ADR-14); real-hardware five-layer execution is PoC #P3 (WP-3.10); the frontend-disable half of F-11.6 lands with the NCCL submission flow in WP-3.6.",
+      "evidence_refs": [
+        "internal/platform/nettest.go",
+        "internal/platform/nettest_http.go",
+        "internal/platform/migrations/024_nettest.sql",
+        "internal/platform/migrations/025_nettest_issues.sql",
+        "internal/platform/dashboard.go",
+        "scripts/check-nettest.py",
+        "scripts/check-nettest-browser.mjs",
+        "web/src/features/nettest/NettestPage.tsx",
+        "web/src/lib/nettest.ts"
+      ]
     },
     {
       "id": "WP-3.4",

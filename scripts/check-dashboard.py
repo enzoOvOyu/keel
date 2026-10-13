@@ -78,12 +78,12 @@ admin.call('POST', path + '/bom/commit', bom, code=201)
 assets = admin.call('GET', path + '/assets?page=1&page_size=20')['items']
 ids = [a['machine_id'] for a in assets]
 
-# 1. Empty project: every card reads honestly, G1 without evidence, G2-G6 not implemented.
+# 1. Empty project: every card reads honestly, G1/G2/G5 without evidence, the rest not implemented.
 board = admin.call('GET', path + '/dashboard')
 cards = board['cards']
 assert cards['G1']['state'] == 'no_evidence' and cards['G2']['state'] == 'no_evidence', cards
 assert cards['G3']['state'] == 'not_implemented' and cards['G4']['state'] == 'no_evidence', cards
-assert cards['G5']['state'] == 'not_implemented' and cards['G6']['state'] == 'not_implemented', cards
+assert cards['G5']['state'] == 'no_evidence' and cards['G6']['state'] == 'not_implemented', cards
 assert all(c['pass_rate'] == 0 for c in cards.values())
 assert board['kpis']['assets_total'] == 2 and board['kpis']['trust_unverified'] == 2, board['kpis']
 passed.append('Empty boards stay honest: no fabricated passes anywhere')

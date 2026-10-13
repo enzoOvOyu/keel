@@ -5,7 +5,7 @@ import { ProjectWorkspace, canManageProject, useProject } from '../../components
 import { ActionDialog, ActionError, PermissionDenied } from '../../components/Management'
 import { useState, type FormEvent } from 'react'
 import { useAction } from '../../lib/management'
-import { getGateDashboard, waiveGate, type GateCard } from '../../lib/dashboard'
+import { getGateDashboard, waiveGate, type GateCard, type GateLayerRate } from '../../lib/dashboard'
 import { useSession } from '../../lib/session'
 import { useExpireOnUnauthorized } from '../../lib/session'
 
@@ -28,6 +28,21 @@ function WaiveDialog({ projectId, gate, onClose, onDone }: { projectId: string; 
     <div className="field"><label htmlFor="waive-scope">{t('waiveScope')}</label><input id="waive-scope" value={scope} onChange={(event) => setScope(event.target.value)} maxLength={200} disabled={action.busy} /></div>
     <div className="field"><label htmlFor="waive-hours">{t('waiveHours')}</label><input id="waive-hours" type="number" min={1} max={168} value={hours} onChange={(event) => setHours(Number(event.target.value))} disabled={action.busy} /></div>
   </ActionDialog>
+}
+
+function LayerBars({ layers }: { layers: GateLayerRate[] }) {
+  const { t } = useTranslation()
+  return <div className="gate-layer-bars" role="img" aria-label={t('nettestG5Layers')}>
+    {layers.map((layer) => <div key={layer.layer} className="gate-layer-row">
+      <span className="gate-layer-name">{layer.layer}</span>
+      <div className="gate-layer-track">
+        <div className="gate-layer-fill" data-state={layer.failed > 0 ? 'fail' : layer.rate >= 100 ? 'pass' : 'partial'}
+          style={{ width: `${Math.max(layer.rate, layer.failed > 0 ? 4 : 0)}%` }} />
+      </div>
+      <span className="gate-layer-rate">{layer.rate}%</span>
+      <span className="cell-subtitle">{layer.passed}/{layer.planned}</span>
+    </div>)}
+  </div>
 }
 
 function CardRing({ rate }: { rate: number }) {
@@ -59,6 +74,7 @@ function DashboardContent() {
               <p className="gate-card-title">{card.title}</p>
               <p className="gate-card-summary">{card.summary}</p>
               <CardRing rate={card.pass_rate} />
+              {card.layers && card.layers.length > 0 && <LayerBars layers={card.layers} />}
               {manage && card.state !== 'not_implemented' && <button type="button" className="secondary-button gate-waive" onClick={() => { setSuccess(''); setWaiving(gate) }}>{t('waiveButton')}</button>}
             </div>
           })}

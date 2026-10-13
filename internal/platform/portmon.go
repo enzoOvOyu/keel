@@ -17,26 +17,31 @@ import (
 // panel marked stopped, per the FR-13.2 maintenance semantics.
 
 type PortPanelEntry struct {
-	PortID       string     `json:"port_id"`
-	PortName     string     `json:"port_name"`
-	MACAddress   string     `json:"mac_address"`
-	Rail         int        `json:"rail"`
-	OSInterface  string     `json:"os_interface,omitempty"`
-	LinkState    string     `json:"link_state"` // up / down / unknown
-	LinkSource   string     `json:"link_source,omitempty"`
-	LinkAt       *time.Time `json:"link_at,omitempty"`
-	DOMSummary   string     `json:"dom_summary,omitempty"`
-	DOMSource    string     `json:"dom_source,omitempty"`
-	LLDPPeer     string     `json:"lldp_peer,omitempty"`
-	LLDPAt       *time.Time `json:"lldp_at,omitempty"`
-	AlertRule    string     `json:"alert_rule,omitempty"`
+	PortID      string     `json:"port_id"`
+	PortName    string     `json:"port_name"`
+	MACAddress  string     `json:"mac_address"`
+	Rail        int        `json:"rail"`
+	OSInterface string     `json:"os_interface,omitempty"`
+	LinkState   string     `json:"link_state"` // up / down / unknown
+	LinkSource  string     `json:"link_source,omitempty"`
+	LinkAt      *time.Time `json:"link_at,omitempty"`
+	DOMSummary  string     `json:"dom_summary,omitempty"`
+	DOMSource   string     `json:"dom_source,omitempty"`
+	LLDPPeer    string     `json:"lldp_peer,omitempty"`
+	LLDPAt      *time.Time `json:"lldp_at,omitempty"`
+	AlertRule   string     `json:"alert_rule,omitempty"`
+	// NettestFailure is the newest failed connectivity pair touching this
+	// port (directly or through its rail's L5 result): the failed path's
+	// ports light up red in the panel (FR-11.4).
+	NettestFailure string     `json:"nettest_failure,omitempty"`
+	NettestAt      *time.Time `json:"nettest_at,omitempty"`
 }
 
 type PortPanel struct {
-	MachineID string            `json:"machine_id"`
-	Hostname  string            `json:"hostname"`
-	Monitored bool              `json:"monitored"`
-	Ports     []PortPanelEntry  `json:"ports"`
+	MachineID string           `json:"machine_id"`
+	Hostname  string           `json:"hostname"`
+	Monitored bool             `json:"monitored"`
+	Ports     []PortPanelEntry `json:"ports"`
 }
 
 // GetPortPanel aggregates one machine's port panel for project members.
@@ -66,7 +71,10 @@ func (s *Store) GetPortPanel(ctx context.Context, a *AuthSession, project *Proje
 	if e != nil {
 		return nil, e
 	}
-	type portRow struct{ id, name, mac string; rail int }
+	type portRow struct {
+		id, name, mac string
+		rail          int
+	}
 	var ports []portRow
 	for rows.Next() {
 		var p portRow
@@ -123,6 +131,21 @@ func (s *Store) GetPortPanel(ctx context.Context, a *AuthSession, project *Proje
 			WHERE project_id=$1 AND machine_id=$2 AND port=$3 AND closed_at IS NULL
 			ORDER BY opened_at DESC LIMIT 1`, project.ID, machineID, p.name).Scan(&rule); e == nil {
 			entry.AlertRule = rule
+		} else if e != sql.ErrNoRows {
+			return nil, e
+		}
+		// Newest failed connectivity pair on this port — a direct pair
+		// failure or the rail-level L5 result anchored on the same rail.
+		var layer, classification string
+		var measuredAt time.Time
+		if e = tx.QueryRowContext(ctx, `SELECT p.layer, p.classification, MAX(p.measured_at) FROM nettest_pairs p
+			LEFT JOIN physical_ports anchor ON anchor.id=p.port_id
+			WHERE p.project_id=$1 AND p.state='fail'
+				AND (p.port_id=$2 OR p.peer_port_id=$2 OR (p.layer='L5' AND p.machine_id=$3 AND anchor.rail=$4))
+			GROUP BY p.layer, p.classification ORDER BY MAX(p.measured_at) DESC LIMIT 1`,
+			project.ID, p.id, machineID, p.rail).Scan(&layer, &classification, &measuredAt); e == nil {
+			entry.NettestFailure = layer + ":" + classification
+			entry.NettestAt = &measuredAt
 		} else if e != sql.ErrNoRows {
 			return nil, e
 		}
