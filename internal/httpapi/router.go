@@ -84,6 +84,7 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 		auth.registerExecution(r)
 		auth.registerModels(r)
 	auth.registerModelImports(r)
+	auth.registerBomImport(r)
 		auth.registerMedia(r)
 		auth.registerParams(r)
 	}

@@ -1011,7 +1011,12 @@
         "F-2.5",
         "F-2.6"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "BOM import foundation verified (FR-2.1 backend): two-phase preview/commit with classified conflicts (duplicate SN/MAC, invalid SN/hostname, unknown model), zero partial writes; global Machine/PhysicalPort identity with project-scoped ProjectAsset model binding (FR-14.2) and versioning; file versions unique per project. 8 isolated check groups green. ProxyDHCP/iPXE/cloud-init/callback remain planned (real-channel scope).",
+      "evidence_refs": [
+        "internal/platform/bom_import.go",
+        "scripts/check-bom-import.py"
+      ]
     },
     {
       "id": "WP-1.8",
