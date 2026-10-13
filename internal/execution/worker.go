@@ -435,26 +435,29 @@ func applyReceipt(ctx context.Context, tx *sql.Tx, a Attempt, r Receipt, allowRe
 		}
 	}
 	// FR-1.4 circuit breaker: after applying a failed receipt, compute the
-	// share of failed terminal attempts over all terminal attempts; when it
-	// exceeds the execution's configured threshold the execution flips to
-	// PAUSED automatically (no further dispatches) and records the event.
+	// share of failed targets over the whole target set (the snapshot froze
+	// the targets; the denominator is the full population, so an early
+	// single failure cannot trip a threshold meant for batch proportions).
+	// Only each target/task chain's newest attempt counts, so retries and
+	// reruns stay honest.
 	if r.Result == "failed" && x.DesiredState == "running" && x.CircuitBreakerPercent > 0 {
-		var failed, terminal int
-		if e = tx.QueryRowContext(ctx, `SELECT
-				COUNT(*) FILTER (WHERE state='failed'),
-				COUNT(*) FILTER (WHERE state IN('success','failed','cancelled'))
-			FROM exec_task_attempts WHERE execution_id=$1 AND attempt_no=(SELECT MAX(attempt_no) FROM exec_task_attempts t2 WHERE t2.execution_id=exec_task_attempts.execution_id AND t2.target_id=exec_task_attempts.target_id AND t2.task_id=exec_task_attempts.task_id)`,
-			a.ExecutionID).Scan(&failed, &terminal); e != nil {
-			return e
-		}
-		if terminal > 0 && failed*100 >= terminal*x.CircuitBreakerPercent {
-			if _, e = tx.ExecContext(ctx, "UPDATE exec_executions SET desired_state='paused',state_version=state_version+1 WHERE id=$1 AND desired_state='running'", a.ExecutionID); e != nil {
+		total := len(x.Snapshot.Targets)
+		if total > 0 {
+			var failedTargets int
+			if e = tx.QueryRowContext(ctx, `SELECT COUNT(DISTINCT target_id) FROM exec_task_attempts
+				WHERE execution_id=$1 AND state='failed' AND attempt_no=(SELECT MAX(attempt_no) FROM exec_task_attempts t2 WHERE t2.execution_id=exec_task_attempts.execution_id AND t2.target_id=exec_task_attempts.target_id AND t2.task_id=exec_task_attempts.task_id)`,
+				a.ExecutionID).Scan(&failedTargets); e != nil {
 				return e
 			}
-			if e = event(ctx, tx, a.ExecutionID, "execution.circuit_breaker_open", map[string]any{
-				"failed": failed, "terminal": terminal, "threshold_percent": x.CircuitBreakerPercent,
-			}); e != nil {
-				return e
+			if failedTargets*100 >= total*x.CircuitBreakerPercent {
+				if _, e = tx.ExecContext(ctx, "UPDATE exec_executions SET desired_state='paused',state_version=state_version+1 WHERE id=$1 AND desired_state='running'", a.ExecutionID); e != nil {
+					return e
+				}
+				if e = event(ctx, tx, a.ExecutionID, "execution.circuit_breaker_open", map[string]any{
+					"failed_targets": failedTargets, "total_targets": total, "threshold_percent": x.CircuitBreakerPercent,
+				}); e != nil {
+					return e
+				}
 			}
 		}
 	}
