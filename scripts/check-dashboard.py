@@ -82,7 +82,7 @@ ids = [a['machine_id'] for a in assets]
 board = admin.call('GET', path + '/dashboard')
 cards = board['cards']
 assert cards['G1']['state'] == 'no_evidence' and cards['G2']['state'] == 'no_evidence', cards
-assert cards['G3']['state'] == 'not_implemented' and cards['G4']['state'] == 'not_implemented', cards
+assert cards['G3']['state'] == 'not_implemented' and cards['G4']['state'] == 'no_evidence', cards
 assert cards['G5']['state'] == 'not_implemented' and cards['G6']['state'] == 'not_implemented', cards
 assert all(c['pass_rate'] == 0 for c in cards.values())
 assert board['kpis']['assets_total'] == 2 and board['kpis']['trust_unverified'] == 2, board['kpis']

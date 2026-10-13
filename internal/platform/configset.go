@@ -170,9 +170,9 @@ type RenderInput struct {
 }
 
 type RenderResult struct {
-	Rendered  string `json:"rendered"`
-	Diff      string `json:"diff"`
-	Applied   bool   `json:"applied"`
+	Rendered string `json:"rendered"`
+	Diff     string `json:"diff"`
+	Applied  bool   `json:"applied"`
 }
 
 // RenderConfigSet resolves {{param.<key>}} placeholders against the frozen
@@ -226,9 +226,11 @@ func (s *Store) RenderConfigSet(ctx context.Context, a *AuthSession, project *Pr
 		}
 		rendered = strings.ReplaceAll(rendered, match[0], fmt.Sprintf("%v", value))
 	}
-	// Diff against the newest prior apply for this set+machine.
+	// Diff against the newest prior apply of the same kind for this
+	// set+machine: the generic template render is its own kind, so it never
+	// diffs against one of the four renderer outputs.
 	var prior sql.NullString
-	_ = tx.QueryRowContext(ctx, `SELECT rendered FROM config_set_applies WHERE config_set_id=$1 AND machine_id=$2 ORDER BY applied_at DESC LIMIT 1`,
+	_ = tx.QueryRowContext(ctx, `SELECT rendered FROM config_set_applies WHERE config_set_id=$1 AND machine_id=$2 AND kind='template' ORDER BY applied_at DESC LIMIT 1`,
 		input.ConfigSetID, input.MachineID).Scan(&prior)
 	diff := ""
 	if prior.Valid && prior.String != rendered {
@@ -239,8 +241,8 @@ func (s *Store) RenderConfigSet(ctx context.Context, a *AuthSession, project *Pr
 	result := RenderResult{Rendered: rendered, Diff: diff, Applied: false}
 	if apply {
 		now := time.Now().UTC()
-		if _, e = tx.ExecContext(ctx, `INSERT INTO config_set_applies(id,project_id,config_set_id,machine_id,rendered,diff,applied_by,applied_at)
-			VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,
+		if _, e = tx.ExecContext(ctx, `INSERT INTO config_set_applies(id,project_id,config_set_id,machine_id,rendered,diff,applied_by,applied_at,kind)
+			VALUES($1,$2,$3,$4,$5,$6,$7,$8,'template')`,
 			RandomID(), project.ID, input.ConfigSetID, input.MachineID, rendered, diff, a.User.ID, now); e != nil {
 			return nil, e
 		}

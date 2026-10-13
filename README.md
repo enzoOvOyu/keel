@@ -2,7 +2,7 @@
 
 **Knowledge-led Execution, Enforcement & Lifecycle**
 
-自动交付部署平台。品牌字标使用 **Keel**，仓库、包名与服务标识使用 `keel`。设计基线覆盖 17 个功能域；**P1 已全部闭环**（项目/登录隔离、执行恢复与锁、2000 目标扇出、介质校验、型号不可变版本、互信全链、PoC 执行包 #P1 产出），**P2 验机主链已完成六个工作包的 mock 通道闭环**，整体交付业务持续开发中。
+自动交付部署平台。品牌字标使用 **Keel**，仓库、包名与服务标识使用 `keel`。设计基线覆盖 17 个功能域；**P1 已全部闭环**（项目/登录隔离、执行恢复与锁、2000 目标扇出、介质校验、型号不可变版本、互信全链、PoC 执行包 #P1 产出），**P2 验机链 13 个工作包全部闭环**（后端 + 前端主链路），**P3 配置链已交付 ConfigSet 引擎与四类批量配置渲染器**（WP-3.1/WP-3.2），整体交付业务持续开发中。
 
 ## 当前可用能力
 
@@ -32,15 +32,22 @@
 - **T7 工单闭环（FR-4.8.3→FR-4.7）**：拓扑差异进同一工单环（source=topology），close 门禁按证据类型分流。
 - **ServerDetailDrawer + 双状态列（DS §4.12）**：五标签抽屉（台账/映射/网口面板/PCIe 拓扑/监控），映射+网络双徽标三重编码可点直达，网络列独立于映射存在（SSOT），Esc 关闭保列表上下文。
 
+### 配置链（P3 已交付：ConfigSet 引擎 + 四类渲染器 + 角色化渲染）
+
+- **ConfigSet 引擎（FR-5.1，WP-3.1）**：配置即数据（键/schema/作用域/模板）；`{{param.<点号路径>}}` 占位符从冻结快照解析，缺参拒绝渲染绝不半成品；版本化审批 + 自审批拦截（草稿→approved 不可变，唯一发布路径）；按机器渲染预览与最近一次 apply 的行级 diff；G3 映射前置只门禁 apply，预览永远只读；权限先于校验。
+- **四类批量配置渲染器（FR-5.2-5.5，WP-3.2）**：GPU 网络配置按映射库与逻辑角色规划每 NIC 的 IP/路由/策略；网卡分割由机型能力矩阵生成（速率/总带宽/PF/VF 分别登记 + 前后 diff，超能力拒绝）；GPU-NIC 绑定渲染 NCCL_NETDEVS_POLICY 与 NUMA pinning（跨 NUMA 预览警告、apply 硬拒）；RoCE 导入把 DCQCN/PFC/ETS/MTU/拥塞作为 ConfigSet 键版本化管理（导入前 diff、导入后读回验证并记录回执）。
+- **统一读回契约（FR-5.2）**：四类渲染器共享同一抽检读回校验——读回样本与渲染计划逐键比对，全匹配才 verified；缺样本保持 pending，不一致样本在 apply 行记录 mismatch，绝不把静默当通过。
+- **角色化渲染（FR-5.9，WP-3.2）**：模板只引用逻辑角色（management/storage/compute/oob）；机型声明每槽位默认角色，项目可按槽位覆盖（二期 x710→unused 由覆盖吸收，机型与模板零改动）；仅 enabled 且 required 的角色要求零缺失绑定，禁用角色允许空绑，compute 角色不可关闭；角色方案管理页展示覆盖度与缺失影响。
+
 ### 验证规模
 
-隔离套件约 **230 组检查全绿**（真实 PostgreSQL HTTP 检查 + 真实 Chromium 浏览器验收），覆盖每个语义约束：不可变发布、幂等导入、状态机边界、权限隔离、项目隔离、失败分类、证据诚实性。
+隔离套件 **216 组检查全绿**（真实 PostgreSQL HTTP 检查 + 真实 Chromium 浏览器验收），覆盖每个语义约束：不可变发布、幂等导入、状态机边界、权限隔离、项目隔离、失败分类、渲染读回一致性、证据诚实性。
 
 `/healthz` 只表示进程存活。`/api/v1` 返回 `phase: p1-foundation`；`business_ready: false` 表示整体交付业务尚未就绪。
 
 ### 尚未实现（诚实声明）
 
-ProxyDHCP/iPXE/cloud-init/首启回调（真实通道）、keel-ctrl 密钥托管与 authorized_keys 注入、gRPC Agent/mTLS、G2-G6 判定引擎、SSE 实时推送、ServerLampPanel 状态灯（需 FR-16 BMC 带外）、抽屉拉宽/翻页导航、趋势图、CMDB 联邦视图、NCCL 测试链——按 ADR-14 mock-first 推进，**页面与 API 对未实现能力如实标注，不虚构通过**。
+ProxyDHCP/iPXE/cloud-init/首启回调（真实通道）、keel-ctrl 密钥托管与 authorized_keys 注入、gRPC Agent/mTLS、G2-G6 判定引擎、SSE 实时推送、ServerLampPanel 状态灯（需 FR-16 BMC 带外）、抽屉拉宽/翻页导航、趋势图、CMDB 联邦视图、NCCL 测试链、配置 apply 的看门狗/回滚、FR-5.6 驱动升级链（介质库分发）、RoCE 连通性五层测试（nettest-svc）——按 ADR-14 mock-first 推进，**页面与 API 对未实现能力如实标注，不虚构通过**。
 
 ## 在远端继续开发
 

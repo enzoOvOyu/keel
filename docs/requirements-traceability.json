@@ -2,7 +2,7 @@
   "schema_version": 1,
   "design_version": "v2.5",
   "product": "keel",
-  "updated_at": "2026-10-13",
+  "updated_at": "2026-10-14",
   "status_semantics": "Design mappings are requirements, not evidence that implementation or validation has passed.",
   "requirements": [
     {
@@ -1476,7 +1476,19 @@
         "F-5.9.2",
         "F-5.9.3"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "Four batch-config renderers verified against a real API and a real PostgreSQL (FR-5.2-5.5, FR-5.9, mock channels per ADR-14): GPU network config plans per-NIC address/routes/policy from the published mapping and the logical role (unmapped targets preview but never apply); NIC partitioning is generated from the model capability matrix with rate/total-bandwidth/PF/VF registered separately and a before/after diff (capability overflow refuses); GPU-NIC binding renders NCCL_NETDEVS_POLICY with NUMA pinning and treats a cross-NUMA rail as a preview warning and an apply refusal; RoCE import keeps DCQCN/PFC/ETS/MTU/congestion as ConfigSet keys with a pre-apply diff and a post-apply read-back receipt. All four renderers share one read-back contract: a sampled read-back is parsed against the rendered plan and only a full match verifies (a missing sample stays pending, a disagreeing sample is recorded as a mismatch on the apply row). Role-aware rendering (FR-5.9): templates reference logical roles only; the model declares the default role per slot and the project may override a slot (phase-two x710->unused is absorbed without touching the model or the template); only enabled+required roles must be fully bound, a disabled role may sit empty, the compute role cannot be switched off; a role-plan management page exposes the scheme with coverage and missing-binding impact. 12 isolated API check groups + 5 Chromium check groups green. Apply-time watchdog/rollback for config applies and the FR-5.6 driver chain remain planned (WP-3.4).",
+      "evidence_refs": [
+        "internal/platform/render.go",
+        "internal/platform/roles.go",
+        "internal/platform/readback.go",
+        "internal/platform/migrations/021_rolebind_render.sql",
+        "internal/platform/migrations/022_apply_readback.sql",
+        "scripts/check-render.py",
+        "scripts/check-config-browser.mjs",
+        "web/src/features/config/ConfigPage.tsx",
+        "web/src/lib/roles.ts"
+      ]
     },
     {
       "id": "WP-3.3",

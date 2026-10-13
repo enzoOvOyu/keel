@@ -43,11 +43,11 @@ type DeviceModelVersionDetail struct {
 }
 
 type ModelSlot struct {
-	SlotNo        int    `json:"slot_no"`
-	PcieSlot      string `json:"pcie_slot"`
+	SlotNo         int    `json:"slot_no"`
+	PcieSlot       string `json:"pcie_slot"`
 	ExpectNicModel string `json:"expect_nic_model"`
-	PanelPort     string `json:"panel_port"`
-	DefaultRole   string `json:"default_role"`
+	PanelPort      string `json:"panel_port"`
+	DefaultRole    string `json:"default_role"`
 }
 
 type CreateDeviceModelInput struct {
@@ -61,6 +61,7 @@ type PublishModelVersionInput struct {
 	PanelLayout      map[string]any `json:"panel_layout"`
 	BomExpect        map[string]any `json:"bom_expect"`
 	DefaultRolePlan  map[string]any `json:"default_role_plan"`
+	CapabilityMatrix map[string]any `json:"capability_matrix"`
 	Slots            []ModelSlot    `json:"slots"`
 }
 
@@ -223,8 +224,8 @@ func (s *Store) PublishModelVersion(ctx context.Context, a *AuthSession, project
 	}
 	v := &DeviceModelVersionDetail{ID: RandomID(), ModelID: modelID, Version: next, HwSpec: modelSpecJSON(input.HwSpec), ExpectedTopology: modelSpecJSON(input.ExpectedTopology), PanelLayout: modelSpecJSON(input.PanelLayout), BomExpect: modelSpecJSON(input.BomExpect), DefaultRolePlan: modelSpecJSON(input.DefaultRolePlan), ContentHash: hash, PublishedAt: time.Now().UTC().Truncate(time.Microsecond), Slots: input.Slots}
 	if _, e = tx.ExecContext(ctx, `INSERT INTO device_model_versions(id,model_id,version,hw_spec,expected_topology,capability_matrix,panel_layout,bom_expect,default_role_plan,content_hash,published_at)
-		VALUES($1,$2,$3,$4,$5,'{}'::jsonb,$6,$7,$8,$9,$10)`,
-		v.ID, modelID, next, v.HwSpec, v.ExpectedTopology, v.PanelLayout, v.BomExpect, v.DefaultRolePlan, hash, v.PublishedAt); e != nil {
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+		v.ID, modelID, next, v.HwSpec, v.ExpectedTopology, modelSpecJSON(input.CapabilityMatrix), v.PanelLayout, v.BomExpect, v.DefaultRolePlan, hash, v.PublishedAt); e != nil {
 		var pg *pgconn.PgError
 		if errors.As(e, &pg) && pg.Code == "23505" {
 			return nil, apiError(409, "MODEL_VERSION_EXISTS", "This model version already exists")
@@ -309,7 +310,6 @@ func projectIDOf(project *ProjectSummary) string {
 	return project.ID
 }
 
-
 // requireProjectMember accepts any of the six project roles; the caller has
 // already resolved the project record, so this only re-checks membership.
 func requireProjectMember(ctx context.Context, tx *sql.Tx, a *AuthSession, projectID string) error {
@@ -323,7 +323,6 @@ func requireProjectMember(ctx context.Context, tx *sql.Tx, a *AuthSession, proje
 	}
 	return e
 }
-
 
 // ListModelVersions returns the immutable published history of a model.
 // Cross-scope or non-member access returns 404 without leaking existence.

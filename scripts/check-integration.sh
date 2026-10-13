@@ -39,6 +39,7 @@ export KEEL_LISTEN_ADDR=127.0.0.1:3102 KEEL_AUTH_TEST_BASE_URL=http://127.0.0.1:
 "$test_work/keel-api" >"$test_work/api.log" 2>&1 &
 test_api_pid=$!
 curl --retry 20 --retry-delay 1 --retry-connrefused --fail --silent http://127.0.0.1:3102/healthz >/dev/null
+python3 scripts/check-mac-ranges.py
 python3 scripts/check-auth-integration.py
 python3 scripts/check-control-integration.py
 export KEEL_WORKER_ID=keel-integration-worker
@@ -62,6 +63,7 @@ python3 scripts/check-mon.py
 python3 scripts/check-mapping.py
 python3 scripts/check-portmon.py
 python3 scripts/check-configset.py
+python3 scripts/check-render.py
 python3 scripts/check-pcie.py
 python3 scripts/check-media-integration.py
 python3 scripts/check-param-integration.py
@@ -74,6 +76,7 @@ node scripts/check-model-import-browser.mjs
 node scripts/check-bom-browser.mjs
 node scripts/check-dashboard-browser.mjs
 node scripts/check-drawer-browser.mjs
+node scripts/check-config-browser.mjs
 KEEL_BASE_URL=http://127.0.0.1:3102 node scripts/check-browser.mjs
 echo "Integration suite passed; non-secret process logs are in $test_work"
 echo "Simulation capacity report: $test_work/simulation-report.json"

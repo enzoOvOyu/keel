@@ -2,37 +2,39 @@ package platform
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
 // Gate dashboard (WP-2.8, FR-4 / DESIGN-SYSTEM §4.4). One read aggregates
-// the six gate cards and the project KPIs. Only G1 has a judge in the mock
-// channel; G2-G6 report their honest not-implemented state instead of a
+// the six gate cards and the project KPIs. G1 and G4 read real evidence in
+// the mock channel (G1 the gate evidence rows, G4 the WP-3.2 read-back
+// receipts); the rest report their honest not-implemented state instead of a
 // fabricated pass. The KPIs count open issues and trust states from the
 // existing tables.
 
 type GateCard struct {
-	Gate         string `json:"gate"`
-	Title        string `json:"title"`
-	State        string `json:"state"` // pass | fail | waived | not_implemented | no_evidence
-	Summary      string `json:"summary"`
-	PassRate     int    `json:"pass_rate"`
-	LatestAt     time.Time `json:"latest_at,omitempty"`
-	LatestConclusion string `json:"latest_conclusion,omitempty"`
+	Gate             string    `json:"gate"`
+	Title            string    `json:"title"`
+	State            string    `json:"state"` // pass | fail | waived | not_implemented | no_evidence
+	Summary          string    `json:"summary"`
+	PassRate         int       `json:"pass_rate"`
+	LatestAt         time.Time `json:"latest_at,omitempty"`
+	LatestConclusion string    `json:"latest_conclusion,omitempty"`
 }
 
 type DashboardKPIs struct {
-	AssetsTotal     int `json:"assets_total"`
+	AssetsTotal      int `json:"assets_total"`
 	TrustEstablished int `json:"trust_established"`
 	TrustUnverified  int `json:"trust_unverified"`
 	TrustRevoked     int `json:"trust_revoked"`
-	OpenIssues      int `json:"open_issues"`
-	InRepairIssues  int `json:"in_repair_issues"`
-	LldpOpenDiffs   int `json:"lldp_open_diffs"`
+	OpenIssues       int `json:"open_issues"`
+	InRepairIssues   int `json:"in_repair_issues"`
+	LldpOpenDiffs    int `json:"lldp_open_diffs"`
 }
 
 type GateDashboard struct {
-	Cards GateCards `json:"cards"`
+	Cards GateCards     `json:"cards"`
 	KPIs  DashboardKPIs `json:"kpis"`
 }
 
@@ -79,6 +81,14 @@ func (s *Store) GetGateDashboard(ctx context.Context, a *AuthSession, project *P
 	for _, gate := range []string{"G1", "G2", "G3", "G4", "G5", "G6"} {
 		card := GateCard{Gate: gate, State: "not_implemented", PassRate: 0}
 		card.Title, card.Summary = gateCardMeta(gate)
+		if gate == "G4" {
+			g4, e := s.g4Card(ctx, tx, project.ID, card)
+			if e != nil {
+				return nil, e
+			}
+			setCard(&dashboard.Cards, gate, g4)
+			continue
+		}
 		if gate != "G1" {
 			// Only G1 has a judge in the mock channel; anything else is honest
 			// about not being implemented (never fabricates a pass).
@@ -133,6 +143,99 @@ func (s *Store) GetGateDashboard(ctx context.Context, a *AuthSession, project *P
 		return nil, e
 	}
 	return dashboard, nil
+}
+
+// g4Card (FR-4 G4, PRD 3.4) reads the WP-3.1/3.2 read-back evidence: a
+// machine counts as aligned when its newest apply per required renderer kind
+// is verified — the sampled read-back matched the rendered plan. Required
+// kinds follow the machine's active roles (a storage-only target never needs
+// the GPU-NIC binding), and an apply already implies a published mapping
+// (G3), so the precondition is enforced at write time.
+func (s *Store) g4Card(ctx context.Context, tx *sql.Tx, projectID string, card GateCard) (GateCard, error) {
+	type newest struct {
+		verified bool
+	}
+	perMachine := map[string]map[string]newest{}
+	rows, e := tx.QueryContext(ctx, `SELECT machine_id, kind, verified FROM (
+			SELECT DISTINCT ON (machine_id, kind) machine_id, kind, verified
+			FROM config_set_applies WHERE project_id=$1 ORDER BY machine_id, kind, applied_at DESC
+		) newest`, projectID)
+	if e != nil {
+		return card, e
+	}
+	for rows.Next() {
+		var machineID, kind string
+		var verified bool
+		if e = rows.Scan(&machineID, &kind, &verified); e != nil {
+			rows.Close()
+			return card, e
+		}
+		if perMachine[machineID] == nil {
+			perMachine[machineID] = map[string]newest{}
+		}
+		perMachine[machineID][kind] = newest{verified: verified}
+	}
+	if e = rows.Err(); e != nil {
+		rows.Close()
+		return card, e
+	}
+	rows.Close()
+	if len(perMachine) == 0 {
+		card.State = "no_evidence"
+		return card, nil
+	}
+	total, passed, failed, unaligned := 0, 0, 0, 0
+	for machineID, kinds := range perMachine {
+		required := s.g4RequiredKinds(ctx, tx, projectID, machineID)
+		for _, kind := range required {
+			total++
+			entry, ok := kinds[kind]
+			if !ok {
+				unaligned++
+				continue
+			}
+			if entry.verified {
+				passed++
+			} else {
+				failed++
+			}
+		}
+	}
+	switch {
+	case failed > 0:
+		card.State = "fail"
+	case unaligned > 0 || total == 0:
+		// Applies exist and every sampled read-back matched, but a target has
+		// not pulled all of its required configuration yet: no complete G4
+		// evidence, and the card says so instead of claiming a pass.
+		card.State = "no_evidence"
+	default:
+		card.State = "pass"
+	}
+	if total > 0 {
+		card.PassRate = passed * 100 / total
+	}
+	return card, nil
+}
+
+// g4RequiredKinds derives the renderer kinds a target must carry from its
+// active roles: every active rail needs the network plan and the partition,
+// a compute rail additionally needs the GPU-NIC binding, and the RoCE
+// parameters ride the same rails.
+func (s *Store) g4RequiredKinds(ctx context.Context, tx *sql.Tx, projectID, machineID string) []string {
+	var active, compute int
+	if e := tx.QueryRowContext(ctx, `SELECT COUNT(*), COUNT(*) FILTER (WHERE role='compute')
+		FROM physical_ports WHERE machine_id=$1 AND role<>'unused'`, machineID).Scan(&active, &compute); e != nil {
+		return nil
+	}
+	if active == 0 {
+		return nil
+	}
+	kinds := []string{"gpu_network", "nic_partition", "roce_import"}
+	if compute > 0 {
+		kinds = append(kinds, "gpu_nic_binding")
+	}
+	return kinds
 }
 
 func setCard(cards *GateCards, gate string, card GateCard) {
