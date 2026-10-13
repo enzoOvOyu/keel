@@ -1415,7 +1415,12 @@
         "F-4.18",
         "H-13"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "PCIe topology verification verified (FR-4.8 mock): versioned snapshots carrying per-device BDF/upstream chains/NUMA/LnkCap-LnkSta plus the nvidia-smi topo -m matrix; expectations declared from the approved model version, never from the machine output; the judge classifies four dimensions (slot path ownership, NUMA layout, NVLink connectivity via per-row NV markers with nvidia-smi row semantics, LnkSta-vs-LnkCap width); T7 diffs record with an escalation flag after two failed repairs (never auto-RMA) and a clean pass resolves and resets; authority checks precede validation. 4 isolated check groups green. Real sysfs/lspci collection and the topology tree UI (FR-4.8.4) remain planned.",
+      "evidence_refs": [
+        "internal/platform/pcie.go",
+        "scripts/check-pcie.py"
+      ]
     },
     {
       "id": "WP-2.13",
