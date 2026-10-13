@@ -47,7 +47,7 @@ type Issue struct {
 
 type CreateIssueInput struct {
 	DifferenceID string `json:"difference_id"`
-	Source       string `json:"source"`
+	Source       string `json:"source"` // g2 (LLDP difference) or topology (PCIe diff)
 	Phase        string `json:"phase"`
 }
 
@@ -82,30 +82,60 @@ func (s *Store) CreateIssueFromDifference(ctx context.Context, a *AuthSession, p
 	var machineID, localPort, category string
 	var resolvedAt sql.NullTime
 	var detail string
-	if e = tx.QueryRowContext(ctx, `SELECT d.machine_id,d.local_port,d.category,d.detail,d.resolved_at
-		FROM lldp_differences d WHERE d.id=$1 AND d.project_id=$2`, input.DifferenceID, project.ID).Scan(&machineID, &localPort, &category, &detail, &resolvedAt); e != nil {
-		if errors.Is(e, sql.ErrNoRows) {
-			return nil, apiError(409, "VALIDATION_ERROR", "difference not found in this project")
+	if input.Source == "topology" {
+		// FR-4.8.3: T7 topology confusion enters the same FR-4.7 loop with
+		// source=topology; the evidence is the topology diff row.
+		var dimDetail string
+		var dimension string
+		if e = tx.QueryRowContext(ctx, `SELECT d.machine_id,d.dimension,d.detail,d.resolved_at
+			FROM pcie_diffs d WHERE d.id=$1 AND d.project_id=$2`, input.DifferenceID, project.ID).Scan(&machineID, &dimension, &dimDetail, &resolvedAt); e != nil {
+			if errors.Is(e, sql.ErrNoRows) {
+				return nil, apiError(409, "VALIDATION_ERROR", "topology diff not found in this project")
+			}
+			return nil, e
 		}
-		return nil, e
-	}
-	if resolvedAt.Valid {
-		return nil, apiError(409, "VALIDATION_ERROR", "difference already resolved; no issue needed")
+		if resolvedAt.Valid {
+			return nil, apiError(409, "VALIDATION_ERROR", "difference already resolved; no issue needed")
+		}
+		category, detail, localPort = "T7", dimDetail, dimension
+	} else {
+		if e = tx.QueryRowContext(ctx, `SELECT d.machine_id,d.local_port,d.category,d.detail,d.resolved_at
+			FROM lldp_differences d WHERE d.id=$1 AND d.project_id=$2`, input.DifferenceID, project.ID).Scan(&machineID, &localPort, &category, &detail, &resolvedAt); e != nil {
+			if errors.Is(e, sql.ErrNoRows) {
+				return nil, apiError(409, "VALIDATION_ERROR", "difference not found in this project")
+			}
+			return nil, e
+		}
+		if resolvedAt.Valid {
+			return nil, apiError(409, "VALIDATION_ERROR", "difference already resolved; no issue needed")
+		}
 	}
 	var hostname string
 	if e = tx.QueryRowContext(ctx, "SELECT hostname FROM project_assets WHERE project_id=$1 AND machine_id=$2", project.ID, machineID).Scan(&hostname); e != nil {
 		return nil, e
 	}
 	now := time.Now().UTC()
+	issueSource := "g2"
+	if input.Source == "topology" {
+		issueSource = "topology"
+	}
+	issuePhase := input.Phase
+	if issuePhase == "" {
+		issuePhase = "delivery"
+	}
+	title := fmt.Sprintf("%s %s port %s: %s", hostname, category, localPort, categoryTitle(category))
+	if issueSource == "topology" {
+		title = fmt.Sprintf("%s T7 %s: 拓扑混乱", hostname, localPort)
+	}
 	issue := Issue{
 		ID: RandomID(), MachineID: machineID, Hostname: hostname, LocalPort: localPort,
-		DifferenceID: input.DifferenceID, Source: "g2", Phase: "delivery", Category: category,
-		Title: fmt.Sprintf("%s %s port %s: %s", hostname, category, localPort, categoryTitle(category)),
+		DifferenceID: input.DifferenceID, Source: issueSource, Phase: issuePhase, Category: category,
+		Title: title,
 		Evidence: detail, Status: "open", Version: 1, CreatedBy: a.User.ID, CreatedAt: now, UpdatedAt: now,
 	}
 	if _, e = tx.ExecContext(ctx, `INSERT INTO issues(id,project_id,machine_id,difference_id,source,phase,category,title,evidence,status,version,created_by,created_at,updated_at)
-		VALUES($1,$2,$3,$4,'g2',$5,$6,$7,$8,'open',1,$9,$10,$10)`,
-		issue.ID, project.ID, machineID, input.DifferenceID, input.Phase, issue.Category, issue.Title, issue.Evidence, a.User.ID, now); e != nil {
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'open',1,$10,$11,$11)`,
+		issue.ID, project.ID, machineID, input.DifferenceID, issueSource, issuePhase, issue.Category, issue.Title, issue.Evidence, a.User.ID, now); e != nil {
 		return nil, e
 	}
 	if _, e = tx.ExecContext(ctx, `INSERT INTO issue_events(id,issue_id,actor,action,from_status,to_status,note,created_at)
@@ -136,6 +166,8 @@ func categoryTitle(category string) string {
 		return "线缆更换"
 	case "T5":
 		return "网卡 RMA"
+	case "T7":
+		return "拓扑混乱"
 	}
 	return category
 }
@@ -224,10 +256,17 @@ func (s *Store) TransitionIssue(ctx context.Context, a *AuthSession, project *Pr
 		}
 		next = "verify"
 	case issue.Status == "verify" && action == "close":
-		// Closing requires the evidence difference to be resolved.
+		// Closing requires the evidence difference to be resolved — the LLDP
+		// difference for g2 issues, the topology diff for T7 issues.
 		var resolvedAt sql.NullTime
-		if e = tx.QueryRowContext(ctx, "SELECT resolved_at FROM lldp_differences WHERE id=$1", issue.DifferenceID).Scan(&resolvedAt); e != nil && !errors.Is(e, sql.ErrNoRows) {
-			return nil, e
+		if issue.Source == "topology" {
+			if e = tx.QueryRowContext(ctx, "SELECT resolved_at FROM pcie_diffs WHERE id=$1", issue.DifferenceID).Scan(&resolvedAt); e != nil && !errors.Is(e, sql.ErrNoRows) {
+				return nil, e
+			}
+		} else {
+			if e = tx.QueryRowContext(ctx, "SELECT resolved_at FROM lldp_differences WHERE id=$1", issue.DifferenceID).Scan(&resolvedAt); e != nil && !errors.Is(e, sql.ErrNoRows) {
+				return nil, e
+			}
 		}
 		if !resolvedAt.Valid {
 			return nil, apiError(409, "ISSUE_STATE", "the difference is not resolved yet; run the targeted re-verification first")

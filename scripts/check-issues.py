@@ -165,4 +165,32 @@ other_path = '/projects/' + other['id']
 admin.call('POST', other_path + '/issues', {'difference_id': diff['id'], 'source': 'g2', 'phase': 'delivery'}, code=409)
 passed.append('Issues are project-scoped')
 
+# 9. T7 topology issues enter the same loop with source=topology and close
+# on the topology diff's resolution (FR-4.8.3 -> FR-4.7).
+EXPECTED = {'slot_by_role': {'gpu:0': 'slot-3'}, 'gpu_numa_group': [0], 'nvlink_pairs': []}
+r = admin.call('POST', path + '/pcie/snapshots', {'machine_id': mid, 'devices': [
+    {'role': 'gpu', 'index': 0, 'bdf': '18:00.0', 'upstream': ['88:00.0', 'slot-9'], 'numa_node': 3, 'lnk_cap_width': 16, 'lnk_sta_width': 16, 'slot': 'slot-9'},
+], 'expected': EXPECTED, 'nvlink_raw': ''})
+assert r['diffs'], r
+pcie_rows = admin.call('GET', path + f'/pcie/diffs?machine_id={mid}&page=1&page_size=50')['items']
+open_row = next((d for d in pcie_rows if d.get('resolved_at') is None), None)
+assert open_row, pcie_rows
+t7_issue = admin.call('POST', path + '/issues', {'difference_id': open_row['id'], 'source': 'topology', 'phase': 'delivery'}, code=201)
+assert t7_issue['source'] == 'topology' and t7_issue['category'] == 'T7', t7_issue
+assert '拓扑混乱' in t7_issue['title'], t7_issue
+# Walk it to verify; closing must refuse while the topology diff is unresolved.
+t7 = admin.call('POST', path + f'/issues/{t7_issue["id"]}/transition?action=assign', {'issue_id': t7_issue['id'], 'version': t7_issue['version']})
+t7 = admin.call('POST', path + f'/issues/{t7["id"]}/transition?action=start', {'issue_id': t7['id'], 'version': t7['version']})
+t7 = admin.call('POST', path + '/issues/repair', {'issue_id': t7['id'], 'action': 'bios_update', 'note': '按厂商 Runbook 刷写 NVSwitch 固件（受审批动作）', 'old_tag': '', 'new_tag': ''})
+t7 = admin.call('POST', path + f'/issues/{t7["id"]}/transition?action=verify', {'issue_id': t7['id'], 'version': t7['version']})
+rej = admin.call('POST', path + f'/issues/{t7["id"]}/transition?action=close', {'issue_id': t7['id'], 'version': t7['version']}, code=409)
+assert 'not resolved' in rej['message'], rej
+# A conforming resubmission resolves the topology diffs and the issue closes.
+r = admin.call('POST', path + '/pcie/snapshots', {'machine_id': mid, 'devices': [
+    {'role': 'gpu', 'index': 0, 'bdf': '18:00.0', 'upstream': ['88:00.0', 'slot-3'], 'numa_node': 0, 'lnk_cap_width': 16, 'lnk_sta_width': 16, 'slot': 'slot-3'},
+], 'expected': EXPECTED, 'nvlink_raw': ''})
+assert r['diffs'] == [], r
+t7 = admin.call('POST', path + f'/issues/{t7["id"]}/transition?action=close', {'issue_id': t7['id'], 'version': t7['version']})
+assert t7['status'] == 'closed', t7
+passed.append('T7 topology issues run the FR-4.7 loop and close on topology resolution')
 print(json.dumps({'status': 'passed', 'groups': passed}, ensure_ascii=False, indent=1))

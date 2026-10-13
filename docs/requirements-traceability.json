@@ -1432,7 +1432,12 @@
       "acceptance": [
         "F-4.17"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "evidence": "T7 topology confusion wired into the FR-4.7 issue loop (FR-4.8.3): source=topology issues bind pcie_diffs rows as evidence with category T7; the close gate resolves against the topology diff; the issues.difference_id FK is replaced by the creation-time existence+resolution check (semantic reference across two evidence tables). 1 new check group (full T7 loop: create, refuse-close-while-unresolved, conforming resubmission, close) green alongside all prior groups. The DL/vendor escalation UI surface remains planned.",
+      "evidence_refs": [
+        "internal/platform/issues.go",
+        "scripts/check-issues.py"
+      ]
     },
     {
       "id": "WP-3.1",
