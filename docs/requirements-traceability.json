@@ -127,7 +127,7 @@
         "H-10"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "WP-3.4 delivered the driver & dependency upgrade service (F-5.3): capability matrix, plan lifecycle with media:// admission, canary-first rolling, cache-hit accounting, checksum isolation and manual recovery. WP-3.1/WP-3.2 delivered earlier; WP-3.5 (agent installer) remains."
+      "implementation_notes": "WP-3.4 delivered the driver & dependency upgrade service (F-5.3): capability matrix, plan lifecycle with media:// admission, canary-first rolling, cache-hit accounting, checksum isolation and manual recovery. WP-3.1/WP-3.2 delivered earlier; WP-3.5 (agent installer) remains. WP-3.5 delivered the agent batch installer (F-5.4): media://agent distribution with G3+ admission, arch selection and the one-time-token enrollment credential lifecycle."
     },
     {
       "id": "FR-6",
@@ -1567,7 +1567,18 @@
       "acceptance": [
         "F-5.4"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Delivered: the keel-agent binary registers as type=agent media (media://agent/keel-agent@<version>, F-5.4); batch installation plans admit only delivery-state machines with a published mapping revision (the G3+ evidence contract, same source of truth as the batch-config precondition) and enforce per-model architecture selection (amd64/arm64 from the model's hw_spec arch) — mismatched or unmapped machines are blocked at creation with a recorded reason and never receive an enrollment token. Credential lifecycle: a one-time enrollment token bound to project+machine is issued per target; the enroll call verifies token+serial+fingerprint, consumes the token (replay refused and audited) and issues the device credential identity; rotation and revocation are audited credential events. No self-registration on a bare serial report. Distribution accounting includes cache hits (F-1.7). Machine-side execution is mock (ADR-14); the real agent binary, systemd registration and heartbeat back-report land with the agent channel PoC (WP-3.10).",
+      "evidence_refs": [
+        "internal/platform/agent.go",
+        "internal/httpapi/agent.go",
+        "internal/platform/migrations/027_agent_install.sql",
+        "scripts/check-agent.py",
+        "scripts/check-agent-browser.mjs",
+        "web/src/features/agent/AgentPage.tsx",
+        "web/src/lib/agent.ts",
+        "web/src/lib/agent-i18n.ts"
+      ]
     },
     {
       "id": "WP-3.6",

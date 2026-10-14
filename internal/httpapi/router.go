@@ -102,6 +102,7 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 	auth.registerRoles(r)
 	auth.registerNettest(r)
 	auth.registerDriver(r)
+	auth.registerAgent(r)
 		auth.registerMedia(r)
 		auth.registerParams(r)
 	}

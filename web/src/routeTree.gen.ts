@@ -16,6 +16,7 @@ import { Route as AccountSecurityRouteImport } from './routes/account.security'
 import { Route as AdminAuditsRouteImport } from './routes/admin.audits'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as PProjectIdRouteImport } from './routes/p.$projectId'
+import { Route as PProjectIdAgentRouteImport } from './routes/p_.$projectId.agent'
 import { Route as PProjectIdAssetsRouteImport } from './routes/p_.$projectId.assets'
 import { Route as PProjectIdAuditsRouteImport } from './routes/p_.$projectId.audits'
 import { Route as PProjectIdConfigRouteImport } from './routes/p_.$projectId.config'
@@ -60,6 +61,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
 const PProjectIdRoute = PProjectIdRouteImport.update({
   id: '/p/$projectId',
   path: '/p/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PProjectIdAgentRoute = PProjectIdAgentRouteImport.update({
+  id: '/p_/$projectId/agent',
+  path: '/p/$projectId/agent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PProjectIdAssetsRoute = PProjectIdAssetsRouteImport.update({
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/admin/audits': typeof AdminAuditsRoute
   '/admin/users': typeof AdminUsersRoute
   '/p/$projectId': typeof PProjectIdRoute
+  '/p/$projectId/agent': typeof PProjectIdAgentRoute
   '/p/$projectId/assets': typeof PProjectIdAssetsRoute
   '/p/$projectId/audits': typeof PProjectIdAuditsRoute
   '/p/$projectId/config': typeof PProjectIdConfigRoute
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/admin/audits': typeof AdminAuditsRoute
   '/admin/users': typeof AdminUsersRoute
   '/p/$projectId': typeof PProjectIdRoute
+  '/p/$projectId/agent': typeof PProjectIdAgentRoute
   '/p/$projectId/assets': typeof PProjectIdAssetsRoute
   '/p/$projectId/audits': typeof PProjectIdAuditsRoute
   '/p/$projectId/config': typeof PProjectIdConfigRoute
@@ -160,6 +168,7 @@ export interface FileRoutesById {
   '/admin/audits': typeof AdminAuditsRoute
   '/admin/users': typeof AdminUsersRoute
   '/p/$projectId': typeof PProjectIdRoute
+  '/p_/$projectId/agent': typeof PProjectIdAgentRoute
   '/p_/$projectId/assets': typeof PProjectIdAssetsRoute
   '/p_/$projectId/audits': typeof PProjectIdAuditsRoute
   '/p_/$projectId/config': typeof PProjectIdConfigRoute
@@ -181,6 +190,7 @@ export interface FileRouteTypes {
     | '/admin/audits'
     | '/admin/users'
     | '/p/$projectId'
+    | '/p/$projectId/agent'
     | '/p/$projectId/assets'
     | '/p/$projectId/audits'
     | '/p/$projectId/config'
@@ -200,6 +210,7 @@ export interface FileRouteTypes {
     | '/admin/audits'
     | '/admin/users'
     | '/p/$projectId'
+    | '/p/$projectId/agent'
     | '/p/$projectId/assets'
     | '/p/$projectId/audits'
     | '/p/$projectId/config'
@@ -219,6 +230,7 @@ export interface FileRouteTypes {
     | '/admin/audits'
     | '/admin/users'
     | '/p/$projectId'
+    | '/p_/$projectId/agent'
     | '/p_/$projectId/assets'
     | '/p_/$projectId/audits'
     | '/p_/$projectId/config'
@@ -239,6 +251,7 @@ export interface RootRouteChildren {
   AdminAuditsRoute: typeof AdminAuditsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   PProjectIdRoute: typeof PProjectIdRoute
+  PProjectIdAgentRoute: typeof PProjectIdAgentRoute
   PProjectIdAssetsRoute: typeof PProjectIdAssetsRoute
   PProjectIdAuditsRoute: typeof PProjectIdAuditsRoute
   PProjectIdConfigRoute: typeof PProjectIdConfigRoute
@@ -300,6 +313,13 @@ declare module '@tanstack/react-router' {
       path: '/p/$projectId'
       fullPath: '/p/$projectId'
       preLoaderRoute: typeof PProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/p_/$projectId/agent': {
+      id: '/p_/$projectId/agent'
+      path: '/p/$projectId/agent'
+      fullPath: '/p/$projectId/agent'
+      preLoaderRoute: typeof PProjectIdAgentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/p_/$projectId/assets': {
@@ -383,6 +403,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminAuditsRoute: AdminAuditsRoute,
   AdminUsersRoute: AdminUsersRoute,
   PProjectIdRoute: PProjectIdRoute,
+  PProjectIdAgentRoute: PProjectIdAgentRoute,
   PProjectIdAssetsRoute: PProjectIdAssetsRoute,
   PProjectIdAuditsRoute: PProjectIdAuditsRoute,
   PProjectIdConfigRoute: PProjectIdConfigRoute,
