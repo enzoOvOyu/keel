@@ -126,7 +126,8 @@
         "H-7",
         "H-10"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "WP-3.4 delivered the driver & dependency upgrade service (F-5.3): capability matrix, plan lifecycle with media:// admission, canary-first rolling, cache-hit accounting, checksum isolation and manual recovery. WP-3.1/WP-3.2 delivered earlier; WP-3.5 (agent installer) remains."
     },
     {
       "id": "FR-6",
@@ -1543,7 +1544,18 @@
       "acceptance": [
         "F-5.3"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Delivered: six-component capability matrix (gpu_driver/cuda/ofed/doca with rollback_verified, cx8_firmware manual_only, kernel none declared via os/driver/firmware media types); plan lifecycle draft -> precheck (baseline + companion rules + backup presence) -> start (canary first, batch targets pending) -> advance outcomes -> completed/rolled_back/manual_required/aborted; media:// admission resolves only approved media into media://driver/name@version URIs (F-1.8); per-target cache-hit accounting (F-1.7) with transfer log and distribution summary; bounded checksum retries isolate mismatched targets (F-1.6); timeout targets enter reconcile and never blind-retry; firmware failures route to manual recovery and refuse auto-rollback (MANUAL_RECOVERY_REQUIRED); manual disposition requires a note. Machine execution is mock (ADR-14); real-hardware driver rollout is PoC #P3 (WP-3.10).",
+      "evidence_refs": [
+        "internal/platform/driver.go",
+        "internal/httpapi/driver.go",
+        "internal/platform/migrations/026_driver_upgrade.sql",
+        "scripts/check-driver.py",
+        "scripts/check-driver-browser.mjs",
+        "web/src/features/driver/DriverPage.tsx",
+        "web/src/lib/driver.ts",
+        "web/src/lib/driver-i18n.ts"
+      ]
     },
     {
       "id": "WP-3.5",

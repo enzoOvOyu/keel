@@ -65,6 +65,7 @@ python3 scripts/check-portmon.py
 python3 scripts/check-configset.py
 python3 scripts/check-render.py
 python3 scripts/check-nettest.py
+python3 scripts/check-driver.py
 python3 scripts/check-pcie.py
 python3 scripts/check-media-integration.py
 python3 scripts/check-param-integration.py
@@ -79,6 +80,7 @@ node scripts/check-dashboard-browser.mjs
 node scripts/check-drawer-browser.mjs
 node scripts/check-config-browser.mjs
 node scripts/check-nettest-browser.mjs
+node scripts/check-driver-browser.mjs
 KEEL_BASE_URL=http://127.0.0.1:3102 node scripts/check-browser.mjs
 echo "Integration suite passed; non-secret process logs are in $test_work"
 echo "Simulation capacity report: $test_work/simulation-report.json"
