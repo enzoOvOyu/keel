@@ -340,7 +340,7 @@ Redfish 原始 JSON 全量入 MinIO，结构化入 JSONB，JSONPath 视图。
 1. **一次导入 = 一个 `bom_import_batch_id`**：包内服务器物料与网络物料**同批提交**，避免分两次导入后靠人工对齐连接关系；`manifest.json` 声明 schema 版本、批次号、项目、项目模板版本、逐文件列清单与 `content_hash`。
 2. **解析管线（两段式，对齐 FR-2.1.6）**：`只读预检（格式/一致性/工程三段 → 问题清单）` → `单事务提交（幂等 upsert）`；预检阶段零写库，问题按**文件 + `bom_line_no` + 字段**三级定位，可导出 CSV 回传。
 3. **身份与幂等**：导入即分配稳定 `Machine/Component/PhysicalPort` uid；`(category, serial)`、线缆两端排序 uid、`(parent_uid, port_index)` 为业务唯一键；同批次号且摘要相同的重复导入幂等，同号异摘要拒绝覆盖；新版本用新 seq 按 diff 增量并保留版本链。摘要按 PRD 附录 A.6 排除 manifest 自身并覆盖所有声明文件。
-4. **兼容**：宽表按 `sn` 折叠为 server + N 部件/端口（固定折叠规则）；网络物料（breakout/线缆两端）必须走目录形态；标准包七个逐实体 CSV 均声明且存在，server_ports.csv 逐口记录永久 MAC 并与部件 MAC 汇总交叉核对；服务器单文件宽表只作兼容入口。
+4. **兼容**：宽表按 `sn` 折叠为 server + N 部件/端口（固定折叠规则）；仅有 MAC 而无 NIC 序列号时以 `LEGACY-MAC-<mac>` 标记临时 NIC 身份，后续标准包凭相同永久 MAC 补入真实序列号；多临时身份映射到同一 NIC 时 BLOCK 并人工核对；网络物料（breakout/线缆两端）必须走目录形态；标准包七个逐实体 CSV 均声明且存在，server_ports.csv 逐口记录永久 MAC 并与部件 MAC 汇总交叉核对；服务器单文件宽表只作兼容入口。
 5. **校验边界**：model-svc 提供型号期望值（服务器与网络设备同库），导入侧调用；catalog-svc 仅管参数目录，不重叠（§11 注记）。
 
 **理由**：BOM 是全平台物料唯一事实源（§1.3 单一事实源），导入形态必须能一次承载双域物料与连接关系，否则线缆两端 uid 与三方比对无从锚定；目录形态同时给设计院/网络团队提供可回传的定位粒度。
@@ -635,9 +635,11 @@ FirmwareRun(id, project_id, component[bios|bmc|cpld|hgx_sbi|hgx_nvswitch], media
 | GET | /api/v1/projects | 项目列表（状态/进度摘要） |
 | POST | /api/v1/projects/{id}/context | 仅保存最近项目偏好；请求归属始终来自页面 URL 的显式 project_id |
 | GET | /api/v1/projects/{id}/timeline | 项目部署时间线（gate 进度/装机 flow 环节状态） |
-| POST | /api/v1/projects/{id}/bom/packages/preview | 上传压缩包只读预检，返回问题清单与绑定会话/项目/原始 manifest/文件摘要的确认令牌；不写库、不生成包 ID |
-| POST | /api/v1/projects/{id}/bom/packages/commit | 重传同一压缩包及确认令牌；事务内重跑全套校验后原子提交；同批次号同摘要返回已提交结果，同号异摘要 409 |
-| GET | /api/v1/projects/{id}/bom/packages/{package_id}/issues?severity=BLOCK\|WARN | 已提交包的问题清单（文件+行号+字段三级定位，可导出 CSV）；预检问题直接随预检响应返回 |
+| POST | /api/v1/projects/{id}/bom/legacy/preview | 上传 UTF-8 宽表 CSV 与批次号，只读折叠服务器、临时 NIC 和端口；仅服务器物料，不产生网络就绪结论 |
+| POST | /api/v1/projects/{id}/bom/legacy/commit | 重传同一 CSV、批次号和令牌，写入统一 BOM 版本链；同批次号与标准包共享摘要冲突域 |
+| POST | /api/v1/projects/{id}/bom/packages/preview | 上传目录或压缩包只读预检，返回问题清单与绑定会话/项目/原始 manifest/文件摘要的确认令牌；不写库、不生成包 ID |
+| POST | /api/v1/projects/{id}/bom/packages/commit | 重传同一目录或压缩包及确认令牌；事务内重跑全套校验后原子提交；同批次号同摘要返回已提交结果，同号异摘要 409 |
+| GET | /api/v1/projects/{id}/bom/packages/{package_id}/issues?severity=BLOCK\|WARN\|INFO | 已提交包的问题清单（文件+行号+字段三级定位，可导出 CSV）；预检问题直接随预检响应返回 |
 | GET | /api/v1/projects/{id}/bom/items?category=&serial=&parent_uid= | 物料查询（双域同表） |
 | GET | /api/v1/fabric/switches?pod=&role= | 网络设备状态总表（PRD FR-0.4.12） |
 | GET | /api/v1/fabric/switches/{id} | 网络设备抽屉 8 Tab 聚合 |

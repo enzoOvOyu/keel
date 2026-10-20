@@ -61,3 +61,17 @@ export const commitBomPackage = (projectId: string, selection: BomPackageSelecti
   const form = packageForm(selection); form.append('preview_token', token)
   return request<BomPackageCommitResult>(`/projects/${encodeURIComponent(projectId)}/bom/packages/commit`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: form })
 }
+
+export type LegacyBomPreview = {
+  bom_import_batch_id: string; content_hash: string; machines: number; ports: number
+  issues: BomPackageIssue[]; can_commit: boolean; idempotent: boolean; preview_token?: string
+}
+const legacyForm = (file: File, batch: string) => {
+  const form = new FormData(); form.append('file', file); form.append('bom_import_batch_id', batch); return form
+}
+export const previewLegacyBom = (projectId: string, file: File, batch: string, csrf: string) =>
+  request<LegacyBomPreview>(`/projects/${encodeURIComponent(projectId)}/bom/legacy/preview`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: legacyForm(file, batch) })
+export const commitLegacyBom = (projectId: string, file: File, batch: string, token: string, csrf: string) => {
+  const form = legacyForm(file, batch); form.append('preview_token', token)
+  return request<BomPackageCommitResult>(`/projects/${encodeURIComponent(projectId)}/bom/legacy/commit`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: form })
+}

@@ -2091,11 +2091,13 @@
         "H-15"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Started from P1 tag: standard-package validator and safe zip/tar.gz extraction with seven CSVs, full manifest hash, UTF-8/BOM, line-number and MAC checks; project mapping draft/approval API and switch model version capability matrix persist in migration 011. Mapping approval passed isolated PostgreSQL integration test. Read-only archive preview plus session-bound token, revalidated atomic commit, unified material revisions/projections and import UI are on the development branch; isolated PostgreSQL tests cover idempotency and stable IDs. Directory upload and saved-issue query are implemented; legacy wide-table folding, FR-0 engineering checks and performance remain; F-0.1-F-0.4 are not passed.",
+      "implementation_notes": "Started from P1 tag: standard-package validator and safe zip/tar.gz extraction with seven CSVs, full manifest hash, UTF-8/BOM, line-number and MAC checks; project mapping draft/approval API and switch model version capability matrix persist in migration 011. Mapping approval passed isolated PostgreSQL integration test. Read-only archive preview plus session-bound token, revalidated atomic commit, unified material revisions/projections and import UI are on the development branch; isolated PostgreSQL tests cover idempotency and stable IDs. Directory upload, saved-issue query, and server-only legacy wide-table folding into unified material are implemented; FR-0 engineering checks and performance remain; F-0.1-F-0.4 are not passed.",
       "evidence_refs": [
         "internal/platform/bom_package.go",
         "internal/platform/bom_package_archive.go",
         "internal/platform/bom_package_issues.go",
+        "internal/platform/bom_legacy_package.go",
+        "internal/platform/bom_legacy_package_integration_test.go",
         "internal/platform/bom_package_mapping.go",
         "internal/platform/bom_package_preview.go",
         "internal/platform/bom_package_commit.go",

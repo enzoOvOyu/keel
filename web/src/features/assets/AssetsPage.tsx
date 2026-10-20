@@ -4,62 +4,36 @@ import { useTranslation } from 'react-i18next'
 import { ProjectWorkspace, canManageProject, useProject } from '../../components/ProjectWorkspace'
 import { ActionDialog, ActionError, Pagination, PermissionDenied, SuccessNotice } from '../../components/Management'
 import { useAction } from '../../lib/management'
-import { commitBomImport, commitBomPackage, listProjectAssets, previewBomImport, previewBomPackage, runTrustAction, type BomImportInput, type BomPackageIssue, type BomPackagePreview, type BomPackageSelection, type BomPreview, type ProjectAsset } from '../../lib/bom'
-import { parseBomCsv } from '../../lib/bom-csv'
+import { commitBomPackage, commitLegacyBom, listProjectAssets, previewBomPackage, previewLegacyBom, runTrustAction, type BomPackageIssue, type BomPackagePreview, type BomPackageSelection, type LegacyBomPreview, type ProjectAsset } from '../../lib/bom'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 
 function BomImportDialog({ projectId, onClose, onDone }: { projectId: string; onClose: () => void; onDone: (message: string) => Promise<void> }) {
   const { t } = useTranslation(), session = useSession(), action = useAction()
-  const [format, setFormat] = useState<'json' | 'csv'>('json'), [raw, setRaw] = useState(''), [fileVersion, setFileVersion] = useState(''), [preview, setPreview] = useState<BomPreview | null>(null), [validation, setValidation] = useState('')
-  function parse(): BomImportInput | null {
-    if (format === 'csv') {
-      const result = parseBomCsv(raw, fileVersion)
-      if (result.ok) return result.input as BomImportInput
-      setValidation(t('bomCsvInvalid') + ' ' + result.errors.slice(0, 3).join('; '))
-      return null
-    }
-    try {
-      const parsed = JSON.parse(raw) as BomImportInput
-      if (!parsed || typeof parsed !== 'object' || !parsed.file_version || !Array.isArray(parsed.machines) || !parsed.machines.length) throw new Error('invalid')
-      return parsed
-    } catch {
-      setValidation(t('bomImportInvalid'))
-      return null
-    }
-  }
+  const [file, setFile] = useState<File | null>(null), [batch, setBatch] = useState(''), [preview, setPreview] = useState<LegacyBomPreview | null>(null), [validation, setValidation] = useState('')
   async function runPreview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!file || !batch.trim()) { setValidation(t('bomLegacyFileRequired')); return }
     setValidation('')
-    const body = parse()
-    if (!body) return
-    const result = await action.run(() => previewBomImport(projectId, body, session.csrf_token))
+    const result = await action.run(() => previewLegacyBom(projectId, file, batch.trim(), session.csrf_token))
     if (result.ok) setPreview(result.value)
   }
   async function runCommit() {
-    const body = parse()
-    if (!body) return
-    if (preview && (preview.issues ?? []).length) { setValidation(t('bomCommitBlocked')); return }
-    const result = await action.run(() => commitBomImport(projectId, body, session.csrf_token, crypto.randomUUID()))
-    if (result.ok) {
-      const r = result.value
-      await onDone(t('bomCommitted', { machines: r.machines_created, assets: r.assets_created }))
-    }
+    if (!file || !preview?.can_commit) return
+    const result = await action.run(() => commitLegacyBom(projectId, file, batch.trim(), preview.preview_token ?? '', session.csrf_token))
+    if (result.ok) await onDone(t('bomPackageCommitted', { count: result.value.item_count, batch: result.value.bom_import_batch_id }))
   }
-  const friendly = action.error && 'code' in action.error && (action.error as { code?: string }).code === 'BOM_VERSION_EXISTS' ? t('bomVersionExists') : null
-  return <ActionDialog title={t('bomImport')} description={t('bomImportDetail')} busy={action.busy} confirm={t('bomPreviewRun')} onSubmit={(event) => void runPreview(event)} onClose={onClose}>
-    {friendly ? <p className="impact-notice" role="alert">{friendly}</p> : <ActionError error={action.error} />}
-    {validation && <p className="field-error" role="alert">{validation}</p>}
-    <div className="field"><label htmlFor="bom-format">{t('bomFormat')}</label><select id="bom-format" value={format} onChange={(event) => { setFormat(event.target.value as 'json' | 'csv'); setPreview(null) }} disabled={action.busy}>
-      <option value="json">{t('bomFormatJson')}</option>
-      <option value="csv">{t('bomFormatCsv')}</option>
-    </select><span className="field-hint">{format === 'csv' ? t('bomCsvHint') : t('bomImportDetail')}</span></div>
-    {format === 'csv' && <div className="field"><label htmlFor="bom-version">{t('bomFileVersion')}</label><input id="bom-version" value={fileVersion} onChange={(event) => { setFileVersion(event.target.value); setPreview(null) }} maxLength={120} required disabled={action.busy} /></div>}
-    <div className="field"><label htmlFor="bom-raw">{format === 'csv' ? t('bomCsvLabel') : t('bomImport')}</label><textarea id="bom-raw" value={raw} onChange={(event) => { setRaw(event.target.value); setPreview(null) }} rows={10} placeholder={format === 'csv' ? t('bomCsvPlaceholder') : t('bomImportPlaceholder')} disabled={action.busy} className="mono-value" /></div>
+  return <ActionDialog title={t('bomImport')} description={t('bomLegacyDetail')} busy={action.busy} confirm={t('bomPreviewRun')} onSubmit={(event) => void runPreview(event)} onClose={onClose}>
+    <ActionError error={action.error} />{validation && <p className="field-error" role="alert">{validation}</p>}
+    <div className="field"><label htmlFor="bom-legacy-batch">{t('bomLegacyBatch')}</label><input id="bom-legacy-batch" value={batch} onChange={(event) => { setBatch(event.target.value); setPreview(null) }} placeholder="BOM-BATCH-P1-20261020-1" maxLength={160} required disabled={action.busy} /></div>
+    <div className="field"><label htmlFor="bom-legacy-file">{t('bomLegacyFile')}</label><input id="bom-legacy-file" type="file" accept=".csv,text/csv" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setPreview(null) }} required disabled={action.busy} /></div>
     {preview && <>
-      <p className="impact-notice">{t('bomPreviewSummary', { machines: preview.machines, ports: preview.ports, newMachines: preview.new_machines, existingMachines: preview.existing_machines, newAssets: preview.new_assets, updatedAssets: preview.updated_assets })}</p>
-      {(preview.issues ?? []).length > 0 && <div className="table-scroll" tabIndex={0} role="region" aria-label={t('bomPreviewIssues', { count: (preview.issues ?? []).length })}><table className="data-table"><thead><tr><th scope="col">{t('bomSerial')}</th><th scope="col">{t('bomIssueReason')}</th></tr></thead>
-        <tbody>{(preview.issues ?? []).map((issue, index) => <tr key={index}><td className="mono-value">{issue.serial_number}</td><td>{t('reason_' + issue.reason, { defaultValue: issue.reason })}{(issue.ports ?? []).map((p, i) => <span key={i} className="cell-subtitle">{p.mac_address}: {t('reason_' + p.reason, { defaultValue: p.reason })}</span>)}</td></tr>)}</tbody></table></div>}
-      <button type="button" className="primary-button" disabled={action.busy || (preview.issues ?? []).length > 0} onClick={() => void runCommit()}>{t('bomCommit')}</button>
+      <p className="impact-notice">{t('bomLegacySummary', { batch: preview.bom_import_batch_id, machines: preview.machines, ports: preview.ports })}</p>
+      {preview.idempotent && <p className="impact-notice">{t('bomPackageAlreadyCommitted')}</p>}
+      <div className="table-scroll" tabIndex={0} role="region" aria-label={t('bomPackageIssues')}><table className="data-table"><thead><tr><th scope="col">{t('bomIssueSeverity')}</th><th scope="col">{t('bomIssueFile')}</th><th scope="col">{t('bomIssueLine')}</th><th scope="col">{t('bomIssueField')}</th><th scope="col">{t('bomIssueCode')}</th></tr></thead>
+        <tbody>{preview.issues.map((issue, index) => <tr key={index}><td>{issue.severity}</td><td className="mono-value">{issue.file}</td><td>{issue.bom_line_no || '—'}</td><td className="mono-value">{issue.field || '—'}</td><td className="mono-value">{issue.code}</td></tr>)}</tbody></table>
+        {!preview.issues.length && <p className="table-loading">{t('bomPackageNoIssues')}</p>}</div>
+      <div className="table-actions"><button type="button" className="secondary-button" disabled={action.busy || !preview.issues.length} onClick={() => downloadBomIssues(preview.bom_import_batch_id, preview.issues)}>{t('bomExportIssues')}</button>
+        <button type="button" className="primary-button" disabled={action.busy || !preview.can_commit} onClick={() => void runCommit()}>{t('bomCommit')}</button></div>
     </>}
   </ActionDialog>
 }

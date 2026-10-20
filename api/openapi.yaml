@@ -1229,6 +1229,79 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/bom/legacy/preview:
+    post:
+      tags: [BOM]
+      operationId: previewLegacyBOM
+      security: [{sessionCookie: []}]
+      x-permission: project:bom:manage
+      x-resource-scope: path-project-admin
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, bom_import_batch_id]
+              properties:
+                file: { type: string, format: binary, description: UTF-8 wide CSV; BOM is allowed }
+                bom_import_batch_id: { type: string, maxLength: 160 }
+      responses:
+        '200':
+          description: Read-only server-only wide-table fold and validation; cannot satisfy fabric prerequisites.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegacyBOMPreview' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '413': { description: CSV exceeds the upload limit }
+  /api/v1/projects/{id}/bom/legacy/commit:
+    post:
+      tags: [BOM]
+      operationId: commitLegacyBOM
+      security: [{sessionCookie: []}]
+      x-permission: project:bom:manage
+      x-resource-scope: path-project-admin
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, bom_import_batch_id, preview_token]
+              properties:
+                file: { type: string, format: binary, description: Same wide CSV previewed }
+                bom_import_batch_id: { type: string, maxLength: 160 }
+                preview_token: { type: string, description: Session-bound token returned by a successful preview }
+      responses:
+        '201':
+          description: Server-only unified BOM material and revisions committed atomically.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BOMPackageCommitResult' }
+        '200':
+          description: Existing batch with the same content hash; no rows written.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BOMPackageCommitResult' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { description: CSV exceeds the upload limit }
   /api/v1/projects/{id}/bom/packages/{package_id}/issues:
     get:
       tags: [BOM]
@@ -1417,6 +1490,21 @@ components:
         item_count: { type: integer, minimum: 0 }
         idempotent: { type: boolean }
         committed_at: { type: string, format: date-time }
+    LegacyBOMPreview:
+      type: object
+      additionalProperties: false
+      required: [bom_import_batch_id, content_hash, machines, ports, issues, can_commit, idempotent]
+      properties:
+        bom_import_batch_id: { type: string }
+        content_hash: { type: string }
+        machines: { type: integer }
+        ports: { type: integer }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/BOMPackageIssue' }
+        can_commit: { type: boolean }
+        idempotent: { type: boolean }
+        preview_token: { type: string }
     BOMPackageIssue:
       type: object
       additionalProperties: false

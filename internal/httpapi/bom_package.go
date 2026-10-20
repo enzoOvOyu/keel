@@ -74,6 +74,7 @@ func readBOMPackageUpload(c *gin.Context) (map[string][]byte, bool) {
 }
 
 func (a *authAPI) registerBOMPackages(r *gin.Engine) {
+	a.registerLegacyBOM(r)
 	r.GET("/api/v1/projects/:id/bom/packages/:package_id/issues", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {

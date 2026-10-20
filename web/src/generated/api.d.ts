@@ -458,6 +458,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/bom/legacy/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewLegacyBOM"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/bom/legacy/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["commitLegacyBOM"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/bom/packages/{package_id}/issues": {
         parameters: {
             query?: never;
@@ -531,6 +563,16 @@ export interface components {
             idempotent: boolean;
             /** Format: date-time */
             committed_at: string;
+        };
+        LegacyBOMPreview: {
+            bom_import_batch_id: string;
+            content_hash: string;
+            machines: number;
+            ports: number;
+            issues: components["schemas"]["BOMPackageIssue"][];
+            can_commit: boolean;
+            idempotent: boolean;
+            preview_token?: string;
         };
         BOMPackageIssue: {
             /** @enum {string} */
@@ -2085,6 +2127,106 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    previewLegacyBOM: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description UTF-8 wide CSV; BOM is allowed
+                     */
+                    file: string;
+                    bom_import_batch_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Read-only server-only wide-table fold and validation; cannot satisfy fabric prerequisites. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyBOMPreview"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description CSV exceeds the upload limit */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    commitLegacyBOM: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description Same wide CSV previewed
+                     */
+                    file: string;
+                    bom_import_batch_id: string;
+                    /** @description Session-bound token returned by a successful preview */
+                    preview_token: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Existing batch with the same content hash; no rows written. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BOMPackageCommitResult"];
+                };
+            };
+            /** @description Server-only unified BOM material and revisions committed atomically. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BOMPackageCommitResult"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description CSV exceeds the upload limit */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     listBOMPackageIssues: {

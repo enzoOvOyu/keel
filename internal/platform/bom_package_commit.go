@@ -297,6 +297,35 @@ func buildBOMMaterials(ctx context.Context, tx *sql.Tx, projectID string, pkg *B
 			if err != nil {
 				return nil, wrapBOMBuildError(row, "serial", err)
 			}
+			// A wide-sheet NIC has only a permanent MAC. When the standard
+			// package later supplies its real serial, adopt that provisional
+			// identity. Multiple provisional matches need explicit reconciliation.
+			if uid == "" && m.category == "nic" && v["mac"] != "" {
+				seen := map[string]bool{}
+				for _, rawMAC := range strings.Split(v["mac"], ",") {
+					mac, ok := normalizeMAC(rawMAC)
+					if !ok {
+						continue
+					}
+					var candidate, machine string
+					err = tx.QueryRowContext(ctx, `SELECT i.item_uid,c.machine_id FROM bom_items i JOIN components c ON c.id=i.item_uid WHERE i.category='nic' AND i.serial LIKE 'LEGACY-MAC-%' AND i.mac_list @> $1::jsonb`, `["`+mac+`"]`).Scan(&candidate, &machine)
+					if err != nil && !errors.Is(err, sql.ErrNoRows) {
+						return nil, err
+					}
+					if err == nil {
+						if machine != m.machineUID {
+							return nil, wrapBOMBuildError(row, "mac", apiError(409, "BOM_MAC_CONFLICT", "Provisional NIC MAC belongs to another server"))
+						}
+						seen[candidate] = true
+					}
+				}
+				if len(seen) > 1 {
+					return nil, wrapBOMBuildError(row, "mac", apiError(409, "BOM_NIC_IDENTITY_AMBIGUOUS", "Multiple provisional NICs match one serialized NIC"))
+				}
+				for candidate := range seen {
+					uid = candidate
+				}
+			}
 			if uid == "" && m.category == "server" {
 				err = tx.QueryRowContext(ctx, `SELECT id FROM machines WHERE serial_number=$1`, m.serial).Scan(&uid)
 				if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -311,7 +340,16 @@ func buildBOMMaterials(ctx context.Context, tx *sql.Tx, projectID string, pkg *B
 					return nil, err
 				}
 				if err == nil {
-					if existingMachine.String != m.machineUID || existingParent.Valid && (existingParent.String != m.parentUID || existingIndex.String != v["port_index"]) || uid != "" && uid != existingID {
+					provisionalIndexChange := false
+					if existingParent.Valid && existingParent.String == m.parentUID && existingIndex.String != v["port_index"] {
+						var provisional bool
+						checkErr := tx.QueryRowContext(ctx, `SELECT serial LIKE 'LEGACY-MAC-%' FROM bom_items WHERE item_uid=$1 AND category='nic'`, m.parentUID).Scan(&provisional)
+						if checkErr != nil && !errors.Is(checkErr, sql.ErrNoRows) {
+							return nil, checkErr
+						}
+						provisionalIndexChange = checkErr == nil && provisional
+					}
+					if existingMachine.String != m.machineUID || existingParent.Valid && (existingParent.String != m.parentUID || existingIndex.String != v["port_index"] && !provisionalIndexChange) || uid != "" && uid != existingID {
 						return nil, wrapBOMBuildError(row, "mac", apiError(409, "BOM_MAC_CONFLICT", "Permanent MAC belongs to a different physical port"))
 					}
 					if uid == "" {
