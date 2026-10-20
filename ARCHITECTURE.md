@@ -635,10 +635,10 @@ FirmwareRun(id, project_id, component[bios|bmc|cpld|hgx_sbi|hgx_nvswitch], media
 | GET | /api/v1/projects | 项目列表（状态/进度摘要） |
 | POST | /api/v1/projects/{id}/context | 仅保存最近项目偏好；请求归属始终来自页面 URL 的显式 project_id |
 | GET | /api/v1/projects/{id}/timeline | 项目部署时间线（gate 进度/装机 flow 环节状态） |
-| POST | /api/v1/bom/import-packages | 提交 BOM 导入包（目录/压缩包；只读预检，返回问题清单，不写库） |
-| POST | /api/v1/bom/import-packages/{id}/commit | 预检通过后单事务提交；同批次号同摘要返回已提交结果，同号异摘要 409；七个逐实体 CSV、引用与逐口 MAC 校验通过方可提交 |
-| GET | /api/v1/bom/import-packages/{id}/issues?severity=BLOCK\|WARN | 问题清单（文件+行号+字段三级定位，可导出 CSV） |
-| GET | /api/v1/bom/items?category=&serial=&parent_uid= | 物料查询（双域同表） |
+| POST | /api/v1/projects/{id}/bom/packages/preview | 上传压缩包只读预检，返回问题清单与绑定会话/项目/原始 manifest/文件摘要的确认令牌；不写库、不生成包 ID |
+| POST | /api/v1/projects/{id}/bom/packages/commit | 重传同一压缩包及确认令牌；事务内重跑全套校验后原子提交；同批次号同摘要返回已提交结果，同号异摘要 409 |
+| GET | /api/v1/projects/{id}/bom/packages/{package_id}/issues?severity=BLOCK\|WARN | 已提交包的问题清单（文件+行号+字段三级定位，可导出 CSV）；预检问题直接随预检响应返回 |
+| GET | /api/v1/projects/{id}/bom/items?category=&serial=&parent_uid= | 物料查询（双域同表） |
 | GET | /api/v1/fabric/switches?pod=&role= | 网络设备状态总表（PRD FR-0.4.12） |
 | GET | /api/v1/fabric/switches/{id} | 网络设备抽屉 8 Tab 聚合 |
 | GET | /api/v1/fabric/readiness?scope=fabric\|pod\|switch | 就绪状态（`readiness_at`/`ttl_seconds`，执行前刷新） |

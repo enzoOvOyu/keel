@@ -30,7 +30,7 @@ var (
 		{Name: "id", Type: field.TypeString, Size: 32},
 		{Name: "scope_key", Type: field.TypeString, Size: 120},
 		{Name: "name", Type: field.TypeString, Size: 120},
-		{Name: "kind", Type: field.TypeEnum, Enums: []string{"rack", "server", "compute-tray"}},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"rack", "server", "compute-tray", "switch", "nic", "gpu", "psu", "bmc", "optic_module"}},
 		{Name: "state", Type: field.TypeEnum, Enums: []string{"active", "retired"}, Default: "active"},
 		{Name: "created_by", Type: field.TypeString, Size: 32},
 		{Name: "created_at", Type: field.TypeTime},

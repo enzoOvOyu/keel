@@ -10,6 +10,35 @@ import (
 
 const maxBOMRequestBytes = 64 << 20
 
+func readBOMPackageUpload(c *gin.Context) (map[string][]byte, bool) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBOMRequestBytes)
+	header, err := c.FormFile("file")
+	if c.Request.MultipartForm != nil {
+		defer c.Request.MultipartForm.RemoveAll()
+	}
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": "BOM_FILE_REQUIRED", "message": "A zip or tar.gz file is required"})
+		return nil, false
+	}
+	reader, err := header.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": "BOM_FILE_INVALID"})
+		return nil, false
+	}
+	defer reader.Close()
+	data, err := io.ReadAll(io.LimitReader(reader, maxBOMRequestBytes+1))
+	if err != nil || len(data) > maxBOMRequestBytes {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"code": "BOM_FILE_TOO_LARGE"})
+		return nil, false
+	}
+	files, err := platform.ReadBOMPackageArchive(header.Filename, data)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": "BOM_ARCHIVE_INVALID", "message": err.Error()})
+		return nil, false
+	}
+	return files, true
+}
+
 func (a *authAPI) registerBOMPackages(r *gin.Engine) {
 	r.POST("/api/v1/projects/:id/bom/packages/preview", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
@@ -21,29 +50,8 @@ func (a *authAPI) registerBOMPackages(r *gin.Engine) {
 			a.respondError(c, err)
 			return
 		}
-		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBOMRequestBytes)
-		header, err := c.FormFile("file")
-		if c.Request.MultipartForm != nil {
-			defer c.Request.MultipartForm.RemoveAll()
-		}
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"code": "BOM_FILE_REQUIRED", "message": "A zip or tar.gz file is required"})
-			return
-		}
-		reader, err := header.Open()
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"code": "BOM_FILE_INVALID"})
-			return
-		}
-		defer reader.Close()
-		data, err := io.ReadAll(io.LimitReader(reader, maxBOMRequestBytes+1))
-		if err != nil || len(data) > maxBOMRequestBytes {
-			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"code": "BOM_FILE_TOO_LARGE"})
-			return
-		}
-		files, err := platform.ReadBOMPackageArchive(header.Filename, data)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"code": "BOM_ARCHIVE_INVALID", "message": err.Error()})
+		files, ok := readBOMPackageUpload(c)
+		if !ok {
 			return
 		}
 		preview, err := a.store.PreviewBOMPackage(c.Request.Context(), actor, project, files)
@@ -52,5 +60,33 @@ func (a *authAPI) registerBOMPackages(r *gin.Engine) {
 			return
 		}
 		c.JSON(http.StatusOK, preview)
+	})
+	r.POST("/api/v1/projects/:id/bom/packages/commit", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		if !a.writeAllowed(c) {
+			return
+		}
+		project, err := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		files, ok := readBOMPackageUpload(c)
+		if !ok {
+			return
+		}
+		result, err := a.store.CommitBOMPackage(c.Request.Context(), actor, project, files, c.PostForm("preview_token"), c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		if result.Idempotent {
+			c.JSON(http.StatusOK, result)
+		} else {
+			c.JSON(http.StatusCreated, result)
+		}
 	})
 }

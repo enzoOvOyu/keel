@@ -306,3 +306,36 @@ func TestBOMMappingUnknownColumnWarns(t *testing.T) {
 		t.Fatal("unknown column silently ignored")
 	}
 }
+
+func TestBOMComponentSummaryMustMatchPermanentPortMAC(t *testing.T) {
+	files := bomFixture(t)
+	files["server/server_components.csv"] = []byte("bom_line_no,parent_sn,category,sub_type,slot,serial,model_ref,mac\n2,SN-1,nic,CX8,1,NIC-1,nic-v1,aa:bb:cc:dd:ee:02\n")
+	rehashBOMFixture(t, files)
+	pkg, err := ValidateBOMPackage(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ApplyBOMMappingProfile(pkg, testBOMProfile())
+	if !issueFound(pkg, "component_port_mac_mismatch") {
+		t.Fatal("NIC summary disagreed with permanent per-port MAC but preview did not block")
+	}
+}
+
+func TestBOMPreviewTokenBoundToSessionAndManifest(t *testing.T) {
+	files := bomFixture(t)
+	actor := &AuthSession{ID: "session-a"}
+	token := bomPreviewToken(actor, "project-a", files)
+	if !validBOMPreviewToken(actor, "project-a", files, token) {
+		t.Fatal("issued token failed verification")
+	}
+	if validBOMPreviewToken(&AuthSession{ID: "session-b"}, "project-a", files, token) {
+		t.Fatal("token crossed sessions")
+	}
+	if validBOMPreviewToken(actor, "project-b", files, token) {
+		t.Fatal("token crossed projects")
+	}
+	files["server/servers.csv"] = append(files["server/servers.csv"], []byte("\n")...)
+	if validBOMPreviewToken(actor, "project-a", files, token) {
+		t.Fatal("token accepted changed archive")
+	}
+}

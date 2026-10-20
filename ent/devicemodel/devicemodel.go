@@ -77,6 +77,12 @@ const (
 	KindRack        Kind = "rack"
 	KindServer      Kind = "server"
 	KindComputeTray Kind = "compute-tray"
+	KindSwitch      Kind = "switch"
+	KindNic         Kind = "nic"
+	KindGpu         Kind = "gpu"
+	KindPsu         Kind = "psu"
+	KindBmc         Kind = "bmc"
+	KindOpticModule Kind = "optic_module"
 )
 
 func (k Kind) String() string {
@@ -86,7 +92,7 @@ func (k Kind) String() string {
 // KindValidator is a validator for the "kind" field enum values. It is called by the builders before save.
 func KindValidator(k Kind) error {
 	switch k {
-	case KindRack, KindServer, KindComputeTray:
+	case KindRack, KindServer, KindComputeTray, KindSwitch, KindNic, KindGpu, KindPsu, KindBmc, KindOpticModule:
 		return nil
 	default:
 		return fmt.Errorf("devicemodel: invalid enum value for kind field: %q", k)

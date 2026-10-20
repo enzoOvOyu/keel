@@ -10,7 +10,7 @@ import (
 type DeviceModel struct{ ent.Schema }
 
 func (DeviceModel) Fields() []ent.Field {
-	return []ent.Field{field.String("id").MaxLen(32).Immutable(), field.String("scope_key").MaxLen(120), field.String("name").MaxLen(120), field.Enum("kind").Values("rack", "server", "compute-tray"), field.Enum("state").Values("active", "retired").Default("active"), field.String("created_by").MaxLen(32), field.Time("created_at").Default(time.Now).Immutable(), field.Time("updated_at").Default(time.Now)}
+	return []ent.Field{field.String("id").MaxLen(32).Immutable(), field.String("scope_key").MaxLen(120), field.String("name").MaxLen(120), field.Enum("kind").Values("rack", "server", "compute-tray", "switch", "nic", "gpu", "psu", "bmc", "optic_module"), field.Enum("state").Values("active", "retired").Default("active"), field.String("created_by").MaxLen(32), field.Time("created_at").Default(time.Now).Immutable(), field.Time("updated_at").Default(time.Now)}
 }
 func (DeviceModel) Indexes() []ent.Index {
 	return []ent.Index{index.Fields("scope_key", "name").Unique()}

@@ -3,43 +3,23 @@ package platform
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"strings"
 )
 
 type BOMPackagePreview struct {
-	Manifest   BOMPackageManifest `json:"manifest"`
-	Issues     []BOMPackageIssue  `json:"issues"`
-	FileHashes map[string]string  `json:"file_hashes"`
-	CanCommit  bool               `json:"can_commit"`
-	Idempotent bool               `json:"idempotent"`
+	Manifest     BOMPackageManifest `json:"manifest"`
+	Issues       []BOMPackageIssue  `json:"issues"`
+	FileHashes   map[string]string  `json:"file_hashes"`
+	CanCommit    bool               `json:"can_commit"`
+	Idempotent   bool               `json:"idempotent"`
+	PreviewToken string             `json:"preview_token,omitempty"`
 }
 
-// PreviewBOMPackage reads the complete archive and the current project facts.
-// It never stores an upload or mutates the database. Commit must repeat these
-// checks inside its own transaction to close the preview/commit race.
+// PreviewBOMPackage never stores an upload or mutates the database. Commit
+// calls the same analyzer inside its write transaction before changing facts.
 func (s *Store) PreviewBOMPackage(ctx context.Context, a *AuthSession, project *ProjectSummary, files map[string][]byte) (*BOMPackagePreview, error) {
-	pkg, err := ValidateBOMPackage(files)
-	if err != nil {
-		return nil, apiError(400, "BOM_INVALID_MANIFEST", err.Error())
-	}
-	out := &BOMPackagePreview{Manifest: pkg.Manifest, Issues: pkg.Issues, FileHashes: pkg.FileHashes}
-	add := func(file string, line int, field, code string) {
-		pkg.Issues = append(pkg.Issues, BOMPackageIssue{Severity: "BLOCK", File: file, BOMLineNo: line, Field: field, Code: code})
-	}
-	if pkg.Manifest.ProjectID != project.ID {
-		add("manifest.json", 0, "project_id", "project_mismatch")
-	}
-	profile, err := s.GetApprovedBOMMappingProfile(ctx, a, project, pkg.Manifest.ProfileVersionRef)
-	if err != nil {
-		var apiErr *Error
-		if !errors.As(err, &apiErr) || apiErr.Code != "BOM_MAPPING_NOT_APPROVED" {
-			return nil, err
-		}
-		add("manifest.json", 0, "profile_version_ref", "mapping_not_approved")
-	} else {
-		ApplyBOMMappingProfile(pkg, profile)
-	}
 	tx, err := s.beginControlRead(ctx, a)
 	if err != nil {
 		return nil, err
@@ -48,10 +28,48 @@ func (s *Store) PreviewBOMPackage(ctx context.Context, a *AuthSession, project *
 	if err = requireProjectMember(ctx, tx, a, project.ID); err != nil {
 		return nil, err
 	}
+	_, out, err := analyzeBOMPackageTx(ctx, tx, project, files)
+	if err != nil {
+		return nil, err
+	}
+	if out.CanCommit {
+		out.PreviewToken = bomPreviewToken(a, project.ID, files)
+	}
+	return out, tx.Commit()
+}
+
+func analyzeBOMPackageTx(ctx context.Context, tx *sql.Tx, project *ProjectSummary, files map[string][]byte) (*BOMPackage, *BOMPackagePreview, error) {
+	pkg, err := ValidateBOMPackage(files)
+	if err != nil {
+		return nil, nil, apiError(400, "BOM_INVALID_MANIFEST", err.Error())
+	}
+	out := &BOMPackagePreview{Manifest: pkg.Manifest, FileHashes: pkg.FileHashes}
+	add := func(file string, line int, field, code string) {
+		pkg.Issues = append(pkg.Issues, BOMPackageIssue{Severity: "BLOCK", File: file, BOMLineNo: line, Field: field, Code: code})
+	}
+	if pkg.Manifest.ProjectID != project.ID || !strings.EqualFold(pkg.Manifest.ProjectCode, project.Slug) {
+		add("manifest.json", 0, "project_id", "project_mismatch")
+	}
+	var serverJSON, fabricJSON []byte
+	err = tx.QueryRowContext(ctx, `SELECT server_columns,fabric_columns FROM bom_mapping_profiles WHERE project_id=$1 AND version_ref=$2 AND state='approved'`, project.ID, pkg.Manifest.ProfileVersionRef).Scan(&serverJSON, &fabricJSON)
+	if errors.Is(err, sql.ErrNoRows) {
+		add("manifest.json", 0, "profile_version_ref", "mapping_not_approved")
+	} else if err != nil {
+		return nil, nil, err
+	} else {
+		profile := &BOMMappingProfile{}
+		if err = json.Unmarshal(serverJSON, &profile.ServerColumns); err != nil {
+			return nil, nil, err
+		}
+		if err = json.Unmarshal(fabricJSON, &profile.FabricColumns); err != nil {
+			return nil, nil, err
+		}
+		ApplyBOMMappingProfile(pkg, profile)
+	}
 	var existingHash string
 	err = tx.QueryRowContext(ctx, `SELECT content_hash FROM bom_import_packages WHERE project_id=$1 AND bom_import_batch_id=$2`, project.ID, pkg.Manifest.BatchID).Scan(&existingHash)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, err
+		return nil, nil, err
 	}
 	if err == nil {
 		if existingHash != pkg.Manifest.ContentHash {
@@ -60,6 +78,11 @@ func (s *Store) PreviewBOMPackage(ctx context.Context, a *AuthSession, project *
 			out.Idempotent = true
 		}
 	}
+	type modelFact struct {
+		kind, scope, state string
+		found              bool
+	}
+	modelCache := map[string]modelFact{}
 	for file, rows := range pkg.Rows {
 		if _, required := requiredBOMFiles[file]; !required {
 			continue
@@ -69,23 +92,55 @@ func (s *Store) PreviewBOMPackage(ctx context.Context, a *AuthSession, project *
 			if modelRef == "" {
 				continue
 			}
-			var kind, scope, state string
-			err = tx.QueryRowContext(ctx, `SELECT m.kind,m.scope_key,m.state FROM device_model_versions v JOIN device_models m ON m.id=v.model_id WHERE v.id=$1`, modelRef).Scan(&kind, &scope, &state)
-			if errors.Is(err, sql.ErrNoRows) {
+			model, cached := modelCache[modelRef]
+			if !cached {
+				err = tx.QueryRowContext(ctx, `SELECT m.kind,m.scope_key,m.state FROM device_model_versions v JOIN device_models m ON m.id=v.model_id WHERE v.id=$1`, modelRef).Scan(&model.kind, &model.scope, &model.state)
+				if err != nil && !errors.Is(err, sql.ErrNoRows) {
+					return nil, nil, err
+				}
+				model.found = err == nil
+				modelCache[modelRef] = model
+			}
+			if !model.found {
 				add(file, row.Line, "model_ref", "model_version_not_found")
 				continue
 			}
-			if err != nil {
-				return nil, err
-			}
-			if scope != "global" && scope != "project:"+project.ID {
+			if model.scope != "global" && model.scope != "project:"+project.ID {
 				add(file, row.Line, "model_ref", "model_version_not_in_project")
 			}
-			if state != "active" {
+			if model.state != "active" {
 				add(file, row.Line, "model_ref", "model_retired")
 			}
-			if file == "server/servers.csv" && kind != "server" || file == "fabric/switches.csv" && kind != "switch" {
+			wantKind := ""
+			switch file {
+			case "server/servers.csv":
+				wantKind = "server"
+			case "fabric/switches.csv":
+				wantKind = "switch"
+			case "server/server_components.csv":
+				wantKind = row.Values["category"]
+			case "fabric/optic_modules.csv":
+				wantKind = "optic_module"
+			}
+			if wantKind != "" && model.kind != wantKind {
 				add(file, row.Line, "model_ref", "model_kind_mismatch")
+			}
+		}
+	}
+	hasBlock := false
+	for _, issue := range pkg.Issues {
+		if issue.Severity == "BLOCK" {
+			hasBlock = true
+			break
+		}
+	}
+	if !hasBlock && !out.Idempotent {
+		if _, planErr := buildBOMMaterials(ctx, tx, project.ID, pkg); planErr != nil {
+			var buildErr *BOMBuildError
+			if errors.As(planErr, &buildErr) {
+				pkg.Issues = append(pkg.Issues, buildErr.Issue)
+			} else {
+				return nil, nil, planErr
 			}
 		}
 	}
@@ -97,5 +152,5 @@ func (s *Store) PreviewBOMPackage(ctx context.Context, a *AuthSession, project *
 			break
 		}
 	}
-	return out, tx.Commit()
+	return pkg, out, nil
 }

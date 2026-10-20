@@ -121,8 +121,10 @@ func (s *Store) CreateDeviceModel(ctx context.Context, a *AuthSession, project *
 	if utf8.RuneCountInString(name) < 1 || utf8.RuneCountInString(name) > 120 {
 		return nil, apiError(400, "VALIDATION_ERROR", "Model name must be 1-120 characters")
 	}
-	if input.Kind != "rack" && input.Kind != "server" && input.Kind != "compute-tray" && input.Kind != "switch" {
-		return nil, apiError(400, "VALIDATION_ERROR", "Model kind must be rack, server, compute-tray or switch")
+	switch input.Kind {
+	case "rack", "server", "compute-tray", "switch", "nic", "gpu", "psu", "bmc", "optic_module":
+	default:
+		return nil, apiError(400, "VALIDATION_ERROR", "Invalid model kind")
 	}
 	// Only platform administrators maintain the global scope.
 	scope := s.scopeKeyFor(project)

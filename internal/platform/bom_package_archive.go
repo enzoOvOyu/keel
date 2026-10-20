@@ -13,7 +13,7 @@ import (
 
 const (
 	maxBOMArchiveBytes  = 512 << 20
-	maxBOMExpandedBytes = 1024 << 20
+	maxBOMExpandedBytes = 256 << 20
 	maxBOMEntries       = 10000
 )
 

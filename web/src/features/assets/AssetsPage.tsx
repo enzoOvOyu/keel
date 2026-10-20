@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ProjectWorkspace, canManageProject, useProject } from '../../components/ProjectWorkspace'
 import { ActionDialog, ActionError, Pagination, PermissionDenied, SuccessNotice } from '../../components/Management'
 import { useAction } from '../../lib/management'
-import { commitBomImport, listProjectAssets, previewBomImport, runTrustAction, type BomImportInput, type BomPreview, type ProjectAsset } from '../../lib/bom'
+import { commitBomImport, commitBomPackage, listProjectAssets, previewBomImport, previewBomPackage, runTrustAction, type BomImportInput, type BomPackageIssue, type BomPackagePreview, type BomPreview, type ProjectAsset } from '../../lib/bom'
 import { parseBomCsv } from '../../lib/bom-csv'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 
@@ -63,6 +63,47 @@ function BomImportDialog({ projectId, onClose, onDone }: { projectId: string; on
     </>}
   </ActionDialog>
 }
+
+function downloadBomIssues(batch: string, issues: BomPackageIssue[]) {
+  const cell = (value: string) => `"${value.replaceAll('"', '""')}"`
+  const rows = [['severity', 'file', 'bom_line_no', 'field', 'code'].join(','), ...issues.map((issue) =>
+    [issue.severity, issue.file, String(issue.bom_line_no ?? ''), issue.field ?? '', issue.code].map(cell).join(','))]
+  const blob = new Blob(['\uFEFF', rows.join('\r\n'), '\r\n'], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url; link.download = `${batch || 'bom'}-issues.csv`; link.click()
+  URL.revokeObjectURL(url)
+}
+function BomPackageDialog({ projectId, onClose, onDone }: { projectId: string; onClose: () => void; onDone: (message: string) => Promise<void> }) {
+  const { t } = useTranslation(), session = useSession(), action = useAction()
+  const [file, setFile] = useState<File | null>(null), [preview, setPreview] = useState<BomPackagePreview | null>(null), [validation, setValidation] = useState('')
+  async function runPreview(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!file) { setValidation(t('bomPackageFileRequired')); return }
+    setValidation('')
+    const result = await action.run(() => previewBomPackage(projectId, file, session.csrf_token))
+    if (result.ok) setPreview(result.value)
+  }
+  async function runCommit() {
+    if (!file || !preview?.can_commit) return
+    const result = await action.run(() => commitBomPackage(projectId, file, preview.preview_token ?? '', session.csrf_token))
+    if (result.ok) await onDone(t('bomPackageCommitted', { count: result.value.item_count, batch: result.value.bom_import_batch_id }))
+  }
+  return <ActionDialog title={t('bomPackageTitle')} description={t('bomPackageDetail')} busy={action.busy} confirm={t('bomPreviewRun')} onSubmit={(event) => void runPreview(event)} onClose={onClose}>
+    <ActionError error={action.error} />{validation && <p className="field-error" role="alert">{validation}</p>}
+    <div className="field"><label htmlFor="bom-package-file">{t('bomPackageFile')}</label><input id="bom-package-file" type="file" accept=".zip,.gz,.tar.gz" disabled={action.busy} onChange={(event) => { setFile(event.target.files?.[0] ?? null); setPreview(null) }} /><span className="field-hint">{t('bomPackageFileHint')}</span></div>
+    {preview && <>
+      <p className="impact-notice">{t('bomPackageSummary', { batch: preview.manifest.bom_import_batch_id, rows: preview.manifest.row_count, profile: preview.manifest.profile_version_ref })}</p>
+      {preview.idempotent && <p className="impact-notice">{t('bomPackageAlreadyCommitted')}</p>}
+      <div className="table-scroll" tabIndex={0} role="region" aria-label={t('bomPackageIssues')}><table className="data-table"><thead><tr><th scope="col">{t('bomIssueSeverity')}</th><th scope="col">{t('bomIssueFile')}</th><th scope="col">{t('bomIssueLine')}</th><th scope="col">{t('bomIssueField')}</th><th scope="col">{t('bomIssueCode')}</th></tr></thead>
+        <tbody>{preview.issues.map((issue, index) => <tr key={index}><td>{issue.severity}</td><td className="mono-value">{issue.file}</td><td>{issue.bom_line_no || '—'}</td><td className="mono-value">{issue.field || '—'}</td><td className="mono-value">{issue.code}</td></tr>)}</tbody></table>
+        {!preview.issues.length && <p className="table-loading">{t('bomPackageNoIssues')}</p>}</div>
+      <div className="table-actions"><button type="button" className="secondary-button" disabled={action.busy || !preview.issues.length} onClick={() => downloadBomIssues(preview.manifest.bom_import_batch_id, preview.issues)}>{t('bomExportIssues')}</button>
+      <button type="button" className="primary-button" disabled={action.busy || !preview.can_commit} onClick={() => void runCommit()}>{t('bomCommit')}</button></div>
+    </>}
+  </ActionDialog>
+}
+
 const trustActions = ['trust.bootstrap', 'trust.verify', 'trust.repair', 'trust.revoke'] as const
 function TrustDialog({ projectId, machines, onClose, onDone }: { projectId: string; machines: ProjectAsset[]; onClose: () => void; onDone: (message: string) => Promise<void> }) {
   const { t } = useTranslation(), session = useSession(), action = useAction()
@@ -90,18 +131,19 @@ function AssetsContent() {
   const [page, setPage] = useState(1), [importing, setImporting] = useState(false), [trustTarget, setTrustTarget] = useState<ProjectAsset[] | null>(null), [success, setSuccess] = useState('')
   const allowed = session.permissions.includes('model:read')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [packageImporting, setPackageImporting] = useState(false)
   const manage = canManageProject(project, session.user.is_admin) && session.permissions.includes('model:manage')
   const assets = useQuery({ queryKey: ['private', session.user.id, 'project', project.id, 'assets', page], queryFn: ({ signal }) => listProjectAssets(project.id, page, signal), enabled: allowed })
   useExpireOnUnauthorized(assets.error)
   useEffect(() => { document.title = `${t('bomTitle')} · ${project.name}` }, [t, project.name])
   async function done(message: string) {
-    setImporting(false); setTrustTarget(null); setSuccess(message)
+    setImporting(false); setPackageImporting(false); setTrustTarget(null); setSuccess(message)
     await client.invalidateQueries({ queryKey: ['private', session.user.id, 'project', project.id, 'assets'] })
   }
   if (!allowed) return <PermissionDenied />
   return <>
     <div className="page-heading"><div><p className="section-eyebrow">{project.name}</p><h1>{t('bomTitle')}</h1><p>{t('bomIntro')}</p></div>
-      {manage && <div className="table-actions"><button className="primary-button" onClick={() => { setSuccess(''); setImporting(true) }}>{t('bomImport')}</button><button className="secondary-button" disabled={!selected.size} onClick={() => { setSuccess(''); setTrustTarget((assets.data?.items ?? []).filter((a) => selected.has(a.machine_id))) }}>{t('trustTitle')}</button></div>}</div>
+      {manage && <div className="table-actions"><button className="primary-button" onClick={() => { setSuccess(''); setPackageImporting(true) }}>{t('bomPackageTitle')}</button><button className="secondary-button" onClick={() => { setSuccess(''); setImporting(true) }}>{t('bomImport')}</button><button className="secondary-button" disabled={!selected.size} onClick={() => { setSuccess(''); setTrustTarget((assets.data?.items ?? []).filter((a) => selected.has(a.machine_id))) }}>{t('trustTitle')}</button></div>}</div>
     {success && <SuccessNotice>{success}</SuccessNotice>}
     <section className="management-panel" aria-busy={assets.isFetching}>
       <ActionError error={assets.error} />
@@ -114,6 +156,7 @@ function AssetsContent() {
           {!(assets.data.items ?? []).length && <p className="table-loading">{t('bomNoAssets')}</p>}</div>
         <Pagination offset={(page - 1) * assets.data.page_size} limit={assets.data.page_size} total={assets.data.total} busy={assets.isFetching} onChange={(offset) => setPage(offset / assets.data.page_size + 1)} /></>}
     </section>
+    {packageImporting && <BomPackageDialog projectId={project.id} onClose={() => setPackageImporting(false)} onDone={(message) => done(message)} />}
     {importing && <BomImportDialog projectId={project.id} onClose={() => setImporting(false)} onDone={(message) => done(message)} />}
     {trustTarget && <TrustDialog projectId={project.id} machines={trustTarget} onClose={() => setTrustTarget(null)} onDone={(message) => { setSelected(new Set()); return done(message) }} />}
   </>

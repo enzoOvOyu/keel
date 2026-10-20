@@ -1261,6 +1261,44 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '413': { description: Archive exceeds the upload limit }
+  /api/v1/projects/{id}/bom/packages/commit:
+    post:
+      tags: [BOM]
+      operationId: commitBOMPackage
+      security: [{sessionCookie: []}]
+      x-permission: project:bom:manage
+      x-resource-scope: path-project-admin
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, preview_token]
+              properties:
+                file: { type: string, format: binary, description: Same zip or tar.gz package previewed; up to 64 MiB }
+                preview_token: { type: string, description: Session-bound token returned by a successful preview }
+      responses:
+        '201':
+          description: Server and fabric materials committed in one transaction.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BOMPackageCommitResult' }
+        '200':
+          description: Existing batch with the same content hash; no rows written.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BOMPackageCommitResult' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { description: Archive exceeds the upload limit }
 components:
 
   securitySchemes:
@@ -1329,6 +1367,17 @@ components:
         fabric_columns:
           type: object
           additionalProperties: { type: object, additionalProperties: { type: string } }
+    BOMPackageCommitResult:
+      type: object
+      additionalProperties: false
+      required: [package_id, bom_import_batch_id, content_hash, item_count, idempotent, committed_at]
+      properties:
+        package_id: { $ref: '#/components/schemas/EntityID' }
+        bom_import_batch_id: { type: string }
+        content_hash: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+        item_count: { type: integer, minimum: 0 }
+        idempotent: { type: boolean }
+        committed_at: { type: string, format: date-time }
     BOMPackagePreview:
       type: object
       additionalProperties: false
@@ -1350,6 +1399,7 @@ components:
         file_hashes: { type: object, additionalProperties: { type: string } }
         can_commit: { type: boolean }
         idempotent: { type: boolean }
+        preview_token: { type: string }
     BOMMappingProfile:
       type: object
       additionalProperties: false
@@ -1421,7 +1471,7 @@ components:
         id: { type: string, pattern: '^[a-f0-9]{32}$' }
         scope_key: { type: string, enum: [global], description: 'Reserved for the platform scope; project scopes use project:<id>.' }
         name: { type: string, minLength: 1, maxLength: 120 }
-        kind: { type: string, enum: [rack, server, compute-tray, switch] }
+        kind: { type: string, enum: [rack, server, compute-tray, switch, nic, gpu, psu, bmc, optic_module] }
         state: { type: string, enum: [active, retired] }
         latest_version: { type: integer, format: int64, minimum: 0 }
         created_at: { type: string, format: date-time }
@@ -1451,7 +1501,7 @@ components:
       required: [name, kind]
       properties:
         name: { type: string, minLength: 1, maxLength: 120 }
-        kind: { type: string, enum: [rack, server, compute-tray, switch] }
+        kind: { type: string, enum: [rack, server, compute-tray, switch, nic, gpu, psu, bmc, optic_module] }
     PublishModelVersionInput:
       type: object
       additionalProperties: false

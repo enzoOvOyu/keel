@@ -239,4 +239,5 @@ func ApplyBOMMappingProfile(pkg *BOMPackage, profile *BOMMappingProfile) {
 		}
 		pairs[key] = true
 	}
+	validateMappedBOMRows(pkg)
 }
