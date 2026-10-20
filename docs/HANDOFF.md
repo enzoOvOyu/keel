@@ -1,5 +1,12 @@
 # Keel 开发交接
 
+## 2026-10-20 P1 回退后的开发接续
+
+- 工作目录 `ubuntu@43.207.20.26:/opt/keel`；GitHub `main` 与本地基点 `p1-complete` = `e7d5f1a`。开发分支 `dev/p1-network-bom` 从该标签分出，已导入 PRD v3.0.3 设计基线；运行中 API 仍为 P1 镜像 `keel:p1-e7d5f1a`，PostgreSQL 已恢复到 10 个迁移，`/healthz` 与 `/api/v1/auth/providers` 可用。运行 Compose 使用 `/home/ubuntu/.config/keel/runtime-p1.env`，不可直接用开发机回环地址启动容器 API。
+- 回退前 27 迁移备份：`/home/ubuntu/.local/state/keel/backups/pre-p1-rollback-20261020T083912Z.dump`。设计文档原提交 `fe68c59` 存于 GitHub `design/prd-v3.0.3-20261020`；旧的未完成 BOM 代码仅在本地 `archive/pre-p1-rollback-20261020`，不计入当前实现。
+- 新开发按 `IMPLEMENTATION-PLAN.md` v3.0.3 的依赖推进，首先实现 WP-1.15 统一 BOM 导入包；P2/P3 旧分支历史不得当作当前工作树的已实现功能。真机 PoC 状态独立于 sim 验证。
+
+
 ## 收口记录（2026-10-12，P1 收口已完成）
 
 - 暂停点已固化并提交：`7ba6b6b`（控制面与模拟执行内核）、`0c572a8`（集成套件接入 worker）、`d339850`（执行契约补全）、`388d10b`（执行 UI）。分支 main，ahead 4，**未推送**。

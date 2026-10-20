@@ -1,10 +1,62 @@
 {
   "schema_version": 1,
-  "design_version": "v2.5",
+  "design_version": "v3.0.3",
   "product": "keel",
-  "updated_at": "2026-10-13",
-  "status_semantics": "Design mappings are requirements, not evidence that implementation or validation has passed.",
+  "updated_at": "2026-10-20",
+  "status_semantics": "Design mappings are requirements, not evidence that implementation or validation has passed. FR-0 (network base prerequisite domain) is mapped alongside FR-1..FR-17; network capabilities are supplied in-domain (FR-0.8 evidence interface) with a third-party adapter form.",
   "requirements": [
+    {
+      "id": "FR-0",
+      "title": "网络底座交付域（前置域）",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "### 3.0 FR-0 "
+        },
+        {
+          "file": "PRD.md",
+          "marker": "NP-1"
+        },
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "### ADR-19 "
+        },
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "### ADR-20 "
+        },
+        {
+          "file": "ACCEPTANCE.md",
+          "marker": "### 4.15 FR-0 "
+        }
+      ],
+      "work_packages": [
+        "WP-1.15",
+        "WP-1.16",
+        "WP-1.17",
+        "WP-2.14",
+        "WP-2.15",
+        "WP-3.14",
+        "WP-3.15",
+        "WP-4.10"
+      ],
+      "acceptance": [
+        "F-0.1",
+        "F-0.2",
+        "F-0.3",
+        "F-0.4",
+        "F-0.5",
+        "F-0.6",
+        "F-0.7",
+        "F-0.8",
+        "F-0.9",
+        "F-0.10",
+        "F-0.11",
+        "F-0.12"
+      ],
+      "implementation_status": "planned",
+      "implementation_notes": "Network base prerequisite domain specified in v3.0: BOM import package (FR-2.1.8), network material modeling, ZTP onboarding, cable verification, Golden closed loop, lossless/health and rule governance, FR-0.8 evidence interface. Implementation not started; NP-1..NP-6 and LL-01..LL-07 never fabricate PASS."
+    },
     {
       "id": "FR-1",
       "title": "自动作业平台",
@@ -38,9 +90,18 @@
         {
           "file": "PRD.md",
           "marker": "### 3.2 FR-2 "
+        },
+        {
+          "file": "PRD.md",
+          "marker": "FR-2.1.8"
+        },
+        {
+          "file": "PRD.md",
+          "marker": "附录 A.5"
         }
       ],
       "work_packages": [
+        "WP-1.15",
         "WP-1.7",
         "WP-1.9"
       ],
@@ -267,6 +328,9 @@
         "F-11.1",
         "F-11.2",
         "F-11.3",
+        "F-11.4",
+        "F-11.5",
+        "F-11.6",
         "H-6"
       ],
       "implementation_status": "planned"
@@ -433,7 +497,7 @@
         "F-1.13"
       ],
       "validation_requirement": "正反例测试受限 bootstrap/repair、无介质查询、tested 重测和绑定工单复测；不能扩大授权范围。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -453,7 +517,7 @@
         "F-4.19"
       ],
       "validation_requirement": "A–B/C–D 的证据不能放行 A–C；改目标/端口对/配置/映射/规则或过期即复核。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -478,7 +542,7 @@
         "F-4.18"
       ],
       "validation_requirement": "G2 失败可关联 PhysicalPort/部件，换件保留历史；独立型号预期不能由实际结果自证。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -498,7 +562,7 @@
         "F-6.10"
       ],
       "validation_requirement": "资源预留、固定 rank、屏障、失败整组恢复与报告覆盖范围和来源断言。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -520,7 +584,7 @@
         "F-1.12"
       ],
       "validation_requirement": "注入 commit/publish 崩溃、重投、租约过期、回执丢失；Agent/SSH/BMC 占用冲突拒绝。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -545,7 +609,7 @@
         "F-17.5"
       ],
       "validation_requirement": "URL 与显式 project_id 一致，缓存/SSE/确认目标冻结，多标签切换和全局授权聚合注入。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -571,7 +635,7 @@
         "H-13"
       ],
       "validation_requirement": "HGX B300 与 GB300 Arm/rack 分档，兼容矩阵固定版本，缺基线不通过，量纲与公式可查。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -603,7 +667,7 @@
         "F-5.3"
       ],
       "validation_requirement": "Nmi 独立，超时 unknown 查询先行，T7 证据处置；客户资源保留、归档与撤销独立验证。 驱动/固件恢复按组件能力选择已验证回滚或人工恢复；unknown 先对账，不盲重试。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -624,7 +688,7 @@
         "U-13"
       ],
       "validation_requirement": "选中 A/B 后 C 行操作仅 C；批量条明确目标数/项目/排除项。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -644,7 +708,7 @@
         "U-13"
       ],
       "validation_requirement": "流转按动作权限/证据/版本校验；不能只 PATCH status 绕过复测。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -664,7 +728,7 @@
         "U-13"
       ],
       "validation_requirement": "95% 为统计，剩余目标分别阻断或限定审批豁免，不冒充 PASS。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -690,7 +754,7 @@
         "U-15"
       ],
       "validation_requirement": "指标有单位来源时间范围，Gbps/GB/s 换算正确，Agent 失联不判机器宕机。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -716,7 +780,7 @@
         "P-6"
       ],
       "validation_requirement": "1h/24h/7d 历史和未来调度真实查询；首开快照/活动订阅/后台取消/断线补齐。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -742,7 +806,7 @@
         "F-5.9.3"
       ],
       "validation_requirement": "引用型号可退役不可删除，新版本不改存量；storage 禁用可零绑定。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -771,7 +835,7 @@
         "F-13.8"
       ],
       "validation_requirement": "验证 DAG、端到端计时、资源预算、逻辑设备与真实连接/字节分开，不将 mock 当硬件性能证据。 BMC 延长轮询实际 interval 时必须 degraded 并记录默认 5min SLO 未达，不以调整后的间隔冒充 PASS。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -798,7 +862,7 @@
         "D-8"
       ],
       "validation_requirement": "17 FR、34 组件、17 IA 自检、H-1~H-14；追踪 ID 和文档 marker 存在、旧审计状态分明。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -827,7 +891,7 @@
         "S-4"
       ],
       "validation_requirement": "Anthropic 等三 Provider，ACL 检索前置、出处/拒答评测；合法草稿可生成、越权执行不可；采纳率源于真实反馈。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -847,7 +911,7 @@
         "U-12"
       ],
       "validation_requirement": "品牌/页面标题/favicon/空态统一 keel，进程与目录 keel-*、环境变量 KEEL_。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
       "implementation_status": "planned"
     },
     {
@@ -878,7 +942,209 @@
         "S-6"
       ],
       "validation_requirement": "本地/OIDC/LDAP 后端认证，同源 Cookie/CSRF、退出/过期、next、限流、回调和无默认密码；不回放危险提交。",
-      "design_status": "specified_v2.5",
+      "design_status": "specified_v3.0",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R18",
+      "title": "交换机仿真保真度（golden-file 契约基线）",
+      "design_refs": [
+        {
+          "file": "IMPLEMENTATION-PLAN.md",
+          "marker": "| R-18 |"
+        }
+      ],
+      "work_packages": [
+        "WP-2.14",
+        "WP-3.14",
+        "WP-3.15"
+      ],
+      "acceptance": [
+        "F-0.6",
+        "F-0.9",
+        "F-0.10"
+      ],
+      "validation_requirement": "每个被仿真命令附 golden-file 契约基线并进 CI；不可仿真项登记 unknown 而非省略；样本覆盖率作为周度量。",
+      "design_status": "specified_v3.0",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R19",
+      "title": "无损 series 规模失控",
+      "design_refs": [
+        {
+          "file": "IMPLEMENTATION-PLAN.md",
+          "marker": "| R-19 |"
+        }
+      ],
+      "work_packages": [
+        "WP-3.14",
+        "WP-3.15"
+      ],
+      "acceptance": [
+        "F-0.10",
+        "P-11"
+      ],
+      "validation_requirement": "采集范围治理（默认只采 no-drop ∪ CNP，lossy 仅下钻临时开 15min）+ 三层存储 + 长期只存聚合与事件（NFR-18）。",
+      "design_status": "specified_v3.0",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R20",
+      "title": "BOM 导入包坏样本/列名漂移",
+      "design_refs": [
+        {
+          "file": "IMPLEMENTATION-PLAN.md",
+          "marker": "| R-20 |"
+        }
+      ],
+      "work_packages": [
+        "WP-1.15"
+      ],
+      "acceptance": [
+        "F-0.1",
+        "F-0.2"
+      ],
+      "validation_requirement": "项目模板字段映射固化 + 列名别名表 + 未命中列 WARN 不静默 + 问题清单三级定位导出；坏样本注入集。",
+      "design_status": "specified_v3.0",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "C17",
+      "title": "网络配置归属裁决（方案商定 Out of Scope，导入承接 In Scope）",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "| **C-17** |"
+        }
+      ],
+      "work_packages": [
+        "WP-2.15"
+      ],
+      "acceptance": [
+        "F-0.9"
+      ],
+      "validation_requirement": "意图承接与渲染（不做内容决策）；参数目录取值仅为建议默认值，导入基线优先。",
+      "design_status": "specified_v3.0",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "C18",
+      "title": "配置差异由项目模板唯一承载",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "| **C-18** |"
+        }
+      ],
+      "work_packages": [
+        "WP-4.5",
+        "WP-2.15"
+      ],
+      "acceptance": [
+        "F-0.9",
+        "F-12.1"
+      ],
+      "validation_requirement": "不同项目/设备选型的服务器与网络配置差异一律模板化/版本化，禁止代码硬编码。",
+      "design_status": "specified_v3.0",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R-2026-10-20-PRD",
+      "title": "PRD 逻辑与悬空导入契约复审",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "| v3.0.3 变更摘要 |"
+        },
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "### ADR-20 "
+        },
+        {
+          "file": "ACCEPTANCE.md",
+          "marker": "| F-0.8 |"
+        }
+      ],
+      "work_packages": [
+        "WP-1.15",
+        "WP-1.17",
+        "WP-2.4",
+        "WP-2.14",
+        "WP-2.15"
+      ],
+      "acceptance": [
+        "F-0.1",
+        "F-0.2",
+        "F-0.3",
+        "F-0.6",
+        "F-0.8",
+        "F-0.9",
+        "F-0.13",
+        "P-14",
+        "H-15",
+        "H-16",
+        "H-17",
+        "H-18"
+      ],
+      "validation_requirement": "G2 启动仅查 NP-1/NP-2/NP-4，G2 三方比对产出 NP-3；首次引导不因未完成生产配置而死锁；标准 BOM 包七文件齐备，摘要不含 manifest 自身，同号异摘要拒绝；工单保留发现来源；维护态停采先于卸载。",
+      "design_status": "specified_v3.0.3",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R-2026-10-20-NETWORK-DOCS",
+      "title": "PRD v3.0.3 网络设计关联文档复审",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "| v3.0.3 变更摘要 |"
+        },
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "### ADR-19 "
+        },
+        {
+          "file": "DESIGN-SYSTEM.md",
+          "marker": "ReadinessGate"
+        },
+        {
+          "file": "IMPLEMENTATION-PLAN.md",
+          "marker": "| WP-4.10 |"
+        },
+        {
+          "file": "ACCEPTANCE.md",
+          "marker": "| F-0.13 |"
+        }
+      ],
+      "work_packages": [
+        "WP-1.15",
+        "WP-1.16",
+        "WP-1.17",
+        "WP-2.4",
+        "WP-2.14",
+        "WP-2.15",
+        "WP-3.3",
+        "WP-3.14",
+        "WP-3.15",
+        "WP-4.10"
+      ],
+      "acceptance": [
+        "F-0.1",
+        "F-0.5",
+        "F-0.6",
+        "F-0.8",
+        "F-0.9",
+        "F-0.12",
+        "F-0.13",
+        "P-11",
+        "P-14",
+        "H-15",
+        "H-16",
+        "H-17",
+        "H-18"
+      ],
+      "validation_requirement": "跨文档依赖无环；G2 启动 NP-1/2/4 与 NP-3 产出分阶段；ZTP 仅最小配置，首次 PushJob 可启动；七文件导入包、身份、来源保持、容量及真机 PoC 有独立验收判据。",
+      "design_status": "specified_v3.0.3",
       "implementation_status": "planned"
     }
   ],
@@ -1224,7 +1490,9 @@
       "id": "WP-2.4",
       "phase": "P2",
       "depends_on": [
-        "WP-2.3"
+        "WP-2.3",
+        "WP-2.14",
+        "WP-2.15"
       ],
       "acceptance": [
         "F-4.4",
@@ -1408,7 +1676,8 @@
       "phase": "P3",
       "depends_on": [
         "WP-2.7",
-        "WP-3.2"
+        "WP-3.2",
+        "WP-3.14"
       ],
       "acceptance": [
         "F-11.1",
@@ -1805,11 +2074,135 @@
         "K-6"
       ],
       "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.15",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.3",
+        "WP-1.12"
+      ],
+      "acceptance": [
+        "F-0.1",
+        "F-0.2",
+        "F-0.3",
+        "F-0.4",
+        "F-2.1",
+        "H-15"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.16",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.15"
+      ],
+      "acceptance": [
+        "F-0.4",
+        "F-14.1",
+        "P-14"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-1.17",
+      "phase": "P1",
+      "depends_on": [
+        "WP-1.15",
+        "WP-1.6"
+      ],
+      "acceptance": [
+        "F-0.5",
+        "H-16"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-2.14",
+      "phase": "P2",
+      "depends_on": [
+        "WP-1.16",
+        "WP-1.17"
+      ],
+      "acceptance": [
+        "F-0.6",
+        "F-0.7",
+        "F-0.8",
+        "H-17"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-2.15",
+      "phase": "P2",
+      "depends_on": [
+        "WP-1.15",
+        "WP-1.16",
+        "WP-2.14"
+      ],
+      "acceptance": [
+        "F-0.8",
+        "F-0.9"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-3.14",
+      "phase": "P3",
+      "depends_on": [
+        "WP-2.14",
+        "WP-1.11"
+      ],
+      "acceptance": [
+        "F-0.10",
+        "F-0.11",
+        "F-0.12",
+        "P-11",
+        "P-12",
+        "H-18"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-3.15",
+      "phase": "P3",
+      "depends_on": [
+        "WP-3.14",
+        "WP-2.15"
+      ],
+      "acceptance": [
+        "F-0.5",
+        "F-0.6",
+        "F-0.10",
+        "F-0.11",
+        "H-15",
+        "H-16",
+        "H-17",
+        "P-14"
+      ],
+      "implementation_status": "planned"
+    },
+    {
+      "id": "WP-4.10",
+      "phase": "P4",
+      "depends_on": [
+        "WP-3.14",
+        "WP-2.15",
+        "WP-2.13",
+        "WP-4.4"
+      ],
+      "acceptance": [
+        "F-0.12",
+        "H-18",
+        "F-0.13"
+      ],
+      "implementation_status": "planned"
     }
   ],
   "implementation_checkpoint": {
-    "stage": "P1 partial: local authentication, project workspace and a verified simulated execution kernel",
-    "brand_slogan": "Knowledge-led Execution, Enforcement & Lifecycle",
-    "scope": "No claim of complete P1, hardware acceptance, LDAP/OIDC or deployment scheduling."
+    "stage": "P1 stage gate complete at p1-complete (e7d5f1a); development restarted from this tag",
+    "scope": "P1 sim and PoC package evidence only; FR-0 network, P2-P5 and hardware PoC execution remain planned",
+    "runtime": "P1 API on restored 10-migration snapshot; operational details in docs/HANDOFF.md"
   }
 }

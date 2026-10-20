@@ -2,7 +2,7 @@
 
 **Knowledge-led Execution, Enforcement & Lifecycle**
 
-自动交付部署平台。品牌字标使用 **Keel**，仓库、包名与服务标识使用 `keel`。设计基线覆盖17个功能域；当前代码完成 **P1 的本地认证与项目基础闭环**，整体交付业务仍在开发。
+自动交付部署平台。品牌字标使用 **Keel**，仓库、包名与服务标识使用 `keel`。设计基线为 PRD v3.0.3，覆盖 FR-0 网络前置域与 FR-1～FR-17。当前代码回到 GitHub 的 `p1-complete`（`e7d5f1a`）：P1 阶段门槛已闭环，P2～P5 和 FR-0 网络底座仍待开发。
 
 ## 当前可用能力
 
@@ -18,21 +18,21 @@ LDAP/OIDC、成员管理网页、项目生命周期变更、ProjectAsset、执�
 
 ## 在远端继续开发
 
-主工作区：`ubuntu@13.158.38.7:/opt/keel`。先读 [协作约定](AGENTS.md)、[交接记录](docs/HANDOFF.md) 与 [部署说明](docs/DEPLOYMENT.md)。
+主工作区：`ubuntu@43.207.20.26:/opt/keel`。先读 [协作约定](AGENTS.md)、[交接记录](docs/HANDOFF.md) 与 [部署说明](docs/DEPLOYMENT.md)。
 
 ```sh
 cd /opt/keel
 git status -sb
 sh scripts/dev-session.sh
-tmux attach -t keel
+tmux attach -t codex-keel
 ```
 
-已有 `keel` 会话包含 work/api/web/logs；脚本不重启已有窗口。按 **Ctrl-b，再按 d** 分离，SSH 断开后进程继续。开发 API 使用3001，Vite使用5173，部署预览使用3000。
+已有 `codex-keel` 会话包含 work/api/web/logs；脚本不重启已有窗口。按 **Ctrl-b，再按 d** 分离，SSH 断开后进程继续。开发 API 使用3001，Vite使用5173，部署预览使用3000。
 
 从自己的电脑建立隧道：
 
 ```sh
-ssh -i /path/to/enzo-using.pem -N   -L 3000:127.0.0.1:3000   -L 5173:127.0.0.1:5173   ubuntu@13.158.38.7
+ssh -i /path/to/enzo-using.pem -N   -L 3000:127.0.0.1:3000   -L 5173:127.0.0.1:5173   ubuntu@43.207.20.26
 ```
 
 访问 `http://localhost:3000/login`，或打开 `http://localhost:5173` 进行热更新开发。每台电脑自行配置私钥路径，不把密钥放进仓库。
