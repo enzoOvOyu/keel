@@ -24,10 +24,29 @@ type switchEngineeringModel struct {
 // All amounts are declared engineering facts. An absent model limit or plan is
 // unknown, never an implicit PASS. Ratio limits need an approved baseline; the
 // BOM alone may detect a contradiction but cannot certify the target ratio.
-func validateNetworkEngineering(ctx context.Context, tx *sql.Tx, pkg *BOMPackage) ([]BOMPackageIssue, error) {
+func validateNetworkEngineering(ctx context.Context, tx *sql.Tx, projectID string, pkg *BOMPackage) ([]BOMPackageIssue, error) {
 	issues := []BOMPackageIssue{}
 	add := func(sev string, row BOMPackageRow, field, code string) {
 		issues = append(issues, BOMPackageIssue{Severity: sev, File: row.File, BOMLineNo: row.Line, Field: field, Code: code})
+	}
+	approvedLimits := NetworkEngineeringLimits{}
+	baselineApproved := false
+	if ref := pkg.Manifest.NetworkBaselineRef; ref != "" {
+		var state string
+		var raw []byte
+		err := tx.QueryRowContext(ctx, `SELECT state,engineering_limits FROM network_baseline_versions WHERE project_id=$1 AND version_ref=$2`, projectID, ref).Scan(&state, &raw)
+		if errors.Is(err, sql.ErrNoRows) {
+			issues = append(issues, BOMPackageIssue{Severity: "BLOCK", File: "manifest.json", Field: "network_baseline_ref", Code: "network_baseline_not_found"})
+		} else if err != nil {
+			return nil, err
+		} else if state != "approved" {
+			issues = append(issues, BOMPackageIssue{Severity: "BLOCK", File: "manifest.json", Field: "network_baseline_ref", Code: "network_baseline_not_approved"})
+		} else {
+			if err = json.Unmarshal(raw, &approvedLimits); err != nil {
+				return nil, err
+			}
+			baselineApproved = true
+		}
 	}
 	switches := map[string]BOMPackageRow{}
 	modelCache := map[string]switchEngineeringModel{}
@@ -174,16 +193,35 @@ func validateNetworkEngineering(ctx context.Context, tx *sql.Tx, pkg *BOMPackage
 			add("WARN", sw, "bandwidth_direction", "bandwidth_ratio_unverified")
 			continue
 		}
-		limit, err := strconv.ParseFloat(sw.Values["max_downlink_uplink_ratio"], 64)
-		if err != nil || limit <= 0 || math.IsNaN(limit) || math.IsInf(limit, 0) {
+		declaredLimit, declaredErr := strconv.ParseFloat(sw.Values["max_downlink_uplink_ratio"], 64)
+		declaredValid := declaredErr == nil && declaredLimit > 0 && !math.IsNaN(declaredLimit) && !math.IsInf(declaredLimit, 0)
+		limit := declaredLimit
+		if baselineApproved {
+			baselineLimit, ok := approvedLimits.SwitchBandwidthRatioLimits["serial:"+sw.Values["sn"]]
+			if !ok {
+				baselineLimit, ok = approvedLimits.SwitchBandwidthRatioLimits["role:"+sw.Values["role"]]
+			}
+			if !ok {
+				add("WARN", sw, "max_downlink_uplink_ratio", "bandwidth_ratio_limit_unverified")
+				continue
+			}
+			if declaredValid && declaredLimit > baselineLimit+1e-9 {
+				add("BLOCK", sw, "max_downlink_uplink_ratio", "bandwidth_ratio_limit_exceeds_baseline")
+			}
+			limit = baselineLimit
+			if declaredValid && declaredLimit < limit {
+				limit = declaredLimit
+			}
+		} else if !declaredValid {
 			add("WARN", sw, "max_downlink_uplink_ratio", "bandwidth_ratio_limit_unverified")
 			continue
 		}
 		if c.down/c.up > limit+1e-9 {
 			add("BLOCK", sw, "max_downlink_uplink_ratio", "bandwidth_ratio_exceeded")
 		}
-		// Approval of the limit is a separate baseline gate, not inferred from CSV.
-		add("WARN", sw, "max_downlink_uplink_ratio", "bandwidth_ratio_limit_approval_unverified")
+		if !baselineApproved {
+			add("WARN", sw, "max_downlink_uplink_ratio", "bandwidth_ratio_limit_approval_unverified")
+		}
 	}
 	return issues, nil
 }

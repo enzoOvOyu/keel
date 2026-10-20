@@ -128,6 +128,41 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if cableRailErr != nil || cableRailPreview.CanCommit || !issueFound(&BOMPackage{Issues: cableRailPreview.Issues}, "cable_rail_mismatch") {
 		t.Fatalf("planned cable rail mismatch accepted: %+v %v", cableRailPreview, cableRailErr)
 	}
+	baselineInput := CreateNetworkBaselineInput{VersionRef: "engineering-v1", SourceRef: "customer-network-plan-1", EngineeringLimits: NetworkEngineeringLimits{SwitchBandwidthRatioLimits: map[string]float64{"role:leaf": 1.5}}}
+	if _, err = s.CreateNetworkBaseline(ctx, actor, project, baselineInput, "test"); err != nil {
+		t.Fatal(err)
+	}
+	withBaseline := make(map[string][]byte, len(engineering))
+	for name, data := range engineering {
+		withBaseline[name] = append([]byte(nil), data...)
+	}
+	withBaseline["fabric/switches.csv"] = bytes.ReplaceAll(withBaseline["fabric/switches.csv"], []byte(",planned,1,2,900,0.5"), []byte(",planned,2,2,1000,1.5"))
+	var baselineManifest BOMPackageManifest
+	if err = json.Unmarshal(withBaseline["manifest.json"], &baselineManifest); err != nil {
+		t.Fatal(err)
+	}
+	baselineManifest.BatchID = "BOM-BATCH-P1-20261020-10"
+	baselineManifest.Seq = 10
+	baselineManifest.NetworkBaselineRef = "engineering-v1"
+	withBaseline["manifest.json"], _ = json.Marshal(baselineManifest)
+	rehashBOMFixture(t, withBaseline)
+	draftPreview, draftErr := s.PreviewBOMPackage(ctx, actor, project, withBaseline)
+	if draftErr != nil || draftPreview.CanCommit || !issueFound(&BOMPackage{Issues: draftPreview.Issues}, "network_baseline_not_approved") {
+		t.Fatalf("draft baseline accepted: %+v %v", draftPreview, draftErr)
+	}
+	if _, err = s.ApproveNetworkBaseline(ctx, actor, project, "engineering-v1", ApproveNetworkBaselineInput{CustomerApprovalRef: "customer-signoff-1", NetworkApprovalRef: "ne-signoff-1"}, "test"); err != nil {
+		t.Fatal(err)
+	}
+	approvedPreview, approvedErr := s.PreviewBOMPackage(ctx, actor, project, withBaseline)
+	if approvedErr != nil || !approvedPreview.CanCommit || issueFound(&BOMPackage{Issues: approvedPreview.Issues}, "bandwidth_ratio_limit_approval_unverified") {
+		t.Fatalf("approved engineering baseline not accepted: %+v %v", approvedPreview, approvedErr)
+	}
+	withBaseline["fabric/switches.csv"] = bytes.ReplaceAll(withBaseline["fabric/switches.csv"], []byte(",planned,2,2,1000,1.5"), []byte(",planned,2,2,1000,2"))
+	rehashBOMFixture(t, withBaseline)
+	loosePreview, looseErr := s.PreviewBOMPackage(ctx, actor, project, withBaseline)
+	if looseErr != nil || loosePreview.CanCommit || !issueFound(&BOMPackage{Issues: loosePreview.Issues}, "bandwidth_ratio_limit_exceeds_baseline") {
+		t.Fatalf("loose BOM ratio accepted: %+v %v", loosePreview, looseErr)
+	}
 	first, err := s.CommitBOMPackage(ctx, actor, project, files, preview.PreviewToken, "test")
 	if err != nil {
 		t.Fatal(err)

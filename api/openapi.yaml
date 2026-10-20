@@ -1229,6 +1229,90 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/network-baselines:
+    post:
+      tags: [BOM]
+      operationId: createNetworkEngineeringBaseline
+      security: [{sessionCookie: []}]
+      x-permission: project:network-baseline:manage
+      x-resource-scope: path-project-admin
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateNetworkBaselineInput' }
+      responses:
+        '201':
+          description: Immutable draft engineering limits from an external plan.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkBaselineVersion' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/network-baselines/{versionRef}:
+    get:
+      tags: [BOM]
+      operationId: getNetworkEngineeringBaseline
+      security: [{sessionCookie: []}]
+      x-permission: project:network-baseline:read
+      x-resource-scope: path-project
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      - name: versionRef
+        in: path
+        required: true
+        schema: { type: string, maxLength: 120 }
+      responses:
+        '200':
+          description: Project-scoped engineering limit version and approval evidence references.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkBaselineVersion' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/projects/{id}/network-baselines/{versionRef}/approve:
+    post:
+      tags: [BOM]
+      operationId: approveNetworkEngineeringBaseline
+      security: [{sessionCookie: []}]
+      x-permission: project:network-baseline:manage
+      x-resource-scope: path-project-admin
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      - name: versionRef
+        in: path
+        required: true
+        schema: { type: string, maxLength: 120 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApproveNetworkBaselineInput' }
+      responses:
+        '200':
+          description: Approved immutable engineering limit version.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkBaselineVersion' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/projects/{id}/bom/legacy/preview:
     post:
       tags: [BOM]
@@ -1467,6 +1551,46 @@ components:
         maximum: 100
         default: 20
   schemas:
+    NetworkEngineeringLimits:
+      type: object
+      additionalProperties: false
+      required: [switch_bandwidth_ratio_limits]
+      properties:
+        switch_bandwidth_ratio_limits:
+          type: object
+          minProperties: 1
+          description: Keys are serial:<switch SN> or role:<leaf|spine|superspine|mgmt>; explicit values only.
+          additionalProperties: { type: number, exclusiveMinimum: 0 }
+    CreateNetworkBaselineInput:
+      type: object
+      additionalProperties: false
+      required: [version_ref, source_ref, engineering_limits]
+      properties:
+        version_ref: { type: string, minLength: 1, maxLength: 120 }
+        source_ref: { type: string, minLength: 1, maxLength: 300 }
+        engineering_limits: { $ref: '#/components/schemas/NetworkEngineeringLimits' }
+    ApproveNetworkBaselineInput:
+      type: object
+      additionalProperties: false
+      required: [customer_approval_ref, network_approval_ref]
+      properties:
+        customer_approval_ref: { type: string, minLength: 1, maxLength: 300 }
+        network_approval_ref: { type: string, minLength: 1, maxLength: 300 }
+    NetworkBaselineVersion:
+      type: object
+      additionalProperties: false
+      required: [id, project_id, version_ref, state, source_ref, engineering_limits, created_at]
+      properties:
+        id: { $ref: '#/components/schemas/EntityID' }
+        project_id: { $ref: '#/components/schemas/EntityID' }
+        version_ref: { type: string }
+        state: { type: string, enum: [draft, approved] }
+        source_ref: { type: string }
+        engineering_limits: { $ref: '#/components/schemas/NetworkEngineeringLimits' }
+        customer_approval_ref: { type: string }
+        network_approval_ref: { type: string }
+        created_at: { type: string, format: date-time }
+        approved_at: { type: string, format: date-time }
     CreateBOMMappingProfileInput:
       type: object
       additionalProperties: false

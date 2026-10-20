@@ -149,7 +149,7 @@ func analyzeBOMPackageTx(ctx context.Context, tx *sql.Tx, project *ProjectSummar
 		return nil, nil, railErr
 	}
 	pkg.Issues = append(pkg.Issues, railIssues...)
-	networkIssues, networkErr := validateNetworkEngineering(ctx, tx, pkg)
+	networkIssues, networkErr := validateNetworkEngineering(ctx, tx, project.ID, pkg)
 	if networkErr != nil {
 		return nil, nil, networkErr
 	}

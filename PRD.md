@@ -1455,7 +1455,7 @@ bom-import-package/
 | `source_of_record` / `status` | ✅ | 同名 | |
 | `planned_psu_count` / `planned_feed_count` | 条件 | 版本快照 | 计划安装电源模块数 / 独立供电回路数；分别与已发布交换机型号 `hw_spec.psu_count` / `feed_count` 的最低要求核对，缺任一侧为 WARN/unknown，低于型号要求为 BLOCK |
 | `power_budget_w` | 条件 | 版本快照 | 分配给本交换机的可用功率（W），须不小于型号 `hw_spec.max_power_w`；缺值为 WARN/unknown，非正数或低于型号上限为 BLOCK |
-| `max_downlink_uplink_ratio` | 条件 | 版本快照 | 网络规划声明的最大下行/上行带宽比，正实数；仅用于发现 BOM 自相矛盾。未与经审批的 `network_baseline_ref` 限值核对前，结果维持 WARN/unknown，不得形成工程 PASS |
+| `max_downlink_uplink_ratio` | 条件 | 版本快照 | 网络规划声明的最大下行/上行带宽比，正实数；仅用于发现 BOM 自相矛盾。若绑定的 `network_baseline_ref` 指向项目内已批准工程限值版本，逐交换机取序列号限值，未命中时取角色限值；BOM 声明不得宽于基线。未绑定或未覆盖时维持 WARN/unknown；基线工程限值通过不代表完整网络配置基线或 FR-0 PASS |
 
 #### A.7.5 `fabric/switch_ports.csv`（category=port，含 breakout 子口）
 
@@ -1497,6 +1497,8 @@ bom-import-package/
 #### A.7.9 `network_baseline/`（可选，商定网络配置基线引用包）
 
 承载**客户与网络工程师商定的网络配置内容**（Out of Scope 的商定 → In Scope 的导入承接，§1.4/§3.0.2）：`naming.csv` / `vlan_asn_vni.csv` / `qos_lossless.csv` / `breakout_map.csv` + `templates/`（pongo2，版本化文件名）。**导入后覆盖参数目录的建议默认值**（FR-0.2.2、FR-0.4.1）；模板须在 pongo2 沙箱模式（`BanTag`/`BanFilter`）下执行，**禁止模板内文件/网络访问与绝对路径引用**。
+
+工程限值子集先以项目内不可变 `network_baseline_versions` 版本承接：登记外部方案 `source_ref` 与 `engineering_limits.switch_bandwidth_ratio_limits`（键 `serial:<SN>` 或 `role:<leaf|spine|superspine|mgmt>`，值为正的最大下行/上行比）；项目管理员登记客户与网络工程师批准证据引用并将草稿批准，操作审计留痕。BOM 的 `network_baseline_ref` 引用该版本；引用不存在或仍为草稿为 BLOCK，限值未覆盖对应交换机为 WARN/unknown。批准证据引用由管理员登记，平台尚不自动验真外部签署；完整配置模板基线、N-S2 渲染和生产配置下发仍走后续工作包，不得借工程限值子集给 FR-0 总体 PASS。
 
 ### A.8 示例、校验与兼容
 

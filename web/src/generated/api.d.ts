@@ -458,6 +458,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/network-baselines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createNetworkEngineeringBaseline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/network-baselines/{versionRef}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNetworkEngineeringBaseline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/network-baselines/{versionRef}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approveNetworkEngineeringBaseline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/bom/legacy/preview": {
         parameters: {
             query?: never;
@@ -542,6 +590,36 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        NetworkEngineeringLimits: {
+            /** @description Keys are serial:<switch SN> or role:<leaf|spine|superspine|mgmt>; explicit values only. */
+            switch_bandwidth_ratio_limits: {
+                [key: string]: number;
+            };
+        };
+        CreateNetworkBaselineInput: {
+            version_ref: string;
+            source_ref: string;
+            engineering_limits: components["schemas"]["NetworkEngineeringLimits"];
+        };
+        ApproveNetworkBaselineInput: {
+            customer_approval_ref: string;
+            network_approval_ref: string;
+        };
+        NetworkBaselineVersion: {
+            id: components["schemas"]["EntityID"];
+            project_id: components["schemas"]["EntityID"];
+            version_ref: string;
+            /** @enum {string} */
+            state: "draft" | "approved";
+            source_ref: string;
+            engineering_limits: components["schemas"]["NetworkEngineeringLimits"];
+            customer_approval_ref?: string;
+            network_approval_ref?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            approved_at?: string;
+        };
         CreateBOMMappingProfileInput: {
             version_ref: string;
             server_columns: {
@@ -2123,6 +2201,94 @@ export interface operations {
                     "application/json": components["schemas"]["BOMMappingProfile"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    createNetworkEngineeringBaseline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateNetworkBaselineInput"];
+            };
+        };
+        responses: {
+            /** @description Immutable draft engineering limits from an external plan. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkBaselineVersion"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getNetworkEngineeringBaseline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+                versionRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped engineering limit version and approval evidence references. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkBaselineVersion"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    approveNetworkEngineeringBaseline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+                versionRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveNetworkBaselineInput"];
+            };
+        };
+        responses: {
+            /** @description Approved immutable engineering limit version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkBaselineVersion"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
