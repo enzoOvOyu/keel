@@ -45,10 +45,19 @@ export type BomPackageCommitResult = {
   package_id: string; bom_import_batch_id: string; content_hash: string
   item_count: number; idempotent: boolean; committed_at: string
 }
-const packageForm = (file: File) => { const form = new FormData(); form.append('file', file); return form }
-export const previewBomPackage = (projectId: string, file: File, csrf: string) =>
-  request<BomPackagePreview>(`/projects/${encodeURIComponent(projectId)}/bom/packages/preview`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: packageForm(file) })
-export const commitBomPackage = (projectId: string, file: File, token: string, csrf: string) => {
-  const form = packageForm(file); form.append('preview_token', token)
+export type BomPackageSelection = { kind: 'archive'; file: File } | { kind: 'directory'; files: File[] }
+const packageForm = (selection: BomPackageSelection) => {
+  const form = new FormData()
+  if (selection.kind === 'archive') form.append('file', selection.file)
+  else for (const file of selection.files) {
+    form.append('files', file)
+    form.append('paths', file.webkitRelativePath)
+  }
+  return form
+}
+export const previewBomPackage = (projectId: string, selection: BomPackageSelection, csrf: string) =>
+  request<BomPackagePreview>(`/projects/${encodeURIComponent(projectId)}/bom/packages/preview`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: packageForm(selection) })
+export const commitBomPackage = (projectId: string, selection: BomPackageSelection, token: string, csrf: string) => {
+  const form = packageForm(selection); form.append('preview_token', token)
   return request<BomPackageCommitResult>(`/projects/${encodeURIComponent(projectId)}/bom/packages/commit`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: form })
 }

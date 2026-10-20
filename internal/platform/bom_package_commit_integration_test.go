@@ -85,6 +85,19 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if first.ItemCount != 7 {
 		t.Fatalf("item count %d", first.ItemCount)
 	}
+	if _, err = s.DB.ExecContext(ctx, `INSERT INTO bom_import_issues(id,package_id,severity,file_path,bom_line_no,field,code,created_at) VALUES($1,$2,'WARN','server/servers.csv',1,'hostname','test_warning',now())`, RandomID(), first.PackageID); err != nil {
+		t.Fatal(err)
+	}
+	listed, err := s.ListBOMPackageIssues(ctx, actor, project.ID, first.PackageID, "WARN")
+	if err != nil || len(listed.Issues) != 1 || listed.Issues[0].Code != "test_warning" {
+		t.Fatalf("saved issue query failed: %+v, %v", listed, err)
+	}
+	if _, err = s.ListBOMPackageIssues(ctx, actor, project.ID, first.PackageID, "invalid"); err == nil {
+		t.Fatal("invalid severity accepted")
+	}
+	if _, err = s.ListBOMPackageIssues(ctx, actor, project.ID, RandomID(), ""); err == nil {
+		t.Fatal("missing package accepted")
+	}
 	var adoptedServer, adoptedPort string
 	if err = s.DB.QueryRowContext(ctx, `SELECT item_uid FROM bom_items WHERE category='server' AND serial='SN-1'`).Scan(&adoptedServer); err != nil {
 		t.Fatal(err)

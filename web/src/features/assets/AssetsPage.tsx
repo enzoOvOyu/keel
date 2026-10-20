@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ProjectWorkspace, canManageProject, useProject } from '../../components/ProjectWorkspace'
 import { ActionDialog, ActionError, Pagination, PermissionDenied, SuccessNotice } from '../../components/Management'
 import { useAction } from '../../lib/management'
-import { commitBomImport, commitBomPackage, listProjectAssets, previewBomImport, previewBomPackage, runTrustAction, type BomImportInput, type BomPackageIssue, type BomPackagePreview, type BomPreview, type ProjectAsset } from '../../lib/bom'
+import { commitBomImport, commitBomPackage, listProjectAssets, previewBomImport, previewBomPackage, runTrustAction, type BomImportInput, type BomPackageIssue, type BomPackagePreview, type BomPackageSelection, type BomPreview, type ProjectAsset } from '../../lib/bom'
 import { parseBomCsv } from '../../lib/bom-csv'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 
@@ -76,22 +76,23 @@ function downloadBomIssues(batch: string, issues: BomPackageIssue[]) {
 }
 function BomPackageDialog({ projectId, onClose, onDone }: { projectId: string; onClose: () => void; onDone: (message: string) => Promise<void> }) {
   const { t } = useTranslation(), session = useSession(), action = useAction()
-  const [file, setFile] = useState<File | null>(null), [preview, setPreview] = useState<BomPackagePreview | null>(null), [validation, setValidation] = useState('')
+  const [selection, setSelection] = useState<BomPackageSelection | null>(null), [preview, setPreview] = useState<BomPackagePreview | null>(null), [validation, setValidation] = useState('')
   async function runPreview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!file) { setValidation(t('bomPackageFileRequired')); return }
+    if (!selection) { setValidation(t('bomPackageFileRequired')); return }
     setValidation('')
-    const result = await action.run(() => previewBomPackage(projectId, file, session.csrf_token))
+    const result = await action.run(() => previewBomPackage(projectId, selection, session.csrf_token))
     if (result.ok) setPreview(result.value)
   }
   async function runCommit() {
-    if (!file || !preview?.can_commit) return
-    const result = await action.run(() => commitBomPackage(projectId, file, preview.preview_token ?? '', session.csrf_token))
+    if (!selection || !preview?.can_commit) return
+    const result = await action.run(() => commitBomPackage(projectId, selection, preview.preview_token ?? '', session.csrf_token))
     if (result.ok) await onDone(t('bomPackageCommitted', { count: result.value.item_count, batch: result.value.bom_import_batch_id }))
   }
   return <ActionDialog title={t('bomPackageTitle')} description={t('bomPackageDetail')} busy={action.busy} confirm={t('bomPreviewRun')} onSubmit={(event) => void runPreview(event)} onClose={onClose}>
     <ActionError error={action.error} />{validation && <p className="field-error" role="alert">{validation}</p>}
-    <div className="field"><label htmlFor="bom-package-file">{t('bomPackageFile')}</label><input id="bom-package-file" type="file" accept=".zip,.gz,.tar.gz" disabled={action.busy} onChange={(event) => { setFile(event.target.files?.[0] ?? null); setPreview(null) }} /><span className="field-hint">{t('bomPackageFileHint')}</span></div>
+    <div className="field"><label htmlFor="bom-package-file">{t('bomPackageFile')}</label><input id="bom-package-file" type="file" accept=".zip,.gz,.tar.gz" disabled={action.busy} onChange={(event) => { const file = event.target.files?.[0]; setSelection(file ? { kind: 'archive', file } : null); setPreview(null) }} /><span className="field-hint">{t('bomPackageFileHint')}</span></div>
+    <div className="field"><label htmlFor="bom-package-directory">{t('bomPackageDirectory')}</label><input id="bom-package-directory" type="file" multiple {...{ webkitdirectory: '' }} disabled={action.busy} onChange={(event) => { const files = Array.from(event.target.files ?? []); setSelection(files.length ? { kind: 'directory', files } : null); setPreview(null) }} /></div>
     {preview && <>
       <p className="impact-notice">{t('bomPackageSummary', { batch: preview.manifest.bom_import_batch_id, rows: preview.manifest.row_count, profile: preview.manifest.profile_version_ref })}</p>
       {preview.idempotent && <p className="impact-notice">{t('bomPackageAlreadyCommitted')}</p>}

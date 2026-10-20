@@ -5,7 +5,7 @@
 - 工作目录 `ubuntu@43.207.20.26:/opt/keel`；GitHub `main` 与本地基点 `p1-complete` = `e7d5f1a`。开发分支 `dev/p1-network-bom` 从该标签分出，已导入 PRD v3.0.3 设计基线；运行中 API 仍为 P1 镜像 `keel:p1-e7d5f1a`，PostgreSQL 已恢复到 10 个迁移，`/healthz` 与 `/api/v1/auth/providers` 可用。运行 Compose 使用 `/home/ubuntu/.config/keel/runtime-p1.env`，不可直接用开发机回环地址启动容器 API。
 - 回退前 27 迁移备份：`/home/ubuntu/.local/state/keel/backups/pre-p1-rollback-20261020T083912Z.dump`。设计文档原提交 `fe68c59` 存于 GitHub `design/prd-v3.0.3-20261020`；旧的未完成 BOM 代码仅在本地 `archive/pre-p1-rollback-20261020`，不计入当前实现。
 - 新开发按 `IMPLEMENTATION-PLAN.md` v3.0.3 的依赖推进，先闭环 WP-1.15，再做 WP-1.16 网络型号与工程校验、WP-1.17 ZTP。FR-0 是服务器交付第 0 步：G2 启动查 NP-1/NP-2/NP-4，NP-3 只能由 G2 三方确认产出，G5/G6 查 NP-5/NP-6；不可采集一律 unknown/BLOCKED。P2/P3 旧分支历史不得当作当前工作树的已实现功能。真机 PoC 状态独立于 sim 验证。
-- WP-1.15 进行中：标准包七 CSV/manifest/hash/安全解包、已批准字段映射、服务器/交换机/部件/光模块型号版本、只读预检令牌、同包原子事务提交、统一 bom_items/revisions 与 Machine/Component/PhysicalPort/Switch 投影、导入 UI 和问题 CSV 导出已在开发分支实现。隔离 PostgreSQL 测试验证同批次幂等、新批次稳定 ID、错误包零写入；P1 运行库未迁移。尚缺目录入口、单文件宽表向统一 BOM 折叠、已提交问题查询、工程校验（breakout/速率/上下行带宽比/供电/rail）及大规模性能；当前将 manifest 的 project_code 按大小写不敏感规则对齐 P1 Project.slug（P1 无独立项目码字段）；在项目模板物料需求清单落库前，标准包提交至少要求服务器、服务器端口、交换机、交换机端口与线缆各有一行，零行文件仅在格式阶段合法；F-0.1～F-0.4 不记 PASS。用户已同意把最小映射和交换机型号持久化能力前移到 WP-1.15。
+- WP-1.15 进行中：标准包七 CSV/manifest/hash/安全解包、已批准字段映射、服务器/交换机/部件/光模块型号版本、只读预检令牌、同包原子事务提交、统一 bom_items/revisions 与 Machine/Component/PhysicalPort/Switch 投影、导入 UI、目录/压缩包双入口、问题 CSV 导出与已提交问题项目级查询已在开发分支实现。隔离 PostgreSQL 测试验证同批次幂等、新批次稳定 ID、错误包零写入；P1 运行库未迁移。尚缺单文件宽表向统一 BOM 折叠、工程校验（breakout/速率/上下行带宽比/供电/rail）及大规模性能；当前将 manifest 的 project_code 按大小写不敏感规则对齐 P1 Project.slug（P1 无独立项目码字段）；在项目模板物料需求清单落库前，标准包提交至少要求服务器、服务器端口、交换机、交换机端口与线缆各有一行，零行文件仅在格式阶段合法；F-0.1～F-0.4 不记 PASS。用户已同意把最小映射和交换机型号持久化能力前移到 WP-1.15。
 
 
 ## 收口记录（2026-10-12，P1 收口已完成）

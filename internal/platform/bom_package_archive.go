@@ -17,7 +17,7 @@ const (
 	maxBOMEntries       = 10000
 )
 
-// ReadBOMPackageArchive accepts a .zip or .tar.gz package with either a
+// ReadBOMPackageArchive accepts a .zip or .tar.gz package with
 // one enclosing root directory. It rejects links,
 // special entries, traversal, duplicate names and expansion bombs before the
 // package validator sees any file. The upload layer must enforce the compressed
@@ -107,21 +107,44 @@ func ReadBOMPackageArchive(name string, data []byte) (map[string][]byte, error) 
 	default:
 		return nil, errors.New("BOM package must be .zip or .tar.gz")
 	}
+	return normalizeBOMPackageFiles(raw)
+}
+
+// ReadBOMPackageDirectory validates browser directory entries before the same
+// manifest and content checks used for archives. Paths include one root folder.
+func ReadBOMPackageDirectory(raw map[string][]byte) (map[string][]byte, error) {
+	if len(raw) == 0 || len(raw) > maxBOMEntries {
+		return nil, errors.New("BOM directory entry count outside allowed range")
+	}
+	var total int64
+	for name, data := range raw {
+		if !packagePath(name) || strings.HasSuffix(name, "/") {
+			return nil, fmt.Errorf("unsafe BOM directory path %q", name)
+		}
+		total += int64(len(data))
+		if total > maxBOMExpandedBytes {
+			return nil, errors.New("BOM directory size limit exceeded")
+		}
+	}
+	return normalizeBOMPackageFiles(raw)
+}
+
+func normalizeBOMPackageFiles(raw map[string][]byte) (map[string][]byte, error) {
 	var prefix string
 	for file := range raw {
 		slash := strings.IndexByte(file, '/')
 		if slash < 1 {
-			return nil, errors.New("BOM archive has no single root directory")
+			return nil, errors.New("BOM package has no single root directory")
 		}
 		candidate := file[:slash+1]
 		if prefix == "" {
 			prefix = candidate
 		} else if prefix != candidate {
-			return nil, errors.New("BOM archive has multiple root directories")
+			return nil, errors.New("BOM package has multiple root directories")
 		}
 	}
 	if _, ok := raw[prefix+"manifest.json"]; !ok {
-		return nil, errors.New("BOM archive missing manifest.json")
+		return nil, errors.New("BOM package missing manifest.json")
 	}
 	normalized := make(map[string][]byte, len(raw))
 	for file, data := range raw {

@@ -77,7 +77,7 @@ var packageBatchID = regexp.MustCompile(`^BOM-BATCH-([A-Za-z0-9_-]+)-([0-9]{8})-
 var packageHash = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 func packagePath(name string) bool {
-	return name != "" && name != "." && !strings.HasPrefix(name, "/") && !strings.Contains(name, "\\") && path.Clean(name) == name && !strings.HasPrefix(name, "../") && name != ".." && !strings.Contains(name, "//")
+	return name != "" && name != "." && utf8.ValidString(name) && !strings.ContainsAny(name, "\x00\r\n") && !strings.HasPrefix(name, "/") && !strings.Contains(name, "\\") && path.Clean(name) == name && !strings.HasPrefix(name, "../") && name != ".." && !strings.Contains(name, "//")
 }
 
 // BOMContentHash follows PRD A.6 exactly: sorted relative path, NUL, decimal

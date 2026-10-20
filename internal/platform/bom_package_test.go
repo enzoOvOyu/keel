@@ -360,3 +360,22 @@ func TestBOMRequiredCrossDomainFilesMayBeEmptyButCannotCommit(t *testing.T) {
 		}
 	}
 }
+
+func TestReadBOMPackageDirectory(t *testing.T) {
+	files, err := ReadBOMPackageDirectory(map[string][]byte{
+		"bundle/manifest.json":      []byte("{}"),
+		"bundle/server/servers.csv": []byte("a,b\n"),
+	})
+	if err != nil || string(files["manifest.json"]) != "{}" || string(files["server/servers.csv"]) != "a,b\n" {
+		t.Fatalf("directory normalization failed: %v, %#v", err, files)
+	}
+	for _, bad := range []map[string][]byte{
+		{"bundle/../manifest.json": []byte("{}")},
+		{"a/manifest.json": []byte("{}"), "b/server.csv": []byte("x")},
+		{"bundle/file.csv": []byte("x")},
+	} {
+		if _, err := ReadBOMPackageDirectory(bad); err == nil {
+			t.Fatalf("accepted unsafe directory: %#v", bad)
+		}
+	}
+}

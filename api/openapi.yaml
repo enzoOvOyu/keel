@@ -1229,6 +1229,42 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/bom/packages/{package_id}/issues:
+    get:
+      tags: [BOM]
+      operationId: listBOMPackageIssues
+      security: [{sessionCookie: []}]
+      x-permission: project:bom:read
+      x-resource-scope: path-project
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      - name: package_id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      - name: severity
+        in: query
+        schema: { type: string, enum: [BLOCK, WARN, INFO] }
+      responses:
+        '200':
+          description: Persisted diagnostics for a committed package; blocking preview issues are never committed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [package_id, issues]
+                properties:
+                  package_id: { $ref: '#/components/schemas/EntityID' }
+                  issues:
+                    type: array
+                    items: { $ref: '#/components/schemas/BOMPackageIssue' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/projects/{id}/bom/packages/preview:
     post:
       tags: [BOM]
@@ -1247,9 +1283,10 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [file]
               properties:
                 file: { type: string, format: binary, description: Zip or tar.gz archive up to 64 MiB }
+                files: { type: array, items: { type: string, format: binary }, description: Directory file parts }
+                paths: { type: array, items: { type: string }, description: Matching relative paths including one enclosing root }
       responses:
         '200':
           description: Read-only package validation; commit must revalidate in a transaction.
@@ -1279,9 +1316,11 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [file, preview_token]
+              required: [preview_token]
               properties:
                 file: { type: string, format: binary, description: Same zip or tar.gz package previewed; up to 64 MiB }
+                files: { type: array, items: { type: string, format: binary }, description: Same directory file parts previewed }
+                paths: { type: array, items: { type: string }, description: Matching relative paths including one enclosing root }
                 preview_token: { type: string, description: Session-bound token returned by a successful preview }
       responses:
         '201':
@@ -1378,6 +1417,16 @@ components:
         item_count: { type: integer, minimum: 0 }
         idempotent: { type: boolean }
         committed_at: { type: string, format: date-time }
+    BOMPackageIssue:
+      type: object
+      additionalProperties: false
+      required: [severity, file, code]
+      properties:
+        severity: { type: string, enum: [BLOCK, WARN, INFO] }
+        file: { type: string }
+        bom_line_no: { type: integer }
+        field: { type: string }
+        code: { type: string }
     BOMPackagePreview:
       type: object
       additionalProperties: false
@@ -1386,16 +1435,7 @@ components:
         manifest: { type: object, additionalProperties: true }
         issues:
           type: array
-          items:
-            type: object
-            additionalProperties: false
-            required: [severity, file, code]
-            properties:
-              severity: { type: string, enum: [BLOCK, WARN, INFO] }
-              file: { type: string }
-              bom_line_no: { type: integer }
-              field: { type: string }
-              code: { type: string }
+          items: { $ref: '#/components/schemas/BOMPackageIssue' }
         file_hashes: { type: object, additionalProperties: { type: string } }
         can_commit: { type: boolean }
         idempotent: { type: boolean }
