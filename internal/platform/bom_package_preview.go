@@ -149,6 +149,11 @@ func analyzeBOMPackageTx(ctx context.Context, tx *sql.Tx, project *ProjectSummar
 		return nil, nil, railErr
 	}
 	pkg.Issues = append(pkg.Issues, railIssues...)
+	networkIssues, networkErr := validateNetworkEngineering(ctx, tx, pkg)
+	if networkErr != nil {
+		return nil, nil, networkErr
+	}
+	pkg.Issues = append(pkg.Issues, networkIssues...)
 	hasBlock := false
 	for _, issue := range pkg.Issues {
 		if issue.Severity == "BLOCK" {

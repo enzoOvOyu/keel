@@ -38,7 +38,9 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 			publish.ExpectedTopology = map[string]any{"rail_count": 1}
 		}
 		if kind == "switch" {
-			publish.CapabilityMatrix = map[string]any{"ports": map[string]any{"1": map[string]any{"speed": "200G"}}}
+			publish.CapabilityMatrix = map[string]any{"ports": map[string]any{"1": map[string]any{"speed": "200G"}, "2": map[string]any{"speed": "200G"}}}
+			publish.HwSpec = map[string]any{"psu_count": 2, "feed_count": 2, "max_power_w": 1000}
+			publish.ExpectedTopology = map[string]any{"rail_count": 1}
 		}
 		version, publishErr := s.PublishModelVersion(ctx, actor, project, model.ID, publish, "test")
 		if publishErr != nil {
@@ -80,6 +82,33 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	}
 	if !preview.CanCommit {
 		t.Fatalf("valid package blocked: %+v", preview.Issues)
+	}
+	engineering := make(map[string][]byte, len(files))
+	for name, data := range files {
+		engineering[name] = append([]byte(nil), data...)
+	}
+	engineering["fabric/switches.csv"] = []byte("bom_line_no,sn,hostname,model_ref,role,rack,idx,dc,pod,source_of_record,status,planned_psu_count,planned_feed_count,power_budget_w,max_downlink_uplink_ratio\n4,SW-1,leaf-1," + modelIDs["switch"] + ",leaf,R01,1,DC,P1,design_bom,planned,1,2,900,0.5\n")
+	engineering["fabric/switch_ports.csv"] = []byte("bom_line_no,parent_ref,port_index,port_name,port_role,speed,rail,bandwidth_direction\n5,SW-1,1,swp1s0,compute,200G,0,downlink\n8,SW-1,2,swp2,storage,200G,,uplink\n")
+	var engineeringManifest BOMPackageManifest
+	if err = json.Unmarshal(engineering["manifest.json"], &engineeringManifest); err != nil {
+		t.Fatal(err)
+	}
+	engineeringManifest.BatchID = "BOM-BATCH-P1-20261020-8"
+	engineeringManifest.Seq = 8
+	engineeringManifest.RowCount = 9
+	for i := range engineeringManifest.DomainFiles {
+		switch engineeringManifest.DomainFiles[i].File {
+		case "fabric/switches.csv":
+			engineeringManifest.DomainFiles[i].Columns = []string{"bom_line_no", "sn", "hostname", "model_ref", "role", "rack", "idx", "dc", "pod", "source_of_record", "status", "planned_psu_count", "planned_feed_count", "power_budget_w", "max_downlink_uplink_ratio"}
+		case "fabric/switch_ports.csv":
+			engineeringManifest.DomainFiles[i].Columns = []string{"bom_line_no", "parent_ref", "port_index", "port_name", "port_role", "speed", "rail", "bandwidth_direction"}
+		}
+	}
+	engineering["manifest.json"], _ = json.Marshal(engineeringManifest)
+	rehashBOMFixture(t, engineering)
+	checked, checkErr := s.PreviewBOMPackage(ctx, actor, project, engineering)
+	if checkErr != nil || checked.CanCommit || !issueFound(&BOMPackage{Issues: checked.Issues}, "switch_power_count_below_model") || !issueFound(&BOMPackage{Issues: checked.Issues}, "switch_power_budget_below_model") || !issueFound(&BOMPackage{Issues: checked.Issues}, "bandwidth_ratio_exceeded") {
+		t.Fatalf("network engineering contradictions accepted: %+v %v", checked, checkErr)
 	}
 	first, err := s.CommitBOMPackage(ctx, actor, project, files, preview.PreviewToken, "test")
 	if err != nil {

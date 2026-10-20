@@ -1453,6 +1453,9 @@ bom-import-package/
 | `model_ref` | ✅ | `model_version_ref` | 网络设备型号（FR-14） |
 | `nos_intent` | — | `expect_version` | NOS 版本意向（取值源 = 参数目录） |
 | `source_of_record` / `status` | ✅ | 同名 | |
+| `planned_psu_count` / `planned_feed_count` | 条件 | 版本快照 | 计划安装电源模块数 / 独立供电回路数；分别与已发布交换机型号 `hw_spec.psu_count` / `feed_count` 的最低要求核对，缺任一侧为 WARN/unknown，低于型号要求为 BLOCK |
+| `power_budget_w` | 条件 | 版本快照 | 分配给本交换机的可用功率（W），须不小于型号 `hw_spec.max_power_w`；缺值为 WARN/unknown，非正数或低于型号上限为 BLOCK |
+| `max_downlink_uplink_ratio` | 条件 | 版本快照 | 网络规划声明的最大下行/上行带宽比，正实数；仅用于发现 BOM 自相矛盾。未与经审批的 `network_baseline_ref` 限值核对前，结果维持 WARN/unknown，不得形成工程 PASS |
 
 #### A.7.5 `fabric/switch_ports.csv`（category=port，含 breakout 子口）
 
@@ -1464,6 +1467,8 @@ bom-import-package/
 | `port_name` | — | `port_name` | 交换机侧端口名 |
 | `port_role` | 条件 | `port_role` | 以网络方案为准；`unused` 不告警 |
 | `speed` / `breakout_mode` | — | （端口能力属性） | 与型号能力矩阵核对 |
+| `bandwidth_direction` | 条件 | 版本快照 | `uplink`/`downlink`/`peer`/`not_applicable`；端口用途由网络规划指定，不能从 `port_role` 推断。仅累加显式 `uplink` 与 `downlink` 的有效端口速率；breakout 父口与子口同时存在时只计子口。缺方向/速率导致带宽比 unknown/WARN；无有效上行容量不得算 PASS |
+| `rail` | 条件 | `rail` | `port_role=compute` 时必填。Leaf 计算口 rail 去重数与交换机型号 `expected_topology.rail_count` 核对；缺型号期望值或端口数据为 WARN/unknown，明确数量不符为 BLOCK。此项仅核对规划，不代替 G2 LLDP 三方线序验收 |
 
 #### A.7.6 `fabric/cables.csv`（category=cable）
 
