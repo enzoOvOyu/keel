@@ -2090,7 +2090,13 @@
         "F-2.1",
         "H-15"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Started from P1 tag: pure standard-package validator and safe zip/tar.gz extraction with required seven CSVs, manifest hash across all declared files, UTF-8/BOM, line-number, MAC and archive-safety checks. No database commit, mapping-profile resolution, server/network item projection, API or UI yet; F-0.1-F-0.4 are not passed.",
+      "evidence_refs": [
+        "internal/platform/bom_package.go",
+        "internal/platform/bom_package_archive.go",
+        "internal/platform/bom_package_test.go"
+      ]
     },
     {
       "id": "WP-1.16",
