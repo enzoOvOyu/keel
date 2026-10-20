@@ -41,6 +41,26 @@ func TestBOMPackagePreviewIsReadOnlyAndDetectsBatchConflict(t *testing.T) {
 	if preview.CanCommit || !issueFound(&BOMPackage{Issues: preview.Issues}, "model_version_not_found") {
 		t.Fatalf("missing models did not block preview: %+v", preview.Issues)
 	}
+	missingCable := make(map[string][]byte, len(files))
+	for name, data := range files {
+		missingCable[name] = append([]byte(nil), data...)
+	}
+	missingCable["fabric/cables.csv"] = []byte("bom_line_no,endpoint_a,endpoint_b,cable_type,sub_type\n")
+	var emptyManifest BOMPackageManifest
+	if err = json.Unmarshal(missingCable["manifest.json"], &emptyManifest); err != nil {
+		t.Fatal(err)
+	}
+	emptyManifest.RowCount--
+	missingCable["manifest.json"], _ = json.Marshal(emptyManifest)
+	rehashBOMFixture(t, missingCable)
+	missingPreview, missingErr := s.PreviewBOMPackage(ctx, actor, project, missingCable)
+	if missingErr != nil {
+		t.Fatal(missingErr)
+	}
+	if !issueFound(&BOMPackage{Issues: missingPreview.Issues}, "required_material_missing") {
+		t.Fatal("missing cross-domain cable accepted as ready")
+	}
+
 	var count int
 	if err = s.DB.QueryRowContext(ctx, `SELECT count(*) FROM bom_import_packages`).Scan(&count); err != nil || count != 0 {
 		t.Fatalf("preview wrote package row: %d %v", count, err)

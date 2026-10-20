@@ -50,6 +50,13 @@ func analyzeBOMPackageTx(ctx context.Context, tx *sql.Tx, project *ProjectSummar
 	if pkg.Manifest.ProjectID != project.ID || !strings.EqualFold(pkg.Manifest.ProjectCode, project.Slug) {
 		add("manifest.json", 0, "project_id", "project_mismatch")
 	}
+	// Until project-template material minimums are persisted, a standard package
+	// must at least anchor both delivery domains and one planned connection.
+	for _, file := range []string{"server/servers.csv", "server/server_ports.csv", "fabric/switches.csv", "fabric/switch_ports.csv", "fabric/cables.csv"} {
+		if len(pkg.Rows[file]) == 0 {
+			add(file, 0, "", "required_material_missing")
+		}
+	}
 	var serverJSON, fabricJSON []byte
 	err = tx.QueryRowContext(ctx, `SELECT server_columns,fabric_columns FROM bom_mapping_profiles WHERE project_id=$1 AND version_ref=$2 AND state='approved'`, project.ID, pkg.Manifest.ProfileVersionRef).Scan(&serverJSON, &fabricJSON)
 	if errors.Is(err, sql.ErrNoRows) {

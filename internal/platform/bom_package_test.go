@@ -339,3 +339,24 @@ func TestBOMPreviewTokenBoundToSessionAndManifest(t *testing.T) {
 		t.Fatal("token accepted changed archive")
 	}
 }
+
+func TestBOMRequiredCrossDomainFilesMayBeEmptyButCannotCommit(t *testing.T) {
+	files := bomFixture(t)
+	files["fabric/cables.csv"] = []byte("bom_line_no,endpoint_a,endpoint_b,cable_type,sub_type\n")
+	var manifest BOMPackageManifest
+	if err := json.Unmarshal(files["manifest.json"], &manifest); err != nil {
+		t.Fatal(err)
+	}
+	manifest.RowCount--
+	files["manifest.json"], _ = json.Marshal(manifest)
+	rehashBOMFixture(t, files)
+	pkg, err := ValidateBOMPackage(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, issue := range pkg.Issues {
+		if issue.Severity == "BLOCK" {
+			t.Fatalf("zero-row CSV invalid at format stage: %+v", issue)
+		}
+	}
+}
