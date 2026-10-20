@@ -107,6 +107,10 @@ func ValidateBOMPackage(files map[string][]byte) (*BOMPackage, error) {
 		out.Issues = append(out.Issues, BOMPackageIssue{Severity: sev, File: file, Field: field, Code: code, BOMLineNo: line})
 	}
 	for name, data := range files {
+		if name != "manifest.json" {
+			digest := sha256.Sum256(data)
+			out.FileHashes[name] = hex.EncodeToString(digest[:])
+		}
 		if !packagePath(name) {
 			add("BLOCK", name, "", "invalid_path", 0)
 		}
@@ -294,8 +298,6 @@ func ValidateBOMPackage(files map[string][]byte) (*BOMPackage, error) {
 			}
 			out.Rows[name] = append(out.Rows[name], BOMPackageRow{File: name, Line: line, Values: values})
 		}
-		digest := sha256.Sum256(data)
-		out.FileHashes[name] = hex.EncodeToString(digest[:])
 	}
 	if totalRows != m.RowCount {
 		add("BLOCK", "manifest.json", "row_count", "row_count_mismatch", 0)

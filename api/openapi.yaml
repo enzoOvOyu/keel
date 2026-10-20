@@ -1229,6 +1229,38 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/bom/packages/preview:
+    post:
+      tags: [BOM]
+      operationId: previewBOMPackage
+      security: [{sessionCookie: []}]
+      x-permission: project:bom:read
+      x-resource-scope: path-project
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary, description: Zip or tar.gz archive up to 64 MiB }
+      responses:
+        '200':
+          description: Read-only package validation; commit must revalidate in a transaction.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BOMPackagePreview' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '413': { description: Archive exceeds the upload limit }
 components:
 
   securitySchemes:
@@ -1297,6 +1329,27 @@ components:
         fabric_columns:
           type: object
           additionalProperties: { type: object, additionalProperties: { type: string } }
+    BOMPackagePreview:
+      type: object
+      additionalProperties: false
+      required: [manifest, issues, file_hashes, can_commit, idempotent]
+      properties:
+        manifest: { type: object, additionalProperties: true }
+        issues:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [severity, file, code]
+            properties:
+              severity: { type: string, enum: [BLOCK, WARN, INFO] }
+              file: { type: string }
+              bom_line_no: { type: integer }
+              field: { type: string }
+              code: { type: string }
+        file_hashes: { type: object, additionalProperties: { type: string } }
+        can_commit: { type: boolean }
+        idempotent: { type: boolean }
     BOMMappingProfile:
       type: object
       additionalProperties: false

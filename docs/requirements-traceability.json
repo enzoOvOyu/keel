@@ -2091,7 +2091,7 @@
         "H-15"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Started from P1 tag: standard-package validator and safe zip/tar.gz extraction with seven CSVs, full manifest hash, UTF-8/BOM, line-number and MAC checks; project mapping draft/approval API and switch model version capability matrix persist in migration 011. Mapping approval passed isolated PostgreSQL integration test. Package-level database preview, atomic commit, material projection and import UI remain; F-0.1-F-0.4 are not passed.",
+      "implementation_notes": "Started from P1 tag: standard-package validator and safe zip/tar.gz extraction with seven CSVs, full manifest hash, UTF-8/BOM, line-number and MAC checks; project mapping draft/approval API and switch model version capability matrix persist in migration 011. Mapping approval passed isolated PostgreSQL integration test. Read-only archive preview API passed isolated PostgreSQL no-write and batch-conflict test; atomic commit, material projection and import UI remain; F-0.1-F-0.4 are not passed.",
       "evidence_refs": [
         "internal/platform/bom_package.go",
         "internal/platform/bom_package_archive.go",

@@ -8,6 +8,28 @@ import (
 )
 
 var bomUIDPattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
+
+// The template mapping may rename source headers only to fields with a defined
+// BOM meaning. An unknown source column remains visible as WARN in preview.
+var canonicalBOMColumns = map[string]string{
+	"server/servers.csv":           "bom_line_no rack u dc pod sn hostname rail model_ref sub_type ip_hint credential_batch_ref source_of_record status",
+	"server/server_components.csv": "bom_line_no parent_sn category sub_type slot serial mac model_ref vendor source_of_record status",
+	"server/server_ports.csv":      "bom_line_no parent_ref port_index port_name mac port_role rail source_of_record status",
+	"fabric/switches.csv":          "bom_line_no dc pod role rack idx sn hostname model_ref nos_intent source_of_record status credential_batch_ref",
+	"fabric/switch_ports.csv":      "bom_line_no parent_ref port_index port_name port_role speed breakout_mode source_of_record status",
+	"fabric/optic_modules.csv":     "bom_line_no parent_ref sub_type serial vendor model_ref media_type speed source_of_record status",
+	"fabric/cables.csv":            "bom_line_no endpoint_a endpoint_b cable_type sub_type vendor length_m status source_of_record",
+}
+
+func isCanonicalBOMColumn(file, column string) bool {
+	for _, known := range strings.Fields(canonicalBOMColumns[file]) {
+		if known == column {
+			return true
+		}
+	}
+	return false
+}
+
 var requiredBOMValues = map[string][]string{
 	"server/servers.csv":           {"bom_line_no", "sn", "hostname", "model_ref", "rack", "u", "sub_type"},
 	"server/server_components.csv": {"bom_line_no", "parent_sn", "category", "sub_type", "model_ref"},
@@ -34,6 +56,13 @@ func ApplyBOMMappingProfile(pkg *BOMPackage, profile *BOMMappingProfile) {
 		mapping := profile.ServerColumns[file]
 		if requiredBOMFiles[file].domain == "fabric" {
 			mapping = profile.FabricColumns[file]
+		}
+		if len(rows) > 0 {
+			for source := range rows[0].Values {
+				if _, mapped := mapping[source]; !mapped && !isCanonicalBOMColumn(file, source) {
+					pkg.Issues = append(pkg.Issues, BOMPackageIssue{Severity: "WARN", File: file, Field: source, Code: "unmapped_column"})
+				}
+			}
 		}
 		for i := range rows {
 			values := rows[i].Values

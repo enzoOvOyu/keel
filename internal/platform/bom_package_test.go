@@ -264,3 +264,27 @@ func TestBOMMappedLineNumberAndManifestIdentity(t *testing.T) {
 		t.Fatal("batch/date mismatch accepted")
 	}
 }
+
+func TestBOMMappingUnknownColumnWarns(t *testing.T) {
+	files := bomFixture(t)
+	files["server/servers.csv"] = []byte("bom_line_no,sn,hostname,model_ref,rack,u,sub_type,source_of_record,LegacyNote\n1,SN-1,srv-1,server-v1,R01,1,B300,design_bom,check-me\n")
+	var manifest BOMPackageManifest
+	if err := json.Unmarshal(files["manifest.json"], &manifest); err != nil {
+		t.Fatal(err)
+	}
+	for i := range manifest.DomainFiles {
+		if manifest.DomainFiles[i].File == "server/servers.csv" {
+			manifest.DomainFiles[i].Columns = append(manifest.DomainFiles[i].Columns, "LegacyNote")
+		}
+	}
+	files["manifest.json"], _ = json.Marshal(manifest)
+	rehashBOMFixture(t, files)
+	pkg, err := ValidateBOMPackage(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ApplyBOMMappingProfile(pkg, testBOMProfile())
+	if !issueFound(pkg, "unmapped_column") {
+		t.Fatal("unknown column silently ignored")
+	}
+}

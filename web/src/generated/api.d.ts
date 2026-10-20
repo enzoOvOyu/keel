@@ -458,6 +458,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/bom/packages/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewBOMPackage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -474,6 +490,24 @@ export interface components {
                     [key: string]: string;
                 };
             };
+        };
+        BOMPackagePreview: {
+            manifest: {
+                [key: string]: unknown;
+            };
+            issues: {
+                /** @enum {string} */
+                severity: "BLOCK" | "WARN" | "INFO";
+                file: string;
+                bom_line_no?: number;
+                field?: string;
+                code: string;
+            }[];
+            file_hashes: {
+                [key: string]: string;
+            };
+            can_commit: boolean;
+            idempotent: boolean;
         };
         BOMMappingProfile: {
             id: components["schemas"]["EntityID"];
@@ -2008,6 +2042,49 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    previewBOMPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description Zip or tar.gz archive up to 64 MiB
+                     */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Read-only package validation; commit must revalidate in a transaction. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BOMPackagePreview"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Archive exceeds the upload limit */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
 }

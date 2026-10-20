@@ -54,7 +54,7 @@ func validateBOMMappingProfile(input CreateBOMMappingProfileInput) error {
 			for source, target := range columns {
 				source = strings.TrimSpace(source)
 				target = strings.TrimSpace(target)
-				if source == "" || target == "" || len(source) > 120 || len(target) > 120 || canonical[target] {
+				if source == "" || target == "" || len(source) > 120 || len(target) > 120 || canonical[target] || !isCanonicalBOMColumn(file, target) {
 					return apiError(400, "VALIDATION_ERROR", "Invalid or duplicate BOM column mapping")
 				}
 				canonical[target] = true
