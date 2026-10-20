@@ -34,6 +34,9 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 			t.Fatal(createErr)
 		}
 		publish := PublishModelVersionInput{HwSpec: map[string]any{"name": kind}}
+		if kind == "server" {
+			publish.ExpectedTopology = map[string]any{"rail_count": 1}
+		}
 		if kind == "switch" {
 			publish.CapabilityMatrix = map[string]any{"ports": map[string]any{"1": map[string]any{"speed": "200G"}}}
 		}
@@ -89,7 +92,7 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 		t.Fatal(err)
 	}
 	listed, err := s.ListBOMPackageIssues(ctx, actor, project.ID, first.PackageID, "WARN")
-	if err != nil || len(listed.Issues) != 1 || listed.Issues[0].Code != "test_warning" {
+	if err != nil || !issueFound(&BOMPackage{Issues: listed.Issues}, "test_warning") || !issueFound(&BOMPackage{Issues: listed.Issues}, "optic_speed_unverified") {
 		t.Fatalf("saved issue query failed: %+v, %v", listed, err)
 	}
 	if _, err = s.ListBOMPackageIssues(ctx, actor, project.ID, first.PackageID, "invalid"); err == nil {
@@ -129,6 +132,45 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	speedPreview, speedErr := s.PreviewBOMPackage(ctx, actor, project, badSpeed)
 	if speedErr != nil || speedPreview.CanCommit || !issueFound(&BOMPackage{Issues: speedPreview.Issues}, "switch_port_speed_not_supported") {
 		t.Fatalf("unsupported switch speed accepted: %+v %v", speedPreview, speedErr)
+	}
+	badOptic := make(map[string][]byte, len(files))
+	for name, data := range files {
+		badOptic[name] = append([]byte(nil), data...)
+	}
+	badOptic["fabric/optic_modules.csv"] = []byte("bom_line_no,parent_ref,serial,sub_type,model_ref,speed\n6,5,OPT-1,DR8," + modelIDs["optic_module"] + ",400G\n")
+	var opticManifest BOMPackageManifest
+	if err = json.Unmarshal(badOptic["manifest.json"], &opticManifest); err != nil {
+		t.Fatal(err)
+	}
+	opticManifest.BatchID = "BOM-BATCH-P1-20261020-5"
+	opticManifest.Seq = 5
+	for i := range opticManifest.DomainFiles {
+		if opticManifest.DomainFiles[i].File == "fabric/optic_modules.csv" {
+			opticManifest.DomainFiles[i].Columns = []string{"bom_line_no", "parent_ref", "serial", "sub_type", "model_ref", "speed"}
+		}
+	}
+	badOptic["manifest.json"], _ = json.Marshal(opticManifest)
+	rehashBOMFixture(t, badOptic)
+	opticPreview, opticErr := s.PreviewBOMPackage(ctx, actor, project, badOptic)
+	if opticErr != nil || opticPreview.CanCommit || !issueFound(&BOMPackage{Issues: opticPreview.Issues}, "optic_port_speed_mismatch") {
+		t.Fatalf("mismatched optic speed accepted: %+v %v", opticPreview, opticErr)
+	}
+	badRail := make(map[string][]byte, len(files))
+	for name, data := range files {
+		badRail[name] = append([]byte(nil), data...)
+	}
+	badRail["server/server_ports.csv"] = bytes.Replace(badRail["server/server_ports.csv"], []byte("aa:bb:cc:dd:ee:01,0"), []byte("aa:bb:cc:dd:ee:01,"), 1)
+	var railManifest BOMPackageManifest
+	if err = json.Unmarshal(badRail["manifest.json"], &railManifest); err != nil {
+		t.Fatal(err)
+	}
+	railManifest.BatchID = "BOM-BATCH-P1-20261020-6"
+	railManifest.Seq = 6
+	badRail["manifest.json"], _ = json.Marshal(railManifest)
+	rehashBOMFixture(t, badRail)
+	railPreview, railErr := s.PreviewBOMPackage(ctx, actor, project, badRail)
+	if railErr != nil || railPreview.CanCommit || !issueFound(&BOMPackage{Issues: railPreview.Issues}, "compute_rail_missing") {
+		t.Fatalf("missing compute rail accepted: %+v %v", railPreview, railErr)
 	}
 
 	repeat, err := s.CommitBOMPackage(ctx, actor, project, files, preview.PreviewToken, "test")

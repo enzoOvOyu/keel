@@ -139,6 +139,16 @@ func analyzeBOMPackageTx(ctx context.Context, tx *sql.Tx, project *ProjectSummar
 		return nil, nil, engineeringErr
 	}
 	pkg.Issues = append(pkg.Issues, engineeringIssues...)
+	opticIssues, opticErr := validateOpticCapabilities(ctx, tx, project.ID, pkg)
+	if opticErr != nil {
+		return nil, nil, opticErr
+	}
+	pkg.Issues = append(pkg.Issues, opticIssues...)
+	railIssues, railErr := validateServerRailScale(ctx, tx, project.ID, pkg)
+	if railErr != nil {
+		return nil, nil, railErr
+	}
+	pkg.Issues = append(pkg.Issues, railIssues...)
 	hasBlock := false
 	for _, issue := range pkg.Issues {
 		if issue.Severity == "BLOCK" {

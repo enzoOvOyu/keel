@@ -2120,8 +2120,8 @@
         "P-14"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Switch model versions and unified switch/port/optic projections exist. Standard BOM preview now blocks missing switch port model capability, unsupported breakout modes, out-of-range breakout child indices and unsupported speed. Optic compatibility, bandwidth ratio, power and rail topology checks remain; F-0.4/F-14.1/P-14 are not passed.",
-      "evidence_refs": ["internal/platform/bom_switch_capabilities.go", "internal/platform/bom_switch_capabilities_test.go", "internal/platform/bom_package_commit_integration_test.go"]
+      "implementation_notes": "Switch model versions and unified switch/port/optic projections exist. Standard BOM preview now blocks missing switch port model capability, unsupported breakout modes, out-of-range breakout child indices and unsupported speed. Declared optic speed/media conflicts are blocked and unknown optic speed is WARN; server compute-port rail count is compared with published model topology while missing expectations are WARN; network bandwidth ratio, power and switch rail topology checks remain; F-0.4/F-14.1/P-14 are not passed.",
+      "evidence_refs": ["internal/platform/bom_switch_capabilities.go", "internal/platform/bom_switch_capabilities_test.go", "internal/platform/bom_optic_capabilities.go", "internal/platform/bom_optic_capabilities_test.go", "internal/platform/bom_rail_scale.go", "internal/platform/bom_package_commit_integration_test.go"]
     },
     {
       "id": "WP-1.17",

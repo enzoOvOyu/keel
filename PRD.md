@@ -1440,7 +1440,7 @@ bom-import-package/
 | `port_name` | — | `port_name` | 可读名（如 `ens5f0`）；业务码可重算 |
 | `mac` | 条件 | `mac_list`（本端口一个永久 MAC） | 有永久 MAC 的物理网口必填；与同包其他端口及既有资产 MAC 冲突为 BLOCK；不以运行时随机 MAC 替代 |
 | `port_role` | ✅ | `port_role` | `management` \| `storage` \| `compute` \| `oob` \| `unused` |
-| `rail` | 条件 | `rail` | 计算网口 rail |
+| `rail` | 条件 | `rail` | `port_role=compute` 时必填；同一服务器的不同 rail 标签数与已发布服务器型号 `expected_topology.rail_count` 核对。型号未声明 rail 数时记为 unknown/WARN，不得作为工程校验 PASS |
 
 #### A.7.4 `fabric/switches.csv`（category=switch）
 
@@ -1482,6 +1482,7 @@ bom-import-package/
 #### A.7.7 `fabric/optic_modules.csv` + `credential_batches.csv`
 
 - **`optic_modules.csv`**（category=optic_module）：`bom_line_no` / `parent_ref`（→ switch_ports）/ `sub_type`（800G DR8 …）/ `serial` / `vendor` / `model_ref` / `media_type` / `speed`。一致性校验核对**光模块类型与端口速率匹配**（FR-0.1.3）。
+  - **能力来源与缺测**：优先用光模块行声明的 `speed`/`media_type`，并与已发布光模块型号版本的 `capability_matrix.speed/speeds/media_types`、交换机端口型号版本的 `capability_matrix.ports[port_index].speed/speeds/optic_media_types` 核对；子口可继承父口能力。明确冲突 = `BLOCK`；双方均无法确定速率 = `WARN` 并保留 `unknown`，不得作为网络就绪 PASS。
 - **`credential_batches.csv`**（不生成 `bom_item`，登记批次引用）：`credential_batch_ref` / `scope`（`bmc` \| `switch`）/ `rotation_policy` / `vault_path` / `owner`。**包内仅登记引用与 vault 路径，不写明文口令/私钥**（AGENTS 凭据约束）；采集作业启动前按 FR-3.6/FR-0.3.6 校验可达性。
 
 #### A.7.8 `address_plan.csv`（可选，参考用）

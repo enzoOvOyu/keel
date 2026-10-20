@@ -336,7 +336,7 @@ Redfish 原始 JSON 全量入 MinIO，结构化入 JSONB，JSONPath 视图。
 
 ### 交换机端口型号能力矩阵（WP-1.16 增量）
 
-已发布 `device_model_versions.capability_matrix.ports` 以端口 `port_index` 为键；单端口可声明 `speed` 或 `speeds[]`，支持 breakout 的父口另列 `breakout_modes[]`（如 `4x200G`）。导入预检逐端口查已绑定型号版本；`swp1s0` 等子口可继承父口 `swp1` 的能力，但子口编号必须落在 breakout 数量内，计划速率必须与模式速率一致。缺端口能力或声明的模式、速率不匹配均为 BLOCK。光模块速率、上下行带宽比、供电和 rail 拓扑的矩阵字段及判据仍待 WP-1.16 后续落实，不把本段检查当作完整 FR-0.1.3 验收。
+已发布 `device_model_versions.capability_matrix.ports` 以端口 `port_index` 为键；单端口可声明 `speed` 或 `speeds[]`，支持 breakout 的父口另列 `breakout_modes[]`（如 `4x200G`）。导入预检逐端口查已绑定型号版本；`swp1s0` 等子口可继承父口 `swp1` 的能力，但子口编号必须落在 breakout 数量内，计划速率必须与模式速率一致。缺端口能力或声明的模式、速率不匹配均为 BLOCK。光模块可由 `fabric/optic_modules.csv.speed/media_type`、已发布光模块型号 `capability_matrix.speed/speeds/media_types`（未填时从 `hw_spec` 取）和交换机端口 `capability_matrix.ports[].optic_media_types` 比对；明确不匹配为 BLOCK，无法确认速率为 WARN `optic_speed_unverified`，不得形成网络就绪 PASS。服务器计算端口 `rail` 必填，按整机汇总去重后与已发布服务器型号 `expected_topology.rail_count` 比较；缺型号 rail 数记 WARN，数量不符或计算端口缺 rail 为 BLOCK。网络侧上下行带宽比、供电和交换机 rail 拓扑仍缺完整输入与判据，不把本段检查当作完整 FR-0.1.3 验收。
 
 ### ADR-20 BOM 导入包：单批次目录形态与幂等（v3.0.2 新增）
 

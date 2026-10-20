@@ -13,7 +13,7 @@ func bomFixture(t *testing.T) map[string][]byte {
 	files := map[string][]byte{
 		"server/servers.csv":           []byte("bom_line_no,sn,hostname,model_ref,rack,u,sub_type,source_of_record\n1,SN-1,srv-1,server-v1,R01,1,B300,design_bom\n"),
 		"server/server_components.csv": []byte("bom_line_no,parent_sn,category,sub_type,slot,serial,model_ref,mac\n2,SN-1,nic,CX8,1,NIC-1,nic-v1,aa:bb:cc:dd:ee:01\n"),
-		"server/server_ports.csv":      []byte("bom_line_no,parent_ref,port_index,port_role,mac\n3,NIC-1,1,compute,aa:bb:cc:dd:ee:01\n"),
+		"server/server_ports.csv":      []byte("bom_line_no,parent_ref,port_index,port_role,mac,rail\n3,NIC-1,1,compute,aa:bb:cc:dd:ee:01,0\n"),
 		"fabric/switches.csv":          []byte("bom_line_no,sn,hostname,model_ref,role,rack,idx,dc,pod,source_of_record,status\n4,SW-1,leaf-1,switch-v1,leaf,R01,1,DC,P1,design_bom,planned\n"),
 		"fabric/switch_ports.csv":      []byte("bom_line_no,parent_ref,port_index,port_name\n5,SW-1,1,swp1s0\n"),
 		"fabric/optic_modules.csv":     []byte("bom_line_no,parent_ref,serial,sub_type,model_ref\n6,5,OPT-1,DR8,optic-v1\n"),
