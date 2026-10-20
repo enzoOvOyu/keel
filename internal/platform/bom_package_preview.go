@@ -12,6 +12,7 @@ type BOMPackagePreview struct {
 	Manifest     BOMPackageManifest `json:"manifest"`
 	Issues       []BOMPackageIssue  `json:"issues"`
 	FileHashes   map[string]string  `json:"file_hashes"`
+	Derivations  map[string]string  `json:"derivations"`
 	CanCommit    bool               `json:"can_commit"`
 	Idempotent   bool               `json:"idempotent"`
 	PreviewToken string             `json:"preview_token,omitempty"`
@@ -43,7 +44,7 @@ func analyzeBOMPackageTx(ctx context.Context, tx *sql.Tx, project *ProjectSummar
 	if err != nil {
 		return nil, nil, apiError(400, "BOM_INVALID_MANIFEST", err.Error())
 	}
-	out := &BOMPackagePreview{Manifest: pkg.Manifest, FileHashes: pkg.FileHashes}
+	out := &BOMPackagePreview{Manifest: pkg.Manifest, FileHashes: pkg.FileHashes, Derivations: map[string]string{"port.sub_type": "published_parent_model"}}
 	add := func(file string, line int, field, code string) {
 		pkg.Issues = append(pkg.Issues, BOMPackageIssue{Severity: "BLOCK", File: file, BOMLineNo: line, Field: field, Code: code})
 	}
@@ -155,6 +156,11 @@ func analyzeBOMPackageTx(ctx context.Context, tx *sql.Tx, project *ProjectSummar
 	}
 	pkg.Issues = append(pkg.Issues, networkIssues...)
 	pkg.Issues = append(pkg.Issues, validatePackageCableRails(pkg)...)
+	portSubtypeIssues, portSubtypeErr := deriveBOMPortSubtypes(ctx, tx, project.ID, pkg)
+	if portSubtypeErr != nil {
+		return nil, nil, portSubtypeErr
+	}
+	pkg.Issues = append(pkg.Issues, portSubtypeIssues...)
 	hasBlock := false
 	for _, issue := range pkg.Issues {
 		if issue.Severity == "BLOCK" {

@@ -334,6 +334,10 @@ Redfish 原始 JSON 全量入 MinIO，结构化入 JSONB，JSONPath 视图。
 
 **后果**：新增 `bom_item` 单表（双域物料）、`BOMImportPackage`/`BOMImportManifestFile`、网络侧设备/端口/线缆/光模块身份、`FabricRule(LL-01~07)`、`PushJob`、`HealthScore`、`ZtpSession`、`FabricReadiness` 等实体（§4）；FR-0.8 契约为服务器域 G2/G5/G6 的硬依赖；网络设备型号进 model-svc（`kind` 增 `switch`）；交换机凭据走 vault 凭据批次模型（与 BMC 同族）。
 
+### 端口类型从型号版本派生（WP-1.15 增量）
+
+标准 BOM 中的服务器及交换机端口 `sub_type` 均从父设备已发布型号 `capability_matrix.ports[port_index].sub_type` 派生；breakout 子口允许在没有显式子口项时继承父口 `child_sub_type`。未声明或超出物料字段长度为 BLOCK；预检以固定元数据展示派生来源，避免按百万端口生成 INFO 问题行。宽表兼容入口的临时 MAC/NIC 身份保留 `legacy-port:<port_index>` 标记，等待真实型号接管。
+
 ### 交换机端口型号能力矩阵（WP-1.16 增量）
 
 已发布 `device_model_versions.capability_matrix.ports` 以端口 `port_index` 为键；单端口可声明 `speed` 或 `speeds[]`，支持 breakout 的父口另列 `breakout_modes[]`（如 `4x200G`）。导入预检逐端口查已绑定型号版本；`swp1s0` 等子口可继承父口 `swp1` 的能力，但子口编号必须落在 breakout 数量内，计划速率必须与模式速率一致。缺端口能力或声明的模式、速率不匹配均为 BLOCK。光模块可由 `fabric/optic_modules.csv.speed/media_type`、已发布光模块型号 `capability_matrix.speed/speeds/media_types`（未填时从 `hw_spec` 取）和交换机端口 `capability_matrix.ports[].optic_media_types` 比对；明确不匹配为 BLOCK，无法确认速率为 WARN `optic_speed_unverified`，不得形成网络就绪 PASS。服务器计算端口 `rail` 必填，按整机汇总去重后与已发布服务器型号 `expected_topology.rail_count` 比较；缺型号 rail 数记 WARN，数量不符或计算端口缺 rail 为 BLOCK。网络侧工程预检增补 `fabric/switches.csv` 的 `planned_psu_count`、`planned_feed_count`、`power_budget_w`、`max_downlink_uplink_ratio`，以及 `fabric/switch_ports.csv` 的 `rail`、`bandwidth_direction`。电源计划值分别对已发布交换机型号 `hw_spec.psu_count/feed_count/max_power_w` 作下界比较；缺任一侧记录 WARN/unknown，明确不足或无效数值 BLOCK。交换机计算口 rail 缺失 BLOCK，Leaf 的已声明 rail 去重数与型号 `expected_topology.rail_count` 核对，缺期望值 WARN。带宽比按交换机汇总有效上下行端口速率（M/G/T 换算为 Gbps），breakout 父子同时存在只计子口。项目内 `network_baseline_versions` 承接外部网络方案的工程限值子集，草稿/批准版本不可变；批准需登记客户和网络工程师批准证据引用并审计。BOM 的 `network_baseline_ref` 指向已批准版本，限值按交换机 SN 优先、角色回退；BOM 自声明限值不得宽于批准限值，超限 BLOCK。未绑定、未覆盖或缺测仍为 WARN/unknown。批准证据引用尚未自动验真，且该子集不包含完整配置模板，因此不能给 FR-0 完整工程 PASS。缺方向/速率/上行或下行容量也为 unknown/WARN。同包线缆两端可唯一解析时，服务器计算口与交换机计算口的规划 rail 不同为 BLOCK；交换机角色缺失为 WARN，角色明确不符为 BLOCK。外部 UID 端点尚不参与此对照。计划 rail 与真实线序的相符性仍须 G2 LLDP 三方确认；本段不构成 FR-0.1.3 完整验收。

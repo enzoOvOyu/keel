@@ -2091,7 +2091,7 @@
         "H-15"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Started from P1 tag: standard-package validator and safe zip/tar.gz extraction with seven CSVs, full manifest hash, UTF-8/BOM, line-number and MAC checks; project mapping draft/approval API and switch model version capability matrix persist in migration 011. Mapping approval passed isolated PostgreSQL integration test. Read-only archive preview plus session-bound token, revalidated atomic commit, unified material revisions/projections and import UI are on the development branch; isolated PostgreSQL tests cover idempotency and stable IDs. Directory upload, saved-issue query, and server-only legacy wide-table folding into unified material are implemented; FR-0 engineering checks and performance remain; F-0.1-F-0.4 are not passed.",
+      "implementation_notes": "Started from P1 tag: standard-package validator and safe zip/tar.gz extraction with seven CSVs, full manifest hash, UTF-8/BOM, line-number and MAC checks; project mapping draft/approval API and switch model version capability matrix persist in migration 011. Mapping approval passed isolated PostgreSQL integration test. Read-only archive preview plus session-bound token, revalidated atomic commit, unified material revisions/projections and import UI are on the development branch; isolated PostgreSQL tests cover idempotency and stable IDs. Directory upload, saved-issue query, and server-only legacy wide-table folding into unified material are implemented; published-model port subtype derivation now blocks missing standard port definitions while legacy provisional ports retain compatibility markers; remaining engineering checks and scale performance are pending; F-0.1-F-0.4 are not passed.",
       "evidence_refs": [
         "internal/platform/bom_package.go",
         "internal/platform/bom_package_archive.go",
@@ -2105,7 +2105,8 @@
         "internal/platform/migrations/011_bom_package.sql",
         "internal/platform/migrations/012_bom_material_models.sql",
         "internal/httpapi/bom_package.go",
-        "web/src/features/assets/AssetsPage.tsx"
+        "web/src/features/assets/AssetsPage.tsx",
+        "internal/platform/bom_port_subtypes.go"
       ]
     },
     {

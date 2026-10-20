@@ -39,7 +39,7 @@ export const commitBomImport = (projectId: string, body: BomImportInput, csrf: s
 export type BomPackageIssue = { severity: 'BLOCK' | 'WARN' | 'INFO'; file: string; bom_line_no?: number; field?: string; code: string }
 export type BomPackagePreview = {
   manifest: { bom_import_batch_id: string; profile_version_ref: string; row_count: number; content_hash: string }
-  issues: BomPackageIssue[]; file_hashes: Record<string, string>; can_commit: boolean; idempotent: boolean; preview_token?: string
+  issues: BomPackageIssue[]; file_hashes: Record<string, string>; derivations: Record<string, string>; can_commit: boolean; idempotent: boolean; preview_token?: string
 }
 export type BomPackageCommitResult = {
   package_id: string; bom_import_batch_id: string; content_hash: string

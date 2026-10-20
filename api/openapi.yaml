@@ -1642,13 +1642,14 @@ components:
     BOMPackagePreview:
       type: object
       additionalProperties: false
-      required: [manifest, issues, file_hashes, can_commit, idempotent]
+      required: [manifest, issues, file_hashes, derivations, can_commit, idempotent]
       properties:
         manifest: { type: object, additionalProperties: true }
         issues:
           type: array
           items: { $ref: '#/components/schemas/BOMPackageIssue' }
         file_hashes: { type: object, additionalProperties: { type: string } }
+        derivations: { type: object, additionalProperties: { type: string } }
         can_commit: { type: boolean }
         idempotent: { type: boolean }
         preview_token: { type: string }

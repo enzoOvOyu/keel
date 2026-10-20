@@ -110,8 +110,11 @@ func TestLegacyBOMAtomicBatchIdentity(t *testing.T) {
 			t.Fatal(e)
 		}
 		publish := PublishModelVersionInput{HwSpec: map[string]any{"name": kind}}
+		if kind == "nic" {
+			publish.CapabilityMatrix = map[string]any{"ports": map[string]any{"1": map[string]any{"sub_type": "nic-200g"}}}
+		}
 		if kind == "switch" {
-			publish.CapabilityMatrix = map[string]any{"ports": map[string]any{"1": map[string]any{"speed": "200G"}}}
+			publish.CapabilityMatrix = map[string]any{"ports": map[string]any{"1": map[string]any{"speed": "200G", "sub_type": "ethernet-200g"}}}
 		}
 		v, e := s.PublishModelVersion(ctx, actor, project, m.ID, publish, "test")
 		if e != nil {

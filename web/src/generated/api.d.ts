@@ -668,6 +668,9 @@ export interface components {
             file_hashes: {
                 [key: string]: string;
             };
+            derivations: {
+                [key: string]: string;
+            };
             can_commit: boolean;
             idempotent: boolean;
             preview_token?: string;

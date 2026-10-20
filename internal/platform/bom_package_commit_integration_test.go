@@ -37,8 +37,11 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 		if kind == "server" {
 			publish.ExpectedTopology = map[string]any{"rail_count": 1}
 		}
+		if kind == "nic" {
+			publish.CapabilityMatrix = map[string]any{"ports": map[string]any{"1": map[string]any{"sub_type": "nic-200g"}}}
+		}
 		if kind == "switch" {
-			publish.CapabilityMatrix = map[string]any{"ports": map[string]any{"1": map[string]any{"speed": "200G"}, "2": map[string]any{"speed": "200G"}}}
+			publish.CapabilityMatrix = map[string]any{"ports": map[string]any{"1": map[string]any{"speed": "200G", "sub_type": "ethernet-200g"}, "2": map[string]any{"speed": "200G", "sub_type": "ethernet-200g"}}}
 			publish.HwSpec = map[string]any{"psu_count": 2, "feed_count": 2, "max_power_w": 1000}
 			publish.ExpectedTopology = map[string]any{"rail_count": 1}
 		}

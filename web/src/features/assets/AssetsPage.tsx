@@ -70,6 +70,7 @@ function BomPackageDialog({ projectId, onClose, onDone }: { projectId: string; o
     {preview && <>
       <p className="impact-notice">{t('bomPackageSummary', { batch: preview.manifest.bom_import_batch_id, rows: preview.manifest.row_count, profile: preview.manifest.profile_version_ref })}</p>
       {preview.idempotent && <p className="impact-notice">{t('bomPackageAlreadyCommitted')}</p>}
+      {preview.derivations?.['port.sub_type'] && <p className="impact-notice">{t('bomPortSubtypeSource')}</p>}
       <div className="table-scroll" tabIndex={0} role="region" aria-label={t('bomPackageIssues')}><table className="data-table"><thead><tr><th scope="col">{t('bomIssueSeverity')}</th><th scope="col">{t('bomIssueFile')}</th><th scope="col">{t('bomIssueLine')}</th><th scope="col">{t('bomIssueField')}</th><th scope="col">{t('bomIssueCode')}</th></tr></thead>
         <tbody>{preview.issues.map((issue, index) => <tr key={index}><td>{issue.severity}</td><td className="mono-value">{issue.file}</td><td>{issue.bom_line_no || '—'}</td><td className="mono-value">{issue.field || '—'}</td><td className="mono-value">{issue.code}</td></tr>)}</tbody></table>
         {!preview.issues.length && <p className="table-loading">{t('bomPackageNoIssues')}</p>}</div>

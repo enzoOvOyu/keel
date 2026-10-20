@@ -17,7 +17,10 @@ func writeBOMMaterial(ctx context.Context, tx *sql.Tx, projectID, packageID stri
 	}
 	subType := v["sub_type"]
 	if m.category == "port" && subType == "" {
-		subType = "port:" + v["port_index"]
+		if m.row.File != "legacy/wide.csv" {
+			return apiError(409, "BOM_PORT_SUBTYPE_MISSING", "Port subtype must derive from the published parent model")
+		}
+		subType = "legacy-port:" + v["port_index"]
 	}
 	if m.category == "switch" && subType == "" {
 		if err := tx.QueryRowContext(ctx, `SELECT m.name FROM device_model_versions v JOIN device_models m ON m.id=v.model_id WHERE v.id=$1`, v["model_ref"]).Scan(&subType); err != nil {

@@ -1398,7 +1398,7 @@ bom-import-package/
 
 ### A.7 逐文件列定义
 
-> **通用列语义**：`source_of_record` 未提供时继承所属整机/交换机行；`status` 未提供时取 `planned`；部件与端口的 `position` 继承父项，端口的 `sub_type` 从已发布型号的对应 `port_index` 取得。派生失败为 BLOCK，来源与默认值须在预检结果中显示。`*_ref` 类列允许引用**同一包内 `bom_line_no`**、**平台既有 `item_uid`** 或**业务码**三选一（优先级：`item_uid` > `bom_line_no` > 业务码）；解析歧义或引用缺失即 `BLOCK` 并提示改用 `bom_line_no` 或稳定 `item_uid`；可读业务码只在当前项目与本批次范围内唯一解析时接受。所有引用在一致性校验阶段解析为稳定 `item_uid`。时间列一律 ISO-8601 UTC。
+> **通用列语义**：`source_of_record` 未提供时继承所属整机/交换机行；`status` 未提供时取 `planned`；部件与端口的 `position` 继承父项，端口的 `sub_type` 从父设备已发布型号 `capability_matrix.ports[port_index].sub_type` 取得；breakout 子口可在无显式子口项时取父口 `child_sub_type`。派生失败为 BLOCK，预检展示派生来源，逐行结果落 `bom_item_revisions.row_snapshot`。`*_ref` 类列允许引用**同一包内 `bom_line_no`**、**平台既有 `item_uid`** 或**业务码**三选一（优先级：`item_uid` > `bom_line_no` > 业务码）；解析歧义或引用缺失即 `BLOCK` 并提示改用 `bom_line_no` 或稳定 `item_uid`；可读业务码只在当前项目与本批次范围内唯一解析时接受。所有引用在一致性校验阶段解析为稳定 `item_uid`。时间列一律 ISO-8601 UTC。
 
 #### A.7.1 `server/servers.csv`（category=server）
 
