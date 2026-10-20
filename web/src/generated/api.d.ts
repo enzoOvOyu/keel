@@ -458,6 +458,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/bom/packages/{package_id}/issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listBOMPackageIssues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/bom/packages/preview": {
         parameters: {
             query?: never;
@@ -516,18 +532,19 @@ export interface components {
             /** Format: date-time */
             committed_at: string;
         };
+        BOMPackageIssue: {
+            /** @enum {string} */
+            severity: "BLOCK" | "WARN" | "INFO";
+            file: string;
+            bom_line_no?: number;
+            field?: string;
+            code: string;
+        };
         BOMPackagePreview: {
             manifest: {
                 [key: string]: unknown;
             };
-            issues: {
-                /** @enum {string} */
-                severity: "BLOCK" | "WARN" | "INFO";
-                file: string;
-                bom_line_no?: number;
-                field?: string;
-                code: string;
-            }[];
+            issues: components["schemas"]["BOMPackageIssue"][];
             file_hashes: {
                 [key: string]: string;
             };
@@ -2070,6 +2087,38 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
+    listBOMPackageIssues: {
+        parameters: {
+            query?: {
+                severity?: "BLOCK" | "WARN" | "INFO";
+            };
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+                package_id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Persisted diagnostics for a committed package; blocking preview issues are never committed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        package_id: components["schemas"]["EntityID"];
+                        issues: components["schemas"]["BOMPackageIssue"][];
+                    };
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     previewBOMPackage: {
         parameters: {
             query?: never;
@@ -2086,7 +2135,11 @@ export interface operations {
                      * Format: binary
                      * @description Zip or tar.gz archive up to 64 MiB
                      */
-                    file: string;
+                    file?: string;
+                    /** @description Directory file parts */
+                    files?: string[];
+                    /** @description Matching relative paths including one enclosing root */
+                    paths?: string[];
                 };
             };
         };
@@ -2129,7 +2182,11 @@ export interface operations {
                      * Format: binary
                      * @description Same zip or tar.gz package previewed; up to 64 MiB
                      */
-                    file: string;
+                    file?: string;
+                    /** @description Same directory file parts previewed */
+                    files?: string[];
+                    /** @description Matching relative paths including one enclosing root */
+                    paths?: string[];
                     /** @description Session-bound token returned by a successful preview */
                     preview_token: string;
                 };
