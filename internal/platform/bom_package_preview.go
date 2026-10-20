@@ -134,6 +134,11 @@ func analyzeBOMPackageTx(ctx context.Context, tx *sql.Tx, project *ProjectSummar
 			}
 		}
 	}
+	engineeringIssues, engineeringErr := validateSwitchPortCapabilities(ctx, tx, project.ID, pkg)
+	if engineeringErr != nil {
+		return nil, nil, engineeringErr
+	}
+	pkg.Issues = append(pkg.Issues, engineeringIssues...)
 	hasBlock := false
 	for _, issue := range pkg.Issues {
 		if issue.Severity == "BLOCK" {

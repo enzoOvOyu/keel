@@ -108,6 +108,28 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if adoptedServer != legacyMachineID || adoptedPort != legacyPortID {
 		t.Fatal("P1 machine/port identities were not preserved")
 	}
+	badSpeed := make(map[string][]byte, len(files))
+	for name, data := range files {
+		badSpeed[name] = append([]byte(nil), data...)
+	}
+	badSpeed["fabric/switch_ports.csv"] = []byte("bom_line_no,parent_ref,port_index,port_name,speed\n5,SW-1,1,swp1s0,400G\n")
+	var speedManifest BOMPackageManifest
+	if err = json.Unmarshal(badSpeed["manifest.json"], &speedManifest); err != nil {
+		t.Fatal(err)
+	}
+	speedManifest.BatchID = "BOM-BATCH-P1-20261020-4"
+	speedManifest.Seq = 4
+	for i := range speedManifest.DomainFiles {
+		if speedManifest.DomainFiles[i].File == "fabric/switch_ports.csv" {
+			speedManifest.DomainFiles[i].Columns = []string{"bom_line_no", "parent_ref", "port_index", "port_name", "speed"}
+		}
+	}
+	badSpeed["manifest.json"], _ = json.Marshal(speedManifest)
+	rehashBOMFixture(t, badSpeed)
+	speedPreview, speedErr := s.PreviewBOMPackage(ctx, actor, project, badSpeed)
+	if speedErr != nil || speedPreview.CanCommit || !issueFound(&BOMPackage{Issues: speedPreview.Issues}, "switch_port_speed_not_supported") {
+		t.Fatalf("unsupported switch speed accepted: %+v %v", speedPreview, speedErr)
+	}
 
 	repeat, err := s.CommitBOMPackage(ctx, actor, project, files, preview.PreviewToken, "test")
 	if err != nil {

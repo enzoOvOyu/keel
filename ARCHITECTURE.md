@@ -334,6 +334,10 @@ Redfish 原始 JSON 全量入 MinIO，结构化入 JSONB，JSONPath 视图。
 
 **后果**：新增 `bom_item` 单表（双域物料）、`BOMImportPackage`/`BOMImportManifestFile`、网络侧设备/端口/线缆/光模块身份、`FabricRule(LL-01~07)`、`PushJob`、`HealthScore`、`ZtpSession`、`FabricReadiness` 等实体（§4）；FR-0.8 契约为服务器域 G2/G5/G6 的硬依赖；网络设备型号进 model-svc（`kind` 增 `switch`）；交换机凭据走 vault 凭据批次模型（与 BMC 同族）。
 
+### 交换机端口型号能力矩阵（WP-1.16 增量）
+
+已发布 `device_model_versions.capability_matrix.ports` 以端口 `port_index` 为键；单端口可声明 `speed` 或 `speeds[]`，支持 breakout 的父口另列 `breakout_modes[]`（如 `4x200G`）。导入预检逐端口查已绑定型号版本；`swp1s0` 等子口可继承父口 `swp1` 的能力，但子口编号必须落在 breakout 数量内，计划速率必须与模式速率一致。缺端口能力或声明的模式、速率不匹配均为 BLOCK。光模块速率、上下行带宽比、供电和 rail 拓扑的矩阵字段及判据仍待 WP-1.16 后续落实，不把本段检查当作完整 FR-0.1.3 验收。
+
 ### ADR-20 BOM 导入包：单批次目录形态与幂等（v3.0.2 新增）
 
 **决策**：BOM 导入采用**目录/压缩包形态的导入包**（`manifest.json` + 逐实体 CSV，PRD 附录 A.5–A.8）作为标准形态，单文件宽表作为兼容形态：
