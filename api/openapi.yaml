@@ -1229,6 +1229,34 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/ztp/identity/preview:
+    post:
+      tags: [BOM]
+      operationId: previewZTPIdentity
+      description: Authenticated, read-only SoT identity resolution for planning and simulation. It never grants production configuration or marks a switch managed.
+      security: [{sessionCookie: []}]
+      x-permission: project:network-baseline:read
+      x-resource-scope: path-project
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZTPIdentityInput' }
+      responses:
+        '200':
+          description: SoT match, conflict, or isolation decision; no configuration is returned.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZTPIdentityResolution' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/projects/{id}/network-baselines:
     post:
       tags: [BOM]
@@ -1551,6 +1579,28 @@ components:
         maximum: 100
         default: 20
   schemas:
+    ZTPIdentityInput:
+      type: object
+      additionalProperties: false
+      properties:
+        serial: { type: string, maxLength: 120 }
+        mgmt_mac: { type: string, maxLength: 32 }
+        base_mac: { type: string, maxLength: 32 }
+        other_macs:
+          type: array
+          maxItems: 16
+          items: { type: string, maxLength: 32 }
+    ZTPIdentityResolution:
+      type: object
+      additionalProperties: false
+      required: [verdict, reasons]
+      properties:
+        verdict: { type: string, enum: [matched, isolated, conflict] }
+        switch_id: { $ref: '#/components/schemas/EntityID' }
+        identity_priority: { type: string, enum: [sn, mgmt, base, other] }
+        reasons:
+          type: array
+          items: { type: string }
     NetworkEngineeringLimits:
       type: object
       additionalProperties: false

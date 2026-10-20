@@ -2147,7 +2147,15 @@
         "F-0.5",
         "H-16"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Switch BOM now persists mgmt/base/other permanent MAC identities and blocks cross-device/server-MAC conflicts. Project-scoped, read-only identity preview resolves SN > mgmt > base > other with conflict/isolation verdicts. Device boot endpoints, 143 mTLS/IDevID, Kea option staging, nine-state timeline, retries, isolation template and ZtpOnboardBoard remain; F-0.5 is not passed.",
+      "evidence_refs": [
+        "internal/platform/bom_switch_identity.go",
+        "internal/platform/migrations/015_switch_identity_macs.sql",
+        "internal/platform/ztp_identity.go",
+        "internal/platform/bom_package_commit_integration_test.go",
+        "internal/httpapi/ztp_identity.go"
+      ]
     },
     {
       "id": "WP-2.14",

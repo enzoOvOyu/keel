@@ -161,6 +161,11 @@ func analyzeBOMPackageTx(ctx context.Context, tx *sql.Tx, project *ProjectSummar
 		return nil, nil, portSubtypeErr
 	}
 	pkg.Issues = append(pkg.Issues, portSubtypeIssues...)
+	identityIssues, identityErr := validateSwitchIdentityMACs(ctx, tx, pkg)
+	if identityErr != nil {
+		return nil, nil, identityErr
+	}
+	pkg.Issues = append(pkg.Issues, identityIssues...)
 	hasBlock := false
 	for _, issue := range pkg.Issues {
 		if issue.Severity == "BLOCK" {

@@ -1452,6 +1452,7 @@ bom-import-package/
 | `hostname` | ✅ | （期望 hostname） | 规则 `{dc}-{pod}-{role}-{rack}-{idx}`，**禁下划线** |
 | `model_ref` | ✅ | `model_version_ref` | 网络设备型号（FR-14） |
 | `nos_intent` | — | `expect_version` | NOS 版本意向（取值源 = 参数目录） |
+| `mgmt_mac` / `base_mac` / `other_macs` | 条件 | `mac_list` + 当前身份绑定 | ZTP 身份反查用永久 MAC；`other_macs` 以分号分隔。与同包服务器端口及其他交换机、既有 SoT 绑定冲突为 BLOCK；均缺失为 WARN/unknown。新版本提供任一身份列时三列须同时声明，空值表示清除对应角色；完全不带三列时继承当前绑定，旧绑定保留在 BOM 版本历史中 |
 | `source_of_record` / `status` | ✅ | 同名 | |
 | `planned_psu_count` / `planned_feed_count` | 条件 | 版本快照 | 计划安装电源模块数 / 独立供电回路数；分别与已发布交换机型号 `hw_spec.psu_count` / `feed_count` 的最低要求核对，缺任一侧为 WARN/unknown，低于型号要求为 BLOCK |
 | `power_budget_w` | 条件 | 版本快照 | 分配给本交换机的可用功率（W），须不小于型号 `hw_spec.max_power_w`；缺值为 WARN/unknown，非正数或低于型号上限为 BLOCK |

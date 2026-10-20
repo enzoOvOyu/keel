@@ -173,6 +173,74 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if first.ItemCount != 7 {
 		t.Fatalf("item count %d", first.ItemCount)
 	}
+	identityPackage := make(map[string][]byte, len(files))
+	for name, data := range files {
+		identityPackage[name] = append([]byte(nil), data...)
+	}
+	identityPackage["fabric/switches.csv"] = []byte("bom_line_no,sn,hostname,model_ref,role,rack,idx,dc,pod,source_of_record,status,mgmt_mac,base_mac,other_macs\n4,SW-1,leaf-1," + modelIDs["switch"] + ",leaf,R01,1,DC,P1,design_bom,planned,aa:bb:cc:dd:ff:01,aa:bb:cc:dd:ff:02,aa:bb:cc:dd:ff:03\n")
+	var identityManifest BOMPackageManifest
+	if err = json.Unmarshal(identityPackage["manifest.json"], &identityManifest); err != nil {
+		t.Fatal(err)
+	}
+	identityManifest.BatchID = "BOM-BATCH-P1-20261020-11"
+	identityManifest.Seq = 11
+	for i := range identityManifest.DomainFiles {
+		if identityManifest.DomainFiles[i].File == "fabric/switches.csv" {
+			identityManifest.DomainFiles[i].Columns = []string{"bom_line_no", "sn", "hostname", "model_ref", "role", "rack", "idx", "dc", "pod", "source_of_record", "status", "mgmt_mac", "base_mac", "other_macs"}
+		}
+	}
+	identityPackage["manifest.json"], _ = json.Marshal(identityManifest)
+	rehashBOMFixture(t, identityPackage)
+	identityPreview, identityErr := s.PreviewBOMPackage(ctx, actor, project, identityPackage)
+	if identityErr != nil || !identityPreview.CanCommit {
+		t.Fatalf("valid switch identity blocked: %+v %v", identityPreview, identityErr)
+	}
+	if _, err = s.CommitBOMPackage(ctx, actor, project, identityPackage, identityPreview.PreviewToken, "test"); err != nil {
+		t.Fatal(err)
+	}
+	var bindingCount int
+	if err = s.DB.QueryRowContext(ctx, `SELECT count(*) FROM switch_mac_bindings b JOIN switches sw ON sw.id=b.switch_id WHERE sw.serial_number='SW-1'`).Scan(&bindingCount); err != nil || bindingCount != 3 {
+		t.Fatalf("switch MAC bindings: %d %v", bindingCount, err)
+	}
+	matchedIdentity, resolveErr := s.ResolveZTPIdentity(ctx, actor, project, ZTPIdentityInput{Serial: "SW-1", MgmtMAC: "AA-BB-CC-DD-FF-01", BaseMAC: "aa:bb:cc:dd:ff:02"})
+	if resolveErr != nil || matchedIdentity.Verdict != "matched" || matchedIdentity.IdentityPriority != "sn" {
+		t.Fatalf("ZTP SN resolution: %+v %v", matchedIdentity, resolveErr)
+	}
+	macIdentity, resolveErr := s.ResolveZTPIdentity(ctx, actor, project, ZTPIdentityInput{MgmtMAC: "aa:bb:cc:dd:ff:01"})
+	if resolveErr != nil || macIdentity.Verdict != "matched" || macIdentity.SwitchID != matchedIdentity.SwitchID || macIdentity.IdentityPriority != "mgmt" {
+		t.Fatalf("ZTP MAC resolution: %+v %v", macIdentity, resolveErr)
+	}
+	conflictingSN, resolveErr := s.ResolveZTPIdentity(ctx, actor, project, ZTPIdentityInput{Serial: "SW-RMA", MgmtMAC: "aa:bb:cc:dd:ff:01"})
+	if resolveErr != nil || conflictingSN.Verdict != "conflict" {
+		t.Fatalf("RMA serial conflict not isolated: %+v %v", conflictingSN, resolveErr)
+	}
+	mismatchedMAC, resolveErr := s.ResolveZTPIdentity(ctx, actor, project, ZTPIdentityInput{Serial: "SW-1", MgmtMAC: "aa:bb:cc:dd:ff:09"})
+	if resolveErr != nil || mismatchedMAC.Verdict != "conflict" {
+		t.Fatalf("MAC conflict not isolated: %+v %v", mismatchedMAC, resolveErr)
+	}
+	unknownIdentity, resolveErr := s.ResolveZTPIdentity(ctx, actor, project, ZTPIdentityInput{Serial: "SW-UNKNOWN"})
+	if resolveErr != nil || unknownIdentity.Verdict != "isolated" {
+		t.Fatalf("unknown identity not isolated: %+v %v", unknownIdentity, resolveErr)
+	}
+
+	conflicting := make(map[string][]byte, len(identityPackage))
+	for name, data := range identityPackage {
+		conflicting[name] = append([]byte(nil), data...)
+	}
+	conflicting["fabric/switches.csv"] = bytes.ReplaceAll(conflicting["fabric/switches.csv"], []byte("aa:bb:cc:dd:ff:01"), []byte("aa:bb:cc:dd:ee:01"))
+	var conflictIdentityManifest BOMPackageManifest
+	if err = json.Unmarshal(conflicting["manifest.json"], &conflictIdentityManifest); err != nil {
+		t.Fatal(err)
+	}
+	conflictIdentityManifest.BatchID = "BOM-BATCH-P1-20261020-12"
+	conflictIdentityManifest.Seq = 12
+	conflicting["manifest.json"], _ = json.Marshal(conflictIdentityManifest)
+	rehashBOMFixture(t, conflicting)
+	conflictIdentityPreview, conflictIdentityErr := s.PreviewBOMPackage(ctx, actor, project, conflicting)
+	if conflictIdentityErr != nil || conflictIdentityPreview.CanCommit || !issueFound(&BOMPackage{Issues: conflictIdentityPreview.Issues}, "switch_identity_mac_conflict") {
+		t.Fatalf("switch/server MAC collision accepted: %+v %v", conflictIdentityPreview, conflictIdentityErr)
+	}
+
 	if _, err = s.DB.ExecContext(ctx, `INSERT INTO bom_import_issues(id,package_id,severity,file_path,bom_line_no,field,code,created_at) VALUES($1,$2,'WARN','server/servers.csv',1,'hostname','test_warning',now())`, RandomID(), first.PackageID); err != nil {
 		t.Fatal(err)
 	}
@@ -313,6 +381,10 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if switchUID != firstSwitch || cableUID != firstCable {
 		t.Fatal("stable material identity changed in new batch")
 	}
+	var retainedMACs int
+	if err = s.DB.QueryRowContext(ctx, `SELECT jsonb_array_length(mac_list) FROM bom_items WHERE item_uid=$1`, switchUID).Scan(&retainedMACs); err != nil || retainedMACs != 3 {
+		t.Fatalf("omitted identity columns cleared current MACs: %d %v", retainedMACs, err)
+	}
 	manifest.BatchID = "BOM-BATCH-P1-20261020-3"
 	manifest.Seq = 3
 	files["manifest.json"], _ = json.Marshal(manifest)
@@ -332,7 +404,7 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if err = s.DB.QueryRowContext(ctx, `SELECT count(*) FROM bom_import_packages`).Scan(&packages); err != nil {
 		t.Fatal(err)
 	}
-	if packages != 2 {
+	if packages != 3 {
 		t.Fatalf("failed commit left %d packages", packages)
 	}
 }

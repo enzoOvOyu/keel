@@ -43,6 +43,34 @@ func writeBOMMaterial(ctx context.Context, tx *sql.Tx, projectID, packageID stri
 			}
 		}
 	}
+	if m.category == "switch" {
+		identities, declared := switchIdentityMACs(v)
+		if declared {
+			for _, identity := range identities {
+				if identity.mac != "" {
+					macs = append(macs, identity.mac)
+				}
+			}
+		} else {
+			rows, queryErr := tx.QueryContext(ctx, `SELECT mac FROM switch_mac_bindings WHERE switch_id=$1 ORDER BY CASE kind WHEN 'mgmt' THEN 0 WHEN 'base' THEN 1 ELSE 2 END,mac`, m.uid)
+			if queryErr != nil {
+				return queryErr
+			}
+			for rows.Next() {
+				var mac string
+				if scanErr := rows.Scan(&mac); scanErr != nil {
+					rows.Close()
+					return scanErr
+				}
+				macs = append(macs, mac)
+			}
+			queryErr = rows.Err()
+			rows.Close()
+			if queryErr != nil {
+				return queryErr
+			}
+		}
+	}
 	macJSON, err := json.Marshal(macs)
 	if err != nil {
 		return err
@@ -83,6 +111,20 @@ func writeBOMMaterial(ctx context.Context, tx *sql.Tx, projectID, packageID stri
 		_, err = tx.ExecContext(ctx, `INSERT INTO project_assets(id,project_id,machine_id,model_id,model_version_id,hostname,ip_reference,state,version,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,'planned',1,$8,$8) ON CONFLICT(project_id,machine_id) DO UPDATE SET model_id=EXCLUDED.model_id,model_version_id=EXCLUDED.model_version_id,hostname=EXCLUDED.hostname,ip_reference=EXCLUDED.ip_reference,version=CASE WHEN project_assets.model_version_id IS DISTINCT FROM EXCLUDED.model_version_id OR project_assets.hostname IS DISTINCT FROM EXCLUDED.hostname OR project_assets.ip_reference IS DISTINCT FROM EXCLUDED.ip_reference THEN project_assets.version+1 ELSE project_assets.version END,updated_at=CASE WHEN project_assets.model_version_id IS DISTINCT FROM EXCLUDED.model_version_id OR project_assets.hostname IS DISTINCT FROM EXCLUDED.hostname OR project_assets.ip_reference IS DISTINCT FROM EXCLUDED.ip_reference THEN EXCLUDED.updated_at ELSE project_assets.updated_at END`, RandomID(), projectID, m.uid, modelID, v["model_ref"], v["hostname"], v["ip_hint"], now)
 	case "switch":
 		_, err = tx.ExecContext(ctx, `INSERT INTO switches(id,serial_number,hostname,model_version_id,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$5) ON CONFLICT(id) DO UPDATE SET hostname=EXCLUDED.hostname,model_version_id=EXCLUDED.model_version_id,updated_at=EXCLUDED.updated_at`, m.uid, m.serial, v["hostname"], v["model_ref"], now)
+		if err != nil {
+			return err
+		}
+		identities, declared := switchIdentityMACs(v)
+		if declared {
+			if _, err = tx.ExecContext(ctx, `DELETE FROM switch_mac_bindings WHERE switch_id=$1`, m.uid); err != nil {
+				return err
+			}
+			for _, identity := range identities {
+				if _, err = tx.ExecContext(ctx, `INSERT INTO switch_mac_bindings(switch_id,kind,mac,package_id,updated_at) VALUES($1,$2,$3,$4,$5)`, m.uid, identity.kind, identity.mac, packageID, now); err != nil {
+					return err
+				}
+			}
+		}
 	case "nic", "gpu", "psu", "bmc":
 		_, err = tx.ExecContext(ctx, `INSERT INTO components(id,machine_id,category,serial_number,slot,created_at) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(id) DO UPDATE SET machine_id=EXCLUDED.machine_id,category=EXCLUDED.category,serial_number=EXCLUDED.serial_number,slot=EXCLUDED.slot`, m.uid, m.machineUID, m.category, nullBOMString(m.serial), nullBOMString(v["slot"]), now)
 	case "port":

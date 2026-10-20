@@ -15,7 +15,7 @@ var canonicalBOMColumns = map[string]string{
 	"server/servers.csv":           "bom_line_no rack u dc pod sn hostname rail model_ref sub_type ip_hint credential_batch_ref source_of_record status",
 	"server/server_components.csv": "bom_line_no parent_sn category sub_type slot serial mac model_ref vendor source_of_record status",
 	"server/server_ports.csv":      "bom_line_no parent_ref port_index port_name mac port_role rail source_of_record status",
-	"fabric/switches.csv":          "bom_line_no dc pod role rack idx sn hostname model_ref nos_intent source_of_record status credential_batch_ref planned_psu_count planned_feed_count power_budget_w max_downlink_uplink_ratio",
+	"fabric/switches.csv":          "bom_line_no dc pod role rack idx sn hostname model_ref nos_intent source_of_record status credential_batch_ref mgmt_mac base_mac other_macs planned_psu_count planned_feed_count power_budget_w max_downlink_uplink_ratio",
 	"fabric/switch_ports.csv":      "bom_line_no parent_ref port_index port_name port_role speed breakout_mode rail bandwidth_direction source_of_record status",
 	"fabric/optic_modules.csv":     "bom_line_no parent_ref sub_type serial vendor model_ref media_type speed source_of_record status",
 	"fabric/cables.csv":            "bom_line_no endpoint_a endpoint_b cable_type sub_type vendor length_m status source_of_record",

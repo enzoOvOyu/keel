@@ -334,6 +334,10 @@ Redfish 原始 JSON 全量入 MinIO，结构化入 JSONB，JSONPath 视图。
 
 **后果**：新增 `bom_item` 单表（双域物料）、`BOMImportPackage`/`BOMImportManifestFile`、网络侧设备/端口/线缆/光模块身份、`FabricRule(LL-01~07)`、`PushJob`、`HealthScore`、`ZtpSession`、`FabricReadiness` 等实体（§4）；FR-0.8 契约为服务器域 G2/G5/G6 的硬依赖；网络设备型号进 model-svc（`kind` 增 `switch`）；交换机凭据走 vault 凭据批次模型（与 BMC 同族）。
 
+### ZTP 身份底座（WP-1.17 增量）
+
+标准交换机 BOM 可声明 `mgmt_mac`、`base_mac`、分号分隔的 `other_macs`。预检规范化永久 MAC，并阻断同包服务器端口、其他交换机和既有 SoT 绑定冲突；当前绑定在 `switch_mac_bindings` 中按角色唯一存放，历史由 BOM 修订快照保留。新 BOM 要更新身份时须同时声明三列；完全不带身份列则继承当前绑定，保持 `bom_items.mac_list` 与绑定表一致。只读身份反查按 SN→管理口 MAC→基板 MAC→其他 MAC 的优先级解析；任意键指向不同交换机、已知 SN 与 MAC 绑定不一致时返回 conflict，未命中或缺少必要 SoT MAC 为 isolated。预检 API 仅供项目内规划/仿真，绝不返回配置或推进 managed。239 设备端点、143 mTLS/IDevID、Kea、九态时间线、重试、隔离模板和最小管理配置尚需独立实现与验证。
+
 ### 端口类型从型号版本派生（WP-1.15 增量）
 
 标准 BOM 中的服务器及交换机端口 `sub_type` 均从父设备已发布型号 `capability_matrix.ports[port_index].sub_type` 派生；breakout 子口允许在没有显式子口项时继承父口 `child_sub_type`。未声明或超出物料字段长度为 BLOCK；预检以固定元数据展示派生来源，避免按百万端口生成 INFO 问题行。宽表兼容入口的临时 MAC/NIC 身份保留 `legacy-port:<port_index>` 标记，等待真实型号接管。
