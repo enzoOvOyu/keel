@@ -225,6 +225,24 @@ func TestBOMProfileMappingAndAmbiguousEndpoint(t *testing.T) {
 	}
 }
 
+func TestBOMArchiveRequiresSingleEnclosingDirectory(t *testing.T) {
+	var buf bytes.Buffer
+	writer := zip.NewWriter(&buf)
+	entry, err := writer.Create("manifest.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = entry.Write([]byte("{}")); err != nil {
+		t.Fatal(err)
+	}
+	if err = writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = ReadBOMPackageArchive("root.zip", buf.Bytes()); err == nil {
+		t.Fatal("archive without one enclosing directory accepted")
+	}
+}
+
 func TestBOMMappedLineNumberAndManifestIdentity(t *testing.T) {
 	files := bomFixture(t)
 	files["fabric/cables.csv"] = []byte("Line,endpoint_a,endpoint_b,cable_type,sub_type\n7,3,5,DAC,DAC200\n")

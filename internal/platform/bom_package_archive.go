@@ -18,7 +18,7 @@ const (
 )
 
 // ReadBOMPackageArchive accepts a .zip or .tar.gz package with either a
-// manifest at archive root or one enclosing directory. It rejects links,
+// one enclosing root directory. It rejects links,
 // special entries, traversal, duplicate names and expansion bombs before the
 // package validator sees any file. The upload layer must enforce the compressed
 // size limit while streaming the request body to temporary storage.
@@ -106,9 +106,6 @@ func ReadBOMPackageArchive(name string, data []byte) (map[string][]byte, error) 
 		}
 	default:
 		return nil, errors.New("BOM package must be .zip or .tar.gz")
-	}
-	if _, root := raw["manifest.json"]; root {
-		return raw, nil
 	}
 	var prefix string
 	for file := range raw {

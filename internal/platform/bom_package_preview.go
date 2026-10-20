@@ -32,6 +32,10 @@ func (s *Store) PreviewBOMPackage(ctx context.Context, a *AuthSession, project *
 	}
 	profile, err := s.GetApprovedBOMMappingProfile(ctx, a, project, pkg.Manifest.ProfileVersionRef)
 	if err != nil {
+		var apiErr *Error
+		if !errors.As(err, &apiErr) || apiErr.Code != "BOM_MAPPING_NOT_APPROVED" {
+			return nil, err
+		}
 		add("manifest.json", 0, "profile_version_ref", "mapping_not_approved")
 	} else {
 		ApplyBOMMappingProfile(pkg, profile)
