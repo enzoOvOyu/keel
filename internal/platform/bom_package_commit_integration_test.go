@@ -110,6 +110,24 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if checkErr != nil || checked.CanCommit || !issueFound(&BOMPackage{Issues: checked.Issues}, "switch_power_count_below_model") || !issueFound(&BOMPackage{Issues: checked.Issues}, "switch_power_budget_below_model") || !issueFound(&BOMPackage{Issues: checked.Issues}, "bandwidth_ratio_exceeded") {
 		t.Fatalf("network engineering contradictions accepted: %+v %v", checked, checkErr)
 	}
+	wrongRail := make(map[string][]byte, len(engineering))
+	for name, data := range engineering {
+		wrongRail[name] = append([]byte(nil), data...)
+	}
+	wrongRail["fabric/switches.csv"] = bytes.ReplaceAll(wrongRail["fabric/switches.csv"], []byte(",planned,1,2,900,0.5"), []byte(",planned,2,2,1000,2"))
+	wrongRail["fabric/switch_ports.csv"] = bytes.ReplaceAll(wrongRail["fabric/switch_ports.csv"], []byte("compute,200G,0,downlink"), []byte("compute,200G,1,downlink"))
+	var cableRailManifest BOMPackageManifest
+	if err = json.Unmarshal(wrongRail["manifest.json"], &cableRailManifest); err != nil {
+		t.Fatal(err)
+	}
+	cableRailManifest.BatchID = "BOM-BATCH-P1-20261020-9"
+	cableRailManifest.Seq = 9
+	wrongRail["manifest.json"], _ = json.Marshal(cableRailManifest)
+	rehashBOMFixture(t, wrongRail)
+	cableRailPreview, cableRailErr := s.PreviewBOMPackage(ctx, actor, project, wrongRail)
+	if cableRailErr != nil || cableRailPreview.CanCommit || !issueFound(&BOMPackage{Issues: cableRailPreview.Issues}, "cable_rail_mismatch") {
+		t.Fatalf("planned cable rail mismatch accepted: %+v %v", cableRailPreview, cableRailErr)
+	}
 	first, err := s.CommitBOMPackage(ctx, actor, project, files, preview.PreviewToken, "test")
 	if err != nil {
 		t.Fatal(err)

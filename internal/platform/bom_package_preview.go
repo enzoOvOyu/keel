@@ -154,6 +154,7 @@ func analyzeBOMPackageTx(ctx context.Context, tx *sql.Tx, project *ProjectSummar
 		return nil, nil, networkErr
 	}
 	pkg.Issues = append(pkg.Issues, networkIssues...)
+	pkg.Issues = append(pkg.Issues, validatePackageCableRails(pkg)...)
 	hasBlock := false
 	for _, issue := range pkg.Issues {
 		if issue.Severity == "BLOCK" {

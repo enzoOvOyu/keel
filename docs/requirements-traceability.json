@@ -2120,7 +2120,7 @@
         "P-14"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Switch port/breakout/speed, optic speed/media, server compute rail and planned switch power/feed/budget, leaf rail count and declared downlink/uplink ratio checks run in read-only preview and commit. Missing facts stay WARN/unknown; ratio limit approval, cable endpoint rail comparison and scale validation remain. F-0.4/F-14.1/P-14 are not passed.",
+      "implementation_notes": "Switch port/breakout/speed, optic speed/media, server compute rail and planned switch power/feed/budget, leaf rail count and declared downlink/uplink ratio checks run in read-only preview and commit. Missing facts stay WARN/unknown; ratio limit approval, external-UID cable rail comparison and scale validation remain. F-0.4/F-14.1/P-14 are not passed.",
       "evidence_refs": [
         "internal/platform/bom_switch_capabilities.go",
         "internal/platform/bom_switch_capabilities_test.go",
@@ -2128,7 +2128,8 @@
         "internal/platform/bom_optic_capabilities_test.go",
         "internal/platform/bom_rail_scale.go",
         "internal/platform/bom_package_commit_integration_test.go",
-        "internal/platform/bom_network_engineering.go"
+        "internal/platform/bom_network_engineering.go",
+        "internal/platform/bom_cable_rail.go"
       ]
     },
     {

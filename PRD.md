@@ -1468,7 +1468,7 @@ bom-import-package/
 | `port_role` | 条件 | `port_role` | 以网络方案为准；`unused` 不告警 |
 | `speed` / `breakout_mode` | — | （端口能力属性） | 与型号能力矩阵核对 |
 | `bandwidth_direction` | 条件 | 版本快照 | `uplink`/`downlink`/`peer`/`not_applicable`；端口用途由网络规划指定，不能从 `port_role` 推断。仅累加显式 `uplink` 与 `downlink` 的有效端口速率；breakout 父口与子口同时存在时只计子口。缺方向/速率导致带宽比 unknown/WARN；无有效上行容量不得算 PASS |
-| `rail` | 条件 | `rail` | `port_role=compute` 时必填。Leaf 计算口 rail 去重数与交换机型号 `expected_topology.rail_count` 核对；缺型号期望值或端口数据为 WARN/unknown，明确数量不符为 BLOCK。此项仅核对规划，不代替 G2 LLDP 三方线序验收 |
+| `rail` | 条件 | `rail` | `port_role=compute` 时必填。Leaf 计算口 rail 去重数与交换机型号 `expected_topology.rail_count` 核对；缺型号期望值或端口数据为 WARN/unknown，明确数量不符为 BLOCK。此项仅核对规划；同包线缆若连接服务器计算口与交换机计算口，两端规划 rail 不同为 BLOCK，交换机端口角色缺失为 WARN/unknown。不代替 G2 LLDP 三方线序验收 |
 
 #### A.7.6 `fabric/cables.csv`（category=cable）
 
