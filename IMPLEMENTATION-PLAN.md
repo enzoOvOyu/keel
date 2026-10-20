@@ -2,11 +2,11 @@
 
 | 文档属性 | 值 |
 |---|---|
-| 版本 | v3.0（网络底座前置域 + 统一 BOM 导入包同步版） |
+| 版本 | v3.0.3（与 PRD 网络前置和导入契约对齐） |
 | 状态 | 用户授权的设计复审修订；保留 17 个功能域 + 网络底座前置域（FR-0），项目隔离、登录及执行可靠性前置 P1；本文件规定待实现任务，不证明业务功能已完成 |
-| 日期 | 2026-10-19 |
-| 上游 | PRD.md v3.0.2 / ARCHITECTURE.md v3.0 / DESIGN-SYSTEM.md v3.0 |
-| 下游 | ACCEPTANCE.md v3.0；机器可读追踪见 docs/requirements-traceability.json |
+| 日期 | 2026-10-20 |
+| 上游 | PRD.md v3.0.3 / ARCHITECTURE.md v3.0.3 / DESIGN-SYSTEM.md v3.0.3 |
+| 下游 | ACCEPTANCE.md v3.0.3；机器可读追踪见 docs/requirements-traceability.json |
 | 基线内容说明 | 本计划面向 **AI 执行体**：构建顺序 = 依赖拓扑 P1 底座 → P2 验机域 → P3 配置网络测试域 → P4 AI/模板/退出域 → P5 稳定化；**网络底座前置域（FR-0）横跨 P1–P4**（网络物料/导入包→ZTP→线缆/Golden→无损/健康）；硬件交互采用 sim + mock（ADR-14）；真机 PoC 执行包回填制不变 |
 | v3.0 变更摘要 | ① 新增网络域工作包 **WP-1.15/1.16/1.17（P1）**、**WP-2.14/2.15（P2）**、**WP-3.14/3.15（P3）**、**WP-4.10（P4）**，覆盖 FR-0 全能力与统一 BOM 导入包；② P1 判据增网络域（导入包解析/身份分配/ZTP sim 一次成功率）；P2 判据增线缆六类映射与 Golden 比对；P3 判据增 LL-01~07 注入与降级三路径、dry-run 零副作用；③ sim 能力增 mock Kea/引导服务、交换机 CLI/NVUE/ethtool/syslog/DDM 仿真与 golden-file 契约基线；④ 风险登记 R-1 更新为域内自供 |
 | 历史 v2.3 摘要（当前以任务表为准） | ①新增 WP-2.12 PCIe 拓扑（采集器/对比引擎/T7 闭环）、WP-2.13 四步线序 StepReport 重构；②WP-3.12 BMC 控制平面（BmcClient 扩展/状态灯/BIOS 批量/固件向导）、WP-3.13 NCCL 阈值场景矩阵；③WP-4.7 项目执行与双平面（ProjectContext/中间件/导航重构）、WP-4.8 维护期 IPMI-only 监控、WP-4.9 工单沉淀与 AIRAG 回归管道；④阶段判据同步（拓扑 T7 注入/BMC 闭环/双平面一致性/阈值场景命中）；⑤sim 能力扩展（mock nvidia-smi topo/BMC 灯语/多项目数据集）；⑥故障注入矩阵增 4 行 |
@@ -37,7 +37,7 @@
 3. **契约先行**：每任务先冻结 OpenAPI/proto/SSE 事件契约再编码；前端 lint 硬约束（ParamSelect/ReadinessGate 检查）进 CI。
 4. **高风险链竖切**：验机链（采集→G1→LLDP→G2→映射→G3）与网络链（配置→G4→连通性→G5→NCCL→G6）业务逻辑最复杂，P2/P3 分别以这两条链 sim 全链贯通为阶段判据核心。
 5. **知识资产与代码同节奏**：Runbook/NV 资料/案例库（FR-6.7）是平台内置交付物，P3 内与代码同步构建（结构化条目 + 版本标注 + 来源链接）。
-6. **PoC 执行包每阶段一份**：产出即完成（判据可机检），执行时机由工程所有者决定；回填差异 100% 回录 sim 与回归用例。
+6. **PoC 执行包每阶段一份**：网络域 H-15～H-18 的脚本与环境清单随 WP-1.15/WP-1.17/WP-2.14/WP-3.14 分别准备，由 WP-4.10 汇集成可执行包；产出即完成（判据可机检），执行时机由工程所有者决定；回填差异 100% 回录 sim 与回归用例。
 
 ## 2. 构建阶段与完成判据
 
@@ -61,7 +61,7 @@ P1 平台底座                P2 验机域                  P3 配置与网络�
 | P1 | 项目与登录隔离（F-10.5/10.6、F-17.2/17.5）、执行恢复和锁（F-1.11~1.13）通过；2,000 个逻辑设备扇出成功率 ≥99.5%；介质校验失败 0；型号不可变版本/退役约束通过；受限互信 bootstrap/repair 全链通过；**网络域：BOM 导入包解析（目录/宽表）零重复对象、导入即分配稳定身份、问题清单三级定位、网络设备型号唯一性约束、ZTP 仿真一次成功率 ≥99% 且身份反查 100%**；**PoC 执行包 #P1 已产出**（H-1）。完整 10k 性能 P 项于 staging 验收，P1 仅保留同口径哨兵证据 |
 | P2 | sim：映射自动建立成功率 ≥95%（统计 KPI，不放行任何未满足门禁的目标）；T1–T5 十类变体正确开单并定向复测；四类拓扑异常判 T7 并按证据选择配置/固件/硬件处置，复测闭环 100%；G2 前可关联物理端口身份；门禁范围和版本失效注入通过；Step1 FAIL 阻断 Step2；监控预算与详情状态矩阵通过；**网络域：线缆六类异常全部映射到 T1–T6 且零误报、Golden 比对通过率 ≥99.5%、PushJob 13 态与灰度/回滚注入通过、就绪证明 30s TTL 生效（NP-4）**；**PoC 执行包 #P2 已产出**（H-2~H-5、H-13；P2 固件动作以 mock/人工处置回执验证，真实自动固件通道由 WP-3.12 实现） |
 | P3 | sim：NCCL 通信组启动屏障/整组终止重建/范围报告通过；万卡模拟报告生成 ≤30min；配置→G5→NCCL 顺序及有效 G5 覆盖通过；两期角色切换支持禁用 storage；SC-1~SC-10 注入命中且缺失基线不记 PASS；知识三库达标；CMDB 可查；BMC 型号能力、标准动作及 unknown 对账通过；**网络域：LL-01~LL-07 全规则注入命中、降级三路径（无 WJH/per-XOFF/队列深度）全部 `unknown` 且标注正确、规则 dry-run 零副作用且 diff 正确、全网健康门禁 NP-5 生效、3,000 台级交换机仿真压测达标（NFR-18）**；**PoC 执行包 #P3 已产出**（H-6~H-8、H-10、H-14） |
-| P4 | sim：安全清理验证通过率 ≥99%，仅成功且证据完整的设备进入 maintained；平台所有权清单/归档确认/最后撤销凭据通过；OS 动态监控停止、BMC 白名单持续；模板参数零手填；Agentless 全链门禁不降级；三 Provider 和 AI 权限/引用/草稿审批通过；工单沉淀与真实采纳率口径通过；双平面回归通过；**网络域：全链 sim 贯通（导入包→建模→ZTP→线缆→Golden→健康→NP→G2/G5/G6）、网络证据归档含 `rule_id@version`、第三方适配器与 CSV 降级模式验证**；**PoC 执行包 #P4 已产出**（H-9、H-11、H-12） |
+| P4 | sim：安全清理验证通过率 ≥99%，仅成功且证据完整的设备进入 maintained；平台所有权清单/归档确认/最后撤销凭据通过；OS 动态监控停止、BMC 白名单持续；模板参数零手填；Agentless 全链门禁不降级；三 Provider 和 AI 权限/引用/草稿审批通过；工单沉淀与真实采纳率口径通过；双平面回归通过；**网络域：全链 sim 贯通（导入包→建模→最小 ZTP→N-S5 预校验→Golden→健康→G2 产出 NP-3→G5/G6）、网络证据归档含 `rule_id@version`、第三方适配器与 CSV 降级模式验证**；**PoC 执行包 #P4 已产出**（H-9、H-11、H-12） |
 | P5 | ACCEPTANCE 全部 P0 项通过 + **H-1~H-18 全部回填 PASS（工程所有者择机执行的结果）** + 端到端集成演示（staging sim 10k 全链 + PoC 链路实录）+ 发布包就绪（§10） |
 
 **阶段转换规则**：
@@ -89,7 +89,7 @@ P1 平台底座                P2 验机域                  P3 配置与网络�
 | WP-1.12 | 型号库：稳定 model_id 与不可变 model_version_id；命名空间/版本唯一性；槽位和硬件期望版本绑定；已引用型号可退役禁新增引用、不可删除；ProjectAsset.model_version_id 保留项目历史，Machine 当前型号仅投影；DeviceModelEditor 和 BOM 绑定 | model-svc | WP-1.3, WP-1.8 |
 | WP-1.13 | Project/成员/授权资源范围；URL project_id 与显式 API 项目 ID；查询缓存/SSE/确认框按项目隔离；跨项目设备分配历史与全局运维授权集合 | project-svc 基础、项目迁移、越界/多标签页回归 | WP-1.3 |
 | WP-1.14 | 本地账号、OIDC、LDAP 后端认证与 /login；无默认密码的初始管理员引导；同源 HttpOnly/Secure/SameSite Cookie + CSRF；OIDC state/nonce/PKCE、受限站内 next、统一错误/限流、过期和退出 | auth 契约、登录 UI 规格实现与会话测试 | WP-1.6 |
-| WP-1.15 | **BOM 导入包（统一 BOM 地基，v3.0.2，FR-2.1）**：`BOMImportPackage/ManifestFile/Issue/BOMItem` schema；目录/压缩包解析（`manifest.json` schema v1 + 逐实体 CSV + 列名别名映射）+ 单文件宽表按 SN 折叠兼容；两段式（只读预检 → 单事务幂等提交）；三段校验分级（格式/一致性/工程）与问题清单三级定位导出 CSV；导入即分配 `Machine/Component/PhysicalPort` 稳定 uid；`BomImportWizard` 组件 | fabric-svc 导入子系统 + BomImportWizard | WP-1.3, WP-1.12 |
+| WP-1.15 | **BOM 导入包（统一 BOM 地基，v3.0.2，FR-2.1）**：`BOMImportPackage/ManifestFile/Issue/BOMItem` schema；目录/压缩包解析（`manifest.json` schema v1 + 七个逐实体 CSV + 列名别名映射、排除 manifest 自身的规范化摘要校验）+ 单文件宽表按 SN 折叠服务器物料兼容；两段式（只读预检 → 单事务幂等提交）；三段校验分级（格式/一致性/工程）与问题清单三级定位导出 CSV；导入即分配 `Machine/Component/PhysicalPort` 稳定 uid；`BomImportWizard` 组件 | fabric-svc 导入子系统 + BomImportWizard | WP-1.3, WP-1.12 |
 | WP-1.16 | **网络物料建模与型号扩展（v3.0，FR-0.1/FR-14）**：`Switch/SwitchPort/OpticModule` 实体；model-svc `kind` 增 `switch`（端口编号/breakout 能力矩阵/光模块速率矩阵/NOS 版本范围）；网络侧导入校验（breakout/速率/带宽比/供电）；唯一性判定（序列号/线缆两端排序 uid/端口 `(parent_uid,port_index)`） | fabric-svc 建模 + model-svc 扩展 | WP-1.15 |
 | WP-1.17 | **ZTP 引导与身份识别（仿真环境，v3.0，FR-0.3）**：boot-svc + mock Kea（option 239/143/60-43）+ 身份反查服务 + 引导状态机（9 态）+ 身份优先级（SN>管理口MAC>基板MAC>其他）+ 冲突处置（隔离模板/拒绝下发/问题清单）+ 凭据批次可达性校验 + `ZtpOnboardBoard`；sim：交换机 ZTP 仿真 + golden-file 契约基线 | boot-svc + ZtpOnboardBoard + sim 交换机引导 | WP-1.15, WP-1.6 |
 
@@ -100,7 +100,7 @@ P1 平台底座                P2 验机域                  P3 配置与网络�
 | WP-2.1 | Redfish 采集：L1/L2/L3 分级 + 原始层 + JSONB + 调度 + 失败分类（mock BMC + sim 双档，ADR-14） | redfish-svc | WP-1.3 |
 | WP-2.2 | 资产台账 UI：JSONPath 自定义视图 + 条件着色 + 导出 | Fleet 资产页 | WP-2.1 |
 | WP-2.3 | 预收集+G1；先登记 Machine/Component/PhysicalPort 稳定身份和暂定观测；GateEvidence 绑定目标/端口对/档位/配置映射规则版本/有效期，缺失或陈旧不通过 | validation-svc | WP-1.4, WP-2.1, WP-1.12 |
-| WP-2.4 | LLDP 模块 + G2 深化：lldpd 下发 + 就绪握手三连（ReadinessGate API）+ 重新收集版本化 + 网络平台对接（mock 实现，ADR-14）+ 差异分类 T1–T5 引擎 + 差异明细视图 | lldp 链路 | WP-2.3 |
+| WP-2.4 | LLDP 模块 + G2 深化：lldpd 下发 + 就绪握手三连（G1 与 NP-1/NP-2/NP-4，ReadinessGate API）+ 重新收集版本化 + FR-0.8.2 交换机侧回读适配器（mock 实现，ADR-14）+ 差异分类 T1–T6 引擎 + 差异明细视图；NP-3 由 G2 Step 2/3 三方确认后产出 | lldp 链路 | WP-2.3, WP-2.14, WP-2.15 |
 | WP-2.5 | G3 发布不可变映射版本：LLDP+BOM+型号规则+BDF 合成；复用 G2 前 PhysicalPort 身份；换件保留部件/端口/映射历史，工单可关联 GPU/NIC/Port/BMC | mapping-svc | WP-2.13 |
 | WP-2.6 | 网口监控：portmon-svc 消费 mon-svc 已接收数据；事件/flapping/汇总 + PortPanel/总览/SSE，未知/不支持/失联保留来源与时间 | portmon-svc | WP-2.5, WP-2.10 |
 | WP-2.7 | 工单生命周期/证据/处置/定向复测/升级 + IssueBoard；拖拽调用授权业务动作并校验版本，不直接写 status；告警阻断可例外运行绑定工单的限定复测 | issue-svc | WP-2.6 |
@@ -110,8 +110,8 @@ P1 平台底座                P2 验机域                  P3 配置与网络�
 | WP-2.11 | 详情抽屉重构：ServerDetailDrawer（**五标签懒加载**/上下台切换）+ Fleet 双状态列 StatusPillPair + 状态列直达联动 + 全列表入口统一改造 | 前端重构 | WP-2.5, WP-2.6, WP-2.10 |
 | WP-2.12 | **PCIe 拓扑验证（v2.3，FR-4.8）**：拓扑采集器（sysfs 上游路径遍历 + nvidia-smi NVLink 采集 + LnkCap/LnkSta 读取；**mock nvidia-smi topo 输出为 sim 行为规格**，结构化 fixture 产出路径 `sim/fixtures/nvidia-smi-topo/*.json` 含四类异常注入模板）+ PciTopologySnapshot/TopologyDiff 实体 + 对比引擎（预期=型号库，实际=快照，四维比对）+ T7 工单闭环（证据诊断→适配的配置/固件/硬件处置→重验；固件动作 P2 用 mock 回执；G3 前获批 issue.repair 只豁免被修复上游门禁，身份/兼容/锁/维护白名单仍检查）+ PcieTopologyView 组件（树/亲和矩阵/NVLink/LnkSta/diff 高亮）+ Fleet 拓扑筛选 + **执行包 #P2 的 H-13 脚本** | mapping-svc 扩展 + 拓扑域 | WP-2.3, WP-1.12（型号预期） |
 | WP-2.13 | **四步线序核查重构（v2.3，FR-4.2）**：StepReport 实体与版本化管道 + 流程编排引擎（Step1 消费拓扑快照→Step2 LLDP→Step3 BOM 对照→Step4 确认；任一步 FAIL 阻断+开单）+ G2 门禁详情页四步时间线（DS §5.3）+ 单步重跑 API | validation-svc 重构 | WP-2.4, WP-2.12 |
-| WP-2.14 | **线缆校验与端口线序底座（v3.0，FR-0.5）**：fabricmon-svc 交换机侧采集（LLDP/FDB/ARP/接口状态/DDM）；三方比对（BOM↔交换机 LLDP↔服务器 LLDP）按端口对匹配；差异分类统一映射 T1–T7（错轨=T2-rail 子类，不新增 T8）；线缆结论写入 PortModel；光模块 DDM（`source=switch`）；`FabricReadiness` 就绪证明（30s TTL）经 FR-0.8.1 供 §3.4.2/§3.11 消费 | fabricmon-svc + FR-0.8 接口 | WP-2.3, WP-1.16 |
-| WP-2.15 | **Golden 闭环与网络设备状态视图（v3.0，FR-0.4）**：netbaseline-svc 意图承接与渲染（pongo2 沙箱 + 参数目录占位符 + 项目模板网络配置基线）；Doublecheck 三层（语法/Batfish/一致性三源核对）；备份采集 + 结构化 diff 分级；修复计划 + Batfish/预演；审批（NE+DE / Critical +NH）；PushJob 13 态 + 灰度 + 回滚 + 复采；`NetworkDeviceDrawer`（8 Tab，只读）+ `PushJobWizard`；FR-0.8.2/0.8.3 证据接口 | fabric-svc 闭环 + NetworkDeviceDrawer/PushJobWizard | WP-1.15, WP-1.16, WP-2.14 |
+| WP-2.14 | **网络侧 N-S5 预校验与端口线序底座（v3.0.3，FR-0.5）**：fabricmon-svc 交换机侧采集（LLDP/FDB/ARP/接口状态/DDM）；按 BOM 对交换机互联及服务器接入口的可采证据预校验，未装机服务器端保持 pending；差异归 T1–T6（错轨=T2-rail），不得提前给服务器端口对 NP-3 PASS 或写验证后的 PortModel；提供 FR-0.8.2 回读与 FR-0.8.3 分阶段结论；`FabricReadiness` 的 NP-1/NP-2/NP-4 与 30s TTL 供 G2 启动消费 | fabricmon-svc + FR-0.8 初段接口 | WP-1.16, WP-1.17 |
+| WP-2.15 | **Golden 闭环与网络设备状态视图（v3.0.3，FR-0.4）**：netbaseline-svc 意图承接与渲染（pongo2 沙箱 + 参数目录占位符 + 项目模板网络配置基线）；Doublecheck 下发前三层（语法/Batfish/意图与批准基线一致性）；下发后在 VERIFYING 核对 NVUE 与硬件计数；备份采集 + 结构化 diff 分级；修复计划 + Batfish/预演；审批（NE+DE / Critical +NH）；PushJob 13 态（BLOCKED 修复后重预检、REJECTED 可归档、PARTIAL 关联新任务）+ 灰度 + 回滚 + 复采；`NetworkDeviceDrawer`（8 Tab，只读）+ `PushJobWizard`；FR-0.8.2/0.8.3 证据接口 | fabric-svc 闭环 + NetworkDeviceDrawer/PushJobWizard | WP-1.15, WP-1.16, WP-2.14 |
 
 ### P3 配置与网络测试域
 
@@ -119,10 +119,10 @@ P1 平台底座                P2 验机域                  P3 配置与网络�
 |---|---|---|---|
 | WP-3.1 | ConfigSet 引擎：模板+参数占位符+scope+版本+审批 + 每机渲染 diff 预览（参数快照冻结集成） | config-svc | WP-2.5, WP-1.11 |
 | WP-3.2 | GPU 网络配置 + 网卡分割 + GPU-NIC 绑定 + RoCE 导入渲染器（四类）+ 角色化渲染改造（FR-5.9：模板引用逻辑角色，RoleBinding 绑槽位，unused 跳过；仅 enabled 且 required 的角色要求完整绑定，支持 storage 禁用）+ 角色方案管理页 | 四类渲染模板 + 角色方案 | WP-3.1, WP-1.12 |
-| WP-3.3 | RoCE 连通性测试：nettest-svc 五层编排（L1–L5）+ 分批滚动策略 + per-pair 结果模型 + T1–T6 分类开单 + rail 热力矩阵 UI + 网络平台计数器对接（mock，ADR-14）+ G5 门禁挂接 + ReadinessGate 集成 | nettest-svc | WP-2.7, WP-3.2 |
+| WP-3.3 | RoCE 连通性测试：nettest-svc 五层编排（L1–L5）+ 分批滚动策略 + per-pair 结果模型 + T1–T6 分类开单 + rail 热力矩阵 UI + FR-0.8.4 网络侧计数与降级接口（mock，ADR-14）+ G5 门禁挂接（NP-4/NP-5/NP-6）+ ReadinessGate 集成；工单 source=g5，根因责任域另记 | nettest-svc | WP-2.7, WP-3.2, WP-3.14 |
 | WP-3.4 | 驱动升级作业：预检矩阵（ParamSelect）/金丝雀/分批/读回验证；按组件恢复能力执行已验证回滚或人工恢复，unknown 先核验不盲重试；升级包介质库分发 + 缓存命中 | 驱动升级 Flow | WP-1.10, WP-3.1 |
 | WP-3.5 | media:// 引用的 keel-agent 分发与安装；G3+ 且有效映射准入、amd64/arm64 架构选择、注册凭据生命周期 | agent installer | WP-1.10, WP-2.5 |
-| WP-3.6 | NCCL 框架 S1–S9：GroupRun 资源预留/rank/启动屏障/整组失败与重建/组级回执；明确分组覆盖与单通信组全覆盖；预检（RAS/P2P/G5 核验）+ 介质分发 + 单机/跨机/全集群档 + 熔断 + 结果聚合 + S8 溯源引擎（PortModel 端口定位 + G5 基线比对 + DCGM + 工单关联）+ S9 调优清单生成 | nccl-svc | WP-3.3, WP-1.11 |
+| WP-3.6 | NCCL 框架 S1–S9：GroupRun 资源预留/rank/启动屏障/整组失败与重建/组级回执；明确分组覆盖与单通信组全覆盖；预检（RAS/P2P；跨机档核验 G5 与 NP-5/NP-6，纯机内诊断 G4 后可单独运行但不产出 G6 PASS）+ 介质分发 + 单机/跨机/全集群档 + 熔断 + 结果聚合 + S8 溯源引擎（PortModel 端口定位 + G5 基线比对 + DCGM + 工单关联）+ S9 调优清单生成 | nccl-svc | WP-3.3, WP-1.11 |
 | WP-3.7 | NCCL 报告：HTML/PDF/CSV + 掉队识别 + 网络问题溯源 Tab + 调优建议清单 Tab + 调优→ConfigSet 草稿转化 + G6 评审挂接 | report-svc | WP-3.6 |
 | WP-3.8 | 自定义作业设计器：Monaco（media/param 函数补全红线校验）+ Topology + No-Code + Playground + 蓝图库 | Flow 设计器 | WP-1.8, WP-1.11 |
 | WP-3.9 | 知识库三库同步建设（内容工程，平台内置交付物）：Runbook 库（≥15 个标准处置蓝图 Flow 化）+ NV 资料库（NCCL 2.31 调优指南摘要/环境变量表/RoCE 设计建议，≥30 条目，结构化+版本标注）+ 调优案例库（数据模型+自动沉淀管道）+ RAG 向量化接入（PostgreSQL pgvector，检索前授权过滤/版本出处/评测样本） | 三库初始内容 | WP-3.6（同步进行） |
@@ -131,7 +131,7 @@ P1 平台底座                P2 验机域                  P3 配置与网络�
 | WP-3.12 | **BMC 控制平面（v2.3，FR-16，ADR-16）**：BmcClient 接口扩展（每型号能力矩阵/标准 ResetType；Nmi 为独立诊断动作；LED/电源/UID/BIOS patch/固件更新服务，mock 同 PR，ADR-14）+ 双源标注中间件（字段级 source=agent\|bmc）+ ServerLampPanel 组件（灯语抽象+BMC 失联灰度降级）+ 抽屉资产台账 BMC 维度 + BiosConfigSet/BiosApply 引擎与 BiosBatchOps 页（金丝雀→全量→读回）+ FirmwareWizard 页（五组件 tab + 升级后拓扑重验联动 T7；超时 unknown 查询对账、不得盲重刷、按能力声明回滚/人工恢复）+ bmc:control 权限点 + **执行包 #P3 的 H-14 脚本** | redfish-svc 扩展 + BMC 域 | WP-1.4, WP-1.10, WP-2.1 |
 | WP-3.13 | **NCCL 阈值场景矩阵（v2.3，FR-6.8）**：场景引擎（SC-1~SC-10，按型号/算子/消息大小/规模/路径的实测基线；缺失为 baseline_missing 非 PASS；algbw/busbw 单位与出处入报告）+ S1 预检增补（NUMA 亲和断言/NVLink 链路自检，消费 WP-2.12 拓扑数据）+ S6 聚合场景命中矩阵 + S8 溯源三维扩展（NUMA 违规/降带宽/HBM）+ S9 numactl 调优建议项 + 报告"阈值场景矩阵"章节 + NV 资料库增补硬件规格条目（B300 每 GPU 288GB/最高 8TB/s HBM3e、NVLink 1800GB/s 双向、GB300 Grace Arm 与 rack 拓扑；CUDA 13.x 普通兼容基线 R580，完整版本组合单独验证） | nccl-svc 扩展 | WP-3.6, WP-2.12 |
 | WP-3.14 | **全网健康、无损链路与规则治理（v3.0，FR-0.6/FR-0.7）**：无损四面采集（PFC/ECN/CNP/队列/缓冲/WJH，端口×优先级粒度）+ LL-01~LL-07 判定引擎（携带 `rule_id@version`）+ 健康分（device_min/pod/fabric）+ 降级矩阵（无 WJH/per-XOFF/队列深度 → `unknown`）+ 日志归一化与规则库 + `LosslessMatrix`/`RuleGovernance`/`FabricRule`（版本链/作用域覆盖/保存前校验/dry-run 零副作用/审批/回滚）+ 网络交付基线导出 + 全网健康门禁（NP-5） | fabricmon-svc + LosslessMatrix/RuleGovernance | WP-2.14, WP-1.11 |
-| WP-3.15 | **网络侧 PoC 执行包 #P3 增补 + 规模压测（v3.0）**：H-6~H-8/H-10/H-14 增补网络侧脚本（ZTP 开通/线缆校验/无损降级/规则 dry-run）；3,000 台级交换机仿真压测（NFR-18）；网络证据归档含 `rule_id@version` 清单；模拟网络平台适配器契约（mock，ADR-14） | PoC 执行包 #P3（网络侧）+ 规模报告 | WP-3.14, WP-2.15 |
+| WP-3.15 | **网络侧 PoC 执行包 #P3 增补 + 规模压测（v3.0）**：H-6~H-8/H-10/H-14 增补网络侧脚本（ZTP 开通/线缆校验/无损降级/规则 dry-run）；3,000 台级交换机仿真压测（NFR-18）及统一 BOM 1,360,000 端口实体容量验证（P-14）；网络证据归档含 `rule_id@version` 清单；模拟网络平台适配器契约（mock，ADR-14） | PoC 执行包 #P3（网络侧）+ 规模报告 | WP-3.14, WP-2.15 |
 
 ### P4 AI、模板与退出域
 
@@ -149,7 +149,7 @@ P1 平台底座                P2 验机域                  P3 配置与网络�
 | WP-4.7d | 回归双入口等价、多标签页危险表单冻结、缓存/SSE/角色切换/撤权，运维聚合仅授权项目；两期多项目数据集 | 验证套件 | WP-4.7c |
 | WP-4.8 | **维护期 IPMI-only 监控（v2.3，FR-9.7/13.6，ADR-18）**：mon-svc 维护期调度器分支（BMC 轮询 Execution 白名单；默认 interval=5min，按整机请求成本评估 sweep；预算不足可延长实际 interval，但必须标记 degraded 并记录默认 5min SLO 未达，不以调整后的 interval 冒充原 SLO 通过）+ B7 dtype 采样入 MetricSample + 维护期告警规则（传感器/SEL/失联）+ post-delivery 工单管道（phase 标记）+ /monitor/maintained 页 + cleanup 完成→监控模式切换事件联动 + 权限最小化（OS 凭据随互信撤销清除） | mon-svc 扩展 | WP-2.10, WP-4.4, WP-3.12 |
 | WP-4.9 | **工单沉淀与 AIRAG 回归（v2.3，FR-8.5）**：工单二次分析管道（关闭工单→结构化记录：类型/频率/处置流程/方案）+ 高频问题周批沉淀（≥3 例生成待审条目→顾问评审转正）+ 知识库回归评测跑批（检索命中率/采纳率→运营报告）+ Issue phase/source 双标记与统计页（实施期 vs 交付后复盘视图）+ 知识能力分级（L1–L3）挂接项目模板 | ai-svc/kb 管道 | WP-4.3, WP-2.7 |
-| WP-4.10 | **网络域集成与证据归档（v3.0）**：全链 sim 贯通（BOM 导入包→网络建模→ZTP→线缆校验→Golden 闭环→全网健康 → NP-1…NP-6 → 服务器侧 G2/G5/G6）；规则治理回归；网络交付基线导出与 CMDB 归档（`rule_id@version` 清单）；第三方适配器契约与 CSV 降级模式验证 | fabric 集成报告 + 归档证据 | WP-3.14, WP-2.15, WP-4.4 |
+| WP-4.10 | **网络域集成与证据归档（v3.0.3）**：全链 sim 贯通（标准 BOM 包→建模→最小 ZTP→N-S5 预校验→Golden/PushJob→全网健康→G2 启动查 NP-1/2/4→G2 三方确认产出 NP-3→G5/G6 查 NP-5/6）；规则治理回归；网络交付基线导出与 CMDB 归档（`rule_id@version` 清单）；第三方适配器契约验证；汇集 H-15～H-18 网络 PoC 执行包 | fabric 集成报告 + 归档证据 + 网络 PoC 执行包 | WP-3.14, WP-2.15, WP-2.13, WP-4.4 |
 
 ### P5 稳定化（仅缺陷/加固/文档，禁新功能）
 
@@ -206,8 +206,8 @@ P1 平台底座                P2 验机域                  P3 配置与网络�
 - **maintained 态模拟**：cleanup 后验证 OS 停采/OS 告警停止、BMC 告警继续、调度器按能力白名单过滤；**维护期 BMC 轮询模式切换**（带内停→带外起）。
 - **网络设备仿真（v3.0）**：模拟 SN5610/Cumulus 5.x 的 SSH/CLI、NVUE（`nv show …`）、`ethtool -S` per-priority 计数、WJH 遥测、syslog 流、光模块 DDM（三要素 + 偏置电流）；每个被仿真命令/输出附 **golden-file 契约基线**并进 CI 比对；**不可仿真项（per-XOFF 事件/队列深度/WJH）登记为 `unknown` 降级路径**，不省略；
 - **mock Kea/引导服务（v3.0）**：DHCP option 239/143/60-43、DORA、身份反查、CUMULUS-* 头、ZTP 引导状态机 9 态与失败注入；ZTP 一次成功率与身份反查正确率作为 P1 判据；
-- **网络规则注入（v3.0）**：LL-01（PFC 持续暂停）/LL-02（暂停风暴）/LL-03（ECN 恒不标记）/LL-04（标记过激）/LL-06（无损丢包）/LL-07（ECN-PFC 余量不足）逐条可注入；降级三路径（无 WJH/per-XOFF/队列深度）验证结论为 `unknown`；
-- **BOM 导入包坏样本（v3.0）**：缺列/列名未命中映射/坏引用（线缆端点未解析）/重复 `(category,serial)`/路径穿越/明文凭据混入/编码非法——逐类产出问题清单与分级。
+- **网络规则注入（v3.0）**：LL-01（PFC 持续暂停）/LL-02（暂停风暴）/LL-03（ECN 恒不标记）/LL-04（标记过激）/LL-05（QoS 意图与配置/硬件状态不一致）/LL-06（无损丢包）/LL-07（ECN-PFC 余量不足）逐条可注入；降级三路径（无 WJH/per-XOFF/队列深度）验证结论为 `unknown`；
+- **BOM 导入包坏样本（v3.0）**：缺列/列名未命中映射/坏引用或歧义引用（线缆端点未唯一解析）/同号异摘要/重复 `(category,serial)`/路径穿越/明文凭据混入/编码非法——逐类产出问题清单与分级。
 
 **故障注入矩阵**：
 
@@ -232,7 +232,7 @@ P1 平台底座                P2 验机域                  P3 配置与网络�
 | PushJob 异常 | 灰度金丝雀失败/下发中失败 | 金丝雀失败整批阻断；失败自动回滚到快照；13 态无跳态 |
 | 无损降级 | 关闭 WJH / 无 per-XOFF / 无队列深度 | LL 结论 `unknown` + 降级标记，**绝不 normal/PASS** |
 | 规则 dry-run 副作用 | 规则变更后执行 dry-run | 不写库/不告警/不入事件流/不改健康分；diff 正确 |
-| BOM 导入包坏样本 | 缺列/坏引用/重复序列号/路径穿越/明文凭据 | 三段校验分级定位；BLOCK 未清零不进入 N-S4/装机 |
+| BOM 导入包坏样本 | 缺七文件/缺列/引用歧义或缺失/逐口 MAC 冲突/同批次异摘要/摘要漏算可选文件/路径穿越/明文凭据 | 三段校验分级定位；BLOCK 未清零不进入 N-S4/装机；同号异摘要拒绝覆盖 |
 | 心跳丢失风暴 | 批量断 agent | 指数退避 + agent 失联告警（3 周期）而非误判全部故障 |
 | maintained 态越权 | 尝试对 maintained 设备发起 Flow/采集 | 调度器全局过滤拦截（不变式 8） |
 | **T7 拓扑混乱（v2.3）** | mock nvidia-smi：挂载错位/NUMA 异常/NVLink 缺失/LnkSta 降带宽注入 | FR-4.8 判 T7 → 证据诊断 → 适配的配置/固件/硬件处置 → 定向复测；连续失败升级人工诊断，不强制重复刷写或一律主板 RMA |
@@ -369,6 +369,6 @@ P1 平台底座                P2 验机域                  P3 配置与网络�
 - R09–R13：危险行操作只本行、拖拽走业务授权、目标级门禁、统一单位/未知态、历史查询与活动订阅；前端各 WP 契约先行，U-11~U-15 验证。
 - R14–R17：型号/角色约束、容量/依赖顺序、追踪、AI 安全；见对应 WP 与 docs/requirements-traceability.json。
 - BRAND/AUTH18：产品名统一小写 **keel**；进程/文件用 `keel-agent`、`keel-cache`、`keel-ctrl`，环境变量前缀 `KEEL_`；登录复用 DS 40 组件，IA 22 项为自检维度而非页面总数。
-- **FR-0 网络域落点（v3.0）**：BOM 导入包（WP-1.15）→ 网络建模/型号扩展（WP-1.16）→ ZTP（WP-1.17）→ 线缆校验（WP-2.14）→ Golden 闭环（WP-2.15）→ 无损/规则治理（WP-3.14）→ 集成归档（WP-4.10）；不变式 [I-11]/[I-12] 由 sim-e2e 网络降级与导入包坏样本场景验证；验收对应 ACCEPTANCE F-0.* / U-16。
+- **FR-0 网络域落点（v3.0）**：BOM 导入包（WP-1.15）→ 网络建模/型号扩展（WP-1.16）→ ZTP（WP-1.17）→ 网络侧线缆预校验（WP-2.14，G2 才产出服务器端口对 NP-3）→ Golden 闭环（WP-2.15）→ 无损/规则治理（WP-3.14）→ 集成归档（WP-4.10）；不变式 [I-11]/[I-12] 由 sim-e2e 网络降级与导入包坏样本场景验证；验收对应 ACCEPTANCE F-0.* / U-16。
 - BRAND/AUTH18：产品名统一小写 **keel**；进程/文件用 `keel-agent`、`keel-cache`、`keel-ctrl`，环境变量前缀 `KEEL_`；网络子系统名 `keel-fabric`；登录复用 DS 40 组件，IA 22 项为自检维度而非页面总数。
 - 本文写明的业务测试、PoC、页面和契约均是实施要求；实际完成状态仅以 HANDOFF、CI 和运行证据为准。

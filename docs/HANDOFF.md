@@ -1,5 +1,21 @@
 # Keel 开发交接
 
+## 2026-10-20 网络设计关联文档复审交接
+
+- 工作位置：`ubuntu@43.207.20.26:/opt/keel`，`main` 分支，基点 `8a9b7e0`；所有远端文档操作在 `codex-keel` tmux 会话执行。
+- 按 PRD v3.0.3 同步 `ARCHITECTURE.md`、`DESIGN-SYSTEM.md`、`IMPLEMENTATION-PLAN.md`、`ACCEPTANCE.md`、`docs/requirements-traceability.json`：明确 N-S5 预校验与 G2 产出 NP-3 的阶段边界、G2/G5/G6 就绪门、ZTP 最小配置与首次 PushJob、Doublecheck 前后证据、七文件 BOM 摘要与身份、工单发现来源、无损降级和 90 天原始明细保留。
+- 工作包依赖现为 WP-1.17→WP-2.14→WP-2.15→WP-2.4→WP-2.13，并为 WP-3.3 增加 WP-3.14 依赖；WP-4.10 汇集 G2 证据及 H-15～H-18 PoC 包。新增 F-0.13 跨域负例和 P-14 端口身份容量判据；H-15～H-18 回填仍属于真机 PoC，文档修订不等于实施或验收通过。
+- 验证：`python3 scripts/check-design.py` 通过；64 个工作包依赖图无环；`git diff --check` 通过。此轮只改设计与交接文档，原有未提交的 BOM/型号业务代码改动未触碰。远端当前运行服务状态本轮未复核；继续实施前按实际状态检查。
+
+## 2026-10-20 PRD 复审交接
+
+- 远端工作区：`ubuntu@43.207.20.26:/opt/keel`；分支 `main`，复审前 HEAD `8a9b7e0`。使用 `codex-keel` tmux 会话完成文档检查与修改。下方旧记录保留历史语境，其主机地址与 P1 进度说明已过时；当前功能进度以 README、代码和实际验证为准。
+- 已修订 PRD v3.0.3：解除 NP-3/G2 的循环依赖，分清 N-S5 网络侧预校验与 G2 三方确认；首次 ZTP 仅下发隔离/管理配置，生产配置经 PushJob 审批；首次下发预检不要求 ZTP 已完成或未装机服务器 LLDP；Doublecheck 在下发前核对意图，下发后核对设备；补 PushJob 拒绝/阻断后的转移。
+- BOM 标准包七个逐实体 CSV 必须声明并存在；`content_hash` 排除 manifest 自身且覆盖全部声明文件；同批次号异摘要拒绝覆盖；引用歧义 BLOCK；单文件宽表仅是服务器物料兼容入口。RMA 新实物建立新身份，发现来源与责任域分列，停采先于 agent 卸载。已同步 ARCHITECTURE、DESIGN-SYSTEM、IMPLEMENTATION-PLAN、ACCEPTANCE 与追踪记录。
+- 检查：`python3 scripts/check-design.py` 通过；`git diff --check` 通过。此轮仅改设计文档，未运行或声称业务实现验收。工作区原有未提交的 BOM 导入与型号相关业务代码改动，未修改这些代码。
+- 下一步实施时优先核对 WP-1.15 BOM 导入实现与修订后的包级契约，再推进网络侧 N-S5/G2 分阶段证据。
+
+
 ## 收口记录（2026-10-12，P1 收口已完成）
 
 - 暂停点已固化并提交：`7ba6b6b`（控制面与模拟执行内核）、`0c572a8`（集成套件接入 worker）、`d339850`（执行契约补全）、`388d10b`（执行 UI）。分支 main，ahead 4，**未推送**。

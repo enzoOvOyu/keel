@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "design_version": "v3.0",
+  "design_version": "v3.0.3",
   "product": "keel",
   "updated_at": "2026-10-20",
   "status_semantics": "Design mappings are requirements, not evidence that implementation or validation has passed. FR-0 (network base prerequisite domain) is mapped alongside FR-1..FR-17; network capabilities are supplied in-domain (FR-0.8 evidence interface) with a third-party adapter form.",
@@ -1061,6 +1061,104 @@
       "validation_requirement": "不同项目/设备选型的服务器与网络配置差异一律模板化/版本化，禁止代码硬编码。",
       "design_status": "specified_v3.0",
       "implementation_status": "planned"
+    },
+    {
+      "id": "R-2026-10-20-PRD",
+      "title": "PRD 逻辑与悬空导入契约复审",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "| v3.0.3 变更摘要 |"
+        },
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "### ADR-20 "
+        },
+        {
+          "file": "ACCEPTANCE.md",
+          "marker": "| F-0.8 |"
+        }
+      ],
+      "work_packages": [
+        "WP-1.15",
+        "WP-1.17",
+        "WP-2.4",
+        "WP-2.14",
+        "WP-2.15"
+      ],
+      "acceptance": [
+        "F-0.1",
+        "F-0.2",
+        "F-0.3",
+        "F-0.6",
+        "F-0.8",
+        "F-0.9",
+        "F-0.13",
+        "P-14",
+        "H-15",
+        "H-16",
+        "H-17",
+        "H-18"
+      ],
+      "validation_requirement": "G2 启动仅查 NP-1/NP-2/NP-4，G2 三方比对产出 NP-3；首次引导不因未完成生产配置而死锁；标准 BOM 包七文件齐备，摘要不含 manifest 自身，同号异摘要拒绝；工单保留发现来源；维护态停采先于卸载。",
+      "design_status": "specified_v3.0.3",
+      "implementation_status": "planned"
+    },
+    {
+      "id": "R-2026-10-20-NETWORK-DOCS",
+      "title": "PRD v3.0.3 网络设计关联文档复审",
+      "design_refs": [
+        {
+          "file": "PRD.md",
+          "marker": "| v3.0.3 变更摘要 |"
+        },
+        {
+          "file": "ARCHITECTURE.md",
+          "marker": "### ADR-19 "
+        },
+        {
+          "file": "DESIGN-SYSTEM.md",
+          "marker": "ReadinessGate"
+        },
+        {
+          "file": "IMPLEMENTATION-PLAN.md",
+          "marker": "| WP-4.10 |"
+        },
+        {
+          "file": "ACCEPTANCE.md",
+          "marker": "| F-0.13 |"
+        }
+      ],
+      "work_packages": [
+        "WP-1.15",
+        "WP-1.16",
+        "WP-1.17",
+        "WP-2.4",
+        "WP-2.14",
+        "WP-2.15",
+        "WP-3.3",
+        "WP-3.14",
+        "WP-3.15",
+        "WP-4.10"
+      ],
+      "acceptance": [
+        "F-0.1",
+        "F-0.5",
+        "F-0.6",
+        "F-0.8",
+        "F-0.9",
+        "F-0.12",
+        "F-0.13",
+        "P-11",
+        "P-14",
+        "H-15",
+        "H-16",
+        "H-17",
+        "H-18"
+      ],
+      "validation_requirement": "跨文档依赖无环；G2 启动 NP-1/2/4 与 NP-3 产出分阶段；ZTP 仅最小配置，首次 PushJob 可启动；七文件导入包、身份、来源保持、容量及真机 PoC 有独立验收判据。",
+      "design_status": "specified_v3.0.3",
+      "implementation_status": "planned"
     }
   ],
   "work_package_index": [
@@ -1422,7 +1520,9 @@
       "id": "WP-2.4",
       "phase": "P2",
       "depends_on": [
-        "WP-2.3"
+        "WP-2.3",
+        "WP-2.14",
+        "WP-2.15"
       ],
       "acceptance": [
         "F-4.4",
@@ -1676,7 +1776,8 @@
       "phase": "P3",
       "depends_on": [
         "WP-2.7",
-        "WP-3.2"
+        "WP-3.2",
+        "WP-3.14"
       ],
       "acceptance": [
         "F-11.1",
@@ -2120,7 +2221,8 @@
         "F-0.2",
         "F-0.3",
         "F-0.4",
-        "F-2.1"
+        "F-2.1",
+        "H-15"
       ],
       "implementation_status": "planned"
     },
@@ -2132,7 +2234,8 @@
       ],
       "acceptance": [
         "F-0.4",
-        "F-14.1"
+        "F-14.1",
+        "P-14"
       ],
       "implementation_status": "planned"
     },
@@ -2144,7 +2247,8 @@
         "WP-1.6"
       ],
       "acceptance": [
-        "F-0.5"
+        "F-0.5",
+        "H-16"
       ],
       "implementation_status": "planned"
     },
@@ -2152,13 +2256,14 @@
       "id": "WP-2.14",
       "phase": "P2",
       "depends_on": [
-        "WP-2.3",
-        "WP-1.16"
+        "WP-1.16",
+        "WP-1.17"
       ],
       "acceptance": [
         "F-0.6",
         "F-0.7",
-        "F-0.8"
+        "F-0.8",
+        "H-17"
       ],
       "implementation_status": "planned"
     },
@@ -2188,7 +2293,8 @@
         "F-0.11",
         "F-0.12",
         "P-11",
-        "P-12"
+        "P-12",
+        "H-18"
       ],
       "implementation_status": "planned"
     },
@@ -2206,7 +2312,8 @@
         "F-0.11",
         "H-15",
         "H-16",
-        "H-17"
+        "H-17",
+        "P-14"
       ],
       "implementation_status": "planned"
     },
@@ -2216,11 +2323,13 @@
       "depends_on": [
         "WP-3.14",
         "WP-2.15",
+        "WP-2.13",
         "WP-4.4"
       ],
       "acceptance": [
         "F-0.12",
-        "H-18"
+        "H-18",
+        "F-0.13"
       ],
       "implementation_status": "planned"
     }
