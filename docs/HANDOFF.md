@@ -5,7 +5,7 @@
 - 工作目录 `ubuntu@43.207.20.26:/opt/keel`；GitHub `main` 与本地基点 `p1-complete` = `e7d5f1a`。开发分支 `dev/p1-network-bom` 从该标签分出，已导入 PRD v3.0.3 设计基线；运行中 API 仍为 P1 镜像 `keel:p1-e7d5f1a`，PostgreSQL 已恢复到 10 个迁移，`/healthz` 与 `/api/v1/auth/providers` 可用。运行 Compose 使用 `/home/ubuntu/.config/keel/runtime-p1.env`，不可直接用开发机回环地址启动容器 API。
 - 回退前 27 迁移备份：`/home/ubuntu/.local/state/keel/backups/pre-p1-rollback-20261020T083912Z.dump`。设计文档原提交 `fe68c59` 存于 GitHub `design/prd-v3.0.3-20261020`；旧的未完成 BOM 代码仅在本地 `archive/pre-p1-rollback-20261020`，不计入当前实现。
 - 新开发按 `IMPLEMENTATION-PLAN.md` v3.0.3 的依赖推进，首先实现 WP-1.15 统一 BOM 导入包；P2/P3 旧分支历史不得当作当前工作树的已实现功能。真机 PoC 状态独立于 sim 验证。
-- WP-1.15 当前仅完成包格式内核：标准七 CSV、manifest 全文件摘要、UTF-8/行号/MAC 与 zip/tar.gz 安全解包；数据库事务提交、项目模板映射、交换机型号前置、API 与 UI 尚未完成，验收 F-0.1～F-0.4 不记 PASS。用户已同意把最小映射和交换机型号持久化能力前移到 WP-1.15。
+- WP-1.15 已实现标准包解析与 zip/tar.gz 安全解包、七 CSV/manifest/hash/行号/MAC 校验、项目级映射草稿与批准 API，以及交换机型号和不可变版本能力矩阵。映射批准路径在隔离 PostgreSQL 测试库验证。包级数据库预检、事务提交、物料投影和导入 UI 尚未完成，验收 F-0.1～F-0.4 不记 PASS。用户已同意把最小映射和交换机型号持久化能力前移到 WP-1.15。
 
 
 ## 收口记录（2026-10-12，P1 收口已完成）

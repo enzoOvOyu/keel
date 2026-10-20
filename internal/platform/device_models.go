@@ -34,6 +34,7 @@ type DeviceModelVersionDetail struct {
 	Version          int64           `json:"version"`
 	HwSpec           json.RawMessage `json:"hw_spec"`
 	ExpectedTopology json.RawMessage `json:"expected_topology"`
+	CapabilityMatrix json.RawMessage `json:"capability_matrix"`
 	PanelLayout      json.RawMessage `json:"panel_layout"`
 	BomExpect        json.RawMessage `json:"bom_expect"`
 	DefaultRolePlan  json.RawMessage `json:"default_role_plan"`
@@ -43,11 +44,11 @@ type DeviceModelVersionDetail struct {
 }
 
 type ModelSlot struct {
-	SlotNo        int    `json:"slot_no"`
-	PcieSlot      string `json:"pcie_slot"`
+	SlotNo         int    `json:"slot_no"`
+	PcieSlot       string `json:"pcie_slot"`
 	ExpectNicModel string `json:"expect_nic_model"`
-	PanelPort     string `json:"panel_port"`
-	DefaultRole   string `json:"default_role"`
+	PanelPort      string `json:"panel_port"`
+	DefaultRole    string `json:"default_role"`
 }
 
 type CreateDeviceModelInput struct {
@@ -58,6 +59,7 @@ type CreateDeviceModelInput struct {
 type PublishModelVersionInput struct {
 	HwSpec           map[string]any `json:"hw_spec"`
 	ExpectedTopology map[string]any `json:"expected_topology"`
+	CapabilityMatrix map[string]any `json:"capability_matrix"`
 	PanelLayout      map[string]any `json:"panel_layout"`
 	BomExpect        map[string]any `json:"bom_expect"`
 	DefaultRolePlan  map[string]any `json:"default_role_plan"`
@@ -119,8 +121,8 @@ func (s *Store) CreateDeviceModel(ctx context.Context, a *AuthSession, project *
 	if utf8.RuneCountInString(name) < 1 || utf8.RuneCountInString(name) > 120 {
 		return nil, apiError(400, "VALIDATION_ERROR", "Model name must be 1-120 characters")
 	}
-	if input.Kind != "rack" && input.Kind != "server" && input.Kind != "compute-tray" {
-		return nil, apiError(400, "VALIDATION_ERROR", "Model kind must be rack, server or compute-tray")
+	if input.Kind != "rack" && input.Kind != "server" && input.Kind != "compute-tray" && input.Kind != "switch" {
+		return nil, apiError(400, "VALIDATION_ERROR", "Model kind must be rack, server, compute-tray or switch")
 	}
 	// Only platform administrators maintain the global scope.
 	scope := s.scopeKeyFor(project)
@@ -213,6 +215,9 @@ func (s *Store) PublishModelVersion(ctx context.Context, a *AuthSession, project
 	if m.State == "retired" {
 		return nil, apiError(409, "MODEL_RETIRED", "Retired models cannot publish new versions")
 	}
+	if m.Kind == "switch" && len(input.CapabilityMatrix) == 0 {
+		return nil, apiError(400, "VALIDATION_ERROR", "Switch models require a capability matrix")
+	}
 	var next int64
 	if e = tx.QueryRowContext(ctx, "SELECT coalesce(max(version),0)+1 FROM device_model_versions WHERE model_id=$1", modelID).Scan(&next); e != nil {
 		return nil, e
@@ -221,10 +226,10 @@ func (s *Store) PublishModelVersion(ctx context.Context, a *AuthSession, project
 	if e != nil {
 		return nil, e
 	}
-	v := &DeviceModelVersionDetail{ID: RandomID(), ModelID: modelID, Version: next, HwSpec: modelSpecJSON(input.HwSpec), ExpectedTopology: modelSpecJSON(input.ExpectedTopology), PanelLayout: modelSpecJSON(input.PanelLayout), BomExpect: modelSpecJSON(input.BomExpect), DefaultRolePlan: modelSpecJSON(input.DefaultRolePlan), ContentHash: hash, PublishedAt: time.Now().UTC().Truncate(time.Microsecond), Slots: input.Slots}
+	v := &DeviceModelVersionDetail{ID: RandomID(), ModelID: modelID, Version: next, HwSpec: modelSpecJSON(input.HwSpec), ExpectedTopology: modelSpecJSON(input.ExpectedTopology), CapabilityMatrix: modelSpecJSON(input.CapabilityMatrix), PanelLayout: modelSpecJSON(input.PanelLayout), BomExpect: modelSpecJSON(input.BomExpect), DefaultRolePlan: modelSpecJSON(input.DefaultRolePlan), ContentHash: hash, PublishedAt: time.Now().UTC().Truncate(time.Microsecond), Slots: input.Slots}
 	if _, e = tx.ExecContext(ctx, `INSERT INTO device_model_versions(id,model_id,version,hw_spec,expected_topology,capability_matrix,panel_layout,bom_expect,default_role_plan,content_hash,published_at)
-		VALUES($1,$2,$3,$4,$5,'{}'::jsonb,$6,$7,$8,$9,$10)`,
-		v.ID, modelID, next, v.HwSpec, v.ExpectedTopology, v.PanelLayout, v.BomExpect, v.DefaultRolePlan, hash, v.PublishedAt); e != nil {
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+		v.ID, modelID, next, v.HwSpec, v.ExpectedTopology, v.CapabilityMatrix, v.PanelLayout, v.BomExpect, v.DefaultRolePlan, hash, v.PublishedAt); e != nil {
 		var pg *pgconn.PgError
 		if errors.As(e, &pg) && pg.Code == "23505" {
 			return nil, apiError(409, "MODEL_VERSION_EXISTS", "This model version already exists")
@@ -247,7 +252,7 @@ func (s *Store) PublishModelVersion(ctx context.Context, a *AuthSession, project
 
 func validateModelPayload(input PublishModelVersionInput) error {
 	total := 0
-	for name, value := range map[string]map[string]any{"hw_spec": input.HwSpec, "expected_topology": input.ExpectedTopology, "panel_layout": input.PanelLayout, "bom_expect": input.BomExpect, "default_role_plan": input.DefaultRolePlan} {
+	for name, value := range map[string]map[string]any{"hw_spec": input.HwSpec, "expected_topology": input.ExpectedTopology, "capability_matrix": input.CapabilityMatrix, "panel_layout": input.PanelLayout, "bom_expect": input.BomExpect, "default_role_plan": input.DefaultRolePlan} {
 		if value == nil {
 			continue
 		}
@@ -282,7 +287,7 @@ func validateModelPayload(input PublishModelVersionInput) error {
 }
 
 func modelContentHash(input PublishModelVersionInput) (string, error) {
-	payload := map[string]any{"hw_spec": input.HwSpec, "expected_topology": input.ExpectedTopology, "panel_layout": input.PanelLayout, "bom_expect": input.BomExpect, "default_role_plan": input.DefaultRolePlan, "slots": input.Slots}
+	payload := map[string]any{"hw_spec": input.HwSpec, "expected_topology": input.ExpectedTopology, "capability_matrix": input.CapabilityMatrix, "panel_layout": input.PanelLayout, "bom_expect": input.BomExpect, "default_role_plan": input.DefaultRolePlan, "slots": input.Slots}
 	encoded, e := json.Marshal(payload)
 	if e != nil {
 		return "", e
@@ -309,7 +314,6 @@ func projectIDOf(project *ProjectSummary) string {
 	return project.ID
 }
 
-
 // requireProjectMember accepts any of the six project roles; the caller has
 // already resolved the project record, so this only re-checks membership.
 func requireProjectMember(ctx context.Context, tx *sql.Tx, a *AuthSession, projectID string) error {
@@ -323,7 +327,6 @@ func requireProjectMember(ctx context.Context, tx *sql.Tx, a *AuthSession, proje
 	}
 	return e
 }
-
 
 // ListModelVersions returns the immutable published history of a model.
 // Cross-scope or non-member access returns 404 without leaking existence.
@@ -349,7 +352,7 @@ func (s *Store) ListModelVersions(ctx context.Context, a *AuthSession, project *
 	if e = tx.QueryRowContext(ctx, "SELECT count(*) FROM device_model_versions WHERE model_id=$1", modelID).Scan(&out.Total); e != nil {
 		return out, e
 	}
-	rows, e := tx.QueryContext(ctx, `SELECT id,model_id,version,hw_spec,expected_topology,panel_layout,bom_expect,default_role_plan,content_hash,published_at
+	rows, e := tx.QueryContext(ctx, `SELECT id,model_id,version,hw_spec,expected_topology,capability_matrix,panel_layout,bom_expect,default_role_plan,content_hash,published_at
 		FROM device_model_versions WHERE model_id=$1 ORDER BY version DESC LIMIT $2 OFFSET $3`, modelID, p.PageSize, p.Offset())
 	if e != nil {
 		return out, e
@@ -357,7 +360,7 @@ func (s *Store) ListModelVersions(ctx context.Context, a *AuthSession, project *
 	defer rows.Close()
 	for rows.Next() {
 		var v DeviceModelVersionDetail
-		if e = rows.Scan(&v.ID, &v.ModelID, &v.Version, &v.HwSpec, &v.ExpectedTopology, &v.PanelLayout, &v.BomExpect, &v.DefaultRolePlan, &v.ContentHash, &v.PublishedAt); e != nil {
+		if e = rows.Scan(&v.ID, &v.ModelID, &v.Version, &v.HwSpec, &v.ExpectedTopology, &v.CapabilityMatrix, &v.PanelLayout, &v.BomExpect, &v.DefaultRolePlan, &v.ContentHash, &v.PublishedAt); e != nil {
 			return out, e
 		}
 		v.Slots = []ModelSlot{}

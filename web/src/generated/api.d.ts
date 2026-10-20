@@ -410,10 +410,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/bom/mapping-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createBOMMappingProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/bom/mapping-profiles/{versionRef}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getApprovedBOMMappingProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/bom/mapping-profiles/{versionRef}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approveBOMMappingProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CreateBOMMappingProfileInput: {
+            version_ref: string;
+            server_columns: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            fabric_columns: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+        };
+        BOMMappingProfile: {
+            id: components["schemas"]["EntityID"];
+            project_id: components["schemas"]["EntityID"];
+            version_ref: string;
+            /** @enum {string} */
+            state: "draft" | "approved" | "retired";
+            server_columns: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            fabric_columns: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            approved_at?: string;
+        };
         MediaItemSummary: {
             id: string;
             scope_key: string;
@@ -471,7 +553,7 @@ export interface components {
             scope_key: "global";
             name: string;
             /** @enum {string} */
-            kind: "rack" | "server" | "compute-tray";
+            kind: "rack" | "server" | "compute-tray" | "switch";
             /** @enum {string} */
             state: "active" | "retired";
             /** Format: int64 */
@@ -498,13 +580,16 @@ export interface components {
         CreateDeviceModelInput: {
             name: string;
             /** @enum {string} */
-            kind: "rack" | "server" | "compute-tray";
+            kind: "rack" | "server" | "compute-tray" | "switch";
         };
         PublishModelVersionInput: {
             hw_spec?: {
                 [key: string]: unknown;
             };
             expected_topology?: {
+                [key: string]: unknown;
+            };
+            capability_matrix?: {
                 [key: string]: unknown;
             };
             panel_layout?: {
@@ -525,6 +610,7 @@ export interface components {
             version: number;
             hw_spec: unknown;
             expected_topology: unknown;
+            capability_matrix: unknown;
             panel_layout: unknown;
             bom_expect: unknown;
             default_role_plan: unknown;
@@ -1839,6 +1925,89 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             503: components["responses"]["Unavailable"];
+        };
+    };
+    createBOMMappingProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBOMMappingProfileInput"];
+            };
+        };
+        responses: {
+            /** @description Immutable draft mapping version. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BOMMappingProfile"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getApprovedBOMMappingProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+                versionRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved mapping version only. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BOMMappingProfile"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    approveBOMMappingProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+                versionRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved mapping version; later changes require a new version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BOMMappingProfile"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
 }

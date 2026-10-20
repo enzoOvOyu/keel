@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -72,7 +73,7 @@ var requiredBOMFiles = map[string]struct{ domain, entity string }{
 	"fabric/optic_modules.csv":     {"fabric", "optic_module"},
 	"fabric/cables.csv":            {"fabric", "cable"},
 }
-var packageBatchID = regexp.MustCompile(`^BOM-BATCH-[A-Za-z0-9_-]+-[0-9]{8}-[0-9]+$`)
+var packageBatchID = regexp.MustCompile(`^BOM-BATCH-([A-Za-z0-9_-]+)-([0-9]{8})-([0-9]+)$`)
 var packageHash = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 func packagePath(name string) bool {
@@ -128,8 +129,20 @@ func ValidateBOMPackage(files map[string][]byte) (*BOMPackage, error) {
 	if m.SchemaVersion != "bom-import/v1" {
 		add("BLOCK", "manifest.json", "schema_version", "unsupported_schema", 0)
 	}
-	if !packageBatchID.MatchString(m.BatchID) {
+	batchParts := packageBatchID.FindStringSubmatch(m.BatchID)
+	if batchParts == nil {
 		add("BLOCK", "manifest.json", "bom_import_batch_id", "invalid_batch_id", 0)
+	} else {
+		seq, seqErr := strconv.Atoi(batchParts[3])
+		if batchParts[1] != m.ProjectCode || batchParts[2] != strings.ReplaceAll(m.BatchDate, "-", "") || seqErr != nil || seq != m.Seq {
+			add("BLOCK", "manifest.json", "bom_import_batch_id", "batch_metadata_mismatch", 0)
+		}
+	}
+	if _, dateErr := time.Parse("2006-01-02", m.BatchDate); dateErr != nil {
+		add("BLOCK", "manifest.json", "batch_date", "invalid_batch_date", 0)
+	}
+	if m.DeclaredBy != "design_institute" && m.DeclaredBy != "network_team" && m.DeclaredBy != "server_team" {
+		add("BLOCK", "manifest.json", "declared_by", "invalid_declared_by", 0)
 	}
 	for key, value := range map[string]string{"project_id": m.ProjectID, "project_code": m.ProjectCode, "profile_version_ref": m.ProfileVersionRef, "declared_by": m.DeclaredBy} {
 		if strings.TrimSpace(value) == "" {
@@ -228,9 +241,6 @@ func ValidateBOMPackage(files map[string][]byte) (*BOMPackage, error) {
 			}
 		}
 		_, entityFile := requiredBOMFiles[name]
-		if _, present := indexes["bom_line_no"]; entityFile && !present {
-			add("BLOCK", name, "bom_line_no", "missing_line_number", 0)
-		}
 		for i, record := range rows[1:] {
 			totalRows++
 			if len(record) != len(header) {
@@ -251,16 +261,20 @@ func ValidateBOMPackage(files map[string][]byte) (*BOMPackage, error) {
 					}
 				}
 			}
-			line, e := strconv.Atoi(values["bom_line_no"])
-			if !entityFile {
-				line = i + 2
-			} else if e != nil || line < 1 {
-				add("BLOCK", name, "bom_line_no", "invalid_line_number", i+2)
-				line = 0
-			} else if prior, exists := lineSeen[line]; entityFile && exists {
-				add("BLOCK", name, "bom_line_no", "duplicate_line_number_with_"+prior, line)
-			} else if entityFile {
-				lineSeen[line] = name
+			line := i + 2
+			if entityFile && values["bom_line_no"] != "" {
+				parsed, parseErr := strconv.Atoi(values["bom_line_no"])
+				if parseErr != nil || parsed < 1 {
+					add("BLOCK", name, "bom_line_no", "invalid_line_number", i+2)
+					line = 0
+				} else {
+					line = parsed
+					if prior, exists := lineSeen[line]; exists {
+						add("BLOCK", name, "bom_line_no", "duplicate_line_number_with_"+prior, line)
+					} else {
+						lineSeen[line] = name
+					}
+				}
 			}
 			if name == "server/server_ports.csv" {
 				mac := values["mac"]

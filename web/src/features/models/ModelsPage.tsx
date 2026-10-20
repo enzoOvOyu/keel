@@ -18,7 +18,7 @@ function useIdempotencyKey() {
 }
 function CreateModelDialog({ projectId, onClose, onDone }: { projectId: string; onClose: () => void; onDone: () => Promise<void> }) {
   const { t } = useTranslation(), session = useSession(), action = useAction(), keyFor = useIdempotencyKey()
-  const [name, setName] = useState(''), [kind, setKind] = useState<'rack' | 'server' | 'compute-tray'>('server'), [validation, setValidation] = useState('')
+  const [name, setName] = useState(''), [kind, setKind] = useState<'rack' | 'server' | 'compute-tray' | 'switch'>('server'), [validation, setValidation] = useState('')
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const trimmed = name.trim()
@@ -31,7 +31,7 @@ function CreateModelDialog({ projectId, onClose, onDone }: { projectId: string; 
   return <ActionDialog title={t('modelsCreate')} description={t('modelsCreateDetail')} busy={action.busy} confirm={t(action.busy ? 'saving' : 'modelsCreate')} onSubmit={(event) => void submit(event)} onClose={onClose}>
     <ActionError error={action.error} />{validation && <p className="field-error" role="alert">{validation}</p>}
     <div className="field"><label htmlFor="model-name">{t('modelName')}</label><input id="model-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={120} required disabled={action.busy} /></div>
-    <div className="field"><label htmlFor="model-kind">{t('modelKind')}</label><select id="model-kind" value={kind} onChange={(event) => setKind(event.target.value as typeof kind)} disabled={action.busy}>{(['rack', 'server', 'compute-tray'] as const).map((value) => <option key={value} value={value}>{t('model_kind_' + value)}</option>)}</select></div>
+    <div className="field"><label htmlFor="model-kind">{t('modelKind')}</label><select id="model-kind" value={kind} onChange={(event) => setKind(event.target.value as typeof kind)} disabled={action.busy}>{(['rack', 'server', 'compute-tray', 'switch'] as const).map((value) => <option key={value} value={value}>{t('model_kind_' + value)}</option>)}</select></div>
     <p className="impact-notice">{t('modelImmutableNotice')}</p>
   </ActionDialog>
 }
@@ -61,7 +61,7 @@ const emptySlot = (): SlotDraft => ({ slot_no: '', pcie_slot: '', expect_nic_mod
 function PublishVersionDialog({ projectId, model, seed, onClose, onDone }: { projectId: string; model: DeviceModelSummary; seed?: ModelDraft | null; onClose: () => void; onDone: () => Promise<void> }) {
   const { t } = useTranslation(), session = useSession(), action = useAction(), keyFor = useIdempotencyKey()
   const seeded = seed ? { spec: JSON.stringify(seed.hw_spec ?? {}, null, 2), slots: (seed.slots && seed.slots.length ? seed.slots : undefined) } : null
-  const [hwSpec, setHwSpec] = useState(seeded?.spec ?? '{}'), [slots, setSlots] = useState<SlotDraft[]>(seeded?.slots?.map((slot) => ({ slot_no: String(slot.slot_no), pcie_slot: slot.pcie_slot, expect_nic_model: slot.expect_nic_model, panel_port: slot.panel_port, default_role: slot.default_role })) ?? [emptySlot()]), [validation, setValidation] = useState('')
+  const [hwSpec, setHwSpec] = useState(seeded?.spec ?? '{}'), [capabilityMatrix, setCapabilityMatrix] = useState('{}'), [slots, setSlots] = useState<SlotDraft[]>(seeded?.slots?.map((slot) => ({ slot_no: String(slot.slot_no), pcie_slot: slot.pcie_slot, expect_nic_model: slot.expect_nic_model, panel_port: slot.panel_port, default_role: slot.default_role })) ?? (model.kind === 'switch' ? [] : [emptySlot()])), [validation, setValidation] = useState('')
   function update(index: number, patch: Partial<SlotDraft>) {
     setSlots((current) => current.map((slot, i) => i === index ? { ...slot, ...patch } : slot))
   }
@@ -69,6 +69,10 @@ function PublishVersionDialog({ projectId, model, seed, onClose, onDone }: { pro
     event.preventDefault()
     let parsed: Record<string, unknown>
     try { parsed = JSON.parse(hwSpec) as Record<string, unknown>; if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('invalid') } catch { setValidation(t('modelSpecInvalid')); return }
+    let capability: Record<string, unknown> = {}
+    if (model.kind === 'switch') {
+      try { capability = JSON.parse(capabilityMatrix) as Record<string, unknown>; if (typeof capability !== 'object' || capability === null || Array.isArray(capability) || !Object.keys(capability).length) throw new Error('invalid') } catch { setValidation(t('modelCapabilityInvalid')); return }
+    }
     const cleaned: ModelSlot[] = []
     const seen = new Set<number>()
     for (const slot of slots) {
@@ -79,7 +83,7 @@ function PublishVersionDialog({ projectId, model, seed, onClose, onDone }: { pro
       cleaned.push({ slot_no: no, pcie_slot: slot.pcie_slot.trim(), expect_nic_model: slot.expect_nic_model.trim(), panel_port: slot.panel_port.trim(), default_role: slot.default_role })
     }
     setValidation('')
-    const body = { hw_spec: parsed, slots: cleaned }
+    const body = { hw_spec: parsed, capability_matrix: capability, slots: cleaned }
     const result = await action.run(() => publishModelVersion(projectId, model.id, body, session.csrf_token, keyFor(JSON.stringify(body))))
     if (result.ok) await onDone()
   }
@@ -87,7 +91,8 @@ function PublishVersionDialog({ projectId, model, seed, onClose, onDone }: { pro
     <ActionError error={action.error} />{validation && <p className="field-error" role="alert">{validation}</p>}
     <dl className="action-target"><dt>{t('modelName')}</dt><dd>{model.name}</dd><dt>{t('recordVersion')}</dt><dd>v{model.latest_version}</dd>{seed && <><dt>{t('modelsDraftSource')}</dt><dd>{seed.source_host}</dd></>}</dl>
     <div className="field"><label htmlFor="hw-spec">{t('modelHwSpec')}</label><textarea id="hw-spec" value={hwSpec} onChange={(event) => setHwSpec(event.target.value)} rows={4} disabled={action.busy} className="mono-value" /><span className="field-hint">{t('modelHwSpecHint')}</span></div>
-    <div className="field"><label>{t('modelSlots')}</label>
+    {model.kind === 'switch' && <div className="field"><label htmlFor="capability-matrix">{t('modelCapabilityMatrix')}</label><textarea id="capability-matrix" value={capabilityMatrix} onChange={(event) => setCapabilityMatrix(event.target.value)} rows={6} disabled={action.busy} className="mono-value" /><span className="field-hint">{t('modelCapabilityHint')}</span></div>}
+    {model.kind !== 'switch' && <div className="field"><label>{t('modelSlots')}</label>
       {slots.map((slot, index) => <div key={index} className="slot-row">
         <input aria-label={t('modelSlotNo')} type="number" min={1} max={1024} value={slot.slot_no} onChange={(event) => update(index, { slot_no: event.target.value })} disabled={action.busy} />
         <input aria-label={t('modelPcieSlot')} value={slot.pcie_slot} placeholder="PCIe 3" onChange={(event) => update(index, { pcie_slot: event.target.value })} maxLength={64} disabled={action.busy} />
@@ -97,7 +102,7 @@ function PublishVersionDialog({ projectId, model, seed, onClose, onDone }: { pro
         <button type="button" className="danger-text" disabled={action.busy || slots.length === 1} onClick={() => setSlots((current) => current.filter((_, i) => i !== index))}>{t('cancel')}</button>
       </div>)}
       <button type="button" className="secondary-button" disabled={action.busy} onClick={() => setSlots((current) => [...current, emptySlot()])}>{t('modelAddSlot')}</button>
-    </div>
+    </div>}
     <p className="impact-notice">{t('modelImmutableNotice')}</p>
   </ActionDialog>
 }

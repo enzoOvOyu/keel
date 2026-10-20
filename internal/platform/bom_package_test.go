@@ -26,7 +26,7 @@ func bomFixture(t *testing.T) map[string][]byte {
 		decl = append(decl, BOMPackageFile{Domain: typ.domain, File: name, Entity: typ.entity, Columns: strings.Split(header, ",")})
 	}
 	decl = append(decl, BOMPackageFile{Domain: "address_plan", File: "address_plan.csv", Entity: "address_plan", Columns: []string{"scope", "object_ref", "pool"}})
-	manifest := BOMPackageManifest{SchemaVersion: "bom-import/v1", BatchID: "BOM-BATCH-P1-20261020-1", ProjectCode: "P1", ProjectID: "proj-1", Seq: 1, DeclaredBy: "design_institute", ProfileVersionRef: "profile-v1", DomainFiles: decl, RowCount: 8, ContentHash: BOMContentHash(files)}
+	manifest := BOMPackageManifest{SchemaVersion: "bom-import/v1", BatchID: "BOM-BATCH-P1-20261020-1", ProjectCode: "P1", ProjectID: "proj-1", BatchDate: "2026-10-20", Seq: 1, DeclaredBy: "design_institute", ProfileVersionRef: "profile-v1", DomainFiles: decl, RowCount: 8, ContentHash: BOMContentHash(files)}
 	raw, e := json.Marshal(manifest)
 	if e != nil {
 		t.Fatal(e)
@@ -160,5 +160,107 @@ func TestBOMArchiveExtraction(t *testing.T) {
 	}
 	if _, e = ReadBOMPackageArchive("bad.zip", bad.Bytes()); e == nil {
 		t.Fatal("path traversal accepted")
+	}
+}
+
+func testBOMProfile() *BOMMappingProfile {
+	p := &BOMMappingProfile{ServerColumns: map[string]map[string]string{}, FabricColumns: map[string]map[string]string{}}
+	for name, kind := range requiredBOMFiles {
+		if kind.domain == "server" {
+			p.ServerColumns[name] = map[string]string{}
+		} else {
+			p.FabricColumns[name] = map[string]string{}
+		}
+	}
+	return p
+}
+func rehashBOMFixture(t *testing.T, files map[string][]byte) {
+	t.Helper()
+	var m BOMPackageManifest
+	if e := json.Unmarshal(files["manifest.json"], &m); e != nil {
+		t.Fatal(e)
+	}
+	m.ContentHash = BOMContentHash(files)
+	raw, e := json.Marshal(m)
+	if e != nil {
+		t.Fatal(e)
+	}
+	files["manifest.json"] = raw
+}
+func TestBOMProfileMappingAndAmbiguousEndpoint(t *testing.T) {
+	files := bomFixture(t)
+	files["server/server_ports.csv"] = []byte("bom_line_no,parent_ref,port_index,port_role,hardware_mac,port_name\n3,NIC-1,1,compute,aa:bb:cc:dd:ee:01,dup\n")
+	files["fabric/switch_ports.csv"] = []byte("bom_line_no,parent_ref,port_index,port_name\n5,SW-1,1,dup\n")
+	files["fabric/cables.csv"] = []byte("bom_line_no,endpoint_a,endpoint_b,cable_type,sub_type\n7,dup,5,DAC,DAC200\n")
+	var m BOMPackageManifest
+	if e := json.Unmarshal(files["manifest.json"], &m); e != nil {
+		t.Fatal(e)
+	}
+	for i := range m.DomainFiles {
+		if m.DomainFiles[i].File == "server/server_ports.csv" {
+			m.DomainFiles[i].Columns = []string{"bom_line_no", "parent_ref", "port_index", "port_role", "hardware_mac", "port_name"}
+		}
+	}
+	raw, e := json.Marshal(m)
+	if e != nil {
+		t.Fatal(e)
+	}
+	files["manifest.json"] = raw
+	rehashBOMFixture(t, files)
+	pkg, e := ValidateBOMPackage(files)
+	if e != nil {
+		t.Fatal(e)
+	}
+	profile := testBOMProfile()
+	profile.ServerColumns["server/server_ports.csv"]["hardware_mac"] = "mac"
+	if e = validateBOMMappingProfile(CreateBOMMappingProfileInput{VersionRef: "profile-v1", ServerColumns: profile.ServerColumns, FabricColumns: profile.FabricColumns}); e != nil {
+		t.Fatal(e)
+	}
+	ApplyBOMMappingProfile(pkg, profile)
+	if got := pkg.Rows["server/server_ports.csv"][0].Values["mac"]; got != "aa:bb:cc:dd:ee:01" {
+		t.Fatalf("alias not applied: %q", got)
+	}
+	if !issueFound(pkg, "ambiguous_reference") {
+		t.Fatal("duplicate port display name accepted as cable endpoint")
+	}
+}
+
+func TestBOMMappedLineNumberAndManifestIdentity(t *testing.T) {
+	files := bomFixture(t)
+	files["fabric/cables.csv"] = []byte("Line,endpoint_a,endpoint_b,cable_type,sub_type\n7,3,5,DAC,DAC200\n")
+	var m BOMPackageManifest
+	if e := json.Unmarshal(files["manifest.json"], &m); e != nil {
+		t.Fatal(e)
+	}
+	for i := range m.DomainFiles {
+		if m.DomainFiles[i].File == "fabric/cables.csv" {
+			m.DomainFiles[i].Columns[0] = "Line"
+		}
+	}
+	files["manifest.json"], _ = json.Marshal(m)
+	rehashBOMFixture(t, files)
+	pkg, e := ValidateBOMPackage(files)
+	if e != nil {
+		t.Fatal(e)
+	}
+	profile := testBOMProfile()
+	profile.FabricColumns["fabric/cables.csv"]["Line"] = "bom_line_no"
+	ApplyBOMMappingProfile(pkg, profile)
+	for _, issue := range pkg.Issues {
+		if issue.Severity == "BLOCK" {
+			t.Fatalf("valid mapped line blocked: %+v", issue)
+		}
+	}
+	if pkg.Rows["fabric/cables.csv"][0].Line != 7 {
+		t.Fatal("mapped line number not retained")
+	}
+	m.BatchDate = "2026-10-19"
+	files["manifest.json"], _ = json.Marshal(m)
+	pkg, e = ValidateBOMPackage(files)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if !issueFound(pkg, "batch_metadata_mismatch") {
+		t.Fatal("batch/date mismatch accepted")
 	}
 }

@@ -27,6 +27,7 @@ tags:
 - name: Identity
 - name: Members
 - name: Audit
+- name: BOM
 paths:
   /healthz:
     get:
@@ -1150,6 +1151,84 @@ paths:
           $ref: '#/components/responses/NotFound'
         '503':
           $ref: '#/components/responses/Unavailable'
+  /api/v1/projects/{id}/bom/mapping-profiles:
+    post:
+      tags: [BOM]
+      operationId: createBOMMappingProfile
+      security: [{sessionCookie: []}]
+      x-permission: project:bom:manage
+      x-resource-scope: path-project-admin
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateBOMMappingProfileInput' }
+      responses:
+        '201':
+          description: Immutable draft mapping version.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BOMMappingProfile' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/bom/mapping-profiles/{versionRef}:
+    get:
+      tags: [BOM]
+      operationId: getApprovedBOMMappingProfile
+      security: [{sessionCookie: []}]
+      x-permission: project:bom:read
+      x-resource-scope: path-project
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      - name: versionRef
+        in: path
+        required: true
+        schema: { type: string, maxLength: 120 }
+      responses:
+        '200':
+          description: Approved mapping version only.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BOMMappingProfile' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/bom/mapping-profiles/{versionRef}/approve:
+    post:
+      tags: [BOM]
+      operationId: approveBOMMappingProfile
+      security: [{sessionCookie: []}]
+      x-permission: project:bom:manage
+      x-resource-scope: path-project-admin
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      - name: versionRef
+        in: path
+        required: true
+        schema: { type: string, maxLength: 120 }
+      responses:
+        '200':
+          description: Approved mapping version; later changes require a new version.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BOMMappingProfile' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
 components:
 
   securitySchemes:
@@ -1206,6 +1285,35 @@ components:
         maximum: 100
         default: 20
   schemas:
+    CreateBOMMappingProfileInput:
+      type: object
+      additionalProperties: false
+      required: [version_ref, server_columns, fabric_columns]
+      properties:
+        version_ref: { type: string, minLength: 1, maxLength: 120 }
+        server_columns:
+          type: object
+          additionalProperties: { type: object, additionalProperties: { type: string } }
+        fabric_columns:
+          type: object
+          additionalProperties: { type: object, additionalProperties: { type: string } }
+    BOMMappingProfile:
+      type: object
+      additionalProperties: false
+      required: [id, project_id, version_ref, state, server_columns, fabric_columns, created_at]
+      properties:
+        id: { $ref: '#/components/schemas/EntityID' }
+        project_id: { $ref: '#/components/schemas/EntityID' }
+        version_ref: { type: string }
+        state: { type: string, enum: [draft, approved, retired] }
+        server_columns:
+          type: object
+          additionalProperties: { type: object, additionalProperties: { type: string } }
+        fabric_columns:
+          type: object
+          additionalProperties: { type: object, additionalProperties: { type: string } }
+        created_at: { type: string, format: date-time }
+        approved_at: { type: string, format: date-time }
     MediaItemSummary:
       type: object
       additionalProperties: false
@@ -1260,7 +1368,7 @@ components:
         id: { type: string, pattern: '^[a-f0-9]{32}$' }
         scope_key: { type: string, enum: [global], description: 'Reserved for the platform scope; project scopes use project:<id>.' }
         name: { type: string, minLength: 1, maxLength: 120 }
-        kind: { type: string, enum: [rack, server, compute-tray] }
+        kind: { type: string, enum: [rack, server, compute-tray, switch] }
         state: { type: string, enum: [active, retired] }
         latest_version: { type: integer, format: int64, minimum: 0 }
         created_at: { type: string, format: date-time }
@@ -1290,13 +1398,14 @@ components:
       required: [name, kind]
       properties:
         name: { type: string, minLength: 1, maxLength: 120 }
-        kind: { type: string, enum: [rack, server, compute-tray] }
+        kind: { type: string, enum: [rack, server, compute-tray, switch] }
     PublishModelVersionInput:
       type: object
       additionalProperties: false
       properties:
         hw_spec: { type: object, additionalProperties: true }
         expected_topology: { type: object, additionalProperties: true }
+        capability_matrix: { type: object, additionalProperties: true }
         panel_layout: { type: object, additionalProperties: true }
         bom_expect: { type: object, additionalProperties: true }
         default_role_plan: { type: object, additionalProperties: true }
@@ -1306,13 +1415,14 @@ components:
     DeviceModelVersionDetail:
       type: object
       additionalProperties: false
-      required: [id, model_id, version, hw_spec, expected_topology, panel_layout, bom_expect, default_role_plan, content_hash, published_at, slots]
+      required: [id, model_id, version, hw_spec, expected_topology, capability_matrix, panel_layout, bom_expect, default_role_plan, content_hash, published_at, slots]
       properties:
         id: { type: string, pattern: '^[a-f0-9]{32}$' }
         model_id: { type: string, pattern: '^[a-f0-9]{32}$' }
         version: { type: integer, format: int64, minimum: 1 }
         hw_spec: {}
         expected_topology: {}
+        capability_matrix: {}
         panel_layout: {}
         bom_expect: {}
         default_role_plan: {}
