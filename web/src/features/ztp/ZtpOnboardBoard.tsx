@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ProjectWorkspace, canManageProject, useProject } from '../../components/ProjectWorkspace'
 import { useSession, useExpireOnUnauthorized } from '../../lib/session'
 import { useAction } from '../../lib/management'
-import { actZTPSimSession, createZTPSimSession, getZTPSimSession, listZTPSimSessions, stageZTPMockKea, commitZTPMockKea, type ZTPMockKeaPlan, type ZTPAction } from '../../lib/ztp'
+import { actZTPSimSession, createZTPSimSession, getZTPSimSession, getZTPIsolationScriptManifest, listZTPSimSessions, stageZTPMockKea, commitZTPMockKea, type ZTPMockKeaPlan, type ZTPAction } from '../../lib/ztp'
 
 const stages = ['powered', 'dhcp', 'booturl', 'identity', 'lookup', 'fetch', 'config', 'restart', 'managed']
 function Board() {
@@ -14,12 +14,13 @@ function Board() {
   const [evidence, setEvidence] = useState(''), [phenomenon, setPhenomenon] = useState(''), [cause, setCause] = useState(''), [nextAction, setNextAction] = useState('')
   const [clock, setClock] = useState(Date.now())
   const [pool, setPool] = useState(''), [bootURL, setBootURL] = useState(''), [redirectURI, setRedirectURI] = useState('')
-  const [vci, setVci] = useState('CumulusLinux'), [nos, setNos] = useState('cumulus-linux'), [versionIntent, setVersionIntent] = useState('')
+  const [vci, setVci] = useState('cumulus-linux x86_64'), [nos, setNos] = useState('cumulus-linux'), [versionIntent, setVersionIntent] = useState('')
   const [linkIP, setLinkIP] = useState(''), [plan, setPlan] = useState<ZTPMockKeaPlan | null>(null)
   const canManage = canManageProject(project, session.user.is_admin)
+  const scriptManifest = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-isolation-script'], queryFn: ({ signal }) => getZTPIsolationScriptManifest(project.id, signal) })
   const list = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-sims'], queryFn: ({ signal }) => listZTPSimSessions(project.id, signal) })
   const detail = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-sim', selectedId], queryFn: ({ signal }) => getZTPSimSession(project.id, selectedId, signal), enabled: !!selectedId })
-  useExpireOnUnauthorized(list.error ?? detail.error)
+  useExpireOnUnauthorized(scriptManifest.error ?? list.error ?? detail.error)
   async function stagePlan(event: FormEvent) {
     event.preventDefault()
     const result = await action.run(() => stageZTPMockKea(project.id, { batch_ref: batch.trim(), stage_ref: 'N-S4', management_cidr: pool.trim(), option_239_url: bootURL.trim(), option_143_uris: [redirectURI.trim()], option_60_vci: vci.trim(), option_43: { nos: nos.trim(), version_intent: versionIntent.trim() } }, session.csrf_token))
@@ -54,11 +55,12 @@ function Board() {
   }, [current?.state, current?.next_retry_at])
   return <main className="page-panel">
     <header><h1>{t('ztpTitle')}</h1><p>{t('ztpBoundary')}</p></header>
+    {scriptManifest.data && <section className="panel"><h2>{t('ztpIsolationManifest')}</h2><p>{t('ztpIsolationApproval')}</p><p>SHA256: <code>{scriptManifest.data.sha256}</code> · {scriptManifest.data.size} bytes</p><details><summary>{t('ztpIsolationReview')}</summary><pre>{scriptManifest.data.script}</pre></details></section>}
     {canManage && <form onSubmit={(event) => void stagePlan(event)} className="panel">
       <h2>{t('ztpKeaTitle')}</h2><p>{t('ztpKeaBoundary')}</p>
       <div className="field"><label htmlFor="kea-batch">{t('ztpBatch')}</label><input id="kea-batch" required value={batch} onChange={e => { setBatch(e.target.value); setPlan(null) }} /></div>
       <div className="field"><label htmlFor="kea-pool">{t('ztpKeaPool')}</label><input id="kea-pool" required value={pool} onChange={e => { setPool(e.target.value); setPlan(null) }} placeholder="192.0.2.0/24" /></div>
-      <div className="field"><label htmlFor="kea-url">{t('ztpKea239')}</label><input id="kea-url" required value={bootURL} onChange={e => { setBootURL(e.target.value); setPlan(null) }} placeholder="https://boot.example.invalid/ztp?batch=...&stage=N-S4" /></div>
+      <div className="field"><label htmlFor="kea-url">{t('ztpKea239')}</label><input id="kea-url" required value={bootURL} onChange={e => { setBootURL(e.target.value); setPlan(null) }} placeholder={`https://boot.example.invalid/ztp?project=${project.id}&batch=...&stage=N-S4&policy=APPROVED_MEDIA_ID`} /></div>
       <div className="field"><label htmlFor="kea-redirect">{t('ztpKea143')}</label><input id="kea-redirect" required value={redirectURI} onChange={e => { setRedirectURI(e.target.value); setPlan(null) }} placeholder="https://boot.example.invalid/sztp" /></div>
       <div className="field"><label htmlFor="kea-vci">{t('ztpKea60')}</label><input id="kea-vci" required value={vci} onChange={e => { setVci(e.target.value); setPlan(null) }} /></div>
       <div className="field"><label htmlFor="kea-nos">{t('ztpKeaNOS')}</label><input id="kea-nos" required value={nos} onChange={e => { setNos(e.target.value); setPlan(null) }} /></div>

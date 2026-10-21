@@ -62,8 +62,8 @@ var mediaTransitions = map[string]map[string]bool{
 }
 
 func validateMediaInput(input RegisterMediaInput) error {
-	if input.Type != "driver" && input.Type != "firmware" && input.Type != "os" && input.Type != "nccl" && input.Type != "tool" && input.Type != "config" {
-		return apiError(400, "VALIDATION_ERROR", "Media type must be driver, firmware, os, nccl, tool or config")
+	if input.Type != "driver" && input.Type != "firmware" && input.Type != "os" && input.Type != "nccl" && input.Type != "tool" && input.Type != "config" && input.Type != "ztp_script" {
+		return apiError(400, "VALIDATION_ERROR", "Media type must be driver, firmware, os, nccl, tool, config or ztp_script")
 	}
 	if utf8.RuneCountInString(strings.TrimSpace(input.Name)) < 1 || utf8.RuneCountInString(input.Name) > 120 {
 		return apiError(400, "VALIDATION_ERROR", "Media name must be 1-120 characters")

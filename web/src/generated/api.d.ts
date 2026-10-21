@@ -458,6 +458,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boot/ztp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cumulus option 239 boot URL. Requires a direct management-subnet TCP peer, exact committed project/batch/stage/policy URL, CUMULUS-* identity headers and an approved ztp_script media digest. Serves isolation only; never production configuration or readiness PASS. */
+        get: operations["fetchZTP239IsolationScript"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/isolation-script": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Reviewable fixed script and digest to register as ztp_script media; approval follows the existing uploader/reviewer split. */
+        get: operations["getZTPIsolationScriptManifest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/ztp/mock-kea/plans/stage": {
         parameters: {
             query?: never;
@@ -708,6 +742,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ZTPIsolationScriptManifest: {
+            /** @enum {string} */
+            type: "ztp_script";
+            /** @enum {string} */
+            version: "isolation-v1";
+            sha256: string;
+            /** Format: int64 */
+            size: number;
+            os_scope: string;
+            script: string;
+        };
         ZTPMockKeaOptions: {
             batch_ref: string;
             stage_ref: string;
@@ -948,7 +993,7 @@ export interface components {
             id: string;
             scope_key: string;
             /** @enum {string} */
-            type: "driver" | "firmware" | "os" | "nccl" | "tool" | "config";
+            type: "driver" | "firmware" | "os" | "nccl" | "tool" | "config" | "ztp_script";
             name: string;
             version: string;
             sha256: string;
@@ -977,7 +1022,7 @@ export interface components {
         };
         RegisterMediaInput: {
             /** @enum {string} */
-            type: "driver" | "firmware" | "os" | "nccl" | "tool" | "config";
+            type: "driver" | "firmware" | "os" | "nccl" | "tool" | "config" | "ztp_script";
             name: string;
             version: string;
             sha256: string;
@@ -2456,6 +2501,66 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    fetchZTP239IsolationScript: {
+        parameters: {
+            query: {
+                project: components["schemas"]["EntityID"];
+                batch: string;
+                stage: "N-S4";
+                policy: components["schemas"]["EntityID"];
+            };
+            header: {
+                "CUMULUS-SERIAL": string;
+                "CUMULUS-BASE-MAC": string;
+                "CUMULUS-MGMT-MAC": string;
+                "CUMULUS-PRODUCTNAME": string;
+                "CUMULUS-VERSION": string;
+                "CUMULUS-BUILD": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved fixed Cumulus isolation script; device remains outside production fabric. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/x-shellscript": string;
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getZTPIsolationScriptManifest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Script manifest and exact content for media review. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPIsolationScriptManifest"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     stageZTPMockKeaPlan: {

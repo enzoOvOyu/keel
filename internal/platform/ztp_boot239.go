@@ -1,0 +1,123 @@
+package platform
+
+import (
+	"context"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"github.com/enzoOvOyu/keel/internal/fabricboot"
+	"net/netip"
+	"net/url"
+	"regexp"
+	"strings"
+)
+
+var bootRouteRef = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$`)
+var bootProjectID = regexp.MustCompile(`^[a-f0-9]{32}$`)
+var bootMediaID = regexp.MustCompile(`^[a-f0-9]{32}$`)
+
+type ZTP239Claim struct {
+	Serial      string
+	BaseMAC     string
+	MgmtMAC     string
+	ProductName string
+	Version     string
+	Build       string
+}
+
+type ZTP239Script struct {
+	Body            string
+	SHA256          string
+	IdentityVerdict string
+}
+
+func (s *Store) ServeZTP239(ctx context.Context, projectID, batchRef, stageRef, mediaID, sourceIP, requestScheme, requestHost, requestPath, rawQuery, trace string, claim ZTP239Claim) (*ZTP239Script, error) {
+	if !bootProjectID.MatchString(projectID) || !bootRouteRef.MatchString(batchRef) || stageRef != "N-S4" || !bootMediaID.MatchString(mediaID) || requestPath != "/api/v1/boot/ztp" {
+		return nil, ErrNotFound
+	}
+	source, err := netip.ParseAddr(sourceIP)
+	if err != nil || !source.Is4() {
+		return nil, ErrNotFound
+	}
+	for _, value := range []string{claim.Serial, claim.BaseMAC, claim.MgmtMAC, claim.ProductName, claim.Version, claim.Build} {
+		if strings.TrimSpace(value) == "" || len(value) > 128 || strings.ContainsAny(value, "\r\n\x00") {
+			return nil, apiError(400, "ZTP_239_HEADERS_INVALID", "Required Cumulus device headers are missing or invalid")
+		}
+	}
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	var raw []byte
+	var activeHash string
+	err = tx.QueryRowContext(ctx, `SELECT active_config,coalesce(active_hash,'') FROM ztp_mock_kea_plans WHERE project_id=$1 AND batch_ref=$2 AND stage_ref=$3 FOR SHARE`, projectID, batchRef, stageRef).Scan(&raw, &activeHash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) == 0 {
+		return nil, ErrNotFound
+	}
+	var cfg fabricboot.DHCPOptions
+	if err = json.Unmarshal(raw, &cfg); err != nil {
+		return nil, err
+	}
+	if cfg.ProjectID != projectID || cfg.BatchRef != batchRef || cfg.StageRef != stageRef {
+		return nil, ErrNotFound
+	}
+	mock := fabricboot.NewMockKea()
+	computed, validateErr := mock.Stage(cfg)
+	if validateErr != nil || computed != activeHash {
+		return nil, apiError(409, "ZTP_KEA_ACTIVE_INVALID", "Active Kea configuration failed validation")
+	}
+	prefix, err := netip.ParsePrefix(cfg.ManagementCIDR)
+	if err != nil || !prefix.Contains(source) {
+		return nil, ErrNotFound
+	}
+	configuredURL, err := url.Parse(cfg.Option239URL)
+	if err != nil || configuredURL.Path != requestPath || configuredURL.Scheme != requestScheme || !strings.EqualFold(configuredURL.Host, requestHost) {
+		return nil, ErrNotFound
+	}
+	actualQuery, err := url.ParseQuery(rawQuery)
+	if err != nil || configuredURL.Query().Encode() != actualQuery.Encode() || actualQuery.Get("project") != projectID || actualQuery.Get("batch") != batchRef || actualQuery.Get("stage") != stageRef || actualQuery.Get("policy") != mediaID {
+		return nil, ErrNotFound
+	}
+	var digest string
+	var size int64
+	err = tx.QueryRowContext(ctx, `SELECT sha256,size FROM media_items WHERE id=$1 AND scope_key IN($2,'global') AND type='ztp_script' AND state='approved' FOR SHARE`, mediaID, "project:"+projectID).Scan(&digest, &size)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, apiError(409, "ZTP_SCRIPT_NOT_APPROVED", "Approved isolation script is required")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if digest != fabricboot.IsolationScriptDigest() || size != int64(len(fabricboot.IsolationScriptV1)) {
+		return nil, apiError(409, "ZTP_SCRIPT_DIGEST_MISMATCH", "Approved script differs from isolation template")
+	}
+	verdict, err := resolveZTPIdentityTx(ctx, tx, projectID, ZTPIdentityInput{Serial: claim.Serial, BaseMAC: claim.BaseMAC, MgmtMAC: claim.MgmtMAC})
+	if err != nil {
+		return nil, err
+	}
+	if verdict.Verdict == "conflict" {
+		if err = appendAudit(ctx, tx, "", projectID, "ztp.boot239.conflict", batchRef, trace, map[string]any{"serial": claim.Serial, "source_ip": sourceIP, "reasons": verdict.Reasons}); err != nil {
+			return nil, err
+		}
+		if err = tx.Commit(); err != nil {
+			return nil, err
+		}
+		return nil, apiError(409, "ZTP_IDENTITY_CONFLICT", "Device identity conflicts with SoT")
+	}
+	scriptHash := sha256.Sum256([]byte(fabricboot.IsolationScriptV1))
+	if err = appendAudit(ctx, tx, "", projectID, "ztp.boot239.serve", batchRef, trace, map[string]any{"serial": claim.Serial, "source_ip": sourceIP, "verdict": verdict.Verdict, "switch_id": verdict.SwitchID, "media_id": mediaID, "script_sha256": digest}); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &ZTP239Script{Body: fabricboot.IsolationScriptV1, SHA256: hex.EncodeToString(scriptHash[:]), IdentityVerdict: verdict.Verdict}, nil
+}

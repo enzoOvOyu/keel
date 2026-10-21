@@ -2148,7 +2148,7 @@
         "H-16"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Switch BOM persists mgmt/base/other MAC identities with conflict checks; project-scoped identity preview resolves SN > mgmt > base > other. ZtpOnboardBoard lists and drives project simulation sessions; sessions persist the nine-stage evidence timeline, version checks, failure triad and bounded retry window; sim.managed never updates real switch readiness. Mock Kea validates/stages/commits 239/143/60/43 options and emits a golden DORA contract; project-scoped staging/active configs now persist and DORA is exposed through an authenticated simulation API. ZTP simulation DHCP transition now requires a backend mock DORA ACK from the committed project/batch N-S4 plan and records mock-kea:<hash>; nothing writes to real Kea. Device boot endpoints, 143 mTLS/IDevID, real Kea staging, automatic device retries, approved isolation template, credentials, golden contracts remain; F-0.5 is not passed.",
+      "implementation_notes": "Switch BOM persists mgmt/base/other MAC identities with conflict checks; project-scoped identity preview resolves SN > mgmt > base > other. ZtpOnboardBoard lists and drives project simulation sessions; sessions persist the nine-stage evidence timeline, version checks, failure triad and bounded retry window; sim.managed never updates real switch readiness. Mock Kea validates/stages/commits 239/143/60/43 options and emits a golden DORA contract; project-scoped staging/active configs now persist and DORA is exposed through an authenticated simulation API. ZTP simulation DHCP transition now requires a backend mock DORA ACK from the committed project/batch N-S4 plan and records mock-kea:<hash>; nothing writes to real Kea. A 239 device GET path now checks direct management peer, exact committed URL, six Cumulus headers, SoT verdict and approved ztp_script digest before serving fixed isolation-v1; no production config. Dedicated management listener/hardware PoC, 143 mTLS/IDevID, real Kea staging, automatic device retries, credentials and full golden contracts remain; F-0.5 is not passed.",
       "evidence_refs": [
         "internal/platform/bom_switch_identity.go",
         "internal/platform/migrations/015_switch_identity_macs.sql",
@@ -2169,7 +2169,15 @@
         "internal/platform/migrations/017_ztp_mock_kea_plans.sql",
         "internal/platform/ztp_mock_kea.go",
         "internal/platform/ztp_mock_kea_integration_test.go",
-        "internal/httpapi/ztp_mock_kea.go"
+        "internal/httpapi/ztp_mock_kea.go",
+        "internal/fabricboot/isolation_script.go",
+        "internal/fabricboot/isolation_script_test.go",
+        "internal/fabricboot/testdata/isolation_script_v1.sh",
+        "internal/platform/migrations/018_ztp_script_media_type.sql",
+        "internal/platform/ztp_boot239.go",
+        "internal/platform/ztp_boot239_integration_test.go",
+        "internal/httpapi/ztp_boot239.go",
+        "internal/httpapi/ztp_boot239_test.go"
       ]
     },
     {

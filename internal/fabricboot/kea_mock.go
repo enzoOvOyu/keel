@@ -50,7 +50,7 @@ func planKey(projectID, batchRef, stageRef string) string {
 	return projectID + "\x00" + batchRef + "\x00" + stageRef
 }
 
-func validBootURL(raw string, schemes map[string]bool, batchRef, stageRef string, requireRoute bool) error {
+func validBootURL(raw string, schemes map[string]bool, projectID, batchRef, stageRef string, requireRoute bool) error {
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed == nil || !schemes[parsed.Scheme] || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" || parsed.Opaque != "" {
 		return errors.New("invalid absolute boot URL")
@@ -68,8 +68,8 @@ func validBootURL(raw string, schemes map[string]bool, batchRef, stageRef string
 			return errors.New("device identity cannot be embedded in boot URL")
 		}
 	}
-	if requireRoute && (len(query["batch"]) != 1 || query.Get("batch") != batchRef || len(query["stage"]) != 1 || query.Get("stage") != stageRef) {
-		return errors.New("option 239 must route by batch and stage")
+	if requireRoute && (len(query["project"]) != 1 || query.Get("project") != projectID || len(query["policy"]) != 1 || !projectPattern.MatchString(query.Get("policy")) || len(query["batch"]) != 1 || query.Get("batch") != batchRef || len(query["stage"]) != 1 || query.Get("stage") != stageRef) {
+		return errors.New("option 239 must route by project, batch, stage and approved script reference")
 	}
 	return nil
 }
@@ -82,14 +82,14 @@ func validateOptions(input DHCPOptions) (DHCPOptions, error) {
 	if err != nil || !prefix.Addr().Is4() || !prefix.Addr().IsGlobalUnicast() || prefix.Bits() < 8 || prefix.Bits() > 30 || prefix.Masked().String() != input.ManagementCIDR {
 		return input, errors.New("invalid management IPv4 subnet")
 	}
-	if err = validBootURL(input.Option239URL, map[string]bool{"http": true, "https": true}, input.BatchRef, input.StageRef, true); err != nil {
+	if err = validBootURL(input.Option239URL, map[string]bool{"http": true, "https": true}, input.ProjectID, input.BatchRef, input.StageRef, true); err != nil {
 		return input, err
 	}
 	if len(input.Option143URIs) == 0 || len(input.Option143URIs) > 4 {
 		return input, errors.New("option 143 requires one to four bootstrap URIs")
 	}
 	for _, uri := range input.Option143URIs {
-		if err = validBootURL(uri, map[string]bool{"https": true}, input.BatchRef, input.StageRef, false); err != nil {
+		if err = validBootURL(uri, map[string]bool{"https": true}, input.ProjectID, input.BatchRef, input.StageRef, false); err != nil {
 			return input, err
 		}
 	}

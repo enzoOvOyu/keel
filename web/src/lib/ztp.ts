@@ -13,3 +13,5 @@ export type ZTPMockKeaOptions = components['schemas']['ZTPMockKeaOptions']
 export type ZTPMockKeaPlan = components['schemas']['ZTPMockKeaPlan']
 export const stageZTPMockKea = (projectId: string, input: ZTPMockKeaOptions, csrf: string) => request<ZTPMockKeaPlan>(`/projects/${encodeURIComponent(projectId)}/ztp/mock-kea/plans/stage`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: JSON.stringify(input) })
 export const commitZTPMockKea = (projectId: string, input: components['schemas']['ZTPMockKeaCommitInput'], csrf: string) => request<ZTPMockKeaPlan>(`/projects/${encodeURIComponent(projectId)}/ztp/mock-kea/plans/commit`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: JSON.stringify(input) })
+export type ZTPIsolationScriptManifest = components['schemas']['ZTPIsolationScriptManifest']
+export const getZTPIsolationScriptManifest = (projectId: string, signal?: AbortSignal) => request<ZTPIsolationScriptManifest>(`/projects/${encodeURIComponent(projectId)}/ztp/isolation-script`, { signal })

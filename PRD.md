@@ -250,12 +250,12 @@
 #### 3.0.3 FR-0.3 零接触开通（ZTP/SZTP）与设备身份识别
 
 - **FR-0.3.1 DHCP 选项下发**：按阶段/批次向 Kea 下发——
-  - **option 239**（`cumulus-provision-url`）：携带 ZTP 脚本 URL（URL 内嵌批次/阶段路由参数，不内嵌设备身份）；
+  - **option 239**（`cumulus-provision-url`）：携带 ZTP 脚本 URL（URL 内嵌项目/批次/阶段/已审批脚本介质引用路由参数，不内嵌设备身份）；
   - **option 143**（RFC 8572 `OPTION_V4_SZTP_REDIRECT`）：Bootstrap Server URI 列表；DHCPv6 场景用 option 136；
   - **option 60 / 43**（VCI / Vendor Specific）：承载厂商与 NOS 类别、版本意向子选项。
   Kea 配置由作业流推送并验证生效（先 staging 后 commit）。
   > 修订说明：早期版本曾误写为 option 114 / 137。option 114 并非 RFC 8572 的引导选项，option 137 是 RFC 5223 的 LoST 选项，与本场景无关。
-- **FR-0.3.2 引导服务双通道**：① **239 通道**：设备以 HTTP(S) 拉取脚本，请求头携带 `CUMULUS-SERIAL / CUMULUS-BASE-MAC / CUMULUS-MGMT-MAC / CUMULUS-PRODUCTNAME / CUMULUS-VERSION / CUMULUS-BUILD`，引导服务以此为身份反查主来源；② **143 通道**：设备以 mTLS + IDevID 发起 `get-bootstrapping-data`，服务端校验证书链并提取序列号。两通道收敛到同一身份反查服务与同一模板渲染器，按 SN/MAC 实时渲染个性化引导数据（不预生成存储）。
+- **FR-0.3.2 引导服务双通道**：① **239 通道**：设备以 HTTP(S) 拉取脚本，请求头携带 `CUMULUS-SERIAL / CUMULUS-BASE-MAC / CUMULUS-MGMT-MAC / CUMULUS-PRODUCTNAME / CUMULUS-VERSION / CUMULUS-BUILD`，引导服务以此为身份反查主来源；② **143 通道**：设备以 mTLS + IDevID 发起 `get-bootstrapping-data`，服务端校验证书链并提取序列号。两通道收敛到同一身份反查服务与同一模板渲染器，按 SN/MAC 实时渲染个性化引导数据（不预生成存储）。239 通道只接受管理网直连对端及已生效 Kea URL；脚本介质必须经介质库独立复核批准并与服务端生成内容的 SHA256/大小一致。身份未命中只提供已审批的隔离/管理脚本，冲突拒绝提供脚本；首次引导不得包含业务网络配置。
 - **FR-0.3.3 Cumulus ZTP 实现约束（必须满足，否则引导不生效）**：
   1. ZTP 脚本首部必须包含 `# CUMULUS-AUTOPROVISIONING` 标记，脚本须以 `exit 0` 结束才被标记为开通完成；
   2. 设备拉取脚本时随请求上报 `CUMULUS-*` 头，平台以此作为身份反查输入；

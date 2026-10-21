@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
+	"net/url"
 	"testing"
 )
 
@@ -227,14 +229,28 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if simErr != nil || sim.Mode != "sim" || sim.State != "powered" || len(sim.Events) != 1 {
 		t.Fatalf("simulation session: %+v %v", sim, simErr)
 	}
-	dora := &fabricboot.DORARequest{Interface: "eth0", LinkIP: "192.0.2.1", VendorClass: "CumulusLinux"}
+	dora := &fabricboot.DORARequest{Interface: "eth0", LinkIP: "192.0.2.1", VendorClass: "cumulus-linux x86_64"}
 	if _, simErr = s.AdvanceZTPSimSession(ctx, actor, project, sim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: sim.StateVersion, EvidenceRef: "unverified"}, "test"); simErr == nil {
 		t.Fatal("DHCP advanced without DORA request")
 	}
 	if _, simErr = s.AdvanceZTPSimSession(ctx, actor, project, sim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: sim.StateVersion, DORA: dora}, "test"); simErr == nil {
 		t.Fatal("DHCP advanced without active Kea plan")
 	}
-	keaCfg := fabricboot.DHCPOptions{BatchRef: "sim-batch-1", StageRef: "N-S4", ManagementCIDR: "192.0.2.0/24", Option239URL: "https://boot.example.invalid/ztp?batch=sim-batch-1&stage=N-S4", Option143URIs: []string{"https://boot.example.invalid/sztp"}, Option60VCI: "CumulusLinux", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"}}
+	if _, err = s.CreateUser(ctx, "bom-ztp-reviewer", "BOM ZTP Reviewer", password, true, false); err != nil {
+		t.Fatal(err)
+	}
+	_, reviewer := testLogin(t, s, "bom-ztp-reviewer", password, "198.51.100.93")
+	scriptMedia, simErr := s.RegisterMedia(ctx, actor, project, RegisterMediaInput{Type: "ztp_script", Name: "BOM isolation", Version: "isolation-v1", Sha256: fabricboot.IsolationScriptDigest(), Size: int64(len(fabricboot.IsolationScriptV1)), Arch: "noarch", OsScope: "cumulus-linux-5.x", ManifestRef: "generated:isolation-v1"}, "test")
+	if simErr != nil {
+		t.Fatal(simErr)
+	}
+	if _, simErr = s.TransitionMedia(ctx, actor, project, scriptMedia.ID, "verified", "test"); simErr != nil {
+		t.Fatal(simErr)
+	}
+	if _, simErr = s.TransitionMedia(ctx, reviewer, project, scriptMedia.ID, "approved", "test"); simErr != nil {
+		t.Fatal(simErr)
+	}
+	keaCfg := fabricboot.DHCPOptions{BatchRef: "sim-batch-1", StageRef: "N-S4", ManagementCIDR: "192.0.2.0/24", Option239URL: fmt.Sprintf("https://boot.example.invalid/api/v1/boot/ztp?project=%s&batch=sim-batch-1&stage=N-S4&policy=%s", project.ID, scriptMedia.ID), Option143URIs: []string{"https://boot.example.invalid/sztp"}, Option60VCI: "cumulus-linux x86_64", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"}}
 	keaPlan, simErr := s.StageZTPMockKeaPlan(ctx, actor, project, keaCfg, "test")
 	if simErr != nil {
 		t.Fatal(simErr)
@@ -242,6 +258,20 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	_, simErr = s.CommitZTPMockKeaPlan(ctx, actor, project, ZTPMockKeaCommitInput{BatchRef: keaCfg.BatchRef, StageRef: keaCfg.StageRef, StagedHash: keaPlan.StagedHash, ExpectedVersion: keaPlan.Version}, "test")
 	if simErr != nil {
 		t.Fatal(simErr)
+	}
+	parsedBootURL, simErr := url.Parse(keaCfg.Option239URL)
+	if simErr != nil {
+		t.Fatal(simErr)
+	}
+	goodClaim := ZTP239Claim{Serial: "SW-1", MgmtMAC: "aa:bb:cc:dd:ff:01", BaseMAC: "aa:bb:cc:dd:ff:02", ProductName: "SN5610", Version: "5.0.0", Build: "5.0.0"}
+	served, simErr := s.ServeZTP239(ctx, project.ID, "sim-batch-1", "N-S4", scriptMedia.ID, "192.0.2.8", "https", "boot.example.invalid", parsedBootURL.Path, parsedBootURL.RawQuery, "test", goodClaim)
+	if simErr != nil || served.IdentityVerdict != "matched" || served.Body != fabricboot.IsolationScriptV1 {
+		t.Fatalf("known switch bootstrap: %+v %v", served, simErr)
+	}
+	conflictClaim := goodClaim
+	conflictClaim.Serial = "SW-RMA"
+	if _, simErr = s.ServeZTP239(ctx, project.ID, "sim-batch-1", "N-S4", scriptMedia.ID, "192.0.2.8", "https", "boot.example.invalid", parsedBootURL.Path, parsedBootURL.RawQuery, "test", conflictClaim); simErr == nil {
+		t.Fatal("conflicting switch received bootstrap script")
 	}
 	frontPanel := *dora
 	frontPanel.Interface = "swp1"

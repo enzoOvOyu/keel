@@ -10,13 +10,13 @@ import (
 func sampleOptions() DHCPOptions {
 	return DHCPOptions{
 		ProjectID: "0123456789abcdef0123456789abcdef", BatchRef: "rack-a", StageRef: "N-S4", ManagementCIDR: "192.0.2.0/24",
-		Option239URL:  "https://boot.example.invalid/ztp?batch=rack-a&stage=N-S4",
+		Option239URL:  "https://boot.example.invalid/ztp?project=0123456789abcdef0123456789abcdef&batch=rack-a&stage=N-S4&policy=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		Option143URIs: []string{"https://boot.example.invalid/sztp"},
-		Option60VCI:   "CumulusLinux", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"},
+		Option60VCI:   "cumulus-linux x86_64", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"},
 	}
 }
 func sampleDiscover() DORARequest {
-	return DORARequest{ProjectID: sampleOptions().ProjectID, BatchRef: "rack-a", StageRef: "N-S4", Interface: "eth0", LinkIP: "192.0.2.1", VendorClass: "CumulusLinux"}
+	return DORARequest{ProjectID: sampleOptions().ProjectID, BatchRef: "rack-a", StageRef: "N-S4", Interface: "eth0", LinkIP: "192.0.2.1", VendorClass: "cumulus-linux x86_64"}
 }
 func TestMockKeaStageCommitDORA(t *testing.T) {
 	mock := NewMockKea()
@@ -52,7 +52,7 @@ func TestMockKeaStageCommitDORA(t *testing.T) {
 		t.Fatalf("DORA contract drift:\n%s", raw)
 	}
 	// Stage a replacement: current active offer remains until exact commit.
-	config.Option239URL = "https://boot.example.invalid/ztp-v2?batch=rack-a&stage=N-S4"
+	config.Option239URL = "https://boot.example.invalid/ztp-v2?project=0123456789abcdef0123456789abcdef&batch=rack-a&stage=N-S4&policy=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	nextDigest, err := mock.Stage(config)
 	if err != nil || nextDigest == digest {
 		t.Fatalf("staging replacement: %s %v", nextDigest, err)
@@ -96,8 +96,10 @@ func TestMockKeaManagementOnlyAndValidation(t *testing.T) {
 		}
 	}
 	cases := map[string]func(*DHCPOptions){
-		"identity-in-url":  func(x *DHCPOptions) { x.Option239URL += "&%73erial=SW-1" },
-		"wrong-route":      func(x *DHCPOptions) { x.Option239URL = "https://boot.example.invalid/ztp?batch=other&stage=N-S4" },
+		"identity-in-url": func(x *DHCPOptions) { x.Option239URL += "&%73erial=SW-1" },
+		"wrong-route": func(x *DHCPOptions) {
+			x.Option239URL = "https://boot.example.invalid/ztp?project=0123456789abcdef0123456789abcdef&batch=other&stage=N-S4&policy=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		},
 		"insecure-sztp":    func(x *DHCPOptions) { x.Option143URIs = []string{"http://boot.example.invalid/sztp"} },
 		"front-panel-pool": func(x *DHCPOptions) { x.ManagementCIDR = "198.51.100.0/24"; x.Option239URL += "&mac=aa:bb:cc:dd:ee:ff" },
 		"missing-nos":      func(x *DHCPOptions) { delete(x.Option43, "nos") },

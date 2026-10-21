@@ -1229,6 +1229,86 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/boot/ztp:
+    get:
+      tags: [BOM]
+      operationId: fetchZTP239IsolationScript
+      description: Cumulus option 239 boot URL. Requires a direct management-subnet TCP peer, exact committed project/batch/stage/policy URL, CUMULUS-* identity headers and an approved ztp_script media digest. Serves isolation only; never production configuration or readiness PASS.
+      security: []
+      x-permission: management-network-bootstrap
+      x-resource-scope: management-source-and-approved-script
+      parameters:
+      - name: project
+        in: query
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      - name: batch
+        in: query
+        required: true
+        schema: { type: string }
+      - name: stage
+        in: query
+        required: true
+        schema: { type: string, enum: [N-S4] }
+      - name: policy
+        in: query
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      - name: CUMULUS-SERIAL
+        in: header
+        required: true
+        schema: { type: string, maxLength: 128 }
+      - name: CUMULUS-BASE-MAC
+        in: header
+        required: true
+        schema: { type: string, maxLength: 128 }
+      - name: CUMULUS-MGMT-MAC
+        in: header
+        required: true
+        schema: { type: string, maxLength: 128 }
+      - name: CUMULUS-PRODUCTNAME
+        in: header
+        required: true
+        schema: { type: string, maxLength: 128 }
+      - name: CUMULUS-VERSION
+        in: header
+        required: true
+        schema: { type: string, maxLength: 128 }
+      - name: CUMULUS-BUILD
+        in: header
+        required: true
+        schema: { type: string, maxLength: 128 }
+      responses:
+        '200':
+          description: Approved fixed Cumulus isolation script; device remains outside production fabric.
+          content:
+            text/x-shellscript:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/ztp/isolation-script:
+    get:
+      tags: [BOM]
+      operationId: getZTPIsolationScriptManifest
+      description: Reviewable fixed script and digest to register as ztp_script media; approval follows the existing uploader/reviewer split.
+      security: [{sessionCookie: []}]
+      x-permission: project:fabric:read
+      x-resource-scope: path-project
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      responses:
+        '200':
+          description: Script manifest and exact content for media review.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZTPIsolationScriptManifest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/projects/{id}/ztp/mock-kea/plans/stage:
     post:
       tags: [BOM]
@@ -1771,6 +1851,16 @@ components:
         maximum: 100
         default: 20
   schemas:
+    ZTPIsolationScriptManifest:
+      type: object
+      required: [type, version, sha256, size, os_scope, script]
+      properties:
+        type: { type: string, enum: [ztp_script] }
+        version: { type: string, enum: [isolation-v1] }
+        sha256: { type: string }
+        size: { type: integer, format: int64 }
+        os_scope: { type: string }
+        script: { type: string }
     ZTPMockKeaOptions:
       type: object
       required: [batch_ref, stage_ref, management_cidr, option_239_url, option_143_uris, option_60_vci, option_43]
@@ -2051,7 +2141,7 @@ components:
       properties:
         id: { type: string, pattern: '^[a-f0-9]{32}$' }
         scope_key: { type: string }
-        type: { type: string, enum: [driver, firmware, os, nccl, tool, config] }
+        type: { type: string, enum: [driver, firmware, os, nccl, tool, config, ztp_script] }
         name: { type: string, minLength: 1, maxLength: 120 }
         version: { type: string, minLength: 1, maxLength: 120 }
         sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
@@ -2080,7 +2170,7 @@ components:
       additionalProperties: false
       required: [type, name, version, sha256, size, arch]
       properties:
-        type: { type: string, enum: [driver, firmware, os, nccl, tool, config] }
+        type: { type: string, enum: [driver, firmware, os, nccl, tool, config, ztp_script] }
         name: { type: string, minLength: 1, maxLength: 120 }
         version: { type: string, minLength: 1, maxLength: 120 }
         sha256: { type: string, pattern: '^[a-f0-9]{64}$' }

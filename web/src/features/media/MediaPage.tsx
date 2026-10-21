@@ -7,7 +7,7 @@ import { useAction } from '../../lib/management'
 import { listMedia, registerMedia, transitionMedia, type MediaItemSummary } from '../../lib/media'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 
-const types = ['driver', 'firmware', 'os', 'nccl', 'tool', 'config'] as const
+const types = ['driver', 'firmware', 'os', 'nccl', 'tool', 'config', 'ztp_script'] as const
 const nextStates: Record<string, string[]> = { uploaded: ['verified', 'retired'], verified: ['approved', 'retired'], approved: ['retired'], retired: [] }
 
 function useIdempotencyKey() {

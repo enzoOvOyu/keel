@@ -33,6 +33,18 @@ func (s *Store) ResolveZTPIdentity(ctx context.Context, a *AuthSession, project 
 	if err = requireProjectMember(ctx, tx, a, project.ID); err != nil {
 		return nil, err
 	}
+	out, err := resolveZTPIdentityTx(ctx, tx, project.ID, input)
+	if err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func resolveZTPIdentityTx(ctx context.Context, tx *sql.Tx, projectID string, input ZTPIdentityInput) (*ZTPIdentityResolution, error) {
+	var err error
 	input.Serial = strings.TrimSpace(input.Serial)
 	if input.Serial != "" && !snPattern.MatchString(input.Serial) {
 		return nil, apiError(400, "ZTP_IDENTITY_INVALID", "Invalid switch serial")
@@ -66,7 +78,7 @@ func (s *Store) ResolveZTPIdentity(ctx context.Context, a *AuthSession, project 
 	candidate := ""
 	priority := ""
 	if input.Serial != "" {
-		err = tx.QueryRowContext(ctx, `SELECT s.id FROM switches s WHERE s.serial_number=$1 AND EXISTS(SELECT 1 FROM bom_item_revisions r WHERE r.item_uid=s.id AND r.project_id=$2)`, input.Serial, project.ID).Scan(&candidate)
+		err = tx.QueryRowContext(ctx, `SELECT s.id FROM switches s WHERE s.serial_number=$1 AND EXISTS(SELECT 1 FROM bom_item_revisions r WHERE r.item_uid=s.id AND r.project_id=$2)`, input.Serial, projectID).Scan(&candidate)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return nil, err
 		}
@@ -78,7 +90,7 @@ func (s *Store) ResolveZTPIdentity(ctx context.Context, a *AuthSession, project 
 	matched := map[string]string{}
 	for _, claim := range claims {
 		var id string
-		err = tx.QueryRowContext(ctx, `SELECT b.switch_id FROM switch_mac_bindings b WHERE b.mac=$1 AND EXISTS(SELECT 1 FROM bom_item_revisions r WHERE r.item_uid=b.switch_id AND r.project_id=$2)`, claim.mac, project.ID).Scan(&id)
+		err = tx.QueryRowContext(ctx, `SELECT b.switch_id FROM switch_mac_bindings b WHERE b.mac=$1 AND EXISTS(SELECT 1 FROM bom_item_revisions r WHERE r.item_uid=b.switch_id AND r.project_id=$2)`, claim.mac, projectID).Scan(&id)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return nil, err
 		}
@@ -92,18 +104,18 @@ func (s *Store) ResolveZTPIdentity(ctx context.Context, a *AuthSession, project 
 	}
 	if candidate == "" {
 		out.Reasons = append(out.Reasons, "identity_not_in_sot")
-		return out, tx.Commit()
+		return out, nil
 	}
 	if input.Serial != "" && !serialMatched {
 		out.Verdict = "conflict"
 		out.Reasons = append(out.Reasons, "serial_not_bound_to_matched_switch")
-		return out, tx.Commit()
+		return out, nil
 	}
 	for _, id := range matched {
 		if id != candidate {
 			out.Verdict = "conflict"
 			out.Reasons = append(out.Reasons, "identity_keys_disagree")
-			return out, tx.Commit()
+			return out, nil
 		}
 	}
 	expected := map[string]string{}
@@ -133,17 +145,17 @@ func (s *Store) ResolveZTPIdentity(ctx context.Context, a *AuthSession, project 
 		if want := expected[claim.kind]; want != "" && want != claim.mac {
 			out.Verdict = "conflict"
 			out.Reasons = append(out.Reasons, claim.kind+"_mac_mismatch")
-			return out, tx.Commit()
+			return out, nil
 		}
 		if expected[claim.kind] == "" {
 			out.Reasons = append(out.Reasons, claim.kind+"_mac_not_in_sot")
 		}
 	}
 	if len(out.Reasons) > 0 {
-		return out, tx.Commit()
+		return out, nil
 	}
 	out.Verdict = "matched"
 	out.SwitchID = candidate
 	out.IdentityPriority = priority
-	return out, tx.Commit()
+	return out, nil
 }
