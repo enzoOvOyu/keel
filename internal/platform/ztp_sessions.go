@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"strconv"
 	"strings"
 	"time"
@@ -17,12 +18,13 @@ type ZTPSimSessionInput struct {
 }
 
 type ZTPSessionAction struct {
-	Action          string `json:"action"`
-	ExpectedVersion int64  `json:"expected_version"`
-	EvidenceRef     string `json:"evidence_ref"`
-	Phenomenon      string `json:"phenomenon"`
-	Cause           string `json:"cause"`
-	NextAction      string `json:"next_action"`
+	DORA            *fabricboot.DORARequest `json:"dora,omitempty"`
+	Action          string                  `json:"action"`
+	ExpectedVersion int64                   `json:"expected_version"`
+	EvidenceRef     string                  `json:"evidence_ref"`
+	Phenomenon      string                  `json:"phenomenon"`
+	Cause           string                  `json:"cause"`
+	NextAction      string                  `json:"next_action"`
 }
 
 type ZTPSessionEvent struct {
@@ -235,9 +237,6 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 	if input.EvidenceRef != "" && !validZTPEvidence(input.EvidenceRef) {
 		return nil, apiError(400, "ZTP_EVIDENCE_INVALID", "Invalid stage evidence reference")
 	}
-	if input.Action == "advance" && !validZTPEvidence(input.EvidenceRef) {
-		return nil, apiError(400, "ZTP_EVIDENCE_REQUIRED", "Stage evidence reference is required")
-	}
 	if input.Action == "fail" {
 		for _, value := range []string{input.Phenomenon, input.Cause, input.NextAction} {
 			if strings.TrimSpace(value) == "" || len(value) > 1000 {
@@ -276,10 +275,30 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 		if next == "" {
 			return nil, apiError(409, "ZTP_TRANSITION_INVALID", "No next ZTP stage")
 		}
+		evidence := input.EvidenceRef
+		if next == "dhcp" {
+			if input.DORA == nil {
+				return nil, apiError(400, "ZTP_DORA_REQUIRED", "DORA request is required for DHCP stage")
+			}
+			request := *input.DORA
+			request.ProjectID = project.ID
+			request.BatchRef = out.BatchRef
+			request.StageRef = "N-S4"
+			offer, offerErr := simulateZTPDORATx(ctx, tx, project.ID, request)
+			if offerErr != nil {
+				return nil, offerErr
+			}
+			if offer.Outcome != "ack" {
+				return nil, apiError(409, "ZTP_DHCP_NO_OFFER", "No committed mock Kea offer for management interface")
+			}
+			evidence = "mock-kea:" + offer.ConfigHash
+		} else if !validZTPEvidence(evidence) {
+			return nil, apiError(400, "ZTP_EVIDENCE_REQUIRED", "Stage evidence reference is required")
+		}
 		if next == "config" && out.IdentityResolution.Verdict != "matched" {
 			return nil, apiError(409, "ZTP_IDENTITY_NOT_MATCHED", "Unmatched identity cannot import configuration")
 		}
-		add(next, "sim."+next, input.EvidenceRef)
+		add(next, "sim."+next, evidence)
 		if next == "lookup" && out.IdentityResolution.Verdict != "matched" {
 			state := "isolated"
 			if out.IdentityResolution.Verdict == "conflict" {

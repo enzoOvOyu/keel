@@ -9,3 +9,7 @@ export const listZTPSimSessions = (projectId: string, signal?: AbortSignal) => r
 export const getZTPSimSession = (projectId: string, id: string, signal?: AbortSignal) => request<ZTPDetail>(`${base(projectId)}/${encodeURIComponent(id)}`, { signal })
 export const createZTPSimSession = (projectId: string, input: ZTPSimInput, csrf: string) => request<ZTPDetail>(base(projectId), { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: JSON.stringify(input) })
 export const actZTPSimSession = (projectId: string, id: string, input: ZTPAction, csrf: string) => request<ZTPDetail>(`${base(projectId)}/${encodeURIComponent(id)}/actions`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: JSON.stringify(input) })
+export type ZTPMockKeaOptions = components['schemas']['ZTPMockKeaOptions']
+export type ZTPMockKeaPlan = components['schemas']['ZTPMockKeaPlan']
+export const stageZTPMockKea = (projectId: string, input: ZTPMockKeaOptions, csrf: string) => request<ZTPMockKeaPlan>(`/projects/${encodeURIComponent(projectId)}/ztp/mock-kea/plans/stage`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: JSON.stringify(input) })
+export const commitZTPMockKea = (projectId: string, input: components['schemas']['ZTPMockKeaCommitInput'], csrf: string) => request<ZTPMockKeaPlan>(`/projects/${encodeURIComponent(projectId)}/ztp/mock-kea/plans/commit`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: JSON.stringify(input) })

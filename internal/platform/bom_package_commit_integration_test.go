@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"testing"
 )
 
@@ -226,24 +227,53 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if simErr != nil || sim.Mode != "sim" || sim.State != "powered" || len(sim.Events) != 1 {
 		t.Fatalf("simulation session: %+v %v", sim, simErr)
 	}
+	dora := &fabricboot.DORARequest{Interface: "eth0", LinkIP: "192.0.2.1", VendorClass: "CumulusLinux"}
+	if _, simErr = s.AdvanceZTPSimSession(ctx, actor, project, sim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: sim.StateVersion, EvidenceRef: "unverified"}, "test"); simErr == nil {
+		t.Fatal("DHCP advanced without DORA request")
+	}
+	if _, simErr = s.AdvanceZTPSimSession(ctx, actor, project, sim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: sim.StateVersion, DORA: dora}, "test"); simErr == nil {
+		t.Fatal("DHCP advanced without active Kea plan")
+	}
+	keaCfg := fabricboot.DHCPOptions{BatchRef: "sim-batch-1", StageRef: "N-S4", ManagementCIDR: "192.0.2.0/24", Option239URL: "https://boot.example.invalid/ztp?batch=sim-batch-1&stage=N-S4", Option143URIs: []string{"https://boot.example.invalid/sztp"}, Option60VCI: "CumulusLinux", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"}}
+	keaPlan, simErr := s.StageZTPMockKeaPlan(ctx, actor, project, keaCfg, "test")
+	if simErr != nil {
+		t.Fatal(simErr)
+	}
+	_, simErr = s.CommitZTPMockKeaPlan(ctx, actor, project, ZTPMockKeaCommitInput{BatchRef: keaCfg.BatchRef, StageRef: keaCfg.StageRef, StagedHash: keaPlan.StagedHash, ExpectedVersion: keaPlan.Version}, "test")
+	if simErr != nil {
+		t.Fatal(simErr)
+	}
+	frontPanel := *dora
+	frontPanel.Interface = "swp1"
+	if _, simErr = s.AdvanceZTPSimSession(ctx, actor, project, sim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: sim.StateVersion, DORA: &frontPanel}, "test"); simErr == nil {
+		t.Fatal("front-panel DORA advanced session")
+	}
 	for _, stage := range []string{"dhcp", "booturl", "identity", "lookup", "fetch", "config", "restart", "managed"} {
-		sim, simErr = s.AdvanceZTPSimSession(ctx, actor, project, sim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: sim.StateVersion, EvidenceRef: "sim-evidence-" + stage}, "test")
+		action := ZTPSessionAction{Action: "advance", ExpectedVersion: sim.StateVersion, EvidenceRef: "sim-evidence-" + stage}
+		if stage == "dhcp" {
+			action.DORA = dora
+		}
+		sim, simErr = s.AdvanceZTPSimSession(ctx, actor, project, sim.ID, action, "test")
 		if simErr != nil || sim.State != stage {
 			t.Fatalf("stage %s: %+v %v", stage, sim, simErr)
 		}
 	}
-	if sim.Mode != "sim" || len(sim.Events) != 9 || sim.ManagedAt == nil {
+	if sim.Mode != "sim" || len(sim.Events) != 9 || sim.ManagedAt == nil || sim.Events[1].EvidenceRef != "mock-kea:"+keaPlan.StagedHash {
 		t.Fatalf("simulation timeline: %+v", sim)
 	}
 	if _, simErr = s.AdvanceZTPSimSession(ctx, actor, project, sim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: 1, EvidenceRef: "stale"}, "test"); simErr == nil {
 		t.Fatal("stale ZTP state version accepted")
 	}
-	conflictSim, simErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-2", BootChannel: "143", Identity: ZTPIdentityInput{Serial: "SW-RMA", MgmtMAC: "aa:bb:cc:dd:ff:01"}}, "test")
+	conflictSim, simErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-1", BootChannel: "143", Identity: ZTPIdentityInput{Serial: "SW-RMA", MgmtMAC: "aa:bb:cc:dd:ff:01"}}, "test")
 	if simErr != nil {
 		t.Fatal(simErr)
 	}
 	for _, stage := range []string{"dhcp", "booturl", "identity"} {
-		conflictSim, simErr = s.AdvanceZTPSimSession(ctx, actor, project, conflictSim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: conflictSim.StateVersion, EvidenceRef: "sim-evidence-" + stage}, "test")
+		action := ZTPSessionAction{Action: "advance", ExpectedVersion: conflictSim.StateVersion, EvidenceRef: "sim-evidence-" + stage}
+		if stage == "dhcp" {
+			action.DORA = dora
+		}
+		conflictSim, simErr = s.AdvanceZTPSimSession(ctx, actor, project, conflictSim.ID, action, "test")
 		if simErr != nil {
 			t.Fatal(simErr)
 		}
@@ -252,7 +282,7 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if simErr != nil || conflictSim.State != "conflict" || len(conflictSim.Events) != 6 {
 		t.Fatalf("conflict timeline: %+v %v", conflictSim, simErr)
 	}
-	failedSim, simErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-3", BootChannel: "239", Identity: ZTPIdentityInput{Serial: "SW-1"}}, "test")
+	failedSim, simErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-1", BootChannel: "239", Identity: ZTPIdentityInput{Serial: "SW-1"}}, "test")
 	if simErr != nil {
 		t.Fatal(simErr)
 	}

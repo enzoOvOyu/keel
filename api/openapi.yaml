@@ -1860,6 +1860,7 @@ components:
       properties:
         action: { type: string, enum: [advance, fail, retry] }
         expected_version: { type: integer, minimum: 1 }
+        dora: { $ref: '#/components/schemas/ZTPDORARequest' }
         evidence_ref: { type: string, maxLength: 300 }
         phenomenon: { type: string, maxLength: 1000 }
         cause: { type: string, maxLength: 1000 }

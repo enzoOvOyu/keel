@@ -125,9 +125,22 @@ func (s *Store) SimulateZTPDORA(ctx context.Context, a *AuthSession, project *Pr
 	if err = requireProjectMember(ctx, tx, a, project.ID); err != nil {
 		return nil, err
 	}
+	result, err := simulateZTPDORATx(ctx, tx, project.ID, req)
+	if err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func simulateZTPDORATx(ctx context.Context, tx *sql.Tx, projectID string, req fabricboot.DORARequest) (*fabricboot.DORAResult, error) {
+	req.ProjectID = projectID
+	var err error
 	var raw []byte
 	var activeHash string
-	err = tx.QueryRowContext(ctx, `SELECT active_config,coalesce(active_hash,'') FROM ztp_mock_kea_plans WHERE project_id=$1 AND batch_ref=$2 AND stage_ref=$3`, project.ID, req.BatchRef, req.StageRef).Scan(&raw, &activeHash)
+	err = tx.QueryRowContext(ctx, `SELECT active_config,coalesce(active_hash,'') FROM ztp_mock_kea_plans WHERE project_id=$1 AND batch_ref=$2 AND stage_ref=$3`, projectID, req.BatchRef, req.StageRef).Scan(&raw, &activeHash)
 	if errors.Is(err, sql.ErrNoRows) {
 		return &fabricboot.DORAResult{Outcome: "no_offer", Reason: "no_active_plan"}, nil
 	}
@@ -141,7 +154,7 @@ func (s *Store) SimulateZTPDORA(ctx context.Context, a *AuthSession, project *Pr
 	if err = json.Unmarshal(raw, &cfg); err != nil {
 		return nil, err
 	}
-	if cfg.ProjectID != project.ID || cfg.BatchRef != req.BatchRef || cfg.StageRef != req.StageRef {
+	if cfg.ProjectID != projectID || cfg.BatchRef != req.BatchRef || cfg.StageRef != req.StageRef {
 		return nil, apiError(409, "ZTP_KEA_SCOPE_MISMATCH", "Active Kea configuration scope changed")
 	}
 	mock := fabricboot.NewMockKea()
@@ -155,9 +168,6 @@ func (s *Store) SimulateZTPDORA(ctx context.Context, a *AuthSession, project *Pr
 	result, err := mock.DORA(req)
 	if err != nil {
 		return nil, apiError(400, "ZTP_DORA_INVALID", err.Error())
-	}
-	if err = tx.Commit(); err != nil {
-		return nil, err
 	}
 	return &result, nil
 }

@@ -780,6 +780,7 @@ export interface components {
             /** @enum {string} */
             action: "advance" | "fail" | "retry";
             expected_version: number;
+            dora?: components["schemas"]["ZTPDORARequest"];
             evidence_ref?: string;
             phenomenon?: string;
             cause?: string;
