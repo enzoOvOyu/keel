@@ -1,5 +1,11 @@
 # Keel 开发交接
 
+## 2026-10-21 暂停点：FR-0.3 Kea 控制适配器
+
+- 工作目录 `ubuntu@43.207.20.26:/opt/keel`，开发分支 `dev/p1-network-bom`。本阶段新增 `internal/fabricboot/kea_control.go`：仅允许显式 CA 与客户端证书连接 HTTPS Kea 控制端点，禁重定向；完整 Dhcp4 配置依次执行当前 hash 核对、`config-test`、漂移复核、`config-set`、生效 hash 回读。拒绝不完整顶层结构或无可核验返回，不记录完整配置及凭据。测试覆盖成功、漂移、测试拒绝、回读不符、重定向及无效配置。
+- 该适配器尚未连接已批准作业流、配置持久化或真实 Kea；未测试真实 DORA 或服务重启后的配置保留。现有 `ztp_mock_kea_plans` 仍是模拟选项，不代表生产 DHCP 生效。FR-0.3.1 及 FR-0 全部验收仍未闭环。下一步从批准的完整配置产物与串行作业接入该适配器，并在隔离 Kea 环境验证配置回读、持久化与 DORA。
+- 验证：`go test ./internal/fabricboot -run ^TestKea -count=1`、`python3 scripts/check-design.py`、`make check`（含 Go race、vet、前端类型检查与构建）及 `git diff --check` 均通过。用户要求本阶段完成后暂停；暂停期间不部署、不迁移 P1 运行环境。恢复时先核对本节提交、分支与工作树，再继续。
+
 ## 2026-10-20 P1 回退后的开发接续
 
 - 工作目录 `ubuntu@43.207.20.26:/opt/keel`；GitHub `main` 与本地基点 `p1-complete` = `e7d5f1a`。开发分支 `dev/p1-network-bom` 从该标签分出，已导入 PRD v3.0.3 设计基线；运行中 API 仍为 P1 镜像 `keel:p1-e7d5f1a`，PostgreSQL 已恢复到 10 个迁移，`/healthz` 与 `/api/v1/auth/providers` 可用。运行 Compose 使用 `/home/ubuntu/.config/keel/runtime-p1.env`，不可直接用开发机回环地址启动容器 API。
