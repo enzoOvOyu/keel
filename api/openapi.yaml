@@ -1229,6 +1229,91 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/ztp/mock-kea/plans/stage:
+    post:
+      tags: [BOM]
+      operationId: stageZTPMockKeaPlan
+      description: Validates and persists a simulation-only Kea candidate; active DORA offers stay unchanged.
+      security: [{sessionCookie: []}]
+      x-permission: project:fabric:plan
+      x-resource-scope: path-project-admin
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZTPMockKeaOptions' }
+      responses:
+        '200':
+          description: Staged candidate hash and optimistic version.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZTPMockKeaPlan' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/projects/{id}/ztp/mock-kea/plans/commit:
+    post:
+      tags: [BOM]
+      operationId: commitZTPMockKeaPlan
+      description: Promotes the exact staged mock candidate to active; never writes to real Kea.
+      security: [{sessionCookie: []}]
+      x-permission: project:fabric:plan
+      x-resource-scope: path-project-admin
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZTPMockKeaCommitInput' }
+      responses:
+        '200':
+          description: Active simulated option plan.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZTPMockKeaPlan' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/ztp/mock-kea/dora:
+    post:
+      tags: [BOM]
+      operationId: simulateZTPDORA
+      description: Read-only mock DORA offer selection from the committed management subnet plan.
+      security: [{sessionCookie: []}]
+      x-permission: project:fabric:read
+      x-resource-scope: path-project
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZTPDORARequest' }
+      responses:
+        '200':
+          description: Mock ACK options or explicit no_offer; no physical DHCP operation.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZTPDORAResult' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/projects/{id}/ztp/sim-sessions:
     get:
       tags: [BOM]
@@ -1686,6 +1771,68 @@ components:
         maximum: 100
         default: 20
   schemas:
+    ZTPMockKeaOptions:
+      type: object
+      required: [batch_ref, stage_ref, management_cidr, option_239_url, option_143_uris, option_60_vci, option_43]
+      properties:
+        batch_ref: { type: string, maxLength: 160 }
+        stage_ref: { type: string, maxLength: 160 }
+        management_cidr: { type: string }
+        option_239_url: { type: string, format: uri }
+        option_143_uris:
+          type: array
+          minItems: 1
+          maxItems: 4
+          items: { type: string, format: uri }
+        option_60_vci: { type: string }
+        option_43:
+          type: object
+          required: [nos, version_intent]
+          properties:
+            nos: { type: string }
+            version_intent: { type: string }
+    ZTPMockKeaPlan:
+      type: object
+      required: [batch_ref, stage_ref, version, updated_at]
+      properties:
+        batch_ref: { type: string }
+        stage_ref: { type: string }
+        staged_hash: { type: string }
+        active_hash: { type: string }
+        version: { type: integer, format: int64 }
+        updated_at: { type: string, format: date-time }
+    ZTPMockKeaCommitInput:
+      type: object
+      required: [batch_ref, stage_ref, staged_hash, expected_version]
+      properties:
+        batch_ref: { type: string }
+        stage_ref: { type: string }
+        staged_hash: { type: string }
+        expected_version: { type: integer, format: int64 }
+    ZTPDORARequest:
+      type: object
+      required: [batch_ref, stage_ref, interface, link_ip, vendor_class]
+      properties:
+        batch_ref: { type: string }
+        stage_ref: { type: string }
+        interface: { type: string }
+        link_ip: { type: string, format: ipv4 }
+        vendor_class: { type: string }
+    ZTPDORAResult:
+      type: object
+      required: [outcome]
+      properties:
+        outcome: { type: string, enum: [ack, no_offer] }
+        reason: { type: string }
+        config_hash: { type: string }
+        option_239_url: { type: string }
+        option_143_uris:
+          type: array
+          items: { type: string }
+        option_60_vci: { type: string }
+        option_43:
+          type: object
+          additionalProperties: { type: string }
     ZTPSessionSummary:
       type: object
       required: [id, batch_ref, boot_channel, state, state_version, attempt, identity_verdict, updated_at]

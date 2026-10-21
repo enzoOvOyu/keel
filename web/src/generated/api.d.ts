@@ -458,6 +458,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/ztp/mock-kea/plans/stage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Validates and persists a simulation-only Kea candidate; active DORA offers stay unchanged. */
+        post: operations["stageZTPMockKeaPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/mock-kea/plans/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Promotes the exact staged mock candidate to active; never writes to real Kea. */
+        post: operations["commitZTPMockKeaPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/mock-kea/dora": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Read-only mock DORA offer selection from the committed management subnet plan. */
+        post: operations["simulateZTPDORA"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/ztp/sim-sessions": {
         parameters: {
             query?: never;
@@ -657,6 +708,56 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ZTPMockKeaOptions: {
+            batch_ref: string;
+            stage_ref: string;
+            management_cidr: string;
+            /** Format: uri */
+            option_239_url: string;
+            option_143_uris: string[];
+            option_60_vci: string;
+            option_43: {
+                nos: string;
+                version_intent: string;
+            };
+        };
+        ZTPMockKeaPlan: {
+            batch_ref: string;
+            stage_ref: string;
+            staged_hash?: string;
+            active_hash?: string;
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ZTPMockKeaCommitInput: {
+            batch_ref: string;
+            stage_ref: string;
+            staged_hash: string;
+            /** Format: int64 */
+            expected_version: number;
+        };
+        ZTPDORARequest: {
+            batch_ref: string;
+            stage_ref: string;
+            interface: string;
+            /** Format: ipv4 */
+            link_ip: string;
+            vendor_class: string;
+        };
+        ZTPDORAResult: {
+            /** @enum {string} */
+            outcome: "ack" | "no_offer";
+            reason?: string;
+            config_hash?: string;
+            option_239_url?: string;
+            option_143_uris?: string[];
+            option_60_vci?: string;
+            option_43?: {
+                [key: string]: string;
+            };
+        };
         ZTPSessionSummary: {
             id: components["schemas"]["EntityID"];
             batch_ref: string;
@@ -2350,6 +2451,97 @@ export interface operations {
                     "application/json": components["schemas"]["BOMMappingProfile"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    stageZTPMockKeaPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZTPMockKeaOptions"];
+            };
+        };
+        responses: {
+            /** @description Staged candidate hash and optimistic version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPMockKeaPlan"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    commitZTPMockKeaPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZTPMockKeaCommitInput"];
+            };
+        };
+        responses: {
+            /** @description Active simulated option plan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPMockKeaPlan"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    simulateZTPDORA: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZTPDORARequest"];
+            };
+        };
+        responses: {
+            /** @description Mock ACK options or explicit no_offer; no physical DHCP operation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPDORAResult"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
