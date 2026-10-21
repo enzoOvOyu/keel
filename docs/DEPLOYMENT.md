@@ -65,6 +65,12 @@ python3 scripts/configure-development.py --grant
 
 迁移使用事务、advisory lock和checksum；已执行版本不能直接改写SQL。API启动只检查迁移，不自动修复或降级。受限应用账号可操作认证/项目表，但不能修改/删除审计或写迁移历史；管理员保留DDL能力，因此审计触发器不能代替生产归档与权限隔离。
 
+## SZTP 143 开发入口（开发分支）
+
+143 设备入口使用独立 TLS 监听器，只有同时配置下列四个变量且 API 连接到已迁移的开发/隔离数据库时才启动：`KEEL_SZTP_LISTEN_ADDR`、`KEEL_SZTP_TLS_CERT_FILE`、`KEEL_SZTP_TLS_KEY_FILE`、`KEEL_SZTP_IDEVID_CA_FILE`。CA 文件仅接受 PEM 编码的签发 CA；TLS 强制设备客户端证书，并按该 CA 重新验证 IDevID 链及 subject serialNumber。监听器只暴露 `POST /restconf/operations/ietf-sztp-bootstrap-server:get-bootstrapping-data`，需要 `application/yang-data+json` 输入；无输入时可用空 body。option 143 必须是 `https://host[:port]`。设备必须从 active mock Kea 管理网来源直连，请求 Host 必须与唯一 active URI 对应，且脚本介质已独立批准。收到 `signed-data-preferred` 时返回错误，绝不发送未签名 onboarding。
+
+这一入口是开发验证能力，尚未部署到 3000 端口 P1 镜像，也不证明设备信任服务器证书、真实 Kea 生效、RESTCONF 全部操作或交换机真机开通。生产使用前需在独立管理网部署、配置受保护的服务器私钥与制造商 CA，并完成目标设备证书链及机型 PoC。不得把开发 mock offer 当作真实 DHCP 证据。
+
 ## 初始化与服务器账号管理
 
 首次管理员无默认密码。由服务器操作员交互输入，或使用当前用户拥有、权限600且不是符号链接的密码文件：

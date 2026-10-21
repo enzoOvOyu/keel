@@ -28,7 +28,7 @@ func TestZTP239ApprovedIsolationScript(t *testing.T) {
 		t.Fatal(err)
 	}
 	query := fmt.Sprintf("project=%s&batch=rack-a&stage=N-S4&policy=%s", project.ID, media.ID)
-	cfg := fabricboot.DHCPOptions{BatchRef: "rack-a", StageRef: "N-S4", ManagementCIDR: "192.0.2.0/24", Option239URL: "https://boot.example.invalid/api/v1/boot/ztp?" + query, Option143URIs: []string{"https://boot.example.invalid/sztp"}, Option60VCI: "cumulus-linux x86_64", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"}}
+	cfg := fabricboot.DHCPOptions{BatchRef: "rack-a", StageRef: "N-S4", ManagementCIDR: "192.0.2.0/24", Option239URL: "https://boot.example.invalid/api/v1/boot/ztp?" + query, Option143URIs: []string{"https://boot.example.invalid"}, Option60VCI: "cumulus-linux x86_64", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"}}
 	plan, err := s.StageZTPMockKeaPlan(ctx, uploader, project, cfg, "test")
 	if err != nil {
 		t.Fatal(err)

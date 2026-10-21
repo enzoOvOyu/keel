@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -12,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/httpapi"
 	"github.com/enzoOvOyu/keel/internal/platform"
 )
@@ -28,6 +31,7 @@ func main() {
 		dir = "web/dist"
 	}
 	var handler http.Handler = httpapi.New(version, dir)
+	var store *platform.Store
 	if dsn := os.Getenv("KEEL_DATABASE_URL"); dsn != "" {
 		config := platform.Config{Environment: os.Getenv("KEEL_ENV"), InsecureDevCookie: os.Getenv("KEEL_INSECURE_DEV_COOKIE") == "true"}
 		for _, origin := range strings.Split(os.Getenv("KEEL_PUBLIC_ORIGINS"), ",") {
@@ -40,12 +44,13 @@ func main() {
 			os.Exit(1)
 		}
 		connectCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		store, err := platform.Open(connectCtx, dsn)
+		opened, err := platform.Open(connectCtx, dsn)
 		cancel()
 		if err != nil {
 			slog.Error("database unavailable; refusing to start")
 			os.Exit(1)
 		}
+		store = opened
 		defer store.Close()
 		checkCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		err = store.CheckMigrations(checkCtx)
@@ -65,10 +70,63 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("keel API listening", "address", listener.Addr().String(), "version", version)
-	if err := serve(ctx, srv, listener); err != nil {
-		slog.Error("server", "error", err)
+	sztpSrv, sztpListener, err := optionalSZTPListener(store)
+	if err != nil {
+		_ = listener.Close()
+		slog.Error("SZTP listener rejected", "error", err)
 		os.Exit(1)
 	}
+	if sztpSrv == nil {
+		if err := serve(ctx, srv, listener); err != nil {
+			slog.Error("server", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
+	slog.Info("keel SZTP listening", "address", sztpListener.Addr().String())
+	results := make(chan error, 2)
+	go func() { results <- serve(ctx, srv, listener) }()
+	go func() { results <- serve(ctx, sztpSrv, sztpListener) }()
+	first := <-results
+	stop()
+	second := <-results
+	if first != nil || second != nil {
+		slog.Error("server", "api_or_sztp_error", fmt.Sprintf("%v; %v", first, second))
+		os.Exit(1)
+	}
+}
+
+func optionalSZTPListener(store *platform.Store) (*http.Server, net.Listener, error) {
+	addr := os.Getenv("KEEL_SZTP_LISTEN_ADDR")
+	certFile := os.Getenv("KEEL_SZTP_TLS_CERT_FILE")
+	keyFile := os.Getenv("KEEL_SZTP_TLS_KEY_FILE")
+	caFile := os.Getenv("KEEL_SZTP_IDEVID_CA_FILE")
+	if addr == "" && certFile == "" && keyFile == "" && caFile == "" {
+		return nil, nil, nil
+	}
+	if addr == "" || certFile == "" || keyFile == "" || caFile == "" || store == nil {
+		return nil, nil, errors.New("SZTP requires database, listen address, TLS certificate/key and manufacturer CA file")
+	}
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, nil, err
+	}
+	raw, err := os.ReadFile(caFile)
+	if err != nil {
+		return nil, nil, err
+	}
+	roots, err := fabricboot.ParseIDevIDRoots(raw)
+	if err != nil {
+		return nil, nil, err
+	}
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return nil, nil, err
+	}
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}, ClientAuth: tls.RequireAndVerifyClientCert, ClientCAs: roots, MinVersion: tls.VersionTLS12}
+	handler := httpapi.NewSZTPHandler(store, roots)
+	srv := &http.Server{Addr: addr, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 16}
+	return srv, tls.NewListener(listener, tlsConfig), nil
 }
 
 // serve keeps the main goroutine alive until active requests have drained.

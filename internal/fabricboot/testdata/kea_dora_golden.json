@@ -1,9 +1,9 @@
 {
   "outcome": "ack",
-  "config_hash": "f7fa5764156b5b3ce45cbd2c301861368166159e7c4d23ae547c35b5e01f9608",
+  "config_hash": "c2d13f3414d584e8bdc6b32a327b00388e36089a100a5f3ec96c6178833b083e",
   "option_239_url": "https://boot.example.invalid/ztp?project=0123456789abcdef0123456789abcdef\u0026batch=rack-a\u0026stage=N-S4\u0026policy=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "option_143_uris": [
-    "https://boot.example.invalid/sztp"
+    "https://boot.example.invalid"
   ],
   "option_60_vci": "cumulus-linux x86_64",
   "option_43": {

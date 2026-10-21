@@ -250,7 +250,7 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if _, simErr = s.TransitionMedia(ctx, reviewer, project, scriptMedia.ID, "approved", "test"); simErr != nil {
 		t.Fatal(simErr)
 	}
-	keaCfg := fabricboot.DHCPOptions{BatchRef: "sim-batch-1", StageRef: "N-S4", ManagementCIDR: "192.0.2.0/24", Option239URL: fmt.Sprintf("https://boot.example.invalid/api/v1/boot/ztp?project=%s&batch=sim-batch-1&stage=N-S4&policy=%s", project.ID, scriptMedia.ID), Option143URIs: []string{"https://boot.example.invalid/sztp"}, Option60VCI: "cumulus-linux x86_64", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"}}
+	keaCfg := fabricboot.DHCPOptions{BatchRef: "sim-batch-1", StageRef: "N-S4", ManagementCIDR: "192.0.2.0/24", Option239URL: fmt.Sprintf("https://boot.example.invalid/api/v1/boot/ztp?project=%s&batch=sim-batch-1&stage=N-S4&policy=%s", project.ID, scriptMedia.ID), Option143URIs: []string{"https://boot.example.invalid"}, Option60VCI: "cumulus-linux x86_64", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"}}
 	keaPlan, simErr := s.StageZTPMockKeaPlan(ctx, actor, project, keaCfg, "test")
 	if simErr != nil {
 		t.Fatal(simErr)

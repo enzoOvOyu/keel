@@ -3,6 +3,7 @@ package fabricboot
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"regexp"
 	"strings"
@@ -35,4 +36,31 @@ func VerifyIDevID(state *tls.ConnectionState, roots *x509.CertPool, now time.Tim
 		return "", err
 	}
 	return serial, nil
+}
+
+// ParseIDevIDRoots accepts only CA certificates from an explicitly supplied
+// PEM bundle. The operating system trust store is never used for device auth.
+func ParseIDevIDRoots(raw []byte) (*x509.CertPool, error) {
+	roots := x509.NewCertPool()
+	count := 0
+	for len(raw) > 0 {
+		block, rest := pem.Decode(raw)
+		if block == nil {
+			return nil, errors.New("invalid manufacturer CA PEM")
+		}
+		raw = rest
+		if block.Type != "CERTIFICATE" {
+			return nil, errors.New("manufacturer CA bundle contains non-certificate PEM")
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil || !cert.IsCA || cert.KeyUsage&x509.KeyUsageCertSign == 0 {
+			return nil, errors.New("manufacturer trust certificate must be a signing CA")
+		}
+		roots.AddCert(cert)
+		count++
+	}
+	if count == 0 {
+		return nil, errors.New("manufacturer CA bundle is empty")
+	}
+	return roots, nil
 }

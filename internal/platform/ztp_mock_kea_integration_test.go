@@ -20,7 +20,7 @@ func TestZTPMockKeaDurableStageCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := fabricboot.DHCPOptions{BatchRef: "rack-a", StageRef: "N-S4", ManagementCIDR: "192.0.2.0/24", Option239URL: fmt.Sprintf("https://boot.example.invalid/ztp?project=%s&batch=rack-a&stage=N-S4&policy=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", project.ID), Option143URIs: []string{"https://boot.example.invalid/sztp"}, Option60VCI: "cumulus-linux x86_64", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"}}
+	cfg := fabricboot.DHCPOptions{BatchRef: "rack-a", StageRef: "N-S4", ManagementCIDR: "192.0.2.0/24", Option239URL: fmt.Sprintf("https://boot.example.invalid/ztp?project=%s&batch=rack-a&stage=N-S4&policy=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", project.ID), Option143URIs: []string{"https://boot.example.invalid"}, Option60VCI: "cumulus-linux x86_64", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"}}
 	req := fabricboot.DORARequest{BatchRef: "rack-a", StageRef: "N-S4", Interface: "eth0", LinkIP: "192.0.2.1", VendorClass: "cumulus-linux x86_64"}
 	first, err := s.SimulateZTPDORA(ctx, actor, project, req)
 	if err != nil || first.Outcome != "no_offer" {

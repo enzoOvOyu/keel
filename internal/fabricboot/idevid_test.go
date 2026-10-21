@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"math/big"
 	"testing"
 	"time"
@@ -29,6 +30,13 @@ func TestVerifyIDevID(t *testing.T) {
 	}
 	roots := x509.NewCertPool()
 	roots.AddCert(root)
+	pemRoot := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: rootDER})
+	if parsed, e := ParseIDevIDRoots(pemRoot); e != nil || len(parsed.Subjects()) != 1 {
+		t.Fatalf("CA PEM: %v", e)
+	}
+	if _, e := ParseIDevIDRoots(nil); e == nil {
+		t.Fatal("empty manufacturer CA accepted")
+	}
 	makeLeaf := func(serial string, eku []x509.ExtKeyUsage) *x509.Certificate {
 		t.Helper()
 		key, e := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

@@ -11,7 +11,7 @@ func sampleOptions() DHCPOptions {
 	return DHCPOptions{
 		ProjectID: "0123456789abcdef0123456789abcdef", BatchRef: "rack-a", StageRef: "N-S4", ManagementCIDR: "192.0.2.0/24",
 		Option239URL:  "https://boot.example.invalid/ztp?project=0123456789abcdef0123456789abcdef&batch=rack-a&stage=N-S4&policy=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		Option143URIs: []string{"https://boot.example.invalid/sztp"},
+		Option143URIs: []string{"https://boot.example.invalid"},
 		Option60VCI:   "cumulus-linux x86_64", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"},
 	}
 }
@@ -100,7 +100,10 @@ func TestMockKeaManagementOnlyAndValidation(t *testing.T) {
 		"wrong-route": func(x *DHCPOptions) {
 			x.Option239URL = "https://boot.example.invalid/ztp?project=0123456789abcdef0123456789abcdef&batch=other&stage=N-S4&policy=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 		},
-		"insecure-sztp":    func(x *DHCPOptions) { x.Option143URIs = []string{"http://boot.example.invalid/sztp"} },
+		"insecure-sztp":    func(x *DHCPOptions) { x.Option143URIs = []string{"http://boot.example.invalid"} },
+		"sztp-path":        func(x *DHCPOptions) { x.Option143URIs = []string{"https://boot.example.invalid/sztp"} },
+		"sztp-query":       func(x *DHCPOptions) { x.Option143URIs = []string{"https://boot.example.invalid?project=other"} },
+		"sztp-port":        func(x *DHCPOptions) { x.Option143URIs = []string{"https://boot.example.invalid:65536"} },
 		"front-panel-pool": func(x *DHCPOptions) { x.ManagementCIDR = "198.51.100.0/24"; x.Option239URL += "&mac=aa:bb:cc:dd:ee:ff" },
 		"missing-nos":      func(x *DHCPOptions) { delete(x.Option43, "nos") },
 		"bad-prefix":       func(x *DHCPOptions) { x.ManagementCIDR = "192.0.2.1/24" },

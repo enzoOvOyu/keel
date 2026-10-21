@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -89,8 +90,15 @@ func validateOptions(input DHCPOptions) (DHCPOptions, error) {
 		return input, errors.New("option 143 requires one to four bootstrap URIs")
 	}
 	for _, uri := range input.Option143URIs {
-		if err = validBootURL(uri, map[string]bool{"https": true}, input.ProjectID, input.BatchRef, input.StageRef, false); err != nil {
-			return input, err
+		parsed, parseErr := url.Parse(uri)
+		if parseErr != nil || parsed == nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil || parsed.Opaque != "" || parsed.Path != "" || parsed.RawPath != "" || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" || strings.ContainsAny(uri, "\r\n\x00") || parsed.String() != uri {
+			return input, errors.New("option 143 URI must be https://host[:port] without path or query")
+		}
+		if port := parsed.Port(); port != "" {
+			n, portErr := strconv.Atoi(port)
+			if portErr != nil || n < 1 || n > 65535 {
+				return input, errors.New("option 143 port must be 1..65535")
+			}
 		}
 	}
 	if strings.TrimSpace(input.Option60VCI) == "" || len(input.Option60VCI) > 128 || strings.ContainsAny(input.Option60VCI, "\r\n\x00") {
