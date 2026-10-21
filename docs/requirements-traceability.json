@@ -2148,7 +2148,7 @@
         "H-16"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Switch BOM persists mgmt/base/other MAC identities with conflict checks; project-scoped identity preview resolves SN > mgmt > base > other. ZtpOnboardBoard lists and drives project simulation sessions; sessions persist the nine-stage evidence timeline, version checks, failure triad and bounded retry window; sim.managed never updates real switch readiness. Device boot endpoints, 143 mTLS/IDevID, Kea option staging, automatic device retries, approved isolation template, credentials, golden contracts remain; F-0.5 is not passed.",
+      "implementation_notes": "Switch BOM persists mgmt/base/other MAC identities with conflict checks; project-scoped identity preview resolves SN > mgmt > base > other. ZtpOnboardBoard lists and drives project simulation sessions; sessions persist the nine-stage evidence timeline, version checks, failure triad and bounded retry window; sim.managed never updates real switch readiness. An isolated in-process mock Kea now validates/stages/commits 239/143/60/43 options and emits a golden DORA contract, but is not wired to ZTP sessions or real Kea. Device boot endpoints, 143 mTLS/IDevID, real Kea staging, automatic device retries, approved isolation template, credentials, golden contracts remain; F-0.5 is not passed.",
       "evidence_refs": [
         "internal/platform/bom_switch_identity.go",
         "internal/platform/migrations/015_switch_identity_macs.sql",
@@ -2162,7 +2162,10 @@
         "internal/httpapi/ztp_sessions.go",
         "api/openapi.yaml",
         "web/src/features/ztp/ZtpOnboardBoard.tsx",
-        "web/src/lib/ztp.ts"
+        "web/src/lib/ztp.ts",
+        "internal/fabricboot/kea_mock.go",
+        "internal/fabricboot/kea_mock_test.go",
+        "internal/fabricboot/testdata/kea_dora_golden.json"
       ]
     },
     {

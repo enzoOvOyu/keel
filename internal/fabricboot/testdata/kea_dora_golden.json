@@ -1,0 +1,13 @@
+{
+  "outcome": "ack",
+  "config_hash": "9c31212b618e530da23f290ce5df037ba00a92669486357858589386a52e2ceb",
+  "option_239_url": "https://boot.example.invalid/ztp?batch=rack-a\u0026stage=N-S4",
+  "option_143_uris": [
+    "https://boot.example.invalid/sztp"
+  ],
+  "option_60_vci": "CumulusLinux",
+  "option_43": {
+    "nos": "cumulus-linux",
+    "version_intent": "5.x"
+  }
+}
