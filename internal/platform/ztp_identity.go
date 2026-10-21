@@ -21,9 +21,9 @@ type ZTPIdentityResolution struct {
 	Reasons          []string `json:"reasons"`
 }
 
-// ResolveZTPIdentity is the read-only SoT classifier shared by both planned
-// bootstrap channels. It never authorizes production configuration or marks a
-// switch managed. The 143 channel still requires IDevID/mTLS before calling it.
+// ResolveZTPIdentity is the read-only SoT classifier shared by the bootstrap
+// channels. It never authorizes production configuration or marks a switch
+// managed. The device-facing 143 route verifies IDevID/mTLS before calling it.
 func (s *Store) ResolveZTPIdentity(ctx context.Context, a *AuthSession, project *ProjectSummary, input ZTPIdentityInput) (*ZTPIdentityResolution, error) {
 	tx, err := s.beginControlRead(ctx, a)
 	if err != nil {

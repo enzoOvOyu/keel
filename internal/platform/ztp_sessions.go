@@ -292,6 +292,50 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 				return nil, apiError(409, "ZTP_DHCP_NO_OFFER", "No committed mock Kea offer for management interface")
 			}
 			evidence = "mock-kea:" + offer.ConfigHash
+		} else if next == "booturl" || next == "fetch" {
+			cfg, activeHash, loadErr := activeZTPSimOfferTx(ctx, tx, project.ID, out.BatchRef)
+			if loadErr != nil {
+				return nil, loadErr
+			}
+			if loadErr = requireSimDHCPHashTx(ctx, tx, out.ID, out.Attempt, activeHash); loadErr != nil {
+				return nil, loadErr
+			}
+			if next == "booturl" {
+				if out.BootChannel == "143" && len(cfg.Option143URIs) == 0 {
+					return nil, apiError(409, "ZTP_BOOT_URI_MISSING", "No active SZTP URI")
+				}
+				if out.BootChannel != "143" && cfg.Option239URL == "" {
+					return nil, apiError(409, "ZTP_BOOT_URI_MISSING", "No active Cumulus boot URL")
+				}
+				evidence = "mock-kea-url:" + activeHash
+			} else {
+				if out.IdentityResolution.Verdict != "matched" {
+					return nil, apiError(409, "ZTP_IDENTITY_NOT_MATCHED", "Unmatched identity cannot fetch configuration")
+				}
+				evidence, loadErr = approvedZTPSimArtifactTx(ctx, tx, project.ID, cfg, out.BootChannel)
+				if loadErr != nil {
+					return nil, loadErr
+				}
+			}
+		} else if next == "lookup" {
+			var rawClaim []byte
+			if err = tx.QueryRowContext(ctx, `SELECT identity_claim FROM ztp_sessions WHERE id=$1`, out.ID).Scan(&rawClaim); err != nil {
+				return nil, err
+			}
+			var claim ZTPIdentityInput
+			if err = json.Unmarshal(rawClaim, &claim); err != nil {
+				return nil, err
+			}
+			resolution, lookupErr := resolveZTPIdentityTx(ctx, tx, project.ID, claim)
+			if lookupErr != nil {
+				return nil, lookupErr
+			}
+			out.IdentityResolution = *resolution
+			out.SwitchID = resolution.SwitchID
+			evidence = "sot-lookup:" + resolution.Verdict
+			if resolution.SwitchID != "" {
+				evidence += ":" + resolution.SwitchID
+			}
 		} else if !validZTPEvidence(evidence) {
 			return nil, apiError(400, "ZTP_EVIDENCE_REQUIRED", "Stage evidence reference is required")
 		}
@@ -300,11 +344,23 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 		}
 		add(next, "sim."+next, evidence)
 		if next == "lookup" && out.IdentityResolution.Verdict != "matched" {
-			state := "isolated"
 			if out.IdentityResolution.Verdict == "conflict" {
-				state = "conflict"
+				add("conflict", "sim.identity_conflict", "")
+			} else {
+				cfg, activeHash, loadErr := activeZTPSimOfferTx(ctx, tx, project.ID, out.BatchRef)
+				if loadErr != nil {
+					return nil, loadErr
+				}
+				if loadErr = requireSimDHCPHashTx(ctx, tx, out.ID, out.Attempt, activeHash); loadErr != nil {
+					return nil, loadErr
+				}
+				artifact, artifactErr := approvedZTPSimArtifactTx(ctx, tx, project.ID, cfg, out.BootChannel)
+				if artifactErr != nil {
+					return nil, artifactErr
+				}
+				add("fetch", "sim.isolation_fetch", artifact)
+				add("isolated", "sim.identity_isolated", "")
 			}
-			add(state, "sim.identity_"+state, "")
 		}
 		if out.State == "managed" {
 			out.ManagedAt = &now
@@ -342,7 +398,11 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 	}
 	out.StateVersion += int64(len(events))
 	out.UpdatedAt = now
-	_, err = tx.ExecContext(ctx, `UPDATE ztp_sessions SET state=$2,state_version=$3,attempt=$4,failure_phenomenon=$5,failure_cause=$6,failure_next_action=$7,next_retry_at=$8,updated_at=$9,managed_at=$10 WHERE id=$1`, out.ID, out.State, out.StateVersion, out.Attempt, nullBOMString(out.FailurePhenomenon), nullBOMString(out.FailureCause), nullBOMString(out.FailureNextAction), out.NextRetryAt, now, out.ManagedAt)
+	resolutionJSON, marshalErr := json.Marshal(out.IdentityResolution)
+	if marshalErr != nil {
+		return nil, marshalErr
+	}
+	_, err = tx.ExecContext(ctx, `UPDATE ztp_sessions SET state=$2,state_version=$3,attempt=$4,failure_phenomenon=$5,failure_cause=$6,failure_next_action=$7,next_retry_at=$8,updated_at=$9,managed_at=$10,identity_resolution=$11,switch_id=NULLIF($12,'') WHERE id=$1`, out.ID, out.State, out.StateVersion, out.Attempt, nullBOMString(out.FailurePhenomenon), nullBOMString(out.FailureCause), nullBOMString(out.FailureNextAction), out.NextRetryAt, now, out.ManagedAt, resolutionJSON, out.SwitchID)
 	if err != nil {
 		return nil, err
 	}

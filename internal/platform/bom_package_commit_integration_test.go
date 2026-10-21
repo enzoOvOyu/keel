@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -522,5 +523,96 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	}
 	if packages != 3 {
 		t.Fatalf("failed commit left %d packages", packages)
+	}
+
+	// An identity captured when a session starts cannot authorize a later lookup.
+	stale, simErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-1", BootChannel: "239", Identity: ZTPIdentityInput{Serial: "SW-1", MgmtMAC: "aa:bb:cc:dd:ff:01"}}, "test")
+	if simErr != nil {
+		t.Fatal(simErr)
+	}
+	for _, stage := range []string{"dhcp", "booturl", "identity"} {
+		action := ZTPSessionAction{Action: "advance", ExpectedVersion: stale.StateVersion, EvidenceRef: "manual-" + stage}
+		if stage == "dhcp" {
+			action.DORA = dora
+		}
+		stale, simErr = s.AdvanceZTPSimSession(ctx, actor, project, stale.ID, action, "test")
+		if simErr != nil {
+			t.Fatal(simErr)
+		}
+	}
+	if _, simErr = s.DB.ExecContext(ctx, `UPDATE switch_mac_bindings SET mac='aa:bb:cc:dd:ff:99' WHERE switch_id=$1 AND kind='mgmt'`, firstSwitch); simErr != nil {
+		t.Fatal(simErr)
+	}
+	stale, simErr = s.AdvanceZTPSimSession(ctx, actor, project, stale.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: stale.StateVersion, EvidenceRef: "caller-claimed-match"}, "test")
+	if simErr != nil || stale.State != "conflict" || stale.IdentityResolution.Verdict != "conflict" || stale.Events[len(stale.Events)-2].EvidenceRef != "sot-lookup:conflict" {
+		t.Fatalf("stale SoT lookup was trusted: %+v %v", stale, simErr)
+	}
+	if _, simErr = s.DB.ExecContext(ctx, `UPDATE switch_mac_bindings SET mac='aa:bb:cc:dd:ff:01' WHERE switch_id=$1 AND kind='mgmt'`, firstSwitch); simErr != nil {
+		t.Fatal(simErr)
+	}
+
+	// DHCP evidence is bound to one active offer, even if an operator commits
+	// a new plan while the simulated device is booting.
+	changedOffer, simErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-1", BootChannel: "239", Identity: ZTPIdentityInput{Serial: "SW-1", MgmtMAC: "aa:bb:cc:dd:ff:01"}}, "test")
+	if simErr != nil {
+		t.Fatal(simErr)
+	}
+	changedOffer, simErr = s.AdvanceZTPSimSession(ctx, actor, project, changedOffer.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: changedOffer.StateVersion, DORA: dora}, "test")
+	if simErr != nil {
+		t.Fatal(simErr)
+	}
+	keaCfg.Option43["version_intent"] = "5.1"
+	replacement, simErr := s.StageZTPMockKeaPlan(ctx, actor, project, keaCfg, "test")
+	if simErr != nil {
+		t.Fatal(simErr)
+	}
+	if _, simErr = s.CommitZTPMockKeaPlan(ctx, actor, project, ZTPMockKeaCommitInput{BatchRef: keaCfg.BatchRef, StageRef: keaCfg.StageRef, StagedHash: replacement.StagedHash, ExpectedVersion: replacement.Version}, "test"); simErr != nil {
+		t.Fatal(simErr)
+	}
+	if _, simErr = s.AdvanceZTPSimSession(ctx, actor, project, changedOffer.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: changedOffer.StateVersion, EvidenceRef: "caller-claimed-url"}, "test"); simErr == nil {
+		t.Fatal("changed active offer accepted for boot URL")
+	}
+
+	// Unknown IDevID reaches only the approved isolation artifact, never a
+	// simulated managed state or production configuration.
+	unknown143, simErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-1", BootChannel: "143", Identity: ZTPIdentityInput{Serial: "UNKNOWN-SW-143"}}, "test")
+	if simErr != nil {
+		t.Fatal(simErr)
+	}
+	for _, stage := range []string{"dhcp", "booturl", "identity", "lookup"} {
+		action := ZTPSessionAction{Action: "advance", ExpectedVersion: unknown143.StateVersion, EvidenceRef: "manual-" + stage}
+		if stage == "dhcp" {
+			action.DORA = dora
+		}
+		unknown143, simErr = s.AdvanceZTPSimSession(ctx, actor, project, unknown143.ID, action, "test")
+		if simErr != nil {
+			t.Fatalf("unknown IDevID %s: %v", stage, simErr)
+		}
+	}
+	if unknown143.State != "isolated" || unknown143.IdentityResolution.Verdict != "isolated" || len(unknown143.Events) != 7 || !strings.HasPrefix(unknown143.Events[5].EvidenceRef, "mock-sztp143:") || unknown143.ManagedAt != nil {
+		t.Fatalf("unknown device did not receive isolation artifact: %+v", unknown143)
+	}
+
+	// Approval is checked again when fetching, rather than inferred from an
+	// earlier approved plan or a caller supplied evidence string.
+	retired, simErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-1", BootChannel: "239", Identity: ZTPIdentityInput{Serial: "SW-1", MgmtMAC: "aa:bb:cc:dd:ff:01"}}, "test")
+	if simErr != nil {
+		t.Fatal(simErr)
+	}
+	for _, stage := range []string{"dhcp", "booturl", "identity", "lookup"} {
+		action := ZTPSessionAction{Action: "advance", ExpectedVersion: retired.StateVersion, EvidenceRef: "manual-" + stage}
+		if stage == "dhcp" {
+			action.DORA = dora
+		}
+		retired, simErr = s.AdvanceZTPSimSession(ctx, actor, project, retired.ID, action, "test")
+		if simErr != nil {
+			t.Fatalf("retirement setup %s: %v", stage, simErr)
+		}
+	}
+	if _, simErr = s.TransitionMedia(ctx, reviewer, project, scriptMedia.ID, "retired", "test"); simErr != nil {
+		t.Fatal(simErr)
+	}
+	if _, simErr = s.AdvanceZTPSimSession(ctx, actor, project, retired.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: retired.StateVersion, EvidenceRef: "caller-claimed-fetch"}, "test"); simErr == nil {
+		t.Fatal("retired isolation script accepted for simulated fetch")
 	}
 }
