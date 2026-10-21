@@ -222,6 +222,47 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if resolveErr != nil || unknownIdentity.Verdict != "isolated" {
 		t.Fatalf("unknown identity not isolated: %+v %v", unknownIdentity, resolveErr)
 	}
+	sim, simErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-1", BootChannel: "239", Identity: ZTPIdentityInput{Serial: "SW-1", MgmtMAC: "aa:bb:cc:dd:ff:01"}}, "test")
+	if simErr != nil || sim.Mode != "sim" || sim.State != "powered" || len(sim.Events) != 1 {
+		t.Fatalf("simulation session: %+v %v", sim, simErr)
+	}
+	for _, stage := range []string{"dhcp", "booturl", "identity", "lookup", "fetch", "config", "restart", "managed"} {
+		sim, simErr = s.AdvanceZTPSimSession(ctx, actor, project, sim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: sim.StateVersion, EvidenceRef: "sim-evidence-" + stage}, "test")
+		if simErr != nil || sim.State != stage {
+			t.Fatalf("stage %s: %+v %v", stage, sim, simErr)
+		}
+	}
+	if sim.Mode != "sim" || len(sim.Events) != 9 || sim.ManagedAt == nil {
+		t.Fatalf("simulation timeline: %+v", sim)
+	}
+	if _, simErr = s.AdvanceZTPSimSession(ctx, actor, project, sim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: 1, EvidenceRef: "stale"}, "test"); simErr == nil {
+		t.Fatal("stale ZTP state version accepted")
+	}
+	conflictSim, simErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-2", BootChannel: "143", Identity: ZTPIdentityInput{Serial: "SW-RMA", MgmtMAC: "aa:bb:cc:dd:ff:01"}}, "test")
+	if simErr != nil {
+		t.Fatal(simErr)
+	}
+	for _, stage := range []string{"dhcp", "booturl", "identity"} {
+		conflictSim, simErr = s.AdvanceZTPSimSession(ctx, actor, project, conflictSim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: conflictSim.StateVersion, EvidenceRef: "sim-evidence-" + stage}, "test")
+		if simErr != nil {
+			t.Fatal(simErr)
+		}
+	}
+	conflictSim, simErr = s.AdvanceZTPSimSession(ctx, actor, project, conflictSim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: conflictSim.StateVersion, EvidenceRef: "sim-evidence-lookup"}, "test")
+	if simErr != nil || conflictSim.State != "conflict" || len(conflictSim.Events) != 6 {
+		t.Fatalf("conflict timeline: %+v %v", conflictSim, simErr)
+	}
+	failedSim, simErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-3", BootChannel: "239", Identity: ZTPIdentityInput{Serial: "SW-1"}}, "test")
+	if simErr != nil {
+		t.Fatal(simErr)
+	}
+	failedSim, simErr = s.AdvanceZTPSimSession(ctx, actor, project, failedSim.ID, ZTPSessionAction{Action: "fail", ExpectedVersion: failedSim.StateVersion, Phenomenon: "DHCP timeout", Cause: "no offer", NextAction: "check Kea"}, "test")
+	if simErr != nil || failedSim.State != "failed" || failedSim.NextRetryAt == nil {
+		t.Fatalf("failure classification: %+v %v", failedSim, simErr)
+	}
+	if _, simErr = s.AdvanceZTPSimSession(ctx, actor, project, failedSim.ID, ZTPSessionAction{Action: "retry", ExpectedVersion: failedSim.StateVersion}, "test"); simErr == nil {
+		t.Fatal("ZTP retry ignored backoff")
+	}
 
 	conflicting := make(map[string][]byte, len(identityPackage))
 	for name, data := range identityPackage {

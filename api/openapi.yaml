@@ -1229,6 +1229,90 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/ztp/sim-sessions:
+    post:
+      tags: [BOM]
+      operationId: createZTPSimSession
+      description: Creates a simulation-only nine-stage timeline. Simulated managed never updates physical switch readiness.
+      security: [{sessionCookie: []}]
+      x-permission: project:fabric:plan
+      x-resource-scope: path-project-admin
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZTPSimSessionInput' }
+      responses:
+        '201':
+          description: Simulation session at powered with the first timeline event.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZTPSessionDetail' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/projects/{id}/ztp/sim-sessions/{sessionId}:
+    get:
+      tags: [BOM]
+      operationId: getZTPSimSession
+      security: [{sessionCookie: []}]
+      x-permission: project:fabric:read
+      x-resource-scope: path-project
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      responses:
+        '200':
+          description: Simulation state and append-only event timeline.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZTPSessionDetail' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/projects/{id}/ztp/sim-sessions/{sessionId}/actions:
+    post:
+      tags: [BOM]
+      operationId: advanceZTPSimSession
+      security: [{sessionCookie: []}]
+      x-permission: project:fabric:plan
+      x-resource-scope: path-project-admin
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZTPSessionAction' }
+      responses:
+        '200':
+          description: Updated simulation timeline with optimistic state version.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZTPSessionDetail' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/projects/{id}/ztp/identity/preview:
     post:
       tags: [BOM]
@@ -1579,6 +1663,63 @@ components:
         maximum: 100
         default: 20
   schemas:
+    ZTPSimSessionInput:
+      type: object
+      additionalProperties: false
+      required: [batch_ref, boot_channel, identity]
+      properties:
+        batch_ref: { type: string, minLength: 1, maxLength: 160 }
+        boot_channel: { type: string, enum: ['239', '143', '60-43'] }
+        identity: { $ref: '#/components/schemas/ZTPIdentityInput' }
+    ZTPSessionAction:
+      type: object
+      additionalProperties: false
+      required: [action, expected_version]
+      properties:
+        action: { type: string, enum: [advance, fail, retry] }
+        expected_version: { type: integer, minimum: 1 }
+        evidence_ref: { type: string, maxLength: 300 }
+        phenomenon: { type: string, maxLength: 1000 }
+        cause: { type: string, maxLength: 1000 }
+        next_action: { type: string, maxLength: 1000 }
+    ZTPSessionEvent:
+      type: object
+      additionalProperties: false
+      required: [seq, to_state, event_code, attempt, occurred_at]
+      properties:
+        seq: { type: integer, minimum: 1 }
+        from_state: { type: string }
+        to_state: { type: string }
+        event_code: { type: string }
+        evidence_ref: { type: string }
+        attempt: { type: integer, minimum: 1 }
+        occurred_at: { type: string, format: date-time }
+    ZTPSessionDetail:
+      type: object
+      additionalProperties: false
+      required: [id, project_id, batch_ref, mode, boot_channel, state, state_version, attempt, retry_max, identity_resolution, started_at, updated_at, events]
+      properties:
+        id: { $ref: '#/components/schemas/EntityID' }
+        project_id: { $ref: '#/components/schemas/EntityID' }
+        switch_id: { $ref: '#/components/schemas/EntityID' }
+        batch_ref: { type: string }
+        mode: { type: string, enum: [sim, device] }
+        boot_channel: { type: string, enum: ['239', '143', '60-43'] }
+        state: { type: string, enum: [powered, dhcp, booturl, identity, lookup, fetch, config, restart, managed, isolated, conflict, failed] }
+        state_version: { type: integer, minimum: 1 }
+        attempt: { type: integer, minimum: 1 }
+        retry_max: { type: integer, minimum: 0, maximum: 10 }
+        identity_resolution: { $ref: '#/components/schemas/ZTPIdentityResolution' }
+        failure_phenomenon: { type: string }
+        failure_cause: { type: string }
+        failure_next_action: { type: string }
+        next_retry_at: { type: string, format: date-time }
+        started_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        managed_at: { type: string, format: date-time }
+        events:
+          type: array
+          items: { $ref: '#/components/schemas/ZTPSessionEvent' }
     ZTPIdentityInput:
       type: object
       additionalProperties: false

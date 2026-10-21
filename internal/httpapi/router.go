@@ -89,6 +89,7 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 		auth.registerBOMPackages(r)
 		auth.registerNetworkBaselines(r)
 		auth.registerZTPIdentityPreview(r)
+		auth.registerZTPSimSessions(r)
 		auth.registerSshTrust(r)
 		auth.registerMedia(r)
 		auth.registerParams(r)

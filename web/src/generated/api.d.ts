@@ -458,6 +458,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/ztp/sim-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Creates a simulation-only nine-stage timeline. Simulated managed never updates physical switch readiness. */
+        post: operations["createZTPSimSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/sim-sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getZTPSimSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/sim-sessions/{sessionId}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["advanceZTPSimSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/ztp/identity/preview": {
         parameters: {
             query?: never;
@@ -607,6 +656,59 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ZTPSimSessionInput: {
+            batch_ref: string;
+            /** @enum {string} */
+            boot_channel: "239" | "143" | "60-43";
+            identity: components["schemas"]["ZTPIdentityInput"];
+        };
+        ZTPSessionAction: {
+            /** @enum {string} */
+            action: "advance" | "fail" | "retry";
+            expected_version: number;
+            evidence_ref?: string;
+            phenomenon?: string;
+            cause?: string;
+            next_action?: string;
+        };
+        ZTPSessionEvent: {
+            seq: number;
+            from_state?: string;
+            to_state: string;
+            event_code: string;
+            evidence_ref?: string;
+            attempt: number;
+            /** Format: date-time */
+            occurred_at: string;
+        };
+        ZTPSessionDetail: {
+            id: components["schemas"]["EntityID"];
+            project_id: components["schemas"]["EntityID"];
+            switch_id?: components["schemas"]["EntityID"];
+            batch_ref: string;
+            /** @enum {string} */
+            mode: "sim" | "device";
+            /** @enum {string} */
+            boot_channel: "239" | "143" | "60-43";
+            /** @enum {string} */
+            state: "powered" | "dhcp" | "booturl" | "identity" | "lookup" | "fetch" | "config" | "restart" | "managed" | "isolated" | "conflict" | "failed";
+            state_version: number;
+            attempt: number;
+            retry_max: number;
+            identity_resolution: components["schemas"]["ZTPIdentityResolution"];
+            failure_phenomenon?: string;
+            failure_cause?: string;
+            failure_next_action?: string;
+            /** Format: date-time */
+            next_retry_at?: string;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: date-time */
+            managed_at?: string;
+            events: components["schemas"]["ZTPSessionEvent"][];
+        };
         ZTPIdentityInput: {
             serial?: string;
             mgmt_mac?: string;
@@ -2235,6 +2337,93 @@ export interface operations {
                     "application/json": components["schemas"]["BOMMappingProfile"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    createZTPSimSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZTPSimSessionInput"];
+            };
+        };
+        responses: {
+            /** @description Simulation session at powered with the first timeline event. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPSessionDetail"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getZTPSimSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+                sessionId: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Simulation state and append-only event timeline. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPSessionDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    advanceZTPSimSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+                sessionId: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZTPSessionAction"];
+            };
+        };
+        responses: {
+            /** @description Updated simulation timeline with optimistic state version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPSessionDetail"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

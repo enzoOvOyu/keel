@@ -336,7 +336,7 @@ Redfish 原始 JSON 全量入 MinIO，结构化入 JSONB，JSONPath 视图。
 
 ### ZTP 身份底座（WP-1.17 增量）
 
-标准交换机 BOM 可声明 `mgmt_mac`、`base_mac`、分号分隔的 `other_macs`。预检规范化永久 MAC，并阻断同包服务器端口、其他交换机和既有 SoT 绑定冲突；当前绑定在 `switch_mac_bindings` 中按角色唯一存放，历史由 BOM 修订快照保留。新 BOM 要更新身份时须同时声明三列；完全不带身份列则继承当前绑定，保持 `bom_items.mac_list` 与绑定表一致。只读身份反查按 SN→管理口 MAC→基板 MAC→其他 MAC 的优先级解析；任意键指向不同交换机、已知 SN 与 MAC 绑定不一致时返回 conflict，未命中或缺少必要 SoT MAC 为 isolated。预检 API 仅供项目内规划/仿真，绝不返回配置或推进 managed。239 设备端点、143 mTLS/IDevID、Kea、九态时间线、重试、隔离模板和最小管理配置尚需独立实现与验证。
+标准交换机 BOM 可声明 `mgmt_mac`、`base_mac`、分号分隔的 `other_macs`。预检规范化永久 MAC，并阻断同包服务器端口、其他交换机和既有 SoT 绑定冲突；当前绑定在 `switch_mac_bindings` 中按角色唯一存放，历史由 BOM 修订快照保留。新 BOM 要更新身份时须同时声明三列；完全不带身份列则继承当前绑定，保持 `bom_items.mac_list` 与绑定表一致。只读身份反查按 SN→管理口 MAC→基板 MAC→其他 MAC 的优先级解析；任意键指向不同交换机、已知 SN 与 MAC 绑定不一致时返回 conflict，未命中或缺少必要 SoT MAC 为 isolated。预检 API 仅供项目内规划/仿真，绝不返回配置或推进 managed。项目内 ZTP 仿真会话已持久化 `powered → dhcp → booturl → identity → lookup → fetch → config → restart → managed` 的逐步证据时间线，支持状态版本并发校验、失败三段式记录与指数退避窗口（默认最多 3 次重试，可从参数目录 `fabric.ztp_retry_max` 读取 0–10 次）；未命中/冲突身份在 lookup 后进入 isolated/conflict，不能继续导入配置。会话创建时快照身份反查结果，后续步骤不重新校验 SoT；`sim.managed` 只表示仿真路径结束，不写交换机真实可管理状态，也不产出 NP-2/FabricReadiness。239 设备端点、143 mTLS/IDevID、Kea、自动设备重试、隔离模板和最小管理配置尚需独立实现与验证。
 
 ### 端口类型从型号版本派生（WP-1.15 增量）
 

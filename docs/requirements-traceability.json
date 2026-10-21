@@ -54,8 +54,8 @@
         "F-0.11",
         "F-0.12"
       ],
-      "implementation_status": "planned",
-      "implementation_notes": "Network base prerequisite domain specified in v3.0: BOM import package (FR-2.1.8), network material modeling, ZTP onboarding, cable verification, Golden closed loop, lossless/health and rule governance, FR-0.8 evidence interface. Implementation not started; NP-1..NP-6 and LL-01..LL-07 never fabricate PASS."
+      "implementation_status": "partial",
+      "implementation_notes": "Unified BOM/network modeling and project-scoped ZTP identity preview plus simulation session timeline are partial development work. Real boot channels, Kea, approved isolation template, network readiness evidence and NP-1..NP-6 remain unimplemented; no FR-0 acceptance PASS is claimed."
     },
     {
       "id": "FR-1",
@@ -2148,13 +2148,19 @@
         "H-16"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Switch BOM now persists mgmt/base/other permanent MAC identities and blocks cross-device/server-MAC conflicts. Project-scoped, read-only identity preview resolves SN > mgmt > base > other with conflict/isolation verdicts. Device boot endpoints, 143 mTLS/IDevID, Kea option staging, nine-state timeline, retries, isolation template and ZtpOnboardBoard remain; F-0.5 is not passed.",
+      "implementation_notes": "Switch BOM persists mgmt/base/other MAC identities with conflict checks; project-scoped identity preview resolves SN > mgmt > base > other. Simulation sessions persist the nine-stage evidence timeline, version checks, failure triad and bounded retry window; sim.managed never updates real switch readiness. Device boot endpoints, 143 mTLS/IDevID, Kea option staging, automatic device retries, approved isolation template, credentials, ZtpOnboardBoard and golden contracts remain; F-0.5 is not passed.",
       "evidence_refs": [
         "internal/platform/bom_switch_identity.go",
         "internal/platform/migrations/015_switch_identity_macs.sql",
         "internal/platform/ztp_identity.go",
         "internal/platform/bom_package_commit_integration_test.go",
-        "internal/httpapi/ztp_identity.go"
+        "internal/httpapi/ztp_identity.go",
+        "internal/platform/ztp_sessions.go",
+        "internal/platform/ztp_state.go",
+        "internal/platform/ztp_state_test.go",
+        "internal/platform/migrations/016_ztp_sessions.sql",
+        "internal/httpapi/ztp_sessions.go",
+        "api/openapi.yaml"
       ]
     },
     {
