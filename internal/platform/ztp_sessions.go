@@ -162,6 +162,47 @@ func loadZTPEvents(ctx context.Context, tx *sql.Tx, out *ZTPSessionDetail) error
 	return rows.Err()
 }
 
+type ZTPSessionSummary struct {
+	ID              string    `json:"id"`
+	BatchRef        string    `json:"batch_ref"`
+	BootChannel     string    `json:"boot_channel"`
+	State           string    `json:"state"`
+	StateVersion    int64     `json:"state_version"`
+	Attempt         int       `json:"attempt"`
+	IdentityVerdict string    `json:"identity_verdict"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+func (s *Store) ListZTPSimSessions(ctx context.Context, a *AuthSession, project *ProjectSummary) ([]ZTPSessionSummary, error) {
+	tx, err := s.beginControlRead(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	if err = requireProjectMember(ctx, tx, a, project.ID); err != nil {
+		return nil, err
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT id,batch_ref,boot_channel,state,state_version,attempt,identity_resolution->>'verdict',updated_at FROM ztp_sessions WHERE project_id=$1 AND mode='sim' ORDER BY updated_at DESC,id DESC LIMIT 100`, project.ID)
+	if err != nil {
+		return nil, err
+	}
+	out := []ZTPSessionSummary{}
+	for rows.Next() {
+		var entry ZTPSessionSummary
+		if err = rows.Scan(&entry.ID, &entry.BatchRef, &entry.BootChannel, &entry.State, &entry.StateVersion, &entry.Attempt, &entry.IdentityVerdict, &entry.UpdatedAt); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		out = append(out, entry)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	return out, tx.Commit()
+}
+
 func (s *Store) GetZTPSession(ctx context.Context, a *AuthSession, project *ProjectSummary, sessionID string) (*ZTPSessionDetail, error) {
 	tx, err := s.beginControlRead(ctx, a)
 	if err != nil {

@@ -465,7 +465,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** @description Lists the most recently updated 100 project simulation sessions. */
+        get: operations["listZTPSimSessions"];
         put?: never;
         /** @description Creates a simulation-only nine-stage timeline. Simulated managed never updates physical switch readiness. */
         post: operations["createZTPSimSession"];
@@ -656,6 +657,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ZTPSessionSummary: {
+            id: components["schemas"]["EntityID"];
+            batch_ref: string;
+            boot_channel: string;
+            state: string;
+            /** Format: int64 */
+            state_version: number;
+            attempt: number;
+            identity_verdict: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
         ZTPSimSessionInput: {
             batch_ref: string;
             /** @enum {string} */
@@ -2341,6 +2354,31 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    listZTPSimSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Simulation session summaries, never physical readiness. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPSessionSummary"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     createZTPSimSession: {

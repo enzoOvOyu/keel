@@ -263,6 +263,21 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if _, simErr = s.AdvanceZTPSimSession(ctx, actor, project, failedSim.ID, ZTPSessionAction{Action: "retry", ExpectedVersion: failedSim.StateVersion}, "test"); simErr == nil {
 		t.Fatal("ZTP retry ignored backoff")
 	}
+	if _, simErr = s.DB.ExecContext(ctx, `UPDATE ztp_sessions SET next_retry_at=now()-interval '1 second' WHERE id=$1`, failedSim.ID); simErr != nil {
+		t.Fatal(simErr)
+	}
+	failedSim, simErr = s.AdvanceZTPSimSession(ctx, actor, project, failedSim.ID, ZTPSessionAction{Action: "retry", ExpectedVersion: failedSim.StateVersion}, "test")
+	if simErr != nil || failedSim.State != "powered" || failedSim.Attempt != 2 || failedSim.NextRetryAt != nil || len(failedSim.Events) != 3 {
+		t.Fatalf("retry after backoff: %+v %v", failedSim, simErr)
+	}
+	loadedSim, simErr := s.GetZTPSession(ctx, actor, project, sim.ID)
+	if simErr != nil || loadedSim.State != "managed" || len(loadedSim.Events) != 9 {
+		t.Fatalf("persisted timeline: %+v %v", loadedSim, simErr)
+	}
+	listedSims, simErr := s.ListZTPSimSessions(ctx, actor, project)
+	if simErr != nil || len(listedSims) != 3 {
+		t.Fatalf("simulation board list: %+v %v", listedSims, simErr)
+	}
 
 	conflicting := make(map[string][]byte, len(identityPackage))
 	for name, data := range identityPackage {

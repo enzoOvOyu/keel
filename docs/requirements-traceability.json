@@ -2148,7 +2148,7 @@
         "H-16"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Switch BOM persists mgmt/base/other MAC identities with conflict checks; project-scoped identity preview resolves SN > mgmt > base > other. Simulation sessions persist the nine-stage evidence timeline, version checks, failure triad and bounded retry window; sim.managed never updates real switch readiness. Device boot endpoints, 143 mTLS/IDevID, Kea option staging, automatic device retries, approved isolation template, credentials, ZtpOnboardBoard and golden contracts remain; F-0.5 is not passed.",
+      "implementation_notes": "Switch BOM persists mgmt/base/other MAC identities with conflict checks; project-scoped identity preview resolves SN > mgmt > base > other. ZtpOnboardBoard lists and drives project simulation sessions; sessions persist the nine-stage evidence timeline, version checks, failure triad and bounded retry window; sim.managed never updates real switch readiness. Device boot endpoints, 143 mTLS/IDevID, Kea option staging, automatic device retries, approved isolation template, credentials, golden contracts remain; F-0.5 is not passed.",
       "evidence_refs": [
         "internal/platform/bom_switch_identity.go",
         "internal/platform/migrations/015_switch_identity_macs.sql",
@@ -2160,7 +2160,9 @@
         "internal/platform/ztp_state_test.go",
         "internal/platform/migrations/016_ztp_sessions.sql",
         "internal/httpapi/ztp_sessions.go",
-        "api/openapi.yaml"
+        "api/openapi.yaml",
+        "web/src/features/ztp/ZtpOnboardBoard.tsx",
+        "web/src/lib/ztp.ts"
       ]
     },
     {

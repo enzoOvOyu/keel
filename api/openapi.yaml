@@ -1230,6 +1230,29 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/projects/{id}/ztp/sim-sessions:
+    get:
+      tags: [BOM]
+      operationId: listZTPSimSessions
+      description: Lists the most recently updated 100 project simulation sessions.
+      security: [{sessionCookie: []}]
+      x-permission: project:fabric:read
+      x-resource-scope: path-project
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      responses:
+        '200':
+          description: Simulation session summaries, never physical readiness.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ZTPSessionSummary' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
     post:
       tags: [BOM]
       operationId: createZTPSimSession
@@ -1663,6 +1686,18 @@ components:
         maximum: 100
         default: 20
   schemas:
+    ZTPSessionSummary:
+      type: object
+      required: [id, batch_ref, boot_channel, state, state_version, attempt, identity_verdict, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/EntityID' }
+        batch_ref: { type: string }
+        boot_channel: { type: string }
+        state: { type: string }
+        state_version: { type: integer, format: int64 }
+        attempt: { type: integer }
+        identity_verdict: { type: string }
+        updated_at: { type: string, format: date-time }
     ZTPSimSessionInput:
       type: object
       additionalProperties: false
