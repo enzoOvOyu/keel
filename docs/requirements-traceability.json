@@ -2285,6 +2285,6 @@
   "implementation_checkpoint": {
     "stage": "P1 stage gate complete at p1-complete (e7d5f1a); development restarted from this tag",
     "scope": "P1 sim and PoC package evidence only; FR-0 network, P2-P5 and hardware PoC execution remain planned",
-    "runtime": "P1 API on restored 10-migration snapshot; operational details in docs/HANDOFF.md"
+    "runtime": "3000 development preview at df95d0b with 25 migrations; FR-0 remains partial, operational details in docs/HANDOFF.md"
   }
 }

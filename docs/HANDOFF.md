@@ -1,3 +1,9 @@
+## 2026-10-23 3000 开发预览同步
+
+- 用户要求将当前开发代码同步到 3000，以核对是否从登录页完成版继续开发。`git merge-base --is-ancestor e7d5f1a df95d0b` 通过；从 `e7d5f1a` 到 `df95d0b` 的登录页源码无差异。3000 旧镜像 `keel:p1-e7d5f1a` 已保留，运行库迁移前备份 `/home/ubuntu/.local/state/keel/backups/pre-fr0-preview-20261023T085854Z.dump`（101K，容器 `pg_restore -l` 可读）。
+- 已将数据库从 10 个迁移推进到 25 个，并授权 `keel_app` 访问新表；3000 现运行 `keel:df95d0b85d1a25923126b9b95ad40c302bda6cf4`，容器 healthy。`/healthz` 与 `/api/v1` 报同一版本，认证提供方 ready；`/login` 返回 P1 登录页，ZTP 路由与打包资源在 3000 返回 200，项目导航包含 BOM/ZTP。`/api/v1` 的 `phase=p1-foundation` 是旧静态阶段标签，不能代替镜像版本；`business_ready=false` 正确表示全业务尚未完成。
+- `node scripts/check-browser.mjs` 因服务器缺少 Playwright 依赖未运行成功；未声称登录后的浏览器交互已验证。专用 239/143 TLS listener 未配置，真机 PoC 未执行。部署时保留了用户原有未提交的 `AGENTS.md`，因此按部署脚本等价顺序手动构建与切换，未改动该文件。
+
 ## 2026-10-23 WP-1.17 仿真失败自动续跑
 
 - migration 025 在 sim 会话保存不含秘密的自动运行输入（DORA 请求、凭据模拟结果）。到期重试 worker 继续使用原九态门禁，在同一事务中从 powered 重新推进，失败继续按指数退避；管理员可在 failed 等待期以预期版本更新下一次仿真输入，新增时间线事件与审计，恢复后自动继续；超出 retry_max 后保留最终 failed、三段式审计与每次凭据问题记录。未配置自动运行输入的旧手动会话保持原有到期恢复 powered 行为。真实设备会话不受影响，P1 3000 运行库未迁移。

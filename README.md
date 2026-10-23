@@ -2,7 +2,7 @@
 
 **Knowledge-led Execution, Enforcement & Lifecycle**
 
-自动交付部署平台。品牌字标使用 **Keel**，仓库、包名与服务标识使用 `keel`。设计基线为 PRD v3.0.3，覆盖 FR-0 网络前置域与 FR-1～FR-17。部署预览 3000 端口保持 GitHub 的 `p1-complete`（`e7d5f1a`）P1 镜像；当前源码在 `dev/p1-network-bom` 开发分支持续实现 FR-0。P2～P5 与 FR-0 验收尚未闭环，开发分支代码不代表 3000 端口已部署。
+自动交付部署平台。品牌字标使用 **Keel**，仓库、包名与服务标识使用 `keel`。设计基线为 PRD v3.0.3，覆盖 FR-0 网络前置域与 FR-1～FR-17。部署预览 3000 端口现运行 `dev/p1-network-bom` 的 `df95d0b` 开发镜像；该分支以登录页完成版 `p1-complete`（`e7d5f1a`）为祖先，登录页源码未改动。FR-0 仍在开发，3000 用于查看当前已实现的 BOM/ZTP 页面，不代表 FR-0 验收完成。
 
 ## 当前可用能力
 

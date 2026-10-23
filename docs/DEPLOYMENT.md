@@ -1,6 +1,6 @@
 # 远端开发与部署
 
-主机 `ubuntu@43.207.20.26`，工作目录 `/opt/keel`。运行版本以 `curl http://127.0.0.1:3000/healthz` 为准，源码版本以 `git log -1` 为准。当前交付是P1本地认证与项目基础能力；完整交付平台仍在开发。
+主机 `ubuntu@43.207.20.26`，工作目录 `/opt/keel`。运行版本以 `curl http://127.0.0.1:3000/healthz` 为准，源码版本以 `git log -1` 为准。3000 当前是从 P1 登录页完成版继续开发的 `dev/p1-network-bom` 预览；FR-0 的部分 BOM/ZTP 页面已部署，完整交付平台仍在开发。
 
 ## 工具链
 
@@ -67,13 +67,13 @@ python3 scripts/configure-development.py --grant
 
 ## ZTP 239 开发入口（开发分支）
 
-239 设备脚本已从普通 API 路由移至独立 TLS listener。只有同时配置 `KEEL_ZTP239_LISTEN_ADDR`、`KEEL_ZTP239_TLS_CERT_FILE`、`KEEL_ZTP239_TLS_KEY_FILE` 且 API 连接到已迁移的开发/隔离数据库时才启动。监听器只暴露 `GET /api/v1/boot/ztp`；必须在管理网直连，拒绝 Forwarded/X-Forwarded-For/X-Real-IP，按真实 TCP 对端、active mock Kea 精确 URL、六个 CUMULUS-* 头、SoT 与独立批准的脚本介质校验后返回固定隔离脚本。证书须由目标设备信任，私钥放受保护路径；不能通过普通 API 端口或反向代理访问设备入口。此能力尚未部署到 P1 镜像，也未通过真实交换机验证。
+239 设备脚本已从普通 API 路由移至独立 TLS listener。只有同时配置 `KEEL_ZTP239_LISTEN_ADDR`、`KEEL_ZTP239_TLS_CERT_FILE`、`KEEL_ZTP239_TLS_KEY_FILE` 且 API 连接到已迁移的开发/隔离数据库时才启动。监听器只暴露 `GET /api/v1/boot/ztp`；必须在管理网直连，拒绝 Forwarded/X-Forwarded-For/X-Real-IP，按真实 TCP 对端、active mock Kea 精确 URL、六个 CUMULUS-* 头、SoT 与独立批准的脚本介质校验后返回固定隔离脚本。证书须由目标设备信任，私钥放受保护路径；不能通过普通 API 端口或反向代理访问设备入口。3000 的开发镜像包含此能力，但 Compose 未配置专用 239 TLS listener；设备入口未启用，也未通过真实交换机验证。
 
 ## SZTP 143 开发入口（开发分支）
 
 143 设备入口使用独立 TLS 监听器，只有同时配置下列四个变量且 API 连接到已迁移的开发/隔离数据库时才启动：`KEEL_SZTP_LISTEN_ADDR`、`KEEL_SZTP_TLS_CERT_FILE`、`KEEL_SZTP_TLS_KEY_FILE`、`KEEL_SZTP_IDEVID_CA_FILE`。CA 文件仅接受 PEM 编码的签发 CA；TLS 强制设备客户端证书，并按该 CA 重新验证 IDevID 链及 subject serialNumber。监听器只暴露 `POST /restconf/operations/ietf-sztp-bootstrap-server:get-bootstrapping-data` 和 `POST /restconf/operations/ietf-sztp-bootstrap-server:report-progress`；前者可用空 body，后者要求 `application/yang-data+json` 的 RFC 8572 输入。报告需匹配 30 分钟内同一证书 SN、TCP 来源和 active offer 的引导数据读取；只保存受限消息和载荷摘要，完成回报不更新 managed 或 NP-2。option 143 必须是 `https://host[:port]`。设备必须从 active mock Kea 管理网来源直连，请求 Host 必须与唯一 active URI 对应，且脚本介质已独立批准。收到 `signed-data-preferred` 时返回错误，绝不发送未签名 onboarding。
 
-这一入口是开发验证能力，尚未部署到 3000 端口 P1 镜像，也不证明设备信任服务器证书、真实 Kea 生效、RESTCONF 全部操作或交换机真机开通。生产使用前需在独立管理网部署、配置受保护的服务器私钥与制造商 CA，并完成目标设备证书链及机型 PoC。不得把开发 mock offer 当作真实 DHCP 证据。
+这一入口已编入 3000 开发镜像，但 Compose 未配置专用 143 mTLS listener；设备入口未启用，也不证明设备信任服务器证书、真实 Kea 生效、RESTCONF 全部操作或交换机真机开通。生产使用前需在独立管理网部署、配置受保护的服务器私钥与制造商 CA，并完成目标设备证书链及机型 PoC。不得把开发 mock offer 当作真实 DHCP 证据。
 
 ## 初始化与服务器账号管理
 
