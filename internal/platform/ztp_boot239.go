@@ -3,10 +3,8 @@ package platform
 import (
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"net/netip"
 	"net/url"
@@ -83,17 +81,9 @@ func (s *Store) ServeZTP239(ctx context.Context, projectID, batchRef, stageRef, 
 	if err != nil || configuredURL.Query().Encode() != actualQuery.Encode() || actualQuery.Get("project") != projectID || actualQuery.Get("batch") != batchRef || actualQuery.Get("stage") != stageRef || actualQuery.Get("policy") != mediaID {
 		return nil, ErrNotFound
 	}
-	var digest string
-	var size int64
-	err = tx.QueryRowContext(ctx, `SELECT sha256,size FROM media_items WHERE id=$1 AND scope_key IN($2,'global') AND type='ztp_script' AND state='approved' FOR SHARE`, mediaID, "project:"+projectID).Scan(&digest, &size)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, apiError(409, "ZTP_SCRIPT_NOT_APPROVED", "Approved isolation script is required")
-	}
+	preview, err := approvedZTPManagementPolicyTx(ctx, tx, projectID, batchRef, mediaID, true)
 	if err != nil {
 		return nil, err
-	}
-	if digest != fabricboot.IsolationScriptDigest() || size != int64(len(fabricboot.IsolationScriptV1)) {
-		return nil, apiError(409, "ZTP_SCRIPT_DIGEST_MISMATCH", "Approved script differs from isolation template")
 	}
 	verdict, err := resolveZTPIdentityTx(ctx, tx, projectID, ZTPIdentityInput{Serial: claim.Serial, BaseMAC: claim.BaseMAC, MgmtMAC: claim.MgmtMAC})
 	if err != nil {
@@ -123,15 +113,19 @@ func (s *Store) ServeZTP239(ctx context.Context, projectID, batchRef, stageRef, 
 			return nil, apiError(409, "ZTP_BOOT_BINDING_MISMATCH", "Device identity and direct management source do not match this verified batch")
 		}
 	}
-	scriptHash := sha256.Sum256([]byte(fabricboot.IsolationScriptV1))
+	body, err := ztpApprovedPersonalizedScript(preview, verdict.SwitchID)
+	if err != nil {
+		return nil, err
+	}
+	scriptHash := sha256.Sum256([]byte(body))
 	if _, err = tx.ExecContext(ctx, `INSERT INTO ztp_device_observations(id,project_id,batch_ref,switch_id,serial_number,source_ip,boot_channel,event_type,offer_hash,evidence_sha256,trace_id,occurred_at) VALUES($1,$2,$3,NULLIF($4,''),$5,$6,'239','data-served',$7,$8,$9,$10)`, RandomID(), projectID, batchRef, verdict.SwitchID, claim.Serial, sourceIP, activeHash, hex.EncodeToString(scriptHash[:]), trace, time.Now().UTC()); err != nil {
 		return nil, err
 	}
-	if err = appendAudit(ctx, tx, "", projectID, "ztp.boot239.serve", batchRef, trace, map[string]any{"serial": claim.Serial, "source_ip": sourceIP, "verdict": verdict.Verdict, "switch_id": verdict.SwitchID, "media_id": mediaID, "script_sha256": digest}); err != nil {
+	if err = appendAudit(ctx, tx, "", projectID, "ztp.boot239.serve", batchRef, trace, map[string]any{"serial": claim.Serial, "source_ip": sourceIP, "verdict": verdict.Verdict, "switch_id": verdict.SwitchID, "media_id": mediaID, "script_sha256": hex.EncodeToString(scriptHash[:])}); err != nil {
 		return nil, err
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
-	return &ZTP239Script{Body: fabricboot.IsolationScriptV1, SHA256: hex.EncodeToString(scriptHash[:]), IdentityVerdict: verdict.Verdict}, nil
+	return &ZTP239Script{Body: body, SHA256: hex.EncodeToString(scriptHash[:]), IdentityVerdict: verdict.Verdict}, nil
 }

@@ -1,0 +1,87 @@
+import {lazy,Suspense,useEffect,useRef,useState,type FormEvent} from 'react'
+import {Link,useBlocker} from '@tanstack/react-router'
+import {useQuery,useQueryClient} from '@tanstack/react-query'
+import {useTranslation} from 'react-i18next'
+import {ProjectWorkspace,useProject} from '../../components/ProjectWorkspace'
+import {ActionDialog,ActionError,Pagination,SuccessNotice} from '../../components/Management'
+import {useAction} from '../../lib/management'
+import {useSession,useExpireOnUnauthorized} from '../../lib/session'
+import {createExecution,listFlows,listSimTargets,publishFlow,type FlowVersion} from '../../lib/execution'
+import {getFlowDiff,listFlowVersions,publishFlowVersion,rollbackFlow,validateFlow,type FlowSearch,type FlowValidation} from '../../lib/flow-workbench'
+import '../../styles/flow-workbench.css'
+const SourceEditor=lazy(()=>import('./FlowEditor').then(m=>({default:m.FlowEditor}))),DiffEditor=lazy(()=>import('./FlowEditor').then(m=>({default:m.FlowDiffEditor})))
+const sample=`api_version: keel.sim/v1
+inputs:
+  profile:
+    type: enum
+    required: true
+    enum: [smoke, full]
+    default: smoke
+tasks:
+  - id: collect
+    type: sim.read
+    retry: 0
+    idempotent: true
+    timeout_ms: 1000
+    resources: [machine]
+    sim: {outcome: success, duration_ms: 100, seed: 42}
+  - id: verify
+    type: sim.read
+    depends_on: [collect]
+    retry: 0
+    idempotent: true
+    timeout_ms: 1000
+    resources: [machine]
+    sim: {outcome: success, duration_ms: 100, seed: 42}
+`
+const source=(flow:FlowVersion)=>flow.yaml_source||JSON.stringify(flow.definition,null,2)
+function useKey(){const ref=useRef<{payload:string;key:string}|null>(null);return(body:unknown)=>{const payload=JSON.stringify(body);if(ref.current?.payload!==payload)ref.current={payload,key:crypto.randomUUID()};return ref.current.key}}
+function LaunchDialog({flow,onClose,onDone}:{flow:FlowVersion;onClose:()=>void;onDone:(id:string)=>void}){
+ const {t}=useTranslation(),session=useSession(),action=useAction(),keyFor=useKey()
+ const [page,setPage]=useState(1),[ids,setIds]=useState<string[]>([]),[concurrency,setConcurrency]=useState(16),[breaker,setBreaker]=useState(5),[parameters,setParameters]=useState<Record<string,unknown>>(()=>Object.fromEntries(Object.entries(flow.definition.inputs).filter(([,v])=>v.default!==undefined).map(([key,v])=>[key,v.default])))
+ const targets=useQuery({queryKey:['private',session.user.id,'project',flow.project_id,'flow-targets',page],queryFn:({signal})=>listSimTargets(flow.project_id,page,signal,100)})
+ useExpireOnUnauthorized(targets.error)
+ async function submit(e:FormEvent){e.preventDefault();const body={mode:'sim' as const,flow_version_id:flow.id,target_ids:ids,parameters:Object.fromEntries(Object.entries(parameters).filter((pair):pair is [string,string|number|boolean]=>['string','number','boolean'].includes(typeof pair[1]))),concurrency,circuit_breaker_percent:breaker};const result=await action.run(()=>createExecution(flow.project_id,body,session.csrf_token,keyFor(body)));if(result.ok)onDone(result.value.id)}
+ return <ActionDialog title={t('flowLaunch')} description={`${flow.name} · v${flow.version} · ${flow.project_id}`} busy={action.busy} confirm={t('startExecution')} submitDisabled={!ids.length} onClose={onClose} onSubmit={e=>void submit(e)}><ActionError error={action.error??targets.error}/><p className="impact-notice">{t('flowSimNotice')}</p><p>{t('flowExplicitTargets',{count:ids.length})}</p><div className="flow-target-list">{targets.data?.items.map(target=><label key={target.id}><input type="checkbox" checked={ids.includes(target.id)} onChange={e=>setIds(current=>e.target.checked?[...current,target.id]:current.filter(id=>id!==target.id))}/>{target.name}</label>)}</div>{targets.data&&<Pagination offset={(page-1)*100} limit={100} total={targets.data.total} busy={targets.isFetching} onChange={offset=>setPage(offset/100+1)}/>}
+ {Object.entries(flow.definition.inputs).map(([key,input])=><div className="field" key={key}><label htmlFor={'flow-input-'+key}>{key}{input.required?' *':''}</label>{input.type==='enum'?<select id={'flow-input-'+key} required={input.required} value={String(parameters[key]??'')} onChange={e=>setParameters(current=>({...current,[key]:e.target.value}))}><option value="">—</option>{input.enum?.map(value=><option key={value}>{value}</option>)}</select>:input.type==='boolean'?<select id={'flow-input-'+key} value={parameters[key]===undefined?'':String(parameters[key])} required={input.required} onChange={e=>setParameters(current=>({...current,[key]:e.target.value===''?undefined:e.target.value==='true'}))}><option value="">—</option><option>true</option><option>false</option></select>:<input id={'flow-input-'+key} required={input.required} type={input.type==='number'?'number':'text'} maxLength={4096} value={String(parameters[key]??'')} onChange={e=>setParameters(current=>({...current,[key]:e.target.value===''?undefined:input.type==='number'?Number(e.target.value):e.target.value}))}/>}</div>)}
+ <div className="field"><label htmlFor="flow-concurrency">{t('concurrency')}</label><input id="flow-concurrency" type="number" min={1} max={256} value={concurrency} onChange={e=>setConcurrency(Number(e.target.value))} required/></div><div className="field"><label htmlFor="flow-breaker">{t('circuitBreaker')}</label><input id="flow-breaker" type="number" min={1} max={100} value={breaker} onChange={e=>setBreaker(Number(e.target.value))} required/></div></ActionDialog>
+}
+function FlowContent({search,onSearch}:{search:FlowSearch;onSearch:(value:Partial<FlowSearch>)=>void}){
+ const project=useProject(),session=useSession(),{t}=useTranslation(),client=useQueryClient(),action=useAction(),keyFor=useKey()
+ const canPublish=session.user.is_admin||['Admin','SRE'].includes(project.role),canLaunch=session.user.is_admin||['Admin','SRE','DE','DL'].includes(project.role)
+ const page=search.page??1,versionPage=search.versionPage??1,tab=search.tab??'overview'
+ const flows=useQuery({queryKey:['private',session.user.id,'project',project.id,'flow-workbench',page],queryFn:({signal})=>listFlows(project.id,page,signal)})
+ const flowId=search.flow??flows.data?.items[0]?.flow_id??''
+ const versions=useQuery({queryKey:['private',session.user.id,'project',project.id,'flow-versions',flowId,versionPage],queryFn:({signal})=>listFlowVersions(project.id,flowId,versionPage,signal),enabled:Boolean(flowId)})
+ const head=useQuery({queryKey:['private',session.user.id,'project',project.id,'flow-versions',flowId,1],queryFn:({signal})=>listFlowVersions(project.id,flowId,1,signal),enabled:Boolean(flowId)})
+ const latest=flows.data?.items.find(flow=>flow.flow_id===flowId)??head.data?.items[0]
+ const [newFlow,setNewFlow]=useState(false),[name,setName]=useState(''),[draft,setDraft]=useState(sample),[initial,setInitial]=useState(sample),[validation,setValidation]=useState<FlowValidation|null>(null),[confirm,setConfirm]=useState<'publish'|'rollback'|null>(null),[reason,setReason]=useState(''),[launch,setLaunch]=useState(false),[success,setSuccess]=useState(''),[executionId,setExecutionId]=useState('')
+ const dirty=draft!==initial
+ const editable=newFlow||latest?.definition.api_version==='keel.sim/v1'
+ useEffect(()=>{if(!newFlow&&latest){setDraft(source(latest));setInitial(source(latest));setName(latest.name);setValidation(null)}},[latest?.id,newFlow])
+ useBlocker({shouldBlockFn:({current,next})=>current.pathname!==next.pathname&&dirty&&!window.confirm(t('flowDiscard')),enableBeforeUnload:()=>dirty})
+ useEffect(()=>{if(!dirty)return;const listener=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue=''};window.addEventListener('beforeunload',listener);return()=>window.removeEventListener('beforeunload',listener)},[dirty])
+ const left=search.left??versions.data?.items[1]?.id??versions.data?.items[0]?.id??'',right=search.right??versions.data?.items[0]?.id??''
+ const diff=useQuery({queryKey:['private',session.user.id,'project',project.id,'flow-diff',flowId,left,right],queryFn:({signal})=>getFlowDiff(project.id,flowId,left,right,signal),enabled:tab==='revisions'&&Boolean(left&&right)})
+ useExpireOnUnauthorized(flows.error??versions.error??diff.error)
+ async function refresh(flow?:FlowVersion){await client.invalidateQueries({queryKey:['private',session.user.id,'project',project.id]});if(flow){setNewFlow(false);setDraft(source(flow));setInitial(source(flow));setName(flow.name);onSearch({flow:flow.flow_id,versionPage:1,right:undefined,left:undefined})}}
+ async function check(){const result=await action.run(()=>validateFlow(project.id,draft,{},session.csrf_token));if(result.ok)setValidation(result.value)}
+ async function publish(e:FormEvent){e.preventDefault();const body={name:name.trim(),yaml_source:draft,expected_version:newFlow?0:latest?.version??0};const result=await action.run(()=>newFlow?publishFlow(project.id,body,session.csrf_token,keyFor(body)):publishFlowVersion(project.id,flowId,body,session.csrf_token,keyFor(body)));if(result.ok){setConfirm(null);setSuccess(t('flowPublished',{version:result.value.version}));await refresh(result.value)}}
+ async function rollback(e:FormEvent){e.preventDefault();if(!latest||!left)return;const body={source_version_id:left,expected_version:latest.version,change_reason:reason};const result=await action.run(()=>rollbackFlow(project.id,flowId,body,session.csrf_token,keyFor(body)));if(result.ok){setConfirm(null);setReason('');setSuccess(t('flowRolledBack',{version:result.value.version}));await refresh(result.value)}}
+ function choose(flow:string){if(dirty&&!window.confirm(t('flowDiscard')))return;setNewFlow(false);setSuccess('');setInitial(draft);onSearch({flow,versionPage:1,left:undefined,right:undefined})}
+ function create(){if(dirty&&!window.confirm(t('flowDiscard')))return;setNewFlow(true);setName('');setDraft(sample);setInitial(sample);setValidation(null);setSuccess('');onSearch({tab:'source'})}
+ return <div className="flow-workbench"><header><div><h1>{t('flowWorkbenchTitle')}</h1><p>{t('flowWorkbenchIntro')}</p></div><div className="flow-actions"><Link className="secondary-button" to="/p/$projectId/executions" params={{projectId:project.id}}>{t('executionsTab')}</Link>{canPublish&&<button className="primary-button" onClick={create}>{t('flowNew')}</button>}</div></header><p className="impact-notice">{t('flowSimNotice')}</p>{success&&<SuccessNotice>{success}</SuccessNotice>}{executionId&&<Link to="/p/$projectId/executions" params={{projectId:project.id}} search={{execution:executionId}}>{t('viewExecution')} · {executionId}</Link>}<ActionError error={flows.error??versions.error??diff.error??action.error}/>
+ <div className="flow-columns"><aside className="panel flow-list" aria-label={t('flowWorkbenchTitle')}>{flows.isPending&&<p role="status">{t('loadingRecords')}</p>}{flows.data?.items.map(flow=><button className={'secondary-button '+(!newFlow&&flow.flow_id===flowId?'flow-selected':'')} key={flow.flow_id} onClick={()=>choose(flow.flow_id)}>{flow.name}<br/>v{flow.version} · {flow.definition.api_version}</button>)}{flows.data&&!flows.data.items.length&&<p>{t('noFlows')}</p>}{flows.data&&<Pagination offset={(page-1)*20} limit={20} total={flows.data.total} busy={flows.isFetching} onChange={offset=>onSearch({page:offset/20+1})}/>}</aside>
+ <div className="flow-detail">{(newFlow||latest)&&<><div className="flow-actions"><h2>{newFlow?t('flowNew'):latest?.name}</h2>{latest&&!newFlow&&<span>v{latest.version}</span>}{!newFlow&&latest&&canLaunch&&editable&&<button className="primary-button" onClick={()=>setLaunch(true)}>{t('flowLaunch')}</button>}</div>
+ <div className="flow-tabs" role="tablist" aria-label={t('flowViews')}>{(['overview','source','revisions'] as const).filter(value=>!newFlow||value==='source').map(value=><button role="tab" id={'flow-tab-'+value} aria-controls="flow-tab-panel" aria-selected={tab===value} tabIndex={tab===value?0:-1} key={value} onClick={()=>onSearch({tab:value})} onKeyDown={event=>{if(event.key==='ArrowRight'||event.key==='ArrowLeft'){event.preventDefault();const tabs=['overview','source','revisions'] as const,index=tabs.indexOf(tab),next=tabs[(index+(event.key==='ArrowRight'?1:2))%3];onSearch({tab:next});requestAnimationFrame(()=>document.getElementById('flow-tab-'+next)?.focus())}}}>{t('flowTab_'+value)}</button>)}</div>
+ <section className="panel" id="flow-tab-panel" role="tabpanel" aria-labelledby={'flow-tab-'+tab}>
+ {tab==='overview'&&latest&&<><h3>{t('flowTaskGraph')}</h3><p>{t('flowRevisionHash')}: <code>{latest.content_hash}</code></p><ol className="flow-task-list">{latest.definition.tasks.map(task=><li key={task.id}><strong>{task.id}</strong> · {task.type}<p>{t('flowDependencies')}: {task.depends_on?.join(' → ')||'—'} · {t('flowTimeout')}: {task.timeout_ms}ms · retry {task.retry}</p></li>)}</ol><details><summary>{t('flowInputSchema')}</summary><pre>{JSON.stringify(latest.definition.inputs,null,2)}</pre></details></>}
+ {tab==='source'&&<><div className="flow-new-form"><label>{t('flowName')}<input value={name} maxLength={120} disabled={!newFlow} onChange={e=>setName(e.target.value)}/></label>{!editable&&<p>{t('flowOwnedNotice')}</p>}<Suspense fallback={<p role="status">{t('loadingRecords')}</p>}><SourceEditor value={draft} onChange={value=>{setDraft(value);setValidation(null)}} readOnly={!canPublish||!editable} label={t('flowYAML')}/></Suspense><div className="flow-actions">{editable&&<button className="secondary-button" disabled={action.busy} onClick={()=>void check()}>{t('flowValidate')}</button>}{canPublish&&editable&&<button className="primary-button" disabled={action.busy||!name.trim()} onClick={()=>setConfirm('publish')}>{t('flowPublish')}</button>}{dirty&&<span>{t('flowUnsaved')}</span>}</div>{validation&&<div role="status"><strong>{t('flowValid')}</strong><p>{validation.task_order.join(' → ')}</p><p>{t('flowRevisionHash')}: <code>{validation.content_hash}</code></p><pre>{JSON.stringify(validation.parameters,null,2)}</pre></div>}</div></>}
+ {tab==='revisions'&&latest&&<><h3>{t('flowRevisions')}</h3><div className="flow-revision-select"><label>{t('flowBefore')}<select value={left} onChange={e=>onSearch({left:e.target.value})}>{versions.data?.items.map(v=><option key={v.id} value={v.id}>v{v.version} · {new Date(v.created_at).toLocaleString()}</option>)}</select></label><label>{t('flowAfter')}<select value={right} onChange={e=>onSearch({right:e.target.value})}>{versions.data?.items.map(v=><option key={v.id} value={v.id}>v{v.version} · {new Date(v.created_at).toLocaleString()}</option>)}</select></label></div>{versions.data&&<Pagination offset={(versionPage-1)*20} limit={20} total={versions.data.total} busy={versions.isFetching} onChange={offset=>onSearch({versionPage:offset/20+1,left:undefined,right:undefined})}/>}{diff.data&&<><p>{t('flowChangeCount',{count:diff.data.changes.length})}</p><Suspense fallback={<p role="status">{t('loadingRecords')}</p>}><DiffEditor before={source(diff.data.before)} after={source(diff.data.after)} label={t('flowDiff')}/></Suspense><ul>{diff.data.changes.map(change=><li key={change.path}>{change.kind} · <code>{change.path}</code></li>)}</ul></>}{canPublish&&editable&&left&&<button className="danger-button" disabled={action.busy} onClick={()=>setConfirm('rollback')}>{t('flowRollback')}</button>}<p>{t('flowRollbackHint')}</p></>}
+ </section></>}</div></div>
+ {confirm==='publish'&&<ActionDialog title={t('flowPublish')} description={`${project.name} · ${name} · v${newFlow?1:(latest?.version??0)+1}`} busy={action.busy} confirm={t('flowPublish')} onClose={()=>setConfirm(null)} onSubmit={e=>void publish(e)}><ActionError error={action.error}/><p>{t('flowPublishHint')}</p></ActionDialog>}
+ {confirm==='rollback'&&latest&&<ActionDialog title={t('flowRollback')} description={`${project.name} · ${latest.name} · v${latest.version} → v${latest.version+1}`} danger busy={action.busy} submitDisabled={reason.trim().length<3} confirm={t('flowRollback')} onClose={()=>setConfirm(null)} onSubmit={e=>void rollback(e)}><ActionError error={action.error}/><p>{t('flowRollbackHint')}</p><code>{left}</code><div className="field"><label htmlFor="flow-rollback-reason">{t('flowChangeReason')}</label><textarea id="flow-rollback-reason" value={reason} minLength={3} maxLength={1000} required onChange={e=>setReason(e.target.value)}/></div></ActionDialog>}
+ {launch&&latest&&<LaunchDialog flow={latest} onClose={()=>setLaunch(false)} onDone={id=>{setLaunch(false);setExecutionId(id);setSuccess(t('executionCreated'))}}/>}
+ </div>
+}
+export function FlowsPage({projectId,search,onSearch}:{projectId:string;search:FlowSearch;onSearch:(value:Partial<FlowSearch>)=>void}){return <ProjectWorkspace projectId={projectId}><FlowContent search={search} onSearch={onSearch}/></ProjectWorkspace>}

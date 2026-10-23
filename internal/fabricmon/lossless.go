@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/big"
 	"sort"
+	"time"
 )
 
 //go:embed lossless-defaults.json
@@ -46,6 +47,7 @@ type LosslessRule struct {
 	Advice             string            `json:"advice"`
 }
 type LosslessFinding struct {
+	EvaluatedAt  *time.Time `json:"evaluated_at,omitempty"`
 	Unit         MetricUnit `json:"unit"`
 	RuleID       string     `json:"rule_id"`
 	AppliedRules []string   `json:"applied_rule_ids"`
@@ -135,6 +137,13 @@ func (r LosslessRule) Validate(c *MetricEvaluation) error {
 		}
 		if (r.Comparator == "gt" || r.Comparator == "gte") && observe.Cmp(hit) >= 0 || (r.Comparator == "lt" || r.Comparator == "lte") && observe.Cmp(hit) <= 0 {
 			return errors.New("observe threshold must precede hit threshold")
+		}
+	}
+	for _, extra := range []*MetricExpression{r.Escalation, r.WeakEvidence} {
+		if extra != nil {
+			if e := c.ValidateExpression(*extra); e != nil {
+				return e
+			}
 		}
 	}
 	return c.ValidateExpression(r.Expression)

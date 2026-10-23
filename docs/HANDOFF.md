@@ -135,3 +135,16 @@ LL-01～LL-07 类型化指标与安全 AST、精确十进制/窗口/来源校验
 用户已授权并行开发：规则治理、ZTP 剩余流程、FR-1 作业平台分别推进；共享契约/路由由主线合并。034 预留规则治理、035 预留 FR-1、036 预留 ZTP；各批只有实际提交迁移才可发布。当前原有 AGENTS、026 与 fabric_precheck 草稿保留。本节功能待后续部署确认，不因源码已实现而宣称 3000 已更新。
 
 部署确认：`c22ac1ce3874035f2760f67a8f220ff4ee08a889` 已推送；从干净 archive 构建并部署 3000，未包含026草稿，无迁移变更。API容器 healthy、`/healthz` 版本精确匹配、健康页 bundle/SPA 请求200；`.env` 镜像引用与600权限已确认。原镜像保留。当前未查询 GitHub CI，不声称其通过；未接真机。
+
+
+## 16. 2026-10-24 规则治理、ZTP 最小管理与 FR-1 Flow 工作区合并
+
+- FR-0 lossless 规则版本/独立 NE+NH 审批/发布时角色复核、停用 unknown、生成新版本回滚、typed XOFF/PFC 阈值和有界 48h 逐分钟历史预演已接到健康消费者。034 迁移；详见 NETWORK-RULES。预演遵循 FR-0.7.6 零业务写入，保存候选/发布持久化报告与审计；BASE-08 一般审计文字差异仍保留待统一。其他 rule domain 和大规模异步重放未完成。
+- ZTP 个性化最小管理脚本/精确摘要清单审批/239 与143 投递、只读 mTLS 认证可管理性复验、设备级 DORA、凭据过期/有界重试、真实九态会话及共享 SSH 资源互斥已接线；036 迁移。fixture 不能生成 device managed。真实网关/NOS/凭据生命周期/IPv6与厂商适配等限制见 ZTP-COMPLETION，不据此宣称 WP-1.17 或 FR-0 全部验收。
+- FR-1 首批 Flow 工作区：Monaco YAML/本地 worker、严格执行解析复用、版本历史/diff、审计/幂等/版本冲突保护的新版本回滚、共享执行器启动。通用发布/回滚不能覆盖业务专属 Kea/fabric Flow。035 未使用，无该批迁移。详见 FR1-IMPLEMENTATION。
+
+实际证据：纯 fabricmon/fabricboot/execution 全包测试和相关五包 vet 通过；合并后契约生成/TypeScript/Vite 构建通过。规则真实 API/PG/mTLS采集夹具/浏览器证据 `/tmp/keel-shell-53_0fu1q`；健康/日志回归 `/tmp/keel-shell-x1h3lzka`；ZTP 新只读接口/空态/权限/页面/Intel 字体 `/tmp/keel-shell-w1ce_2ky`；ZTP 隔离库 TestZTPManagementArtifactsAndDeviceProjection 通过并清理；FR-1 真实 API/PG/Worker/浏览器完整版本/回滚/运行证据 `/tmp/keel-flows-bkvytiei`。ZTP 页面发现并修正嵌套 main 容器，首次定位器失败轮次不计通过。
+
+这些均是软件框架/设备协议夹具证据，未跑真机 PoC、千台性能或 GitHub CI。当前功能待下述发布记录确认，FR-0/FR-1 均不能标全量完成。原 AGENTS/026/fabric_precheck 草稿保持排除。
+
+用户授权继续并行：`codex/fr1-views` 执行详情、`codex/fabric-diagnostics` T4/T6/DDM、`codex/shadcn-ui` 组件库均在 `/home/ubuntu/keel-worktrees/` 独立工作树；后续前端统一采用 shadcn/ui，适配既有设计令牌/工作台/主题/Intel 字体，不替换 Monaco。先完成本批稳定发布，再按该提交同步下一批工作树。

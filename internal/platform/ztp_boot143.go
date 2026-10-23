@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"net/netip"
 	"net/url"
 	"strings"
@@ -119,17 +118,9 @@ func (s *Store) ServeZTP143(ctx context.Context, certSerial, sourceIP, requestHo
 	if !bootMediaID.MatchString(mediaID) {
 		return nil, apiError(409, "SZTP_SCRIPT_NOT_APPROVED", "Approved isolation script is required")
 	}
-	var digest string
-	var size int64
-	err = tx.QueryRowContext(ctx, `SELECT sha256,size FROM media_items WHERE id=$1 AND scope_key IN($2,'global') AND type='ztp_script' AND state='approved' FOR SHARE`, mediaID, "project:"+plan.projectID).Scan(&digest, &size)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, apiError(409, "SZTP_SCRIPT_NOT_APPROVED", "Approved isolation script is required")
-	}
+	preview, err := approvedZTPManagementPolicyTx(ctx, tx, plan.projectID, plan.batchRef, mediaID, true)
 	if err != nil {
 		return nil, err
-	}
-	if digest != fabricboot.IsolationScriptDigest() || size != int64(len(fabricboot.IsolationScriptV1)) {
-		return nil, apiError(409, "SZTP_SCRIPT_DIGEST_MISMATCH", "Approved script differs from isolation template")
 	}
 	verdict, err := resolveZTPIdentityTx(ctx, tx, plan.projectID, ZTPIdentityInput{Serial: certSerial})
 	if err != nil {
@@ -150,11 +141,15 @@ func (s *Store) ServeZTP143(ctx context.Context, certSerial, sourceIP, requestHo
 	if plan.live != nil && !liveBindingMatches(plan.live, verdict.SwitchID, sourceIP) {
 		return nil, apiError(409, "SZTP_BOOT_BINDING_MISMATCH", "Certificate identity does not match the verified management source")
 	}
-	cms, err := fabricboot.UnsignedIsolationOnboarding(false)
+	body, err := ztpApprovedPersonalizedScript(preview, verdict.SwitchID)
 	if err != nil {
 		return nil, err
 	}
-	if err = appendAudit(ctx, tx, "", plan.projectID, "ztp.boot143.serve", plan.batchRef, trace, map[string]any{"serial": certSerial, "source_ip": sourceIP, "verdict": verdict.Verdict, "switch_id": verdict.SwitchID, "media_id": mediaID, "script_sha256": digest}); err != nil {
+	cms, err := fabricboot.UnsignedScriptOnboarding(body, false)
+	if err != nil {
+		return nil, err
+	}
+	if err = appendAudit(ctx, tx, "", plan.projectID, "ztp.boot143.serve", plan.batchRef, trace, map[string]any{"serial": certSerial, "source_ip": sourceIP, "verdict": verdict.Verdict, "switch_id": verdict.SwitchID, "media_id": mediaID, "script_sha256": digest(body)}); err != nil {
 		return nil, err
 	}
 	cmsHash := sha256.Sum256(cms)

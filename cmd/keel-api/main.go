@@ -91,6 +91,25 @@ func main() {
 	}
 	if store != nil {
 		go func() {
+			ticker := time.NewTicker(3 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					workCtx, cancel := context.WithTimeout(ctx, 25*time.Second)
+					_, reconcileErr := store.ReconcileZTPDeviceSessions(workCtx, 16)
+					cancel()
+					if reconcileErr != nil && ctx.Err() == nil {
+						slog.Error("ZTP management reconciliation", "error", reconcileErr)
+					}
+				}
+			}
+		}()
+	}
+	if store != nil {
+		go func() {
 			ticker := time.NewTicker(time.Second)
 			defer ticker.Stop()
 			for {

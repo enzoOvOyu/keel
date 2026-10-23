@@ -21,10 +21,12 @@ import { Route as PProjectIdAuditsRouteImport } from './routes/p_.$projectId.aud
 import { Route as PProjectIdConfigurationRouteImport } from './routes/p_.$projectId.configuration'
 import { Route as PProjectIdExecutionsRouteImport } from './routes/p_.$projectId.executions'
 import { Route as PProjectIdFabricRouteImport } from './routes/p_.$projectId.fabric'
+import { Route as PProjectIdFlowsRouteImport } from './routes/p_.$projectId.flows'
 import { Route as PProjectIdHealthRouteImport } from './routes/p_.$projectId.health'
 import { Route as PProjectIdMediaRouteImport } from './routes/p_.$projectId.media'
 import { Route as PProjectIdMembersRouteImport } from './routes/p_.$projectId.members'
 import { Route as PProjectIdModelsRouteImport } from './routes/p_.$projectId.models'
+import { Route as PProjectIdRulesRouteImport } from './routes/p_.$projectId.rules'
 import { Route as PProjectIdZtpRouteImport } from './routes/p_.$projectId.ztp'
 
 const IndexRoute = IndexRouteImport.update({
@@ -87,6 +89,11 @@ const PProjectIdFabricRoute = PProjectIdFabricRouteImport.update({
   path: '/p/$projectId/fabric',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PProjectIdFlowsRoute = PProjectIdFlowsRouteImport.update({
+  id: '/p_/$projectId/flows',
+  path: '/p/$projectId/flows',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PProjectIdHealthRoute = PProjectIdHealthRouteImport.update({
   id: '/p_/$projectId/health',
   path: '/p/$projectId/health',
@@ -105,6 +112,11 @@ const PProjectIdMembersRoute = PProjectIdMembersRouteImport.update({
 const PProjectIdModelsRoute = PProjectIdModelsRouteImport.update({
   id: '/p_/$projectId/models',
   path: '/p/$projectId/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PProjectIdRulesRoute = PProjectIdRulesRouteImport.update({
+  id: '/p_/$projectId/rules',
+  path: '/p/$projectId/rules',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PProjectIdZtpRoute = PProjectIdZtpRouteImport.update({
@@ -126,10 +138,12 @@ export interface FileRoutesByFullPath {
   '/p/$projectId/configuration': typeof PProjectIdConfigurationRoute
   '/p/$projectId/executions': typeof PProjectIdExecutionsRoute
   '/p/$projectId/fabric': typeof PProjectIdFabricRoute
+  '/p/$projectId/flows': typeof PProjectIdFlowsRoute
   '/p/$projectId/health': typeof PProjectIdHealthRoute
   '/p/$projectId/media': typeof PProjectIdMediaRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
   '/p/$projectId/models': typeof PProjectIdModelsRoute
+  '/p/$projectId/rules': typeof PProjectIdRulesRoute
   '/p/$projectId/ztp': typeof PProjectIdZtpRoute
 }
 export interface FileRoutesByTo {
@@ -145,10 +159,12 @@ export interface FileRoutesByTo {
   '/p/$projectId/configuration': typeof PProjectIdConfigurationRoute
   '/p/$projectId/executions': typeof PProjectIdExecutionsRoute
   '/p/$projectId/fabric': typeof PProjectIdFabricRoute
+  '/p/$projectId/flows': typeof PProjectIdFlowsRoute
   '/p/$projectId/health': typeof PProjectIdHealthRoute
   '/p/$projectId/media': typeof PProjectIdMediaRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
   '/p/$projectId/models': typeof PProjectIdModelsRoute
+  '/p/$projectId/rules': typeof PProjectIdRulesRoute
   '/p/$projectId/ztp': typeof PProjectIdZtpRoute
 }
 export interface FileRoutesById {
@@ -165,10 +181,12 @@ export interface FileRoutesById {
   '/p_/$projectId/configuration': typeof PProjectIdConfigurationRoute
   '/p_/$projectId/executions': typeof PProjectIdExecutionsRoute
   '/p_/$projectId/fabric': typeof PProjectIdFabricRoute
+  '/p_/$projectId/flows': typeof PProjectIdFlowsRoute
   '/p_/$projectId/health': typeof PProjectIdHealthRoute
   '/p_/$projectId/media': typeof PProjectIdMediaRoute
   '/p_/$projectId/members': typeof PProjectIdMembersRoute
   '/p_/$projectId/models': typeof PProjectIdModelsRoute
+  '/p_/$projectId/rules': typeof PProjectIdRulesRoute
   '/p_/$projectId/ztp': typeof PProjectIdZtpRoute
 }
 export interface FileRouteTypes {
@@ -186,10 +204,12 @@ export interface FileRouteTypes {
     | '/p/$projectId/configuration'
     | '/p/$projectId/executions'
     | '/p/$projectId/fabric'
+    | '/p/$projectId/flows'
     | '/p/$projectId/health'
     | '/p/$projectId/media'
     | '/p/$projectId/members'
     | '/p/$projectId/models'
+    | '/p/$projectId/rules'
     | '/p/$projectId/ztp'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -205,10 +225,12 @@ export interface FileRouteTypes {
     | '/p/$projectId/configuration'
     | '/p/$projectId/executions'
     | '/p/$projectId/fabric'
+    | '/p/$projectId/flows'
     | '/p/$projectId/health'
     | '/p/$projectId/media'
     | '/p/$projectId/members'
     | '/p/$projectId/models'
+    | '/p/$projectId/rules'
     | '/p/$projectId/ztp'
   id:
     | '__root__'
@@ -224,10 +246,12 @@ export interface FileRouteTypes {
     | '/p_/$projectId/configuration'
     | '/p_/$projectId/executions'
     | '/p_/$projectId/fabric'
+    | '/p_/$projectId/flows'
     | '/p_/$projectId/health'
     | '/p_/$projectId/media'
     | '/p_/$projectId/members'
     | '/p_/$projectId/models'
+    | '/p_/$projectId/rules'
     | '/p_/$projectId/ztp'
   fileRoutesById: FileRoutesById
 }
@@ -244,10 +268,12 @@ export interface RootRouteChildren {
   PProjectIdConfigurationRoute: typeof PProjectIdConfigurationRoute
   PProjectIdExecutionsRoute: typeof PProjectIdExecutionsRoute
   PProjectIdFabricRoute: typeof PProjectIdFabricRoute
+  PProjectIdFlowsRoute: typeof PProjectIdFlowsRoute
   PProjectIdHealthRoute: typeof PProjectIdHealthRoute
   PProjectIdMediaRoute: typeof PProjectIdMediaRoute
   PProjectIdMembersRoute: typeof PProjectIdMembersRoute
   PProjectIdModelsRoute: typeof PProjectIdModelsRoute
+  PProjectIdRulesRoute: typeof PProjectIdRulesRoute
   PProjectIdZtpRoute: typeof PProjectIdZtpRoute
 }
 
@@ -337,6 +363,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectIdFabricRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p_/$projectId/flows': {
+      id: '/p_/$projectId/flows'
+      path: '/p/$projectId/flows'
+      fullPath: '/p/$projectId/flows'
+      preLoaderRoute: typeof PProjectIdFlowsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p_/$projectId/health': {
       id: '/p_/$projectId/health'
       path: '/p/$projectId/health'
@@ -365,6 +398,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectIdModelsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p_/$projectId/rules': {
+      id: '/p_/$projectId/rules'
+      path: '/p/$projectId/rules'
+      fullPath: '/p/$projectId/rules'
+      preLoaderRoute: typeof PProjectIdRulesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p_/$projectId/ztp': {
       id: '/p_/$projectId/ztp'
       path: '/p/$projectId/ztp'
@@ -388,10 +428,12 @@ const rootRouteChildren: RootRouteChildren = {
   PProjectIdConfigurationRoute: PProjectIdConfigurationRoute,
   PProjectIdExecutionsRoute: PProjectIdExecutionsRoute,
   PProjectIdFabricRoute: PProjectIdFabricRoute,
+  PProjectIdFlowsRoute: PProjectIdFlowsRoute,
   PProjectIdHealthRoute: PProjectIdHealthRoute,
   PProjectIdMediaRoute: PProjectIdMediaRoute,
   PProjectIdMembersRoute: PProjectIdMembersRoute,
   PProjectIdModelsRoute: PProjectIdModelsRoute,
+  PProjectIdRulesRoute: PProjectIdRulesRoute,
   PProjectIdZtpRoute: PProjectIdZtpRoute,
 }
 export const routeTree = rootRouteImport

@@ -1,3 +1,6 @@
+import {ztpCompletionTranslations} from './ztp-completion-i18n'
+import {networkRuleTranslations} from './network-rules-i18n'
+import {flowWorkbenchTranslations} from './flow-workbench-i18n'
 import { networkHealthTranslations } from './network-health-i18n'
 import { networkPushTranslations } from './network-push-i18n'
 import { networkTranslations } from './network-i18n'
@@ -18,16 +21,18 @@ export const resources = {
   zh: { translation: {
     ...managementTranslations.zh,
     ...fabricTranslations.zh,
-    ...networkHealthTranslations.zh,
+    ...networkHealthTranslations.zh,...networkRuleTranslations.zh,...networkRuleTranslations.zh,
     ...networkPushTranslations.zh,
     ...networkTranslations.zh,
     ...executionTranslations.zh,
+    ...flowWorkbenchTranslations.zh,
     ...modelsTranslations.zh,
     ...mediaTranslations.zh,
     ...bomTranslations.zh,
     ...ztpTranslations.zh,
     ...workspaceTranslations.zh,
     ...managementPlanningTranslations.zh,
+    ...ztpCompletionTranslations.zh,
     "setupRequired": "管理员尚未初始化",
     "setupRequiredDetail": "请由服务器管理员完成首位管理员初始化后，再登录工作空间。",
     "signingIn": "正在登录…",
@@ -121,16 +126,18 @@ export const resources = {
   en: { translation: {
     ...managementTranslations.en,
     ...fabricTranslations.en,
-    ...networkHealthTranslations.en,
+    ...networkHealthTranslations.en,...networkRuleTranslations.en,...networkRuleTranslations.en,
     ...networkPushTranslations.en,
     ...networkTranslations.en,
     ...executionTranslations.en,
+    ...flowWorkbenchTranslations.en,
     ...modelsTranslations.en,
     ...mediaTranslations.en,
     ...bomTranslations.en,
     ...ztpTranslations.en,
     ...workspaceTranslations.en,
     ...managementPlanningTranslations.en,
+    ...ztpCompletionTranslations.en,
     "setupRequired": "Administrator setup is required",
     "setupRequiredDetail": "Ask your server administrator to initialize the first administrator before signing in.",
     "signingIn": "Signing in…",

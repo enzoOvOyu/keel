@@ -1047,6 +1047,236 @@
         },
         "description": "Read durable committed outbox events in ascending global sequence. At most200; reconnect with last next_cursor. SQL state and receipts are authoritative, not event arrival order."
       }
+    },
+    "/api/v1/projects/{id}/flows/validate": {
+      "post": {
+        "operationId": "validateFlow",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project-scoped flow revision or pure validation. Rollback creates a new immutable version and audits atomically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowValidation"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlowValidationInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/flows/{flowId}/versions/{versionId}": {
+      "get": {
+        "operationId": "getFlowRevision",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "flowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project-scoped flow revision or pure validation. Rollback creates a new immutable version and audits atomically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowRevisionDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/flows/{flowId}/diff": {
+      "get": {
+        "operationId": "getFlowDiff",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "flowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project-scoped flow revision or pure validation. Rollback creates a new immutable version and audits atomically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowDiff"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/flows/{flowId}/rollback": {
+      "post": {
+        "operationId": "rollbackFlow",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "flowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Project-scoped flow revision or pure validation. Rollback creates a new immutable version and audits atomically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowVersion"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackFlowInput"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2427,6 +2657,157 @@
             "minLength": 1
           }
         }
+      },
+      "FlowValidationInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "yaml_source": {
+            "type": "string",
+            "maxLength": 49152
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "yaml_source"
+        ]
+      },
+      "FlowValidation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "flow-validation/v1"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/FlowDefinition"
+          },
+          "content_hash": {
+            "type": "string"
+          },
+          "task_order": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "version",
+          "definition",
+          "content_hash",
+          "task_order",
+          "parameters",
+          "warnings"
+        ]
+      },
+      "FlowRevisionDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "$ref": "#/components/schemas/FlowVersion"
+          },
+          "created_by": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          }
+        },
+        "required": [
+          "revision",
+          "created_by"
+        ]
+      },
+      "FlowChange": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "added",
+              "removed",
+              "changed"
+            ]
+          },
+          "before": {},
+          "after": {}
+        },
+        "required": [
+          "path",
+          "kind",
+          "before",
+          "after"
+        ]
+      },
+      "FlowDiff": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "flow-diff/v1"
+          },
+          "before": {
+            "$ref": "#/components/schemas/FlowVersion"
+          },
+          "after": {
+            "$ref": "#/components/schemas/FlowVersion"
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlowChange"
+            }
+          }
+        },
+        "required": [
+          "version",
+          "before",
+          "after",
+          "changes"
+        ]
+      },
+      "RollbackFlowInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source_version_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "change_reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "source_version_id",
+          "expected_version",
+          "change_reason"
+        ]
       }
     }
   }

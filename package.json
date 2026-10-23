@@ -1,11 +1,24 @@
 {
-  "name":"keel", "version":"0.2.0", "private":true, "type":"module",
-  "workspaces":["web"], "engines":{"node":">=22.12 <23"},
-  "scripts":{
-    "dev:web":"npm run dev --workspace=@keel/web",
-    "build":"npm run build --workspace=@keel/web",
-    "check":"npm run typecheck --workspace=@keel/web",
-    "check:design":"python3 scripts/check-design.py",
-    "test":"go test ./..."
+  "name": "keel",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "web"
+  ],
+  "engines": {
+    "node": ">=22.12 <23"
+  },
+  "scripts": {
+    "dev:web": "npm run dev --workspace=@keel/web",
+    "build": "npm run build --workspace=@keel/web",
+    "check": "npm run typecheck --workspace=@keel/web",
+    "check:design": "python3 scripts/check-design.py",
+    "test": "go test ./..."
+  },
+  "overrides": {
+    "monaco-editor": {
+      "dompurify": "3.4.17"
+    }
   }
 }

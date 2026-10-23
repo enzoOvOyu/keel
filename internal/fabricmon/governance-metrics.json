@@ -1,0 +1,44 @@
+[
+  {
+    "key": "pfc_window_frames",
+    "unit": "frames",
+    "safe_min": 1,
+    "safe_max": 1000000
+  },
+  {
+    "key": "pfc_storm",
+    "unit": "boolean",
+    "safe_min": 1,
+    "safe_max": 1
+  },
+  {
+    "key": "ecn_unmarked_congestion",
+    "unit": "boolean",
+    "safe_min": 1,
+    "safe_max": 1
+  },
+  {
+    "key": "ecn_marked_ratio",
+    "unit": "ratio",
+    "safe_min": 0,
+    "safe_max": 1
+  },
+  {
+    "key": "qos_intent_mismatch",
+    "unit": "boolean",
+    "safe_min": 1,
+    "safe_max": 1
+  },
+  {
+    "key": "no_drop_queue_drops",
+    "unit": "packets",
+    "safe_min": 1,
+    "safe_max": 1000000
+  },
+  {
+    "key": "ecn_xoff_occupancy",
+    "unit": "ratio",
+    "safe_min": 0,
+    "safe_max": 1
+  }
+]

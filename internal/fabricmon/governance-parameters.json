@@ -1,0 +1,7 @@
+[
+ {"rule_id":"LL-01","key":"escalation_frames","unit":"frames","default":100,"safe_min":1,"safe_max":1000000,"root":"escalation","paths":[[0,1]]},
+ {"rule_id":"LL-02","key":"xoff_duration_ms","unit":"ms","default":90000,"safe_min":1,"safe_max":300000,"root":"expression","paths":[[0,1]]},
+ {"rule_id":"LL-02","key":"pause_frames_per_minute","unit":"frames","default":1000,"safe_min":1,"safe_max":1000000,"root":"expression","paths":[[1,0,1],[1,1,1],[1,2,1]]},
+ {"rule_id":"LL-03","key":"queue_congestion_bytes","unit":"bytes","default":0,"safe_min":0,"safe_max":1073741824,"root":"expression","paths":[[1,0,1]]},
+ {"rule_id":"LL-03","key":"pfc_congestion_frames","unit":"frames","default":1,"safe_min":1,"safe_max":1000000,"root":"expression","paths":[[1,1,1]]}
+]

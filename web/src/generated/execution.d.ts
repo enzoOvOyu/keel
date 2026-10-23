@@ -161,6 +161,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/flows/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["validateFlow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/flows/{flowId}/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getFlowRevision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/flows/{flowId}/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getFlowDiff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/flows/{flowId}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rollbackFlow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -442,6 +506,46 @@ export interface components {
             message: string;
             details: string[];
             trace_id: string;
+        };
+        FlowValidationInput: {
+            yaml_source: string;
+            parameters?: {
+                [key: string]: unknown;
+            };
+        };
+        FlowValidation: {
+            /** @constant */
+            version: "flow-validation/v1";
+            definition: components["schemas"]["FlowDefinition"];
+            content_hash: string;
+            task_order: string[];
+            parameters: {
+                [key: string]: unknown;
+            };
+            warnings: string[];
+        };
+        FlowRevisionDetail: {
+            revision: components["schemas"]["FlowVersion"];
+            created_by: string;
+        };
+        FlowChange: {
+            path: string;
+            /** @enum {string} */
+            kind: "added" | "removed" | "changed";
+            before: unknown;
+            after: unknown;
+        };
+        FlowDiff: {
+            /** @constant */
+            version: "flow-diff/v1";
+            before: components["schemas"]["FlowVersion"];
+            after: components["schemas"]["FlowVersion"];
+            changes: components["schemas"]["FlowChange"][];
+        };
+        RollbackFlowInput: {
+            source_version_id: string;
+            expected_version: number;
+            change_reason: string;
         };
     };
     responses: {
@@ -1024,6 +1128,114 @@ export interface operations {
             413: components["responses"]["TooLarge"];
             415: components["responses"]["UnsupportedMediaType"];
             503: components["responses"]["Unavailable"];
+        };
+    };
+    validateFlow: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FlowValidationInput"];
+            };
+        };
+        responses: {
+            /** @description Project-scoped flow revision or pure validation. Rollback creates a new immutable version and audits atomically. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowValidation"];
+                };
+            };
+        };
+    };
+    getFlowRevision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                flowId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped flow revision or pure validation. Rollback creates a new immutable version and audits atomically. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowRevisionDetail"];
+                };
+            };
+        };
+    };
+    getFlowDiff: {
+        parameters: {
+            query: {
+                before: string;
+                after: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+                flowId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped flow revision or pure validation. Rollback creates a new immutable version and audits atomically. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowDiff"];
+                };
+            };
+        };
+    };
+    rollbackFlow: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                flowId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RollbackFlowInput"];
+            };
+        };
+        responses: {
+            /** @description Project-scoped flow revision or pure validation. Rollback creates a new immutable version and audits atomically. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowVersion"];
+                };
+            };
         };
     };
 }

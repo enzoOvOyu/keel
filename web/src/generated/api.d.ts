@@ -1227,10 +1227,394 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/fabric/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listNetworkRules"];
+        put?: never;
+        post: operations["createNetworkRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/rules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewNetworkRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/rules/{ruleVersionId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approveNetworkRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/rules/{ruleVersionId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["publishNetworkRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/rules/{ruleVersionId}/rollback-candidate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["networkRuleRollbackCandidate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/management-artifacts/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["previewZTPManagementArtifacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/manageability-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listZTPManageabilityChecks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/device-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listZTPDeviceSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/device-sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getZTPDeviceSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ZTPManagementScript: {
+            switch_id: string;
+            serial_number: string;
+            credential_batch_ref: string;
+            sha256: string;
+            size: number;
+            body?: string;
+        };
+        ZTPManagementManifest: {
+            /** @enum {string} */
+            version: "ztp-management-manifest/v1";
+            project_id: string;
+            batch_ref: string;
+            plan_id: string;
+            plan_hash: string;
+            renderer: string;
+            isolation_sha256: string;
+            isolation_size: number;
+            scripts: components["schemas"]["ZTPManagementScript"][];
+        };
+        ZTPManagementArtifactPreview: {
+            manifest: components["schemas"]["ZTPManagementManifest"];
+            sha256: string;
+            size: number;
+            content: string;
+            scripts: components["schemas"]["ZTPManagementScript"][];
+        };
+        ZTPManageabilityProof: {
+            version: string;
+            request_sha256: string;
+            project_id: string;
+            switch_id: string;
+            serial_number: string;
+            evidence_source: string;
+            code: string;
+            credential_batch_ref: string;
+            hostname: string;
+            management_ip: string;
+            gateway: string;
+            management_vrf: string;
+            host_key_sha256: string;
+            host_key_trust_ref: string;
+            credential_purpose: string;
+            dhcp_client_mac: string;
+            dhcp_lease_ip: string;
+            dhcp_proof_sha256: string;
+            /** Format: date-time */
+            at: string;
+            prefix_bits: number;
+            ssh_authenticated: boolean;
+            config_imported: boolean;
+            services_restarted: boolean;
+            front_panel_isolated: boolean;
+            dhcp_dora_verified: boolean;
+            evidence_refs: string[];
+            stage_evidence?: {
+                /** @enum {string} */
+                state: "powered" | "dhcp" | "booturl" | "identity" | "lookup" | "fetch" | "config" | "restart" | "managed";
+                /** Format: date-time */
+                at: string;
+                sha256: string;
+            }[];
+        };
+        ZTPManageabilityCheck: {
+            id: string;
+            observation_id: string;
+            switch_id: string;
+            session_id?: string;
+            credential_batch_ref: string;
+            /** @enum {string} */
+            evidence_source: "device" | "protocol_fixture" | "unknown";
+            code: string;
+            attempt: number;
+            /** Format: date-time */
+            next_retry_at: string | null;
+            /** Format: date-time */
+            checked_at: string;
+            proof: components["schemas"]["ZTPManageabilityProof"] | null;
+        };
+        ZTPManageabilityCheckPage: {
+            items: components["schemas"]["ZTPManageabilityCheck"][];
+        };
+        ZTPDeviceSessionPage: {
+            items: components["schemas"]["ZTPSessionSummary"][];
+        };
+        NetworkRuleCatalog: {
+            condition_parameters: components["schemas"]["NetworkRuleConditionParameter"][];
+            domain: string;
+            supported_domains: "lossless"[];
+            defaults: components["schemas"]["NetworkGovernedLosslessRule"][];
+            metrics: components["schemas"]["NetworkRuleMetric"][];
+            versions: components["schemas"]["NetworkRuleVersion"][];
+        };
+        NetworkRuleVersion: {
+            condition_parameters: {
+                [key: string]: number;
+            };
+            id: string;
+            project_id: string;
+            rule_id: string;
+            /** @enum {string} */
+            domain: "lossless";
+            version: number;
+            /** @enum {string} */
+            state: "draft" | "released" | "disabled";
+            /** @enum {string} */
+            target_state: "released" | "disabled";
+            rule: components["schemas"]["NetworkGovernedLosslessRule"];
+            metric_unit: string;
+            scope_hash: string;
+            content_hash: string;
+            preview_hash: string;
+            preview_report: components["schemas"]["NetworkRulePreview"];
+            change_reason: string;
+            override_reason: string;
+            supersedes_id: string;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            published_by: string;
+            /** Format: date-time */
+            published_at: string | null;
+            signatures: components["schemas"]["NetworkRuleSignature"][];
+        };
+        NetworkRulePreview: {
+            candidate_version: number;
+            evaluation_points: number;
+            replay_complete: boolean;
+            /** @enum {string} */
+            version: "network-rule-preview/v1";
+            project_id: string;
+            package_id: string;
+            intent_hash: string;
+            evidence_source: string;
+            collection_ref: string;
+            current_rules_hash: string;
+            candidate_hash: string;
+            preview_hash: string;
+            /** @enum {integer} */
+            window_hours: 48;
+            sample_count: number;
+            diff: components["schemas"]["NetworkRulePreviewDiff"];
+        };
+        NetworkRulePreviewDiff: {
+            new_findings: components["schemas"]["LosslessFinding"][];
+            resolved_findings: components["schemas"]["LosslessFinding"][];
+            severity_changes: components["schemas"]["NetworkRuleSeverityChange"][];
+            affected_units_before: number;
+            affected_units_after: number;
+            device_min_before: number;
+            device_min_after: number;
+            fabric_after: components["schemas"]["LosslessHealthRollup"];
+            warnings: string[];
+        };
+        NetworkRuleSeverityChange: {
+            /** Format: date-time */
+            evaluated_at: string;
+            unit: {
+                [key: string]: unknown;
+            };
+            rule_id: string;
+            before: string;
+            after: string;
+        };
+        NetworkRuleSignature: {
+            user_id: string;
+            /** @enum {string} */
+            approval_role: "NE" | "NH";
+            authority_role: string;
+            security_version: number;
+            preview_hash: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        NetworkRuleMetric: {
+            key: string;
+            unit: string;
+            safe_min: number;
+            safe_max: number;
+        };
+        NetworkRuleInput: {
+            condition_parameters?: {
+                [key: string]: number;
+            };
+            base_version_id: string;
+            rule: components["schemas"]["NetworkGovernedLosslessRule"];
+            metric_unit: string;
+            change_reason: string;
+            override_reason?: string;
+            confirm_override?: boolean;
+            expected_preview_hash?: string;
+        };
+        NetworkGovernedLosslessRule: {
+            rule_id: string;
+            version: number;
+            /** @enum {string} */
+            state: "released" | "disabled";
+            /** @enum {string} */
+            subject_unit: "port_priority";
+            metric_key: string;
+            expression: {
+                [key: string]: unknown;
+            };
+            escalation?: {
+                [key: string]: unknown;
+            };
+            weak_evidence?: {
+                [key: string]: unknown;
+            };
+            /** @enum {integer} */
+            window_seconds: 60 | 300 | 3600;
+            /** @enum {string} */
+            comparator: "gt" | "gte" | "lt" | "lte" | "eq";
+            hit_threshold: number;
+            observe_threshold?: number;
+            /** @enum {string} */
+            severity: "info" | "warning" | "critical";
+            health_deduction_weight: number;
+            scope: components["schemas"]["NetworkRuleScope"];
+            degrade_to_unknown_when: string[];
+            advice: string;
+        };
+        NetworkRuleScope: {
+            device?: string;
+            port?: string;
+            priority?: number;
+            pod?: string;
+            role?: string;
+            fabric?: boolean;
+        };
+        NetworkRuleConditionParameter: {
+            rule_id: string;
+            key: string;
+            unit: string;
+            default: number;
+            safe_min: number;
+            safe_max: number;
+            root: string;
+            paths: number[][];
+        };
         NetworkLogEntry: {
             /** Format: date-time */
             at: string;
@@ -1358,6 +1742,8 @@ export interface components {
             unknown: boolean;
         };
         LosslessFinding: {
+            /** Format: date-time */
+            evaluated_at?: string;
             unit: {
                 device: string;
                 pod: string;
@@ -5376,6 +5762,256 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["NetworkLogReport"];
                     "text/csv": string;
+                };
+            };
+        };
+    };
+    listNetworkRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped, immutable rule governance result. Preview is read-only; draft/save and publication are audited. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkRuleCatalog"];
+                };
+            };
+        };
+    };
+    createNetworkRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NetworkRuleInput"];
+            };
+        };
+        responses: {
+            /** @description Project-scoped, immutable rule governance result. Preview is read-only; draft/save and publication are audited. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkRuleVersion"];
+                };
+            };
+        };
+    };
+    previewNetworkRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NetworkRuleInput"];
+            };
+        };
+        responses: {
+            /** @description Project-scoped, immutable rule governance result. Preview is read-only; draft/save and publication are audited. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkRulePreview"];
+                };
+            };
+        };
+    };
+    approveNetworkRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                ruleVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    approval_role: "NE" | "NH";
+                    preview_hash: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Project-scoped, immutable rule governance result. Preview is read-only; draft/save and publication are audited. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkRuleVersion"];
+                };
+            };
+        };
+    };
+    publishNetworkRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                ruleVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    preview_hash: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Project-scoped, immutable rule governance result. Preview is read-only; draft/save and publication are audited. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkRuleVersion"];
+                };
+            };
+        };
+    };
+    networkRuleRollbackCandidate: {
+        parameters: {
+            query?: {
+                target?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+                ruleVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped, immutable rule governance result. Preview is read-only; draft/save and publication are audited. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkRuleInput"];
+                };
+            };
+        };
+    };
+    previewZTPManagementArtifacts: {
+        parameters: {
+            query: {
+                batch_ref: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped minimum management artifact or independently verified device evidence. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPManagementArtifactPreview"];
+                };
+            };
+        };
+    };
+    listZTPManageabilityChecks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped minimum management artifact or independently verified device evidence. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPManageabilityCheckPage"];
+                };
+            };
+        };
+    };
+    listZTPDeviceSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped minimum management artifact or independently verified device evidence. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPDeviceSessionPage"];
+                };
+            };
+        };
+    };
+    getZTPDeviceSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped minimum management artifact or independently verified device evidence. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPSessionDetail"];
                 };
             };
         };

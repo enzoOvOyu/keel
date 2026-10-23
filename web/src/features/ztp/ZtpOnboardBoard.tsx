@@ -1,3 +1,4 @@
+import {ZTPCompletion} from './ZTPCompletion'
 import { KeaDeployments } from './KeaDeployments'
 import { EnvironmentChecks } from './EnvironmentChecks'
 import { ManagementPlanning } from './ManagementPlanning'
@@ -80,11 +81,12 @@ function Board() {
     const timer = window.setInterval(() => setClock(Date.now()), 1000)
     return () => window.clearInterval(timer)
   }, [current?.state, current?.next_retry_at])
-  return <main className="page-panel">
+  return <section className="page-panel">
     <header><h1>{t('ztpTitle')}</h1><p>{t('ztpBoundary')}</p></header>
     <ManagementPlanning key={project.id} />
     <EnvironmentChecks key={`environment-${project.id}`} />
     <KeaDeployments key={`kea-${project.id}`} />
+    <ZTPCompletion key={`management-completion-${project.id}`} />
     {scriptManifest.data && <section className="panel"><h2>{t('ztpIsolationManifest')}</h2><p>{t('ztpIsolationApproval')}</p><p>SHA256: <code>{scriptManifest.data.sha256}</code> · {scriptManifest.data.size} bytes</p><details><summary>{t('ztpIsolationReview')}</summary><pre>{scriptManifest.data.script}</pre></details></section>}
     {canManage && <form onSubmit={(event) => void stagePlan(event)} className="panel">
       <h2>{t('ztpKeaTitle')}</h2><p>{t('ztpKeaBoundary')}</p>
@@ -141,6 +143,6 @@ function Board() {
       {action.error && <p role="alert">{t('ztpActionError')}: {action.error.code}</p>}
       <h3>{t('ztpTimeline')}</h3><ol>{current.events.map(event => <li key={event.seq}><time>{new Date(event.occurred_at).toLocaleString()}</time> · {event.to_state} · {event.event_code}{event.evidence_ref && <> · {event.evidence_ref}</>}</li>)}</ol>
     </section>}
-  </main>
+  </section>
 }
 export function ZtpOnboardBoard({ projectId }: { projectId: string }) { return <ProjectWorkspace projectId={projectId}><Board /></ProjectWorkspace> }

@@ -269,6 +269,10 @@ func networkHealthTx(ctx context.Context, tx *sql.Tx, project string, onlyDevice
 	if e != nil {
 		return nil, e
 	}
+	catalog.Rules, e = networkLosslessRulesTx(ctx, tx, project, catalog.Rules)
+	if e != nil {
+		return nil, e
+	}
 	now := time.Now().UTC()
 	out := &NetworkHealthReport{Version: "network-health/v1", ProjectID: project, PackageID: pkg, ReadinessAt: now, TTLSeconds: 30, ValidUntil: now.Add(30 * time.Second), Devices: []NetworkDeviceHealth{}, NS7: networkGate("N-S7", "PASS", ""), Lossless: fabricmon.HealthRollup{ID: "fabric", Score: 100, State: "healthy", Unknown: len(inventory) == 0}}
 	if collection != nil {

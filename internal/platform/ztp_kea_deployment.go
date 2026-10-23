@@ -113,11 +113,7 @@ func (s *Store) keaDeploymentFactsTx(ctx context.Context, tx *sql.Tx, a *AuthSes
 		}
 		sztpEnvironmentID = sztp.ID
 	}
-	if lockMedia {
-		_, e = approvedZTPSimArtifactTx(ctx, tx, projectID, &cfg, "239")
-	} else {
-		_, e = approvedZTPSimArtifactReadTx(ctx, tx, projectID, &cfg, "239")
-	}
+	_, e = approvedZTPManagementPolicyTx(ctx, tx, projectID, input.BatchRef, input.PolicyMediaID, lockMedia)
 	if e != nil {
 		return nil, e
 	}

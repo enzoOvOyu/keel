@@ -15,12 +15,17 @@ var oidSZTPConveyedInfoJSON = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16,
 // trusts the bootstrap server; unsigned onboarding cannot satisfy a request
 // carrying signed-data-preferred. It must not be used as a 239 shell response.
 func UnsignedIsolationOnboarding(signedDataPreferred bool) ([]byte, error) {
+	return UnsignedScriptOnboarding(IsolationScriptV1, signedDataPreferred)
+}
+
+// UnsignedScriptOnboarding receives only the server-rendered approved script.
+func UnsignedScriptOnboarding(script string, signedDataPreferred bool) ([]byte, error) {
 	if signedDataPreferred {
 		return nil, errors.New("signed onboarding data is not available")
 	}
 	conveyed, err := json.Marshal(map[string]any{
 		"ietf-sztp-conveyed-info:onboarding-information": map[string]string{
-			"pre-configuration-script": base64.StdEncoding.EncodeToString([]byte(IsolationScriptV1)),
+			"pre-configuration-script": base64.StdEncoding.EncodeToString([]byte(script)),
 		},
 	})
 	if err != nil {

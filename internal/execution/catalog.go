@@ -90,6 +90,9 @@ func (s *Service) ListTargets(ctx context.Context, projectID string, p platform.
 }
 
 func (s *Service) Publish(ctx context.Context, a *Actor, projectID, flowID string, in PublishInput, key, trace string) (*FlowVersion, error) {
+	return s.publishVersion(ctx, a, projectID, flowID, in, key, trace, "", "")
+}
+func (s *Service) publishVersion(ctx context.Context, a *Actor, projectID, flowID string, in PublishInput, key, trace, rollbackSource, changeReason string) (*FlowVersion, error) {
 	d, e := in.Parse()
 	if e != nil {
 		return nil, e
@@ -105,7 +108,18 @@ func (s *Service) Publish(ctx context.Context, a *Actor, projectID, flowID strin
 	if e = authorize(ctx, tx, a, projectID, "Admin", "SRE"); e != nil {
 		return nil, e
 	}
-	idem, prior, e := idempotency(ctx, tx, a, "flow.publish:"+projectID+":"+flowID, key, in)
+	var payload any = in
+	action := "flow.version.publish"
+	scope := "flow.publish:"
+	if rollbackSource != "" {
+		action = "flow.version.rollback"
+		scope = "flow.rollback:"
+		payload = map[string]any{"input": in, "source_version_id": rollbackSource, "change_reason": changeReason}
+		if e = verifyRollbackSource(ctx, tx, projectID, flowID, rollbackSource, d); e != nil {
+			return nil, e
+		}
+	}
+	idem, prior, e := idempotency(ctx, tx, a, scope+projectID+":"+flowID, key, payload)
 	if e != nil {
 		return nil, e
 	}
@@ -147,6 +161,17 @@ func (s *Service) Publish(ctx context.Context, a *Actor, projectID, flowID strin
 		if strings.TrimSpace(in.Name) != name {
 			return nil, invalid("version publication cannot rename a flow")
 		}
+		var frozen []byte
+		if e = tx.QueryRowContext(ctx, "SELECT definition FROM exec_flow_versions WHERE flow_id=$1 AND project_id=$2 AND version=$3", flowID, projectID, version).Scan(&frozen); e != nil {
+			return nil, e
+		}
+		current, e := decode[Definition](frozen)
+		if e != nil {
+			return nil, e
+		}
+		if current.Validate() != nil {
+			return nil, invalid("owned or unsupported workflows cannot be modified through the general Flow catalog")
+		}
 		version++
 		if _, e = tx.ExecContext(ctx, "UPDATE exec_flows SET version=$2,updated_at=$3 WHERE id=$1", flowID, version, now); e != nil {
 			return nil, e
@@ -157,10 +182,10 @@ func (s *Service) Publish(ctx context.Context, a *Actor, projectID, flowID strin
 	if e != nil {
 		return nil, e
 	}
-	if e = audit(ctx, tx, a.User.ID, projectID, "flow.version.publish", v.ID, trace, map[string]any{"version": version, "content_hash": v.ContentHash, "mode": "sim"}); e != nil {
+	if e = audit(ctx, tx, a.User.ID, projectID, action, v.ID, trace, map[string]any{"version": version, "content_hash": v.ContentHash, "mode": "sim", "source_version_id": rollbackSource, "change_reason": changeReason}); e != nil {
 		return nil, e
 	}
-	if e = remember(ctx, tx, idem, in, v); e != nil {
+	if e = remember(ctx, tx, idem, payload, v); e != nil {
 		return nil, e
 	}
 	return v, tx.Commit()
