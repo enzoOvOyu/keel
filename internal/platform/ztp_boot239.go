@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 var bootRouteRef = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$`)
@@ -113,6 +114,9 @@ func (s *Store) ServeZTP239(ctx context.Context, projectID, batchRef, stageRef, 
 		return nil, apiError(409, "ZTP_IDENTITY_CONFLICT", "Device identity conflicts with SoT")
 	}
 	scriptHash := sha256.Sum256([]byte(fabricboot.IsolationScriptV1))
+	if _, err = tx.ExecContext(ctx, `INSERT INTO ztp_device_observations(id,project_id,batch_ref,switch_id,serial_number,source_ip,boot_channel,event_type,offer_hash,evidence_sha256,trace_id,occurred_at) VALUES($1,$2,$3,NULLIF($4,''),$5,$6,'239','data-served',$7,$8,$9,$10)`, RandomID(), projectID, batchRef, verdict.SwitchID, claim.Serial, sourceIP, activeHash, hex.EncodeToString(scriptHash[:]), trace, time.Now().UTC()); err != nil {
+		return nil, err
+	}
 	if err = appendAudit(ctx, tx, "", projectID, "ztp.boot239.serve", batchRef, trace, map[string]any{"serial": claim.Serial, "source_ip": sourceIP, "verdict": verdict.Verdict, "switch_id": verdict.SwitchID, "media_id": mediaID, "script_sha256": digest}); err != nil {
 		return nil, err
 	}

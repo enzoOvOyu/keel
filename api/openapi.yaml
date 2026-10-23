@@ -1369,7 +1369,7 @@ paths:
     post:
       tags: [BOM]
       operationId: deactivateZTPMockKeaPlan
-      description: Deactivates an exact active simulated plan after hash and version checks. Recent 143 device bootstrap delivery blocks deactivation. Does not change real Kea.
+      description: Deactivates an exact active simulated plan after hash and version checks. Recent 143 or 239 device bootstrap delivery blocks deactivation. Does not change real Kea.
       security: [{sessionCookie: []}]
       x-permission: project:fabric:plan
       x-resource-scope: path-project-admin

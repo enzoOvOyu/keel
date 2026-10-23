@@ -82,6 +82,15 @@ func TestZTP239ApprovedIsolationScript(t *testing.T) {
 	if err = s.DB.QueryRowContext(ctx, `SELECT count(*) FROM audits WHERE action='ztp.boot239.serve' AND project_id=$1`, project.ID).Scan(&auditCount); err != nil || auditCount != 1 {
 		t.Fatalf("device fetch audit: %d %v", auditCount, err)
 	}
+	observations, err := s.ListZTPDeviceObservations(ctx, uploader, project)
+	if err != nil || len(observations) != 1 || observations[0].BootChannel != "239" || observations[0].EventType != "data-served" || observations[0].OfferHash != plan.StagedHash || observations[0].EvidenceSHA256 != fabricboot.IsolationScriptDigest() {
+		t.Fatalf("239 delivery observation: %+v %v", observations, err)
+	}
+	if _, err = s.DeactivateZTPMockKeaPlan(ctx, uploader, project, ZTPMockKeaDeactivateInput{BatchRef: "rack-a", StageRef: "N-S4", ActiveHash: plan.StagedHash, ExpectedVersion: 2, Reason: "replace batch"}, "test"); err == nil {
+		t.Fatal("active 239 delivery deactivated")
+	} else {
+		assertErrorCode(t, err, "ZTP_KEA_DEVICE_IN_PROGRESS")
+	}
 	if _, err = s.TransitionMedia(ctx, reviewer, project, media.ID, "retired", "test"); err != nil {
 		t.Fatal(err)
 	}

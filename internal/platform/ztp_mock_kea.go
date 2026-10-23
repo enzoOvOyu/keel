@@ -140,7 +140,7 @@ func (s *Store) CommitZTPMockKeaPlan(ctx context.Context, a *AuthSession, projec
 
 // DeactivateZTPMockKeaPlan retires only the simulated active offer. The
 // staged candidate, if any, remains reviewable and must be separately
-// committed. Recent SZTP deliveries block deactivation while progress reports
+// committed. Recent device deliveries block deactivation while progress reports
 // may still arrive through the active route.
 func (s *Store) DeactivateZTPMockKeaPlan(ctx context.Context, a *AuthSession, project *ProjectSummary, input ZTPMockKeaDeactivateInput, trace string) (*ZTPMockKeaPlan, error) {
 	if !ztpSHA256Pattern.MatchString(input.ActiveHash) || input.ExpectedVersion < 1 || !bootRouteRef.MatchString(input.BatchRef) || !bootRouteRef.MatchString(input.StageRef) || strings.TrimSpace(input.Reason) == "" || len(input.Reason) > 300 || strings.ContainsAny(input.Reason, "\r\n\x00") {
@@ -170,7 +170,7 @@ func (s *Store) DeactivateZTPMockKeaPlan(ctx context.Context, a *AuthSession, pr
 		return nil, apiError(409, "ZTP_KEA_ACTIVE_CONFLICT", "Active mock Kea plan changed")
 	}
 	var pending bool
-	err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM ztp_device_observations WHERE project_id=$1 AND batch_ref=$2 AND boot_channel='143' AND event_type='data-served' AND offer_hash=$3 AND occurred_at>now()-interval '30 minutes')`, project.ID, input.BatchRef, activeHash).Scan(&pending)
+	err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM ztp_device_observations WHERE project_id=$1 AND batch_ref=$2 AND boot_channel IN ('143','239') AND event_type='data-served' AND offer_hash=$3 AND occurred_at>now()-interval '30 minutes')`, project.ID, input.BatchRef, activeHash).Scan(&pending)
 	if err != nil {
 		return nil, err
 	}
