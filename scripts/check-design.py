@@ -9,7 +9,7 @@ core = ['PRD.md', 'ARCHITECTURE.md', 'DESIGN-SYSTEM.md', 'IMPLEMENTATION-PLAN.md
 texts = {name: (root / name).read_text() for name in core}
 errors = []
 for name, value in texts.items():
-    if 'v3.0' not in value[:2200]: errors.append(f'{name}: missing v3.0 header')
+    if 'v3.0.3' not in value[:2200]: errors.append(f'{name}: missing v3.0.3 header')
     if 'keel' not in value[:2200]: errors.append(f'{name}: missing keel branding')
     if sum(line.lstrip().startswith('```') for line in value.splitlines()) % 2:
         errors.append(f'{name}: unbalanced fenced blocks')
@@ -59,9 +59,39 @@ if not trace_path.exists():
 else:
     trace=json.loads(trace_path.read_text())
     raw=json.dumps(trace,ensure_ascii=False)
+    if trace.get('design_version') != 'v3.0.3': errors.append('trace baseline must be v3.0.3')
+    guide=trace.get('execution_guide')
+    if not isinstance(guide,str) or not (root/guide).is_file(): errors.append('trace execution guide missing')
     work=trace.get('work_package_index',[])
     by_id={entry['id']:entry for entry in work}
     if len(work)!=64 or len(by_id)!=len(work): errors.append(f'expected 64 unique work packages, found {len(work)}')
+    # The plan and machine index must describe the same work, dependency edges,
+    # and acceptance IDs. Merely mentioning an ID elsewhere is insufficient.
+    plan_rows={}
+    for line in plan.splitlines():
+        if not re.match(r'^\| WP-\d+\.\d+[a-z]? \|',line): continue
+        cells=re.split(r'(?<!\\)\|',line)
+        if len(cells)!=7:
+            errors.append('PLAN: malformed work-package row: '+line[:35])
+            continue
+        key=cells[1].strip()
+        if key in plan_rows: errors.append('PLAN: duplicate '+key)
+        plan_rows[key]={
+            'depends_on':set(re.findall(r'WP-\d+\.\d+[a-z]?',cells[4])),
+            'acceptance':set(re.findall(r'\b(?:F-\d+(?:\.\d+)+|[DUEPSHK]-\d+)\b',cells[5])),
+        }
+    if set(plan_rows)!=set(by_id): errors.append('PLAN/trace work-package IDs differ')
+    acceptance_ids=set(re.findall(r'^\| ((?:F-\d+(?:\.\d+)+|[DUEPSHK]-\d+)) \|',acc,re.M))
+    for key,row in plan_rows.items():
+        indexed=by_id.get(key,{})
+        for field in ('depends_on','acceptance'):
+            if row[field] != set(indexed.get(field,[])):
+                errors.append(f'PLAN/trace {field} differ: {key}')
+        if row['acceptance']-acceptance_ids:
+            errors.append(f'PLAN: undefined acceptance row: {key}')
+    for entry in work:
+        for ref in entry.get('evidence_refs',[]):
+            if not (root/ref).is_file(): errors.append(f"trace evidence path missing: {entry['id']} {ref}")
     active, finished = set(), set()
     def visit(node):
         if node in active:
@@ -93,5 +123,5 @@ else:
 
 if errors:
     raise SystemExit('\n'.join('FAIL '+e for e in errors))
-print('Design v3.0 OK: FR-0~FR-17 domains, 40 UI components, review/requirement references and core contracts.')
+print('Design v3.0.3 OK: FR-0~FR-17, 40 UI components, 64 WP; references, dependency DAG and plan/trace acceptance mappings agree.')
 print('Document checks do not prove implementation or hardware acceptance.')

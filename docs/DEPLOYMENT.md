@@ -1,57 +1,68 @@
-# 远端开发与部署
+# 开发、验证与部署
 
-主机 `ubuntu@43.207.20.26`，工作目录 `/opt/keel`。运行版本以 `curl http://127.0.0.1:3000/healthz` 为准，源码版本以 `git log -1` 为准。3000 当前是从 P1 登录页完成版继续开发的 `dev/p1-network-bom` 预览；FR-0 的部分 BOM/ZTP 页面已部署，完整交付平台仍在开发。
+主工作区 `ubuntu@43.207.20.26:/opt/keel`。本文描述操作方法；当前分支、镜像、迁移与测试结果只维护在 [HANDOFF](HANDOFF.md)。固定工具链见 [TOOLCHAIN.json](TOOLCHAIN.json)、`go.mod`、`.nvmrc` 与 `package-lock.json`。
 
-## 工具链
-
-固定版本见 [TOOLCHAIN.json](TOOLCHAIN.json)、`go.mod/go.sum`、`package-lock.json`：Go1.27.2、Node22.23.3、Docker/Compose、tmux、C/C++编译器、protoc和Python3。服务器已准备；新服务器先检查现有端口、进程和代码，再按需运行bootstrap脚本。Go/Node下载验证官方SHA256。
-
-`go generate ./ent` 使用go.mod固定的ent工具重新生成ORM代码。迁移SQL在 `internal/platform/migrations/`，编译时嵌入 `keel-admin` 与API；不用API启动时自动Schema.Create替代版本迁移。
-
-## 数据与配置边界
-
-| 用途 | 位置/端口 | 权限与范围 |
-|---|---|---|
-| Compose配置 | /opt/keel/.env | 600，仅服务器；包含数据服务和容器API配置 |
-| 开发API配置 | /home/ubuntu/.config/keel/development.env | 600，应用角色keel_app |
-| 管理CLI配置 | /home/ubuntu/.config/keel/admin.env | 600，数据库owner，仅迁移和服务器管理操作 |
-| 首次管理员口令 | /home/ubuntu/.config/keel/bootstrap-admin.password | 600，随机生成，不进Git |
-| PostgreSQL | 127.0.0.1:15432 | 主机开发连接；容器内postgres:5432 |
-| 部署API/UI | 127.0.0.1:3000 | 已构建预览，通过SSH隧道访问 |
-| tmux开发API/Vite | 127.0.0.1:3001 / 5173 | 开发热更新 |
-| 开发MinIO | 127.0.0.1:9000 / 9001 | API / Console |
-| 隔离测试PG/API | 127.0.0.1:15433 / 3102 | 独立测试数据，不能指向开发或部署服务 |
-
-数据保存在postgres_data、redis_data、minio_data命名卷，禁止用 `down -v` 更新环境。当前认证/项目API接入PostgreSQL；Redis和MinIO已有开发数据服务，尚未接入完整调度、介质等业务。
-
-MinIO社区镜像由固定官方源码构建，仅限开发：RELEASE.2025-10-15T17-29-55Z，revision `9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a`，源包SHA256在infra/minio/Dockerfile，保留LICENSE/CREDITS。生产对象存储的维护、备份与授权需单独评估；固定版本和开发可用不等于生产选型完成。
-
-## 首次配置与迁移
-
-先确认本机.env含有效随机数据服务凭据且权限600。首次建立数据服务：
+## 1. 恢复既有开发环境
 
 ```sh
 cd /opt/keel
+git status -sb
+git log -1 --oneline
+tmux list-sessions
+docker compose --profile data ps
+curl --fail http://127.0.0.1:3000/healthz
+tmux attach -t codex-keel
+```
+
+复用 `codex-keel`，不要覆盖已有窗口。当前 `scripts/dev-session.sh` 固定创建/复用的是 `keel`，与用户指定会话不同，不能用它代替恢复 `codex-keel`。需要启动 API/Vite 时先检查 3001/5173 是否已有本项目进程，再在自己的窗口使用 `make dev-api` / `make dev-web`；Go 源码修改不会自动重启 API，3000 镜像也不会随源码更新。
+
+## 2. 配置与端口
+
+| 用途 | 位置/端口 | 边界 |
+|---|---|---|
+| Compose | `/opt/keel/.env` | 600，仅服务器；数据服务及容器 API 配置 |
+| 开发 API/worker | `/home/ubuntu/.config/keel/development.env` | 600；受限应用角色 `keel_app` |
+| 管理 CLI | `/home/ubuntu/.config/keel/admin.env` | 600；数据库 owner，只用于迁移/管理 |
+| 首次管理员口令 | `/home/ubuntu/.config/keel/bootstrap-admin.password` | 600；随机值，不复制到日志/Git |
+| PostgreSQL | `127.0.0.1:15432`；容器内 `postgres:5432` | 不把宿主回环地址用于容器连接 |
+| 部署 API/UI | `127.0.0.1:3000` | 已构建镜像预览 |
+| 开发 API/Vite | `127.0.0.1:3001` / `5173` | 同源代理、热更新前端 |
+| 开发 MinIO | `127.0.0.1:9000` / `9001` | API/Console；来源与锁定摘要见 `infra/minio/Dockerfile` |
+| 隔离测试 PG/API | `127.0.0.1:15433` / `3102` | 独立 `keel_test_` 数据库 |
+
+配置目录700、秘密文件600；不打印配置内容。PostgreSQL/Redis/MinIO 命名卷保留；更新不使用 `down -v`。数据服务可用不等于其上业务已实现。开发 MinIO 采用仓库固定的官方源码构建，生产维护/备份/授权按发布要求另行验证。
+
+本机通过 SSH 隧道访问：
+
+```sh
+ssh -i /path/to/enzo-using.pem -N -L 3000:127.0.0.1:3000 -L 5173:127.0.0.1:5173 ubuntu@43.207.20.26
+```
+
+访问 `http://localhost:3000/login` 或已启动的 Vite 5173。开发 HTTP 只允许显式 development 与配置中的精确 loopback Origin；生产使用 HTTPS、Secure Cookie 和独立凭据。Cookie 为 HttpOnly/SameSite=Lax，后端不信任任意转发头。
+
+## 3. 数据服务与版本迁移
+
+首次配置前确认既有 `.env` 和凭据，缺失时按 `.env.example` 准备受限配置，不覆盖现有连接：
+
+```sh
 docker compose --profile data up -d --wait postgres redis minio
 python3 scripts/configure-development.py
 ```
 
-配置脚本生成/复用受限的keel_app账号，写入独立development.env/admin.env。已有账号缺失保存凭据时会拒绝覆盖，避免破坏现有连接。脚本不应用迁移、不创建平台管理员。
+脚本准备/复用 `keel_app` 及分离配置，不自动迁移或初始化平台管理员。迁移 SQL 在 `internal/platform/migrations/`，编译时嵌入程序；已执行 SQL 不得改写。API 只校验版本/checksum，不用自动建表替代迁移。
 
-**迁移前备份数据库。** 备份包含身份和会话等敏感数据，只存权限受限目录；不要提交到Git。示例在服务器执行，实际数据库名/owner若已自定义需相应调整：
+**迁移前备份，并验证备份可读取。** 示例使用容器现有数据库配置，备份文件不覆盖：
 
 ```sh
 umask 077
 mkdir -p /home/ubuntu/.local/state/keel/backups
 backup_file="/home/ubuntu/.local/state/keel/backups/pre-migration-$(date -u +%Y%m%dT%H%M%SZ).dump"
-(set -C; docker compose exec -T postgres pg_dump -U keel -d keel -Fc > "$backup_file")
+(set -C; docker compose exec -T postgres sh -c 'exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$backup_file")
 test -s "$backup_file"
 docker compose exec -T postgres pg_restore -l < "$backup_file"
 ```
 
-示例使用时间戳和禁止覆盖模式保存备份。核验文件非空且pg_restore可读取目录；不能仅凭命令退出成功声称恢复演练通过。
-
-迁移在独立子shell加载owner配置，避免owner凭据留在普通开发进程环境：
+目录可读只证明备份格式可读；恢复演练须在隔离数据库单独执行。迁移在 owner 子 shell 中运行，之后授权受限应用角色：
 
 ```sh
 (
@@ -63,96 +74,69 @@ docker compose exec -T postgres pg_restore -l < "$backup_file"
 python3 scripts/configure-development.py --grant
 ```
 
-迁移使用事务、advisory lock和checksum；已执行版本不能直接改写SQL。API启动只检查迁移，不自动修复或降级。受限应用账号可操作认证/项目表，但不能修改/删除审计或写迁移历史；管理员保留DDL能力，因此审计触发器不能代替生产归档与权限隔离。
+迁移使用事务、advisory lock 与 checksum。应用角色不能改/删审计或写迁移历史；数据库管理员的权限仍需生产归档与恢复制度约束。
 
-## ZTP 239 开发入口（开发分支）
+## 4. 管理员与项目成员
 
-239 设备脚本已从普通 API 路由移至独立 TLS listener。只有同时配置 `KEEL_ZTP239_LISTEN_ADDR`、`KEEL_ZTP239_TLS_CERT_FILE`、`KEEL_ZTP239_TLS_KEY_FILE` 且 API 连接到已迁移的开发/隔离数据库时才启动。监听器只暴露 `GET /api/v1/boot/ztp`；必须在管理网直连，拒绝 Forwarded/X-Forwarded-For/X-Real-IP，按真实 TCP 对端、active mock Kea 精确 URL、六个 CUMULUS-* 头、SoT 与独立批准的脚本介质校验后返回固定隔离脚本。证书须由目标设备信任，私钥放受保护路径；不能通过普通 API 端口或反向代理访问设备入口。3000 的开发镜像包含此能力，但 Compose 未配置专用 239 TLS listener；设备入口未启用，也未通过真实交换机验证。
-
-## SZTP 143 开发入口（开发分支）
-
-143 设备入口使用独立 TLS 监听器，只有同时配置下列四个变量且 API 连接到已迁移的开发/隔离数据库时才启动：`KEEL_SZTP_LISTEN_ADDR`、`KEEL_SZTP_TLS_CERT_FILE`、`KEEL_SZTP_TLS_KEY_FILE`、`KEEL_SZTP_IDEVID_CA_FILE`。CA 文件仅接受 PEM 编码的签发 CA；TLS 强制设备客户端证书，并按该 CA 重新验证 IDevID 链及 subject serialNumber。监听器只暴露 `POST /restconf/operations/ietf-sztp-bootstrap-server:get-bootstrapping-data` 和 `POST /restconf/operations/ietf-sztp-bootstrap-server:report-progress`；前者可用空 body，后者要求 `application/yang-data+json` 的 RFC 8572 输入。报告需匹配 30 分钟内同一证书 SN、TCP 来源和 active offer 的引导数据读取；只保存受限消息和载荷摘要，完成回报不更新 managed 或 NP-2。option 143 必须是 `https://host[:port]`。设备必须从 active mock Kea 管理网来源直连，请求 Host 必须与唯一 active URI 对应，且脚本介质已独立批准。收到 `signed-data-preferred` 时返回错误，绝不发送未签名 onboarding。
-
-这一入口已编入 3000 开发镜像，但 Compose 未配置专用 143 mTLS listener；设备入口未启用，也不证明设备信任服务器证书、真实 Kea 生效、RESTCONF 全部操作或交换机真机开通。生产使用前需在独立管理网部署、配置受保护的服务器私钥与制造商 CA，并完成目标设备证书链及机型 PoC。不得把开发 mock offer 当作真实 DHCP 证据。
-
-## 初始化与服务器账号管理
-
-首次管理员无默认密码。由服务器操作员交互输入，或使用当前用户拥有、权限600且不是符号链接的密码文件：
+首位管理员无默认密码；在加载 `admin.env` 的子 shell 中交互初始化，或传入当前用户拥有、权限600且非符号链接的密码文件：
 
 ```sh
-(
-  set -a
-  . /home/ubuntu/.config/keel/admin.env
-  set +a
-  go run ./cmd/keel-admin init-admin --username enzo --display-name Enzo     --password-file /home/ubuntu/.config/keel/bootstrap-admin.password
-)
+go run ./cmd/keel-admin init-admin --username enzo --display-name Enzo --password-file /home/ubuntu/.config/keel/bootstrap-admin.password
 ```
 
-省略password-file时要求真实终端并隐藏输入；不接受密码命令行参数或stdin管道。初始化互斥且一次性，已有管理员时拒绝覆盖。密码至少12字节、最多1024字节；初始口令仅供本人从安全的服务器会话取用，首次取用后可用CLI更换并按凭据保留策略处理初始文件。
+初始化只允许一次。密码至少12字节、最多1024字节，不通过命令参数或 stdin 明文传入；省略密码文件时从真实终端隐藏输入。账号创建、改密、禁用、解锁、成员授权等用 `go run ./cmd/keel-admin --help` 和相应子命令查看当前参数，不在本文复制第二份完整 CLI 目录。
 
-以下命令同样只在加载admin.env的子shell内运行；实际账号、项目ID及权限按需要填写：
+当前六角色实现与目标 NDE/NH 扩展的差异见 HANDOFF/DEVELOPMENT；不能因 CLI 接受某个角色名称就声称完整网络权限已交付。平台 Admin 与项目 Admin 分开；禁用/改密/成员变更撤销旧会话，最后有效管理员保护由服务端执行。
 
-```sh
-go run ./cmd/keel-admin user-create --username delivery --display-name 交付工程师
-go run ./cmd/keel-admin user-password --username enzo
-go run ./cmd/keel-admin user-disable --username delivery
-go run ./cmd/keel-admin user-unlock --username delivery
-go run ./cmd/keel-admin user-unlock --username delivery --ip 127.0.0.1
-go run ./cmd/keel-admin member-grant --username delivery --project PROJECT_ID --role DE
-go run ./cmd/keel-admin member-revoke --username delivery --project PROJECT_ID
-```
+## 5. 检查和隔离集成验证
 
-user-create默认不是平台管理员；需要时显式加 `--admin`。项目角色可选Admin/DE/DL/NE/SRE/Viewer，项目Admin没有平台创建项目权限。禁用、密码重设和成员变更立即撤销原会话；不能禁用最后有效管理员。user-unlock默认仅解账号锁，IP锁需明确给出IP；所有操作都写审计。
-
-## 开发与检查
+纯设计修改执行 `python3 scripts/check-design.py`；实现按完整功能块集中验证，失败定向重跑，PR/阶段执行完整门禁。同一版本已有有效 CI 结果可复用，不按每个字段重复全量模拟。验证节奏见 DEVELOPMENT §5，完整门禁为：
 
 ```sh
 npm ci
 make check
 make build
-sh scripts/dev-session.sh
-tmux attach -t keel
 ```
 
-make build生成bin/keel-api与bin/keel-admin。make dev-api调用scripts/dev-api.sh，自动加载development.env并监听3001；Vite5173代理到3001。可用 `KEEL_CONFIG_FILE` 覆盖开发配置路径。已有tmux窗口不被脚本重启；源码变更后确认自己的API进程已停止再重启该窗口。
+`make check` 包含设计校验、Go vet/race、前端类型和构建。`make build` 生成 API/admin/worker/sim 二进制。`go generate ./ent` 使用 `go.mod` 固定的 Ent 工具；仅在 schema 变化时再生成。
 
-make check默认运行设计、Go vet/race、前端类型及构建检查。真实PostgreSQL测试需要 `KEEL_TEST_DATABASE_URL`；缺失时明确Skip。测试会重建目标数据库的public schema，**仅允许独立的keel_test_命名数据库**，不能填写开发数据库连接。
-
-本轮验收临时使用127.0.0.1:15433的独立PG、数据库keel_test_auth，测试配置为/tmp/keel-test-db.env（600）。验收后移除测试容器、auth-test窗口与临时凭据；它们不是长期运行的开发依赖。复检先参考CI定义重建隔离环境，确认临时配置存在后再执行：
+PostgreSQL 测试会重建目标 public schema，只能使用隔离 `keel_test_` 命名库。缺少 `KEEL_TEST_DATABASE_URL` 时的 Skip 不计集成通过。可用仓库 helper 检查/创建带专用标签的临时容器：
 
 ```sh
-(
-  set -a
-  . /tmp/keel-test-db.env
-  set +a
-  make check
-)
+python3 scripts/test-environment.py status
+python3 scripts/test-environment.py start
 ```
 
-HTTP黑盒使用同一隔离PG里的另一个数据库keel_test_http及独立API3102，防止Go测试重建schema相互干扰。scripts/check-auth-integration.py要求KEEL_TEST_DATABASE_URL、KEEL_ADMIN_BINARY和匹配的API，只接受测试端口和数据库；它创建随机测试账号/项目，不动部署.env。12组检查覆盖认证、CSRF、六角色、跨项目、幂等、限流及撤销。
+确认私有 `/tmp/keel-test-db.env` 与当前容器匹配后，在子 shell 加载并运行目标测试；旧文件存在不证明凭据仍有效。不要为修复配置不一致删除他人正在使用的测试环境。
 
-浏览器检查使用Playwright1.64.0/Chromium。check-auth-integration.py可通过KEEL_AUTH_BROWSER_CREDENTIALS_FILE输出权限600的临时测试凭据，随后运行scripts/check-auth-browser.mjs；验证完成由调用方删除该临时文件。通用视觉/品牌检查为scripts/check-browser.mjs。完整可复用顺序见.github/workflows/ci.yml；本地通过与GitHub Actions实际运行成功分开记录。
+HTTP/控制/浏览器集成顺序以 `.github/workflows/ci.yml` 和 `scripts/check-integration.sh` 为准。HTTP 使用独立 `keel_test_http` 与 API3102，避免 Go 测试重建 schema 相互干扰。浏览器检查需安装 CI 锁定的 Playwright/Chromium；临时凭据文件600，验证后删除。报告分别记录本机结果、GitHub Actions 实际结果及跳过项，不把依赖缺失记成通过。
 
-## 发布与回滚
+## 6. ZTP 设备入口
 
-数据库迁移、授权与管理员初始化完成后，在干净工作区发布经验证的提交：
+普通 3000 UI/API 与设备引导 listener 分开。239/143 只有在专用 TLS 配置齐备且数据库匹配时启用；Compose 预览是否启用见 HANDOFF。
+
+| 通道 | 配置与协议 | 必须保持的校验 |
+|---|---|---|
+| 239 | `KEEL_ZTP239_LISTEN_ADDR`、`KEEL_ZTP239_TLS_CERT_FILE`、`KEEL_ZTP239_TLS_KEY_FILE`；`GET /api/v1/boot/ztp` | 管理网直接 TCP 来源、拒绝转发身份头、active offer 的精确 URL、六个 CUMULUS 头、SoT 反查、独立批准脚本摘要/大小 |
+| 143 | `KEEL_SZTP_LISTEN_ADDR`、`KEEL_SZTP_TLS_CERT_FILE`、`KEEL_SZTP_TLS_KEY_FILE`、`KEEL_SZTP_IDEVID_CA_FILE`；RESTCONF `get-bootstrapping-data` / `report-progress` | 强制 mTLS、制造商 CA 重验 IDevID 与 subject serialNumber、管理网来源/Host/唯一 active URI、同一批准制品 |
+
+143 option URI 为 `https://host[:port]`，不带路径/查询；进度回报使用 RFC8572 JSON，并关联30分钟内同证书 SN、来源和 active offer 的读取。`signed-data-preferred` 不能回退为未签名数据。239 的固定隔离脚本保留 eth0，先检查 NVUE pending，再仅关闭前面板口；不是完整个性化管理配置。
+
+当前 active mock Kea offer 只是开发契约数据，不能证明真实 DHCP 生效。实际 Kea 适配、持久化配置/DORA、设备证书信任、目标 NOS 命令兼容和真机开通均需独立证据。证书私钥仅存受保护位置；设备引导不通过普通 UI 反向代理冒用身份。
+
+## 7. 发布、回滚与 Git
+
+在已验证提交、兼容迁移及受限授权就绪后发布：
 
 ```sh
 sh scripts/preflight.sh
 sh scripts/deploy.sh
 curl --fail http://127.0.0.1:3000/healthz
-curl --fail http://127.0.0.1:3000/api/v1
 curl --fail http://127.0.0.1:3000/api/v1/auth/providers
 ```
 
-部署脚本构建keel:<完整Git SHA>并等待API健康，成功后更新.env的KEEL_IMAGE，旧镜像保留。单机更新可能短暂中断；失败不自动回滚。/healthz仅证明进程存活，需再查数据库相关认证状态并实际验证登录/授权。
+`deploy.sh` 要求干净工作区，构建 `keel:<完整Git SHA>`，等待容器健康后更新 `.env` 的 `KEEL_IMAGE` 并保留旧镜像；不自动迁移数据库或失败回滚。工作区有用户修改时先确定其归属，不为通过发布门禁擅自 stash/提交/删除。发布证据还需认证、授权及受影响页面实际交互，不能只看 healthz。
 
-回滚选择已保留镜像，更新.env的KEEL_IMAGE，再执行 `docker compose up -d --no-build --wait --wait-timeout 90 api`。**镜像回滚不会回滚数据库**；schema不兼容时不能强行跳过版本校验，应按迁移恢复方案处理。禁止为解决启动失败删除数据卷。
+回滚选择已保留且与数据库兼容的镜像，再按部署配置切换 API。**镜像回滚不会回退数据库**；版本不兼容时按备份恢复方案处理，不能跳过 schema 校验或删除卷。
 
-## 网络、GitHub与换电脑
-
-开发HTTP仅允许显式development模式和精确的loopback Origin。配置脚本允许localhost/127.0.0.1的3000、3001、5173。浏览器Cookie为HttpOnly/SameSite=Lax，开发例外关闭Secure；生产必须配置HTTPS Origin、Secure Cookie和独立环境。后端不信任任意Forwarded/X-Forwarded-For，限流来源为直接TCP连接IP。
-
-自己的电脑通过SSH隧道映射3000或5173访问。换电脑后连接同一服务器，读AGENTS/HANDOFF并检查git status、Compose和tmux。origin为git@github.com:enzoOvOyu/keel.git，使用服务器已有默认SSH身份；私钥、.env和配置文件不得进入Git。
-
-推送先fetch检查分支，再正常push，不强推。Git bundle仅备份已提交历史，不包含数据库、密码文件或密钥；这些需要独立受控备份。
+origin 使用服务器已配置的仓库身份。GitHub 操作前检查认证，推送前 fetch/比较远端，正常 push，不强推。Git bundle 只包含提交历史，不包含数据库、秘密文件或卷。提交、推送、CI、部署和 PoC 各自记录，不相互代替。

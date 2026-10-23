@@ -2,370 +2,240 @@
 
 | 文档属性 | 值 |
 |---|---|
-| 版本 | v3.0.3（与 PRD 网络前置、BOM 导入及审批契约对齐） |
-| 状态 | 设计基线；既有 17 个功能域 + 网络底座前置域（FR-0）完整保留，实施状态以 docs/HANDOFF.md 为准 |
-| 日期 | 2026-10-20 |
-| 上游 | PRD.md v3.0.3（FR-0～FR-17 / NFR-1～NFR-20；编号在本文引用） |
-| 下游 | DESIGN-SYSTEM.md / IMPLEMENTATION-PLAN.md / ACCEPTANCE.md |
-| 产品命名 | 产品、导航品牌、登录页、命令行与交付包统一为小写 **keel**；目标机程序/路径使用 keel-agent、keel-cache，配置变量使用 KEEL_ 前缀 |
-| 网络子系统命名 | 网络底座子系统 **`keel-fabric`**（历史代号 NDP 仅作别名，见 PRD 附录 C-13）；服务器域消费网络能力的唯一入口为 **FR-0.8 证据与排障接口域** |
-| 基线内容说明 | Go 模块化单体 + Agent gRPC / Agentless SSH 双执行通道 + BMC 带外能力；部署/运维双平面；G1–G6；型号/物理身份/门禁证据；登录、项目隔离、执行恢复从 P1 建立 |
-| v2.5 变更摘要 | 修正准入循环；不可变版本与范围证据；事务 outbox/执行回执/统一资源锁；NCCL 通信组；物理端口前置；维护期白名单与清理闭环；BMC 能力矩阵；会话登录及明确项目域；页面数据/指标单位契约；容量预算与 mock/真机验收边界 |
-| v3.0 变更摘要 | ① **网络交付下沉为前置域**：新增 FR-0 承载（服务/数据/接口/状态），服务器域经 FR-0.8 消费，第三方平台走适配器；② **统一 BOM 与导入包**：`bom_item` 单表承载双域物料，新增 `BOMImportPackage/ManifestFile/`逐实体解析（PRD 附录 A.5–A.8），`Machine/Component/PhysicalPort` 身份在导入即建立；③ 前置断言 **NP-1～NP-6** 与阶段标签 **N-S0～N-S9** 接入 GateEvidence（增 `network_readiness`/`network_evidence_refs[]`/`fabric_stage`/`network_degradation[]`）；④ 依赖不变式由 [I-1]～[I-10] 扩为 [I-1]～[I-12]（新增网络证据不冒充 PASS、导入包单批次一致性）；⑤ 网络侧不可采集一律 `unknown` 降级（NFR-19），阈值单一源（C-06） |
+| 版本 | v3.0.3（依据 PRD 与 DESIGN-SYSTEM 重整，保留既有契约锚点） |
+| 状态 | 目标架构，不代表已实现；实际源码、运行版本和验收证据只查 docs/HANDOFF.md 与工作树 |
+| 上游基准 | PRD.md v3.0.3：业务范围、判据、BOM；DESIGN-SYSTEM.md v3.0.3：工作台、品牌、组件和交互 |
+| 本文职责 | 模块边界、数据归属、执行一致性、API/事件、状态和安全；工作顺序查 IMPLEMENTATION-PLAN.md，验证方法查 ACCEPTANCE.md |
+| 技术命名 | keel、keel-agent、keel-cache、keel-ctrl-*、KEEL_*；网络前置域为 keel-fabric |
 
----
+**阅读规则**：先读上游相关 FR 和 UI 章节，再读本文对应模块及不变式；不从旧页面、历史审查记录或架构示意图推导产品要求。阈值与参数默认值只引用 PRD，API 完整 schema 只维护在 `api/`，实现日志只写 HANDOFF。本文保留编号供跨文档引用。
+
+**基准冲突入口**：统一查 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) §2。显示品牌采用DS、技术标识保留keel；业务平面/门禁按PRD，布局/组件按DS（ADR-17）。未裁决条目保留待决，不能把两份上游写成已经一致。
 
 ## 1. 架构总览
 
 ### 1.1 系统上下文（C4-L1）
 
+```text
+浏览器 ──同源 HTTPS──> keel 控制面（API / UI / Flow / 门禁 / 证据）
+                         ├─ keel-fabric ──SSH/NVUE/遥测──> 交换机
+                         │   ├─ boot-svc ──控制适配器──> Kea DHCP
+                         │   └─ FR-0.8 <──第三方网络平台适配器（可选）
+                         ├─ Agent gRPC / SSH Runner ──> 目标服务器
+                         ├─ Redfish / IPMI适配器 ──> BMC
+                         ├─ HTTP介质 / PXE引导 ──> 固件、NOS、OS
+                         └─ OpenAPI / 导出 ──> IPAM（可选）、客户 AIOps
 ```
-                ┌────────────────────────────────────────────────────┐
-                │               keel（本系统）                    │
-                │  控制面：API / 作业引擎 / 介质库 / 监控 / CMDB / UI  │
-                └────────────────────────────────────────────────────┘
-                   ▲              ▲                 ▲            ▲
-     REST/OpenAPI  │              │ HTTPS/SSH       │ Redfish    │ REST
-   ┌───────────────┘              │ (Agentless)     │ (BMC)      │
-   │                              │                 │            │
-┌──┴─────────────┐   ┌──────────┐  ┌┴──────────────┐ ┌┴──────────┐ ┌┴──────────┐
-│ 网络平台        │   │ IPAM     │  │ 目标服务器      │ │ BMC       │ │ AIOps/    │
-│ = keel-fabric  │   │ (可选,   │  │ (≥10,000 台)  │ │ (Redfish) │ │ 运维系统   │
-│  (内置前置域)   │   │ 地址规划) │  │ keel-agent     │ └──────────┘ │ (CMDB 消费) │
-│  第三方=适配器  │   └──────────┘  │ 或无代理 SSH   │              └───────────┘
-└───────┬────────┘                 └───────────────┘
-        │ 交换机/端口/线缆/光模块（SSH/NVUE/ethtool/syslog）
-        ▼ 就绪证明/LLDP 回读/无损计数 → FR-0.8（G2/G5/G6 前置）
-（PXE/iPXE 装机通道 + 介质 HTTP 分发通道：平台 ⇄ 目标服务器固件/OS，HTTP 直连）
-（CMDB 为平台内置能力（FR-15），对 AIOps 通过 OpenAPI/导出供数——上图消费方为外部 AIOps 系统）
-```
+
+FR-0 是整条交付链第 0 步。网络配置内容由客户与网络工程师商定后导入，平台承接版本化、渲染、校验、审批和执行。服务器域只经 FR-0.8 消费网络证据；CMDB 为内置联邦视图，对外供数，不建立第二套资产主数据。
 
 ### 1.2 逻辑分层（C4-L2）
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  前端 SPA（React 19 + TypeScript + Vite）                                │
-│  路由（双平面，v2.3，路由/IA 的 SSOT = DESIGN-SYSTEM §3，本图仅索引）:     │
-│    部署平面(随 ProjectContext 切换): /projects /deploy/overview          │
-│      /deploy/provision{,/bios,/firmware} /deploy/validation{,/topology} │
-│      /deploy/nettest /deploy/config /deploy/nccl /deploy/cleanup        │
-│    运维平面(全局): /dashboard /fleet /issues /monitor /flows /cmdb /ai  │
-│    公共: /login；系统: /admin                                        │
-├─────────────────────────────────────────────────────────────────────────┤
-│  API 网关层（gin + 中间件链）                                             │
-│  authn(session/OIDC/LDAP) → authz(project/RBAC) → CSRF → audit        │
-├─────────────────────────────────────────────────────────────────────────┤
-│  领域服务层（Go 模块化单体，内部按 bounded-context 分包）                  │
-│  flow-svc  execution-svc  provision-svc  redfish-svc                    │
-│  validation-svc(G1-G6)  mapping-svc  portmon-svc(网口监控)              │
-│  media-svc(介质库)  catalog-svc(参数目录)  config-svc  render-svc       │
-│  nettest-svc(RoCE连通)  nccl-svc  issue-svc(工单闭环)                   │
-│  mon-svc(监控告警/采集策略)  model-svc(型号库)  cmdb-svc(CMDB联邦视图)  │
-│  ai-svc  cleanup-svc  profile-svc(项目模板)  notify-svc  audit-svc     │
-│  report-svc(报告聚合，FR-6/FR-11 共用)；项目/身份边界从 P1 建立       │
-│  fabric-svc(网络底座:物料/规划/ZTP/意图/Doublecheck/PushJob)          │
-│  fabricmon-svc(交换机采集/无损判定/健康分/日志)  netbaseline-svc(网络配置基线+pongo2 沙箱)  boot-svc(Kea/引导/身份反查) │
-│  服务名称表示单体内包边界，不等同于独立部署进程                         │
-├─────────────────────────────────────────────────────────────────────────┤
-│  执行引擎层                                                               │
-│  Scheduler(队列) → Dispatcher(扇出) → Runner Pool                        │
-│    ├─ Agent Runner（gRPC 长连接通道，目标机 keel-agent）                    │
-│    └─ SSH Runner（Agentless：x/crypto/ssh 连接池，互信域密钥 keel-ctrl-*）  │
-├─────────────────────────────────────────────────────────────────────────┤
-│  数据层                                                                   │
-│  PostgreSQL(核心/资源锁) + Redis(队列/缓存) + MinIO(对象存储/日志/报告/介质桶) │
-│  + ClickHouse(指标时序，可选) + Vault(密钥，内置或外接)                    │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+| 层 | 职责与唯一数据路径 |
+|---|---|
+| 前端工作台 | React/TypeScript SPA；必须实现 DS §2.4、§3 的顶栏、可折叠侧栏、双平面及项目上下文；路由与组件不在本文另维护副本 |
+| API边界 | 认证 → 项目/资源授权 → CSRF → 领域动作 → 审计；会话偏好不决定请求项目 |
+| 领域模块 | Go 模块化单体，模块拥有自己的写入和判定，跨模块通过服务契约消费；完整映射见 §11 |
+| 执行层 | Scheduler → Dispatcher → Agent/SSH Runner；BMC、Kea、设备控制经各自适配器进入同一执行/锁/回执机制 |
+| 数据层 | PostgreSQL为状态、身份、证据索引、outbox与锁的权威；Redis为可重建队列/缓存；MinIO为介质/原始证据/报告；ClickHouse为可选时序实现 |
+
+`*-svc` 是单体内职责名，不要求一模块一进程或一套数据库。网络域：fabric-svc 编排与判定，fabricmon-svc 采集与规则，netbaseline-svc 基线与网络模板，boot-svc 引导与身份；复用型号、介质、参数、执行、审计和报告模块。
+
+**代码模块与修改入口**：以现有代码增量组织；`internal/platform`的Store/用例随FR-0完整能力逐步拆出，不先全仓重构、不造大量空包。目录名是实现选择，以下依赖边界必须保持：transport/UI调用usecase，usecase依赖domain与能力接口；store/adapters实现这些接口，由启动组合根注入。domain不导入HTTP、数据库或厂商SDK。
+
+| 职责/修改入口 | 允许修改的内容 | 变更后重点验证 |
+|---|---|---|
+| domain | 身份、状态转移、门禁、证据有效性/范围与业务不变式 | 有变化的决策单测、对应状态/授权负例和功能链 |
+| usecase | 批次编排、事务/锁/幂等、审批与执行快照；复用现有Runner | 原子性、恢复/争锁及该完整能力的集成 |
+| store | PostgreSQL查询/迁移/实体映射；当前platform逐能力分离 | 迁移兼容、事务与真实持久化；不在SQL散落厂商命令或另作业务判定 |
+| transport | 现有HTTP/gRPC/SSE handler、OpenAPI/RBAC适配 | 输入/错误/项目授权/事件契约；只调用用例，不直接执行设备命令 |
+| UI | 现有web feature/route与DS共享Shell/组件 | 页面数据/动作、状态与项目隔离的浏览器验证；不接收凭据/厂商命令选择逻辑 |
+| adapters | 现有fabricboot等基础上分离Kea、ZTP、NOS采集/解析、BMC/SSH及凭据访问 | 协议连通、能力/超时/幂等、脱敏原始样本→golden契约；更换实现保持用例接口 |
+| 版本数据/配置 | 型号能力、NOS命令/字段映射、指标注册、模板/规则与批准基线；endpoint/CA/超时/重试上限/并发 | Schema/单位/版本引用/错误缺口与受影响能力；禁止硬编码到状态机 |
+
+PoC出现差异先定位协议/解析/能力矩阵/数据schema/规则，回录脱敏原始样本并定向验证；仅业务流程或判据确实变化才修改domain。替换NOS/Kea/凭据适配器应不改handler/UI/门禁，若必须改则先修正泄漏的接口边界。接口按“采集LLDP/验证活动配置”等业务能力定义，不能把整段CLI透传当抽象；配置化不得绕过审批/unknown/重试安全约束。
 
 ### 1.3 设计原则
 
-1. **模块化单体优先（Modular Monolith）**：万卡交付现场多为单机房或弱联网环境，微服务会放大部署与运维成本。Go 单二进制 + 内部 bounded-context 分包，保留未来拆分边界。
-2. **一切皆 Flow**：配置同步、驱动升级、采集、验机、连通性测试、NCCL、清理都是 Execution，复用同一套调度/重试/审计/视图能力。
-3. **单一事实源**：设备/部件/物理端口使用稳定 ID，SN 与永久 MAC 是有历史的标识；BOM 是预期资产，DeviceModelVersion 是独立期望拓扑，MappingRevision 是确认后的实际映射。三者版本分别冻结并互相比对；**Media 库是所有介质分发的唯一来源**。
-4. **控制面与执行面分离**：Runner 只做"受控执行"，不做业务决策；业务决策（门禁判定、熔断、重试策略）全部在控制面，可审计。
-5. **Agentless 必须是一等公民**：装机后未装 agent、退场清理 agent 自身，都必须走 SSH 通道；**SSH 互信在装机流程内自动建立（ADR-06），是双通道可用性的前提**。
-6. **崩溃可恢复**：长任务、派发事件和执行回执持久化于 PostgreSQL；控制面重启先对账再续跑。对固件、电源等结果未知的副作用任务，不以重投代替恢复。
-7. **固定路径与所有权契约**：目标机路径固定（含 `/opt/keel-cache/`），创建时记录所有权台账；固定目录不等于其中任意文件均可删除，清理须再校验对象身份和创建凭据。
-8. **参数与介质解耦于 Flow**：Flow 模板引用参数目录与介质 URI，版本由 Execution 快照冻结——同一 Flow 不同时间跑可以对应不同版本组合，全部可追溯。
-
----
+1. **事实分离**：BOM 是预期物料，DeviceModelVersion 是独立型号期望，采集是观察，MappingRevision 是确认映射；各自版本化，不能用观察值生成期望后自证。
+2. **版本冻结**：Flow、项目模板、型号、介质、参数、规则和证据在执行时绑定不可变版本；回滚创建新版本或关联执行，不改历史。
+3. **受控副作用**：Runner只执行控制面已批准命令；所有通道共用资源互斥、稳定command_id和回执；结果未知先对账。
+4. **显式缺口**：unknown、stale、unsupported、sim和有效豁免均独立记录，任何一项不自动等于PASS。
+5. **双通道等价**：服务器全交付链支持Agent与SSH；Agentless观测能力按PRD显式降级。网络侧不依赖服务器Agent。
+6. **可恢复且可退出**：持久化步骤、outbox、回执和所有权台账支撑恢复；固定路径不意味着可清空整个目录。
+7. **完整能力增量交付**：复用现有代码、Runner与适配器，一次交付契约+真实持久化/权限/API+DS页面；mock/sim限外部硬件/协议边界，不把手动推进模拟会话扩成主要产品。无硬件时明确unknown/PoC缺口并继续软件链路，不能反复完善模拟世界替代开发。
 
 ## 2. 技术选型与理由
 
 ### 2.1 后端（Go）
 
-| 关注点 | 选型 | 版本基线 | 理由 |
-|---|---|---|---|
-| 语言 | Go | 1.23+ | 单二进制交付、交叉编译、现场环境友好 |
-| HTTP 框架 | gin-gonic/gin | v1.10+ | 中间件生态成熟、性能足够 |
-| ORM | entgo.io/ent | v0.14+ | schema 即文档，迁移内建 |
-| 任务队列 | 自研轻量队列（Redis zset/stream） | — | 现场单机房规模 Redis 足够；接口抽象化未来可换 Kafka |
-| SSH | golang.org/x/crypto/ssh | go.mod/go.sum 锁定 | Agentless 通道核心依赖（含互信管理） |
-| gRPC | google.golang.org/grpc | v1.7x | Agent 长连接通道 |
-| Redfish | gofish 起步 + 自研适配层 | v0.4+ | BMC 差异用适配器层吸收 |
-| 模板渲染 | text/template | stdlib | ConfigSet 渲染 |
-| 定时 | robfig/cron | v3 | Flow 触发器 |
-| 校验 | go-playground/validator | v10 | API 入参校验 |
-| 日志 | slog（stdlib） | 1.22+ | 结构化日志，OTel 对接 |
-| 可观测 | OpenTelemetry + Prometheus client | go.mod/go.sum 锁定 | NFR-6 |
-| 密钥 | 内置加密存储（AES-GCM）+ 可选外接 Vault | — | 现场无 Vault 时可用 |
-| LLM SDK | Provider 接口 + OpenAI-compatible / Anthropic / vLLM 适配器 | 锁定版本 | 统一流式输出、错误及配额 |
-| 打流工具链 | 集成而非自研：iperf3、ib_send_bw/ib_write_bw（perftest）、ping/arping | 系统包 | nettest-svc 编排调用，不重复造轮子 |
+| 领域 | 选型 | 使用边界 |
+|---|---|---|
+| 控制面 | Go 1.23+、gin v1.10+、ent v0.14+ | 单二进制/模块化单体；复杂事务可用受控原生SQL，不建第二套状态 |
+| 执行与事件 | PostgreSQL + Redis zset/Streams、robfig/cron v3 | PostgreSQL持久化；Redis可重建；事件语义见ADR-01 |
+| 执行通道 | gRPC双向流、x/crypto/ssh、gofish+自有BMC适配层 | 通道能力、错误/超时/幂等/回执契约一致 |
+| 渲染 | 服务器ConfigSet用Go text/template；网络用pongo2 v6 | 两种语法隔离；网络沙箱禁止文件/网络访问 |
+| 校验/观测 | validator v10、slog、OpenTelemetry、Prometheus | 统一错误、trace与指标契约 |
+| 密钥 | 内置AES-GCM加密存储，可外接Vault | 领域表只存凭据引用，不存明文 |
+| 工具适配 | iperf3/perftest/ping/arping、Batfish、可选containerlab | 集成已批准工具；输出通过版本化解析器与golden契约验证 |
+| AI | Provider接口+OpenAI-compatible/Anthropic/vLLM | 只输出建议/草稿；不持有设备执行凭据 |
+
+Kestra 是 Flow/Execution、恢复与交互的参考，当前架构仍为 PRD FR-1 的自研作业平台；Kea 是网络 DHCP 服务。二者职责和接入点不同，不能用mock Kea证明作业引擎或真实DHCP已完成。
 
 ### 2.2 前端
 
-| 关注点 | 选型 | 理由 |
+| 领域 | 选型 | 使用边界 |
 |---|---|---|
-| 框架 | React 19 + TypeScript 5 | 生态最厚；万卡矩阵/DAG/Monaco 组合成熟度最高 |
-| 构建 | Vite 6 | 开发热更新快 |
-| 路由 | TanStack Router（file-based） | 类型安全路由 + RBAC 守卫 |
-| 服务端状态 | TanStack Query v5 | 缓存、轮询、SSE 集成 |
-| 表格 | TanStack Table v8 + TanStack Virtual | Table 提供表格模型，Virtual 提供行/列虚拟化；配合服务端筛选、cursor 分页和聚合接口 |
-| 图表 | ECharts 5 | 热力矩阵、busbw 分布、Gantt |
-| 状态 | Zustand | 轻量 UI 态 |
-| UI 基件 | 自研组件层（CSS 变量设计令牌）+ Radix Primitives | keel 品牌、登录页与紫粉色设计令牌统一 |
-| YAML 编辑器 | Monaco Editor | Flow 编辑（media/param 函数补全） |
-| DAG 拓扑 | @xyflow/react (React Flow) | Flow 拓扑 + mapping 链路 + **网口面板物理图渲染** |
-| 表单 | React Hook Form + zod | Flow inputs 动态表单 + **参数目录下拉联动** |
-| 拖拽 | @dnd-kit/core | 仅两处使用：工单看板拖拽换泳道（DS §4.14）、表格列拖拽换序（DS §4.2）——两处均为既有能力的交互增强，不引入新组件库 |
-| 测试 | Vitest + Testing Library + Playwright | 单测 + E2E |
-| i18n | i18next | 中英双语 |
+| SPA/路由 | React 19、TypeScript 5、Vite 6、TanStack Router | 从URL派生项目域，遵循DS工作台与页面IA |
+| 数据/UI状态 | TanStack Query v5、Zustand | 服务端缓存键含项目；草稿不随其他标签页项目切换漂移 |
+| 表格/矩阵 | TanStack Table v8 + TanStack Virtual | 双轴虚拟化、服务端筛选/cursor与聚合分离 |
+| UI/表单 | CSS令牌组件层+Radix、React Hook Form+zod、i18next | 令牌源、品牌、布局、状态集和权限映射以DS为准 |
+| 图表/编辑 | ECharts 5、Monaco、@xyflow/react | 不给每行创建图表；YAML/No-code共用AST |
+| 拖拽 | @dnd-kit/core | 工单泳道动作和表格个人列顺序；不绕过业务状态机 |
+| 验证 | Vitest、Testing Library、Playwright | 覆盖真实渲染/操作和项目隔离，构建成功不等于UI符合DS |
 
 ### 2.3 基础设施
 
-| 组件 | 选型 | 说明 |
-|---|---|---|
-| 数据库 | PostgreSQL 16 | 核心数据；JSONB 存 Redfish 视图 |
-| 缓存/队列 | Redis 7.x | 可重建队列/缓存、实时通知；权威业务状态与资源锁在 PostgreSQL |
-| 对象存储 | MinIO | 日志、报告、Redfish 原始层、**media 桶（介质库存储 + 内建 apt/yum 镜像源目录）** |
-| 时序（可选） | ClickHouse 24.x+ | NCCL/网口状态指标明细 |
-| 容器 | docker compose / Helm | 双形态（NFR-7） |
+PostgreSQL 16、Redis 7.x、MinIO；ClickHouse 24.x+按容量档可选；Compose/Helm对应single-node/ha-cluster。介质HTTP/镜像源与PXE分发按ADR-07复用存储。服务器PXE的ProxyDHCP与网络ZTP的Kea按管理网规划配置，不能同时无边界争用同一广播域。
 
----
-
-**版本与构建约束**：上表表示技术路线及最低兼容族，不是直接安装的浮动版本清单。经过验证的 Go/Node 版本写入工具链文件，Go 依赖写入 go.mod/go.sum，前端依赖写入 package-lock.json，容器使用明确标签并记录 digest；CI 使用同一版本。升级通过独立变更和兼容测试，不使用 latest 或自动跨主版本升级。控制面与 keel-agent 构建 linux/amd64、linux/arm64；HGX B300 与 GB300 NVL72 分别维护 OS、驱动、CUDA、固件和工具包兼容矩阵。
+**构建锁定**：版本族表示技术路线，不是浮动安装命令。工具链文件、go.mod/go.sum、package-lock.json与镜像digest锁定经验证版本；升级独立验证，不使用latest。控制面/agent覆盖linux/amd64和linux/arm64，HGX B300与GB300的兼容组合分别登记。
 
 ## 3. 核心架构决策（ADR 摘要）
 
 ### ADR-01 事件总线：Redis Streams（关键事件持久化）+ Pub/Sub（通知类）（v2.2 修订）
 
-**决策**：事件分两类通道（v2.1 为 Go channel + Redis Pub/Sub，因 Pub/Sub 无持久化、订阅者离线即丢事件，v2.2 修订）：
-1. **状态转换类事件（关键）**：`GatePassed(G1..G6)`、`TrustEstablished`、`MediaApproved`、`IssueClosed` —— 走 **Redis Stream + Consumer Group + ACK + PEL 重投**（at-least-once 语义），消费者崩溃恢复后从 Pending Entries List 续投；
-2. **通知刷新类事件**：UI 状态刷新、通知中心提醒等非关键通知 —— 可走 Pub/Sub（丢失可容忍，前端有轮询兜底）。
+业务状态与OutboxEvent在同一PostgreSQL事务提交。发布器重试到Redis Streams；Consumer Group以ACK/PEL保证至少一次投递，消费者在业务事务写唯一`(consumer,event_id)`并CAS聚合版本后ACK。CloudEvents schema版本化。UI刷新通知可用Pub/Sub，轮询兜底；关键状态不能只放Pub/Sub或Go channel。
 
-**关键原则**：**状态推进以 PostgreSQL 为准，事件仅作通知**。业务状态变更与 OutboxEvent 同一事务提交，后台发布器重试投递至 Stream；发布确认丢失允许重复发送，不允许提交状态后漏发事件。消费者在业务事务内插入 `(consumer, event_id)` 唯一去重记录，并以状态版本 CAS 执行转移，成功后 ACK。单纯先读 DB 不能保证副作用幂等。
-
-**远端副作用**：TaskAttempt 使用稳定 command_id、attempt_id 与资源 fencing_token，Agent/SSH 包装器持久化接收/启动/完成回执；超时先查询回执及真实设备状态。不可查询或不可幂等的任务标记 `unknown`，保留独占锁进入人工对账，禁止自动重刷固件或重复下电。Redis 丢失可从 DB outbox/待执行状态重建队列；历史结果以 DB 和归档产物为准。
-
-事件 schema 版本化（CloudEvents）保留。跨实例场景 Stream 天然支持多消费者组。
+TaskAttempt使用稳定command_id/attempt_id/fencing_token，Agent/SSH包装器持久化接收、启动、完成回执。超时先查回执与设备；非幂等副作用未知时保留锁进入对账，禁止自动重复刷写/下电。Redis丢失从outbox与待执行状态重建，历史结果以DB和归档为准。
 
 ### ADR-02 Agent 协议：gRPC 双向流（保留 v1 + 扩展）
 
-keel-agent 与控制面 gRPC 双向流长连接；注册携带 SN+版本+主机指纹；单连接多任务复用；断线指数退避重连。**心跳周期档位化（v2.2 修订）**：默认 60s，由 CollectPolicy 下发驱动（M1 低频档放宽至 300s，见 FR-13.2）——心跳间隔不是固定值而是采集策略的一部分。心跳消息附带网口状态增量（ethtool/ethtool -m 摘要），供 mon-svc 刷新网口面板（NFR-12 按档位承诺：M1 ≤5min / M2–M4 ≤90s）；心跳附带介质缓存清单（media path → SHA256），供缓存命中检测。**v2.2 数据路径明确**：心跳增量统一由 mon-svc ingest 消费（持久化 MetricSample），portmon-svc / AlertCenter / Dashboard 只读消费 mon-svc 聚合视图，**不直连心跳通道**（单一数据路径，v2.0 中 portmon 直接消费心跳的旧描述废止）。
+Agent注册携带SN、版本和可信身份，经enrollment签发设备mTLS证书；双向流多任务复用、断线退避。心跳周期受CollectPolicy档位控制，携带端口增量和介质摘要清单；统一`Agent → mon-svc ingest → MetricSample/告警 → portmon/Dashboard`，展示模块不直接订阅原始心跳。周期和可见延迟引用PRD FR-13/NFR-12。
 
 ### ADR-03 Agentless：SSH 连接池 + 幂等脚本（保留 v1 + 扩展）
 
-SSH Runner 连接池（mux 复用）+ 目标机 flock 防重复执行 + 脚本幂等 lint；跨 Agent/SSH/BMC 冲突由控制面统一资源锁解决（§4.3），不能只依赖 flock。连接池绑定平台域密钥（`keel-ctrl-*`，ADR-06）。普通 SSH 任务要求 `Machine.ssh_trust=established`；仅 provision/trust 服务可提交受限的 `trust.bootstrap`/`trust.repair` 系统任务，携带一次性授权凭据、目标身份和审计，不接受任意用户脚本。**v2.2 注**：SSH 通道并发默认 1,000、连接池上限 2,000（参数键 `exec.fanout_ssh_concurrency`），与 PRD FR-1.4 双通道并发口径一致。
+SSH连接池复用项目/rail域密钥；目标flock只防本机重复，跨通道互斥仍由§4.3控制。普通任务须`ssh_trust=established`；仅provision/trust可提交受限trust.bootstrap/repair，绑定一次性凭据、目标与审计。并发/连接池按PRD FR-1.4和参数目录配置，不在此另设默认值。
 
 ### ADR-04 PXE：HTTP-first + iPXE 链式引导（保留 v1 + 扩展）
 
-ProxyDHCP + iPXE + HTTP 分发 + 回调注册。**v2.0 扩展**：cloud-init 模板由 render-svc 渲染时注入平台域公钥（公钥作为平台配置项分域管理，见 ADR-06；轮换时新装机自动用新钥）；回调注册后 provision-svc 自动触发"SSH 首连验证"子任务，结果写 `Machine.ssh_trust`，失败进互信修复队列。
+ProxyDHCP+iPXE+HTTP分发；cloud-init在分发前渲染hostname/域公钥。一次性可信回调绑定目标身份后自动首连验证，写ssh_trust并触发预收集；失败进入受限修复队列。OS镜像、脚本与依赖全部来自已批准介质。
 
 ### ADR-05 采集分层：原始层 + 结构化层（保留 v1）
 
-Redfish 原始 JSON 全量入 MinIO，结构化入 JSONB，JSONPath 视图。
+Redfish原始JSON存MinIO，结构化记录入JSONB并保留raw_ref/来源/观察与接收时间；解析器版本固定，支持从原始证据重放。网络命令/日志同样保留原文与结构化产物，不能只留UI结论。
 
 ### ADR-06 SSH 互信自动建立与生命周期（v2.0 新增）
 
-**决策**：平台维护专用密钥对体系（ed25519），**密钥分域（v2.2 修订）**：按项目/rail 维度发放域密钥（`keel-ctrl-<project>` 或 `keel-ctrl-<rail>`，vault 管理、项目级独立轮换），单钥泄露影响面从"全网"缩小到"单项目/单 rail"；互信建立唯一主路径 = PXE cloud-init 注入；装机回调后自动首连验证；互信状态 `Machine.ssh_trust ∈ {uninitialized, established, broken, revoked}` 参与调度准入。
+平台按项目或rail持有ed25519域密钥（keel-ctrl-*），私钥只在控制面。主路径为cloud-init注入公钥；一次性回调或获授权导入的可信host-key指纹用于首连验证，禁止自动接受未知/变更指纹。`uninitialized/established/broken/revoked`为独立准入状态。
 
-**关键设计**：
-- 公钥管理：平台配置项 + 版本化（轮换 = 新公钥 + 存量机器批量追加 + 老钥延后撤销），域密钥轮换只影响本域机器；
-- 首连验证：通过带一次性 token 和过期时间的装机回调或经授权导入的可信指纹绑定目标身份，再执行 SSH `exec true` 校验。禁止无验证地接受任意 host key；指纹变化进入修复流程，不自动覆盖；
-- **降级路径**：经批准的批次凭据仅用于一次性首登注入，逐目标记录消费状态，批次完成后撤销平台持有的临时凭据。只有平台创建且授权轮换的临时账户才修改其口令；客户 root 或已有账户口令不自动改写。失败重试限定目标和有效期；
-- 修复队列：互信 broken 的机器聚合成修复 Execution（降级路径即上述一次性密码首登）；
-- **root 作业审计**：显式声明 + 审批标记 + 脱敏会话记录归档。AuditLog.log_ref 指向控制面对象存储并按保留策略保存；清理只删除目标机平台临时日志，不删除控制面的交付/审计证据；
-- 撤销：清理报告和 CMDB 快照取得控制面持久化 ACK 后，经已有受控会话精确删除平台拥有的 authorized_keys 条目，验证新连接被拒绝并关闭原会话；恢复语义见 §5.6，`ssh_trust=revoked` 是退出完成的必要条件；
-- **显式取舍（v2.2）**：不引入 SSH CA 短期证书机制（交付现场无 CA 基础设施，域密钥分域已控制爆炸半径；若未来客户环境支持，列为 FR-16+ 候选——见 REVIEW-FINDINGS Open-3）。
-
-**理由**：Agentless 是装机后到 agent 安装前、以及退出清理期的唯一通道，互信若靠人工建立则是全链路的单点人力瓶颈，必须自动化且状态化；密钥分域避免"单钥失陷 = 万卡失陷"的爆炸半径。
-
-**后果**：目标机 host key 指纹纳入 Machine 实体管理；SSH 任务派发增加准入检查逻辑。
+密钥轮换先追加新钥、逐机验证再撤旧钥。批准的批次凭据仅用于一次性首登注入，逐目标消费、限定有效期，批次结束撤销平台持有的临时凭据；不得自动修改客户root/既有账户口令。root作业显式声明、审批并将脱敏会话归档到控制面AuditLog引用。退出按§5.6分阶段归档、精确删平台公钥并验证新连接拒绝；maintained不能经普通repair恢复带内访问。当前路线不用SSH CA；未来引入须独立ADR与现场支持证明。
 
 ### ADR-07 介质库：对象存储 + 内建镜像源 + 固定缓存契约（v2.0 新增）
 
-**决策**：介质统一存 MinIO `media` 桶（版本化、不可覆盖）；分发三形态：任务推送（agent gRPC 分帧 / SSH scp）、HTTP 直拉（内建 nginx 目录服务，支持 Range 断点续传）、镜像源引用（`apt/yum/dnf` 源指向平台内建源目录结构）。目标机统一缓存目录 `/opt/keel-cache/media/`（SHA256 寻址子目录），agent 上报缓存清单、控制面比对跳过已存在介质。
+MinIO media桶保存不可覆盖版本；任务push、HTTP Range直拉、apt/yum/dnf镜像源均解析同一`media://`对象。目标缓存`/opt/keel-cache/media/<sha256>/`，只对未命中目标传输，命中仍校验摘要。冷缓存带宽按全量计算；包管理器不默认具有事务回滚。
 
-**理由**：
-- 万级目标机重复推送驱动包是带宽灾难，HTTP 直拉避免控制面逐份中转；传输量按未命中目标数×包大小计算，命中目标仅校验，冷缓存仍有全量带宽需求；
-- 内建镜像源保留原生包管理器依赖解析和签名校验；不假设所有包管理器支持完整事务回滚，回滚能力必须在操作能力矩阵声明；
-- `media://` URI 抽象使 Flow/ConfigSet/测试框架与物理存储解耦，审计可追溯。
-
-**后果**：MinIO 与 nginx 成为 PXE 与介质分发底座；审批由 media-svc 管理。介质入库允许填写新版本标识，校验唯一性、签名、SHA256、OS/arch/型号及依赖；业务任务只能选择已批准版本。离线清单包含完整依赖闭包、apt/yum 元数据及签名、驱动/CUDA/NCCL/固件组合和工具版本；摘要校验失败不能无限重试或改摘要放行。缺少基线或依赖为 `missing/blocked`，不能算 PASS。
+登记校验唯一版本、签名、摘要、OS/arch/型号和依赖闭包，业务执行只选approved版本；离线清单包括仓库元数据、签名和完整工具组合。缺依赖/未批准/摘要错误阻断，不能无限重试或替换摘要放行。
 
 ### ADR-08 PortModel：网口可观测与故障定位的统一底座（v2.0 新增）
 
-**决策**：BOM 导入/预收集即建立 `Machine → Component → PhysicalPort` 稳定身份（含在位历史），早于 G2；未映射的端口也可开工单。PortModel 是物理端口当前可观测投影，OS 名、永久 MAC、PCI BDF、交换机端口映射可空。G3 发布不可变 MappingRevision，确认身份间的映射，而非到 G3 才创建端口。
-
-**身份与版本**：换卡新建 Component 并结束旧部件在位关系，保留旧工单与结果；物理槽位/位置 ID 稳定，部件端口实例不冒充旧实例。历史结果固定引用当时 component/port/mapping IDs。BDF 和 OS 名是观察值，不能充当跨重启/换件的资产主键。
-
-**后果**：portmon-svc 消费 mon-svc 投影；issue-svc 可按机器/GPU/NIC/物理端口/BMC 关联对象；nettest/nccl 固定引用映射版本。缺失字段显示 `unknown/unmapped`，不伪造健康或已映射状态。
+BOM/预收集先建Machine→Component→PhysicalPort稳定身份，未映射端口也可开单；PortModel是当前观察投影，G3才发布不可变MappingRevision。OS名/BDF不是资产主键。换件新建部件/端口实例并结束旧在位关系，历史工单/结果保留原引用；未知字段显示unknown/unmapped。
 
 ### ADR-09 门禁扩展与跨系统就绪握手（v2.0 新增）
 
-**决策**：门禁从 G1–G5 扩展为 G1–G6（新增 G5 RoCE 连通性，原 NCCL 评审顺延为 G6）；LLDP 启动检查本端 G1、网络 NP-1/NP-2/NP-4；G2 三方确认后才产出 NP-3。连通性与跨机 NCCL 另检查 NP-5/NP-6；对应证明均经 FR-0.8 刷新，满足时才显示可提交；UI 不是授权边界，提交和真正派发时须在后端重查并原子冻结证据与资源锁。
+G1–G6是唯一门禁链；N-S0～N-S9仅为网络阶段标签。G2启动要求本端G1/拓扑和NP-1/NP-2/NP-4，G2三方确认产生NP-3；G5/G6另消费NP-5/NP-6。readiness只为展示短时缓存；提交及实际派发均按§4.4重验范围、版本、新鲜度并冻结证据，UI禁用不替代后端准入。
 
-**理由**：跨系统时序不同步是"假失败"的最大来源（广播无人读、打流时交换机未配置），握手把时序问题在触发前拦截。
-
-**后果**：readiness 展示缓存最多 30s，带 observed_at、valid_until、目标范围与版本指纹。准入重查过期/变更项，事务中验证本地状态版本并预留资源；外部凭证失效则停止派发。GateEvidence 绑定目标集合、端口对、档位、映射/配置/BOM/型号/规则版本，不能用项目通过率或仅机器 state 代替（§4.4）。
+NP-2必须同时有ZTP完成与Golden配置同步证据，不由N-S4单独产生；N-S5不产生NP-3。所有结论引用PRD §1.5.3，不能用项目通过率、managed或Machine.state替代。
 
 ### ADR-10 监控单一数据源与频次控制（v2.1 新增）
 
-**决策**：Agent 模式交付期 D1–D6 动态数据来自 agent 心跳，Agentless 的受限 D1/D2 来自带 source 标签的 SSH 快照/低频轮询；**所有模式统一经 mon-svc ingest**；交付期 BMC/Redfish 作为带外资产与健康旁证，不与 D1–D6 混源；维护期独立 B7 告警链路见 ADR-18。采集策略由控制面下发（CollectPolicy 实体，按交付阶段 M1–M4 分级），agent 本地采样、**仅上报变化项**（delta + 心跳摘要）；测试 Execution 运行期间目标组自动切"动态窗口"高频档（D1 10s/D5 15s），结束自动回落。
-
-**频次控制三机制**：变化上报（带宽 O(变化数)）、动态窗口提频（绑定 Execution 生命周期）、随机化时间片 + 失败指数退避（防洪峰与风暴）。cleanup 在撤销前停止带内任务和采集并确认；完成后切入 maintained，B7 轮询及告警继续（ADR-18），切换通过可重放的持久化步骤完成。
-
-**理由**：万卡 × 高频采样若全量回传，带宽 = O(设备数×频率×payload)，管理网不可承受；变化上报把它压到 O(变化数)。单一数据源杜绝"agent 与 BMC 两套状态打架"的裁决难题。
-
-**后果**：agentless 模式监控降级为按需拉取 + 低频轮询（FR-13.4，面板带快照时间戳标注）；**mon-svc 是唯一 ingest 路径**（v2.2 明确）：agent 心跳增量 → mon-svc ingest（持久化 MetricSample + 告警规则引擎）→ portmon-svc / AlertCenter / Dashboard 只读消费聚合视图（v2.0 中 portmon 直接消费心跳的描述废止）；ClickHouse 成为监控明细的可选但推荐存储（时序压缩）。
+mon-svc为服务器遥测唯一ingest。Agent的D1–D6与Agentless受限D1/D2经同一结构化契约入库，源/时间/质量保留；实施期BMC作为带外旁证，维护期改B7独立告警。CollectPolicy按M1–M4控制本地采样、delta上报、动态测试窗口、随机分片和退避。cleanup先停带内作业/采集并确认，再撤销凭据；不能仅停UI订阅。网络侧独立由fabricmon采集，不依赖服务器心跳。
 
 ### ADR-11 DeviceModel 型号库与数据条目冲突防护（v2.1 新增）
 
-**决策**：DeviceModel 为稳定型号标识，DeviceModelVersion 保存不可变硬件规格、槽位、独立期望拓扑、面板和默认角色。`ProjectAsset.model_version_id` 绑定已发布版本，Machine 当前型号为投影，模板引用确切版本。共享型号与项目型号区分 scope；修改共享型号先派生项目型号或发布新版本，不影响旧绑定。
+DeviceModel是稳定标识，DeviceModelVersion是不可变硬件/槽位/拓扑/能力/面板/角色期望。ProjectAsset固定已发布版本；Machine当前型号是投影。唯一键为`(scope_key,name)`、`(model_id,version)`、`(model_version_id,slot_no)`；scope_key显式global或project:<id>，避免NULL唯一键漏洞。
 
-**约束**：
-1. DeviceModel `(scope_key, name)` 唯一，scope_key 显式为 global 或 project:<id>，避免 NULL 唯一键漏洞；版本 `(model_id, version)`、Slot `(model_version_id, slot_no)` 唯一。已发布版本不可编辑。
-2. 已引用型号可退役：禁止新增绑定但保留旧绑定、报告和重放；有历史引用的型号/版本禁止硬删除。版本迁移须预览差异并使受影响证据失效。
-3. BOM 与独立型号期望核对；BDF 排序只允许作为已验证型号适配规则，不能用实际观察值生成期望后再自证。
-4. RoleBinding 固定引用型号版本与项目角色方案版本；完整性仅检查项目 `enabled_required_roles`，关闭的 storage 等角色不强制在位，`unused` 同源驱动渲染/告警/校验。必需角色无人承担时返回具体槽位差异。
-
-**后果**：型号、部件身份、BOM、映射分别负责唯一职责；b300 二期取消存储网通过版本化项目角色覆盖完成，历史项目/报告可复现。
+共享型号修改用新版本或项目派生，不改旧绑定；被引用版本只可退役，禁止硬删除。RoleBinding固定型号版本与项目角色方案，完整性仅检查enabled_required_roles，unused同源驱动BOM/配置/告警。迁移预览差异并使相关证据失效；不从实测BDF排序自动构造独立期望。
 
 ### ADR-12 CMDB 联邦视图（v2.1 新增）
 
-**决策**：CMDB **不建独立主数据表**，采用联邦视图模式：CMDB 页面聚合各源模块数据（BOM/Redfish/映射/门禁/配置/工单/测试/监控归档快照），`CMDBRef` 表仅存设备→各源记录的索引引用 + cleanup 时生成的全息快照（物化归档）；维护期人工字段独立分列（`source=manual`），与自动字段物理隔离。
-
-**理由**：若 CMDB 复制各源数据成第二主数据，必然出现双源不一致（交付期数据实时变，复制有时差）——联邦视图保证"单一事实源"原则贯穿到维护阶段；快照在 cleanup 冻结任务和源版本后物化，保存每个源版本、水位及完整性清单，等待对象/索引持久化 ACK 后才撤销互信；不假设天然没有一致性窗口。
-
-**后果**：CMDB 查询走聚合 API（性能预算 NFR-14）；AIOps 消费走 OpenAPI + 导出（schema 版本化）；维护期按需刷新仅通过 BMC 只读白名单更新 Redfish 源记录；OS 字段保留交付快照和时间，不能使用已撤销 SSH。**查询性能策略（v2.2 补充）**：单机 360° 走并发索引查询并按 NFR-14 实测；项目级统计走**预聚合物化视图**（事件驱动增量刷新 + 每分钟全量对账），统计口径允许 ≤60s 滞后（NFR-14 统计判据以物化视图时点为准）。
+CMDB只聚合源模块，不复制成第二套主数据。CMDBRef存源记录/版本索引；人工字段独立source=manual；cleanup冻结范围/源水位后生成CMDBSnapshot并等待对象/索引ACK。单机360°走索引聚合，项目统计走事件增量物化视图+每分钟全量对账；性能/滞后引用NFR-14。维护期只经BMC白名单刷新，OS数据保留归档时间，禁止偷偷重建SSH。
 
 ### ADR-13 Agentless 交付模式为一等能力（v2.1 新增）
 
-**决策**：平台全交付链（装机→互信→验机→配置→连通性→NCCL→退出）在无 agent 条件下可完整执行（FR-1.10 能力矩阵）；架构保障：①所有 Flow Task 定义"通道无关"执行语义（Runner 层抽象 TaskCommand，Agent Runner 与 SSH Runner 实现同一接口）；②门禁判定使用任务态采集和明确版本的新鲜度证据，不依赖常驻心跳来证明门禁通过；③监控降级显式建模（按需拉取/低频轮询 + 面板降级徽标），不隐式假装可用。
-
-**理由**：现场 OS 兼容性问题、客户安全策略、装机窗口都可能迫使短期无 agent 交付；交付质量（门禁）不能因此放水，观测能力诚实降级。
-
-**后果**：Runner 抽象层是硬契约（单测覆盖两通道等价性）；设备 `mode` 字段（agent/agentless）贯穿 UI 标注；agentless→agent 切换（FR-5.7）后监控自动恢复。
+TaskCommand定义通道无关语义，Agent/SSH Runner实现相同结果、取消、回执契约；无Agent时交付链仍可完整运行。门禁依赖明确新鲜度/版本的任务采集证据，不强制常驻心跳；监控按FR-1.10/13.4降级并显示快照时间。双通道等价用契约测试证明，agentless→agent切换再恢复动态观测。
 
 ### ADR-14 环境抽象与离线优先（v2.1 补充）
 
-**决策**：平台所有与外部环境交互的组件（FR-0.8 网络证据接口/第三方网络平台、BMC/Redfish、SSH 目标机、PXE 网络、NCCL/GPU 工具链、AI Provider）一律通过**环境抽象接口（Environment Adapter）**接入：
-1. **接口层**：每类外部依赖定义 Go interface（如 `NetPlatformClient`、`RedfishClient`、`SSHTransport`、`TrafficGen`、`LLMClient`），业务服务只依赖接口，不依赖具体实现；
-2. **实现双档**：每接口提供 `mock 实现`（内置，默认档）与 `真实实现`（连接真实环境）；`mock 实现` 内置于二进制（生产可裁剪），支持场景脚本化（延迟注入/故障注入/数据模板）；
-3. **配置化切换**：环境选择全部走配置文件/环境变量（如 `KEEL_NETPLATFORM_MODE=mock|real`、`KEEL_BMC_ENDPOINTS=...`），**默认值一律为 mock/sim**；**代码中禁止硬编码任何真实环境地址**（CI 静态扫描）；
-4. **预期压力驱动的设计**：在无法连接真实环境的前提下，性能相关实现按 PRD NFR 的预期压力设计（连接池尺寸、队列水位、时间片随机化、虚拟滚动分片等均有明确数值依据），并以 sim 同等数据量验证。
+所有硬件/外部交互经Environment Adapter（网络证据、Kea、SSH、BMC、PXE、打流、AI），业务只依赖按能力定义的接口。外部设备mock/sim为开发默认档，real按显式配置启用；数据库、授权、业务API和UI使用真实链路，不另造模拟实现绕过它们。复用现有适配器/Runner，mock与real共用接口/错误/超时/幂等契约；故障fixture与golden样本只覆盖必要协议边界，手动模拟控制台仅开发工具，不扩张为主产品。真实地址/凭据不能写死，endpoint/CA/超时/重试上限/并发配置化，NOS命令解析和凭据读取独立可替换。
 
-**理由**：硬件依赖以 mock/sim 为默认；用户授权的远端开发服务器可正常 SSH、Git、安装工具并运行开发服务，和待交付 GPU/BMC 环境是不同边界。真机 PoC 由工程所有者执行，适配器能力以契约矩阵和 PoC 证据确认；未支持设备不可宣称仅改配置就可用。
-
-**后果**：每个外部依赖接口的 mock 实现是**必交付物**（与真实实现同 PR）；**契约测试矩阵（v2.2 补充）**：每个接口 PR 必含 mock/real 双实现的等价性断言矩阵（接口签名 / 错误码 / 超时语义 / 幂等性四维）+ **mock 数据生成器**（场景脚本化：延迟注入/故障注入/数据模板，随接口交付、不后补）；ADR-13 的 Runner 抽象是本决策在执行通道上的具体实例（Agent Runner / SSH Runner 之外，mock Runner 用于纯离线 CI 快速档）。
+证据区分`evidence_origin=sim|real`，观测对象另标`source=host|switch`等；不可采集带`degraded/approximation/estimated`标记；sim产物只可通过仿真门禁，不能更新真实managed、IN_SYNC或现场NP断言。未支持能力返回unknown，未执行PoC为NOT_RUN；硬件性能/GA由ACCEPTANCE H组独立留证。授权开发服务器可正常SSH/Git/安装依赖，与交付目标机边界不同。
 
 ### ADR-15 PCIe 拓扑模型：sysfs 上游路径 + nvidia-smi topo 语义对齐（v2.3 新增）
 
-**决策**：GPU-NIC PCIe 拓扑验证（PRD FR-4.8）以独立快照实体建模：
-1. **计算口径**：拓扑按 **sysfs 上游路径**计算（`/sys/bus/pci/devices/<BDF>/` 沿 `physfn`/上游 bridge 链遍历至 Root Complex），每 GPU/NIC 产出"上游路径链（BDF 链）+ NUMA 节点"；NVLink 信息**只取自 nvidia-smi**（拓扑/链路数/状态），不做替代推断；LnkCap/LnkSta 从 PCIe capability 配置空间读取（setpci/lspci 口径）；
-2. **语义对齐断言**：平台拓扑计算的 affinity 表达（PIX/PXB/PHB/SYS、GPU-NIC 亲和）**必须与 `nvidia-smi topo -m` 输出含义逐项一致**——sim 环境以 mock nvidia-smi 输出为行为规格（ADR-14）；真机一致性由 PoC 执行包 #P2 校验；
-3. **对比引擎**：预期拓扑来自独立发布的 DeviceModelVersion.expected_topology（槽位/上游结构/GPU-NIC affinity/NVLink），实际来自采集快照，`TopologyDiff` 按四维比对（挂载归属/NUMA 分布/NVLink 矩阵/LnkSta 带宽协商）；
-4. **T7 处置闭环**：拓扑差异 → T7 工单 → 按证据与型号能力选择配置修复、冷复位、经批准固件操作或硬件检修 Runbook → 重跑验证；BIOS 刷写不是所有拓扑故障默认动作。
-
-**理由**：拓扑混乱（BIOS PCIe 枚举错位/训练降带宽）会污染后续所有映射与线序结论——把它前置于线序核查 Step 1，保证线序验证建立在正确的设备内拓扑上。
-
-**后果**：mapping-svc 增加拓扑对比引擎；validation-svc 流程编排增"拓扑验证"环节（G1 后、G2 前）；采集脚本新增拓扑采集器（mock 优先，ADR-14）。
+实际拓扑从sysfs的physfn/bridge链获得上游BDF与NUMA，LnkCap/LnkSta取PCIe capability；NVLink只取nvidia-smi。独立期望来自已发布型号版本。对照挂载归属、NUMA、NVLink、带宽协商形成TopologyDiff，affinity语义须与nvidia-smi topo -m一致。差异开T7，按证据选配置/冷复位/批准固件/硬件检修，不默认刷BIOS；重验后才进G2。
 
 ### ADR-16 BMC 控制平面：双源标注与通道矩阵（v2.3 新增）
 
-**决策**：BMC 域功能（PRD FR-16）由 redfish-svc 扩展承载（不新建服务——BMC 通道已有适配器层 ADR-14），关键设计：
-1. **双源标注**：实施期同一字段可能来自 agent 心跳（带内）与 BMC Redfish（带外）——展示层字段级标注 `source=agent|bmc`，**不混源不裁决**（实施期带内为准展示，带外为旁证；维护期带外为唯一源）；
-2. **状态灯抽象层**：ServerLampPanel 的灯语义统一映射平台状态色（电源/健康/UID/BMC 心跳/网卡灯），BMC 厂商差异由适配器吸收（FR-16.5）；不支持的 NIC 灯/传感器显示 unsupported，失联显示 unknown，不推断为正常或断电；
-3. **控制通道矩阵**：电源/UID 控制 = BMC 带外（Redfish Actions）；BIOS 设置 = 带内 biossetting 工具 或 Redfish BIOS attribute patch（双路径，按设备能力选择，能力矩阵入型号库）；BIOS/BMC/CPLD/HGX SBI/NVSwitch 固件按型号版本 capability matrix 选择 Redfish UpdateService、带内厂商工具或人工路径；CPLD 不预设通道；**维护期仅带外通道可用**（矩阵中带内通道对 maintained 态禁用）；
-4. **动作发现**：读取 Redfish ActionInfo / AllowableValues，映射 On、GracefulShutdown、GracefulRestart、ForceRestart 等实际支持值；Nmi 为独立诊断动作，不映射普通 reboot，不使用不存在的 NmiReset。ForceOff 等强制动作须独立能力与审批。
-5. **固件升级联动**：影响拓扑或数据面的固件变更使相关 G2–G6 证据失效，按范围重验。每种操作声明可取消点、查询方式和回滚能力；超时先对账任务与设备版本，未知状态禁止自动重刷。
-6. **配置恢复**：可能断开管理网的配置使用 target-side watchdog 的 confirmed-apply：先备份、限时应用、独立新连接验证、确认后取消回滚；不支持的设备采用审批过的带外恢复方案。BIOS/固件不默认支持此类回滚。
+redfish-svc复用既有BmcClient适配层。字段标source=agent|bmc，实施期不无标混源，维护期仅BMC；未知传感器/NIC灯不推定正常或断电。电源/UID取ActionInfo/AllowableValues确切能力，Nmi不是普通reboot；强制动作独立审批。
 
-**理由**：BMC 是唯一贯穿实施与维护期的通道；控制能力差异大（厂商/OEM action 各异），抽象层吸收差异是既有 ADR-14 模式的复用。
-
-**后果**：BmcClient 接口扩展（LED/电源/固件/BIOS patch），mock 实现同 PR 交付（ADR-14 约束）；维护期监控成为 BMC 域消费方（ADR-18）。
+BIOS设置/固件按型号capability_matrix选择Redfish、带内工具或人工路径，不预设CPLD通道；维护期禁带内。每动作声明取消点、任务查询和恢复/回滚能力；超时先查TaskService与实机版本，未知不重刷。影响拓扑/数据面使相关证据失效。可能断管理链路的配置采用备份+target-side watchdog限时应用+独立新连接确认；不支持者须已审批带外恢复方案，BIOS/固件不默认自动回滚。
 
 ### ADR-17 项目执行与双平面（v2.3 新增）
 
-**决策**：平台引入 Project 实体与双平面信息架构（PRD FR-17）：
-1. **项目域从 P1 建立**：Project、成员/角色授权及项目归属在业务表前建立。部署页 URL 明确 project_id，请求显式携带，后端按用户权限与资源实际归属交叉校验。session 最近项目仅为入口偏好，不能决定已打开请求的归属。
-2. **多标签页隔离**：页面 ProjectContext 从 URL 派生；Query key、SSE、筛选、草稿及确认框含 project_id。切换只导航当前标签页，其他标签页表单保留原项目，提交时展示并校验冻结的项目/目标集合。
-3. **平面划分**：部署平面按项目操作；运维平面可跨用户获授权项目聚合。默认项目过滤为可见且可移除的 URL 条件，清除它不授予额外权限。
-4. **项目内顺序性**：G1–G6 消费 GateEvidence；项目百分比只用于展示，不作为批次准入。Project 状态 `planning → deploying → verifying → delivered → archived` 独立于设备状态，转移按版本 CAS 与证据检查。
+Project/成员/资产归属从P1建立。部署域按项目，运维域聚合用户获授权项目，默认项目过滤可移除；Machine为全局实物，ProjectAsset保存使用历史，禁止活跃项目无授权争用。Project生命周期与Machine/Gate独立，版本CAS及证据控制转移。
 
-**理由**：多项目并行交付（b300 两期=双项目）需要项目级隔离与切换；横向能力（告警/工单）跨项目本质不应随项目切换而隐藏。
+ProjectContext从当前标签URL派生；所有请求、Query key、SSE、筛选/草稿/确认框显式固定project_id。顶栏切换与侧栏项目入口只导航当前页，不改其他标签的项目/目标。session最近项目仅偏好；运维过滤变化不扩大权限。
 
-**后果**：api-gateway 增项目上下文中间件（项目级 RBAC + 数据域过滤）；前端路由结构重构（DS §3）；项目字段、索引、后台任务与导出权限在 P1 建立；Machine 为全局物理身份，ProjectAsset 记录项目使用/交付历史，禁止同一设备被多个活跃项目无授权争用。
+**Fabric平面裁决**：PRD FR-17.1的运维平面归属优先于DS §3菜单位置。Fabric总表/规则/无损默认查询获授权项目集合，项目深链或过滤只限制该视图；ZTP/PushJob等写动作始终固定一个项目与批准范围。可从项目时间线深链进入相同工作区，不创建第二套数据/导航事实源；具体规范路由在契约实现前统一登记DS/路由清单。工作台外壳必须遵守DS §2.4（56px顶栏、240→56px侧栏、内容全宽）及§3，不能沿用横向标签外壳后声明设计已交付。
 
 ### ADR-18 维护期 BMC-only 监控（Redfish 主通道 / IPMI 兼容回退）
 
-**决策**：cleanup 后维护期监控（PRD FR-9.7/13.6）：
-1. **通道事实**：agent 卸载 + SSH 互信撤销后，带内通道物理消失——维护期监控唯一通道 = BMC（Redfish/IPMI），这是通道能力的客观事实而非设计选择；
-2. **采集模型**：mon-svc 调度 BMC 轮询 Execution（复用作业平台 fanout，BmcClient 只读接口），采集传感器/SEL/Health/电源状态入 MetricSample（dtype=B7 带外硬件类）；默认 5min/台（`mon.maintained_bmc_interval`）；
-3. **负载量纲**：10k 台每 300s 轮询一次需约 33.3 次设备轮询/s；每台 k 个请求、每请求 2s 时并发约 66.7k，设备数不能当作请求数。默认并发上限 128，记录完整设备轮询耗时/请求数/重试/尾延迟并验证 5min 新鲜度；超预算显示 stale 并告警，不静默拉长至 52min。可按能力批量读取、缓存、分片或经审批扩容。
-4. **告警与工单**：带外告警规则进 Alert（source=bmc），触发开 phase=post-delivery 工单；**[I-8] 修订适用**：维护期白名单 = BMC 自动只读轮询、人工 BMC 只读刷新、人工 UID 控制，以及有独立权限和审批的 FR-16.5 电源动作；其余带内 Flow/采集/测试/刷写仍过滤。BMC 配置或固件变更需显式授权的维护变更流程，不能借监控白名单执行；
-5. **权限最小化**：维护期仅保留授权范围内 BMC 凭据引用；平台持有的目标机临时 OS 凭据随互信撤销清除（凭据生命周期与通道生命周期绑定）。
+技术清理后，mon-svc调度BMC只读轮询Execution，传感器/SEL/Health/电源状态写B7并继续post-delivery工单。白名单只含自动只读轮询、人工只读刷新、UID与有独立授权/审批的电源动作；其他变更须显式维护流程。平台只保留授权BMC凭据引用，清除临时OS凭据。
 
-**理由**：交付后客户环境的平台残留必须为零（带内通道全部收回），但硬件故障感知能力是交付承诺的一部分——BMC 带外是唯一合规通道。
-
-**后果**：mon-svc 增维护期调度器分支；CleanRun 完成事件触发"监控模式切换"（带内停采 + 带外轮询启动）；NFR-16 定义其预算。
+容量按完整设备轮询计算：设备数/周期给设备轮询率，再乘每台请求数k与请求耗时求并发；不能把10k设备当10k请求。默认周期/上限与新鲜度引用NFR-16，逾期显示stale并告警，不能静默拉长周期；扩容/分片/批量读取后重新实测。
 
 ### ADR-19 网络底座交付域：前置域承载与证据接口（v3.0 新增）
 
-**决策**：PRD §3.0 FR-0 网络底座交付域（历史代号 NDP，现 `keel-fabric`）作为**服务器交付的前置条件域**由本平台自建承载，不另立系统、不并入第三方平台：
-1. **服务划分（同一模块化单体内，包边界）**：`fabric-svc`（物料/端口建模、网络规划、ZTP 开通编排、意图渲染、Doublecheck、比对、预检、PushJob 下发与复采）、`fabricmon-svc`（交换机侧采集：LLDP/FDB/ARP/DDM/PFC/ECN/CNP/队列/缓冲/WJH + syslog 归一化 + LL-01～LL-07 判定 + 健康分）、`netbaseline-svc`（网络配置基线导入承接 + pongo2 沙箱渲染，可与 render-svc 共用模板引擎适配层）；`boot-svc`（Kea/引导服务/身份反查，option 239/143/60-43）。**复用既有横向能力**：catalog-svc（参数目录，阈值单一源）、model-svc（网络设备型号同库）、audit-svc、notify-svc、report-svc。
-2. **证据与排障接口域（FR-0.8）为服务器域唯一消费入口**：就绪状态、LLDP 邻居回读、线缆校验结论、无损与打流计数、光模块与日志证据、交付基线导出；第三方网络平台以**适配器**实现同一契约，不可提供的能力返回 `unknown`，禁止空成功。
-3. **只读与审批边界**：网络配置变更走 `意图承接 → Doublecheck → 备份采集 → 比对 → 修复计划 → Batfish/预演 → 审批 → 下发 → 复采验证` 主链路，任何环节不得绕过审批直下发；无损调优只输出建议，禁止自动改写设备配置；对设备视图只读。
-4. **模板引擎**：网络配置模板用 **pongo2 v6**（Django/Jinja 语法兼容，与 ConfigSet 的 Go template 语法不兼容，见 PRD 附录 C-10），须在**沙箱模式**（`BanTag`/`BanFilter`）执行，禁止模板内文件/网络访问。
-5. **状态机**：ZTP 引导状态机 `上电→DHCP(DORA)→获取引导 URL(239/143)→身份上报/证书校验→身份反查→拉取引导数据→最小隔离/管理配置导入→服务重启→可管理`；引导不下发生产网络配置，生产配置必须经审批 PushJob；PushJob 13 态见 §4.1。
+FR-0作为keel-fabric内置第0步，复用软件平台底座，先于依赖它的服务器验证；服务边界按§11，不另建NDP产品或物料库。网络内容来自批准的客户/NE基线，项目差异由ProjectProfile承载；平台不替客户决定地址/VLAN/ASN/QoS/RoCE方案。
 
-**理由**：网络配置的方案与内容由客户与网络工程师商定（Out of Scope），平台只承接"导入→版本化→渲染→校验→下发→比对闭环"；把网络能力收敛为同一平台的**前置域 + 证据接口**，既满足服务器域对网络就绪的硬前置（NP-1～NP-6），又避免第二套判定枚举与两处各自演化。
+主链唯一为`基线导入→版本化/渲染→Doublecheck→备份/结构化diff→修复计划→Batfish/预演→设备预检与审批→PushJob→复采比对`，具体先后和判据以PRD FR-0.4为准。首次ZTP只提供批准最小隔离/管理配置；生产配置和漂移修复共用PushJob。首次生产配置预检不得要求既有IN_SYNC或未装机主机LLDP；批准的预期漂移不是自我阻断条件。普通NE+DE双签、Critical追加NH，执行人不得自审批。
 
-**后果**：新增 `bom_item` 单表（双域物料）、`BOMImportPackage`/`BOMImportManifestFile`、网络侧设备/端口/线缆/光模块身份、`FabricRule(LL-01~07)`、`PushJob`、`HealthScore`、`ZtpSession`、`FabricReadiness` 等实体（§4）；FR-0.8 契约为服务器域 G2/G5/G6 的硬依赖；网络设备型号进 model-svc（`kind` 增 `switch`）；交换机凭据走 vault 凭据批次模型（与 BMC 同族）。
+网络pongo2 v6与服务器Go template隔离；沙箱BanTag/BanFilter，禁文件/网络/绝对路径访问，发布模板须渲染→三层Doublecheck→仿真下发→回读golden测试。阈值/安全区间来自catalog+ProjectProfile，规则只改判定，不改采集计划或设备配置；LL-01～LL-07每个产物携带rule_id@version，缺能力/停用为unknown。
+
+FR-0.8是服务器域唯一入口，内置与第三方适配器提供相同就绪、LLDP、线缆、无损、DDM/日志、基线导出契约；不支持返回unknown而非空成功。NP-1/2/4是G2输入，NP-3是G2输出，NP-5/6是G5/G6输入；N-S5只有预校验。NP-2依赖ZTP完成+Golden当前同步证据，N-S4完成不自动满足。
 
 ### ZTP 身份底座（WP-1.17 增量）
 
-标准交换机 BOM 可声明 `mgmt_mac`、`base_mac`、分号分隔的 `other_macs`。预检规范化永久 MAC，并阻断同包服务器端口、其他交换机和既有 SoT 绑定冲突；当前绑定在 `switch_mac_bindings` 中按角色唯一存放，历史由 BOM 修订快照保留。新 BOM 要更新身份时须同时声明三列；完全不带身份列则继承当前绑定，保持 `bom_items.mac_list` 与绑定表一致。只读身份反查按 SN→管理口 MAC→基板 MAC→其他 MAC 的优先级解析；任意键指向不同交换机、已知 SN 与 MAC 绑定不一致时返回 conflict，未命中或缺少必要 SoT MAC 为 isolated。预检 API 仅供项目内规划/仿真，绝不返回配置或推进 managed。项目内 `ZtpOnboardBoard` 可查看最近仿真会话并人工驱动步骤；ZTP 仿真会话已持久化 `powered → dhcp → booturl → identity → lookup → fetch → config → restart → managed` 的逐步证据时间线，支持状态版本并发校验、失败三段式记录与指数退避窗口（默认最多 3 次重试，可从参数目录 `fabric.ztp_retry_max` 读取 0–10 次）；多副本 API worker 用数据库行锁领取到期的仿真重试并恢复到 powered，人工重试与 worker 互斥，失败三段式在审计中留存；仿真后续阶段仍由测试驱动，不代表真实设备已自动重试；未命中身份在 lookup 后校验已批准隔离脚本并记录模拟 fetch，再进入 isolated；冲突直接进入 conflict，不提供脚本。设备 239/143 与仿真 lookup 的身份冲突写入项目级 `ztp_identity_issues`，同批次/通道/身份键重复事件合并计数，保留原因与最近来源；项目管理员可记原因并关闭，重复冲突会重新打开且保留审计；项目成员可在 ZtpOnboardBoard 查看，不得将问题清单当作设备已恢复的证明。会话创建时保留身份初始快照，lookup 阶段重新按当前 SoT 反查并持久化结果；booturl/fetch 重新校验 active mock Kea 哈希与 DHCP 证据，fetch 还校验当前脚本审批；`sim.managed` 只表示仿真路径结束，不写交换机真实可管理状态，也不产出 NP-2/FabricReadiness。`internal/fabricboot` 已提供仅用于仿真测试的 mock Kea 契约：按项目/批次/阶段 staging、摘要确认 commit、仅在 eth0 管理网段和匹配 VCI 时模拟 DORA ACK；239 URL 校验批次/阶段路由及无设备身份参数，143 URI 要求 HTTPS，60 作厂商类匹配，43 携带 NOS/版本意向，结果与 golden 文件核对。项目 API 已通过 `ztp_mock_kea_plans` 持久化 staged/active 两份配置及哈希，要求项目管理员以 staged 哈希和版本提交，提交前要求 239 路由介质已由独立复核批准且 SHA256/大小与固定隔离脚本一致，且 239 URL 必须指向已实现的 HTTPS 设备入口；项目成员可按管理口/网段/VCI 仿真 DORA，脚本退役或变更后返回 no_offer；仿真进程重启后仍从数据库的 active 版本重建 offer。ZTP 仿真会话从 powered 进入 dhcp 时，由后端按会话批次与 N-S4 读取 active mock Kea 计划并要求管理口 DORA ACK，事件引用服务端计算的 `mock-kea:<hash>`；无请求、无计划、前面板口或网段/VCI 不符均不能推进。该证据仅证明仿真选项选择，尚未向真实 Kea 下发或验证生效；`internal/fabricboot` 另有独立的 Kea HTTPS 控制适配器，仅接受显式 CA 与客户端证书、拒绝重定向，并对完整 Dhcp4 配置执行 hash 预检、config-test、漂移复核、config-set 与活动 hash 回读；它尚未接入批准作业、持久化配置或真实 DORA，不计入 FR-0.3.1 验收；239 设备 GET 端点现按 TCP 对端管理网地址、精确的项目/批次/N-S4/介质 URL、六个 CUMULUS-* 头、SoT 反查及已批准 `ztp_script` 介质的摘要和大小核验后，才返回固定的 `isolation-v1` 脚本；脚本先检查 NVUE pending 配置为空，枚举 `swp` 前面板口执行 NVUE admin down，再检查 pending 只含本次目标端口 down 命令，最后才 `nv config apply --assume-yes`；不能确认时非零退出，保留 eth0。Cumulus 请求头和 ZTP 成功标记参照 [NVIDIA ZTP 文档](https://docs.nvidia.com/networking-ethernet-software/cumulus-linux-50/Installation-Management/Zero-Touch-Provisioning-ZTP/)，端口 admin down 命令及 pending/apply 语义参照 [NVIDIA NVUE interface 文档](https://docs.nvidia.com/networking-ethernet-software/nvue-reference/Set-and-Unset-Commands/Interface/) 与 [NVUE 配置命令](https://docs.nvidia.com/networking-ethernet-software/nvue-reference/Config-Commands/)；这些文档不替代目标 NOS 版本的真机 PoC。未命中 SoT 只得隔离脚本，冲突拒绝脚本，读取写审计。239 设备端点已移至同一进程内的可选独立 TLS listener，普通 API 不再提供设备脚本；当前未在独立管理网部署，未真机验证端口隔离、服务重启或可管理；脚本介质的 manifest 引用与外部批准证据尚未自动验真。143 通道现有 IDevID 校验原语：只接受直接 TLS 客户端证书，按显式制造商根证书重新验证链/有效期/客户端认证用途，再从 X.509 subject serialNumber 提取 SN；无根或无证书失败关闭。已添加 RFC 8572 JSON conveyed-information 的 CMS DER 编码器，将固定隔离脚本作为 base64 的 pre-configuration-script，拒绝 signed-data-preferred 请求；仅供可信引导服务器通道使用。143 通道通过可选独立 mTLS listener 接收 JSON get-bootstrapping-data RPC，仅从直接 TLS 客户端 IDevID 提取 SN，结合直接 TCP 对端所在管理网及唯一生效 mock Kea option 143 主机 URI 选择项目；沿用 SoT 反查和已审批隔离脚本门禁，冲突或歧义拒绝，并写设备读取审计。提交 mock Kea N-S4 计划时已串行检查 143 URI 与管理网段的交集，阻止新增歧义路由；设备读取保留对存量或异常歧义的兜底拒绝。项目管理员可用 active 摘要、版本和原因撤销模拟计划，事务与计划提交使用同一 advisory lock；最近 30 分钟若有该 offer 的 143 数据或 239 脚本交付则拒绝撤销，已 staged 候选仍保留，撤销与后续新批次路由复用均留审计。该操作只影响模拟 offer，不会修改真实 Kea，也不会证明设备已停止使用旧配置。option 143 URI 按 RFC 8572 限制为 https://host[:port]，不接受路径/查询。143 mTLS listener 现支持 JSON RESTCONF report-progress，只有同一 IDevID 序列号、TCP 来源、项目/批次及 active offer 在 30 分钟内曾获引导数据时才接受；RFC 8572 类型和可选公钥/证书字段受界限校验，只持久化载荷摘要与长度受限的消息。239 通道成功发送脚本时亦写入同表交付观察，但没有 Cumulus 设备执行成功回报，不能据此认定脚本已生效。`ztp_device_observations` 为只追加观察记录，项目内只读可查；bootstrap-complete 只是设备声明，不修改交换机 managed 或 NP-2。尚无生产 Kea 下发/复验、DHCPv6 option 136、设备侧可信引导服务器验收或真机 PoC；自动设备重试及完整最小管理配置仍需实现与验证。RFC 8572 协议边界参照 [IETF RFC 8572](https://datatracker.ietf.org/doc/html/rfc8572)。
+SN优先于管理口MAC、基板MAC及其他永久MAC；多键不一致判conflict，未命中SoT只得隔离模板。同SN重装沿用身份，RMA新SN新建身份，旧绑定退役留历史。交换机身份三列更新/继承与冲突规则引用PRD附录A.7.4，不能用首次请求覆盖SoT。
+
+boot-svc将239（管理网直接对端+六个CUMULUS-*头）与143（直接mTLS+IDevID证书链/SN）收敛到同一身份反查/渲染。URL绑定项目/批次/阶段/批准介质，不携设备身份；已生效Kea路由、脚本批准、SHA256/大小和管理网边界须逐次复核。冲突不提供脚本，隔离不等于managed；设备声明bootstrap-complete不等于已复验可管理。Cumulus标记、退出码、前面板DHCP风险和143/136协议按FR-0.3；option60/43是厂商/NOS分类选项，不是第三种引导通道。
+
+Kea由boot-svc控制适配器执行staging→验证→commit→活动配置回读，作业引擎负责审批/互斥/重试/审计；真实DORA、持久化配置与设备可管理须独立证据。仿真计划/会话/重试不能代替真实Kea。当前进度与未接通环节只查HANDOFF，本节不保存“已实现”日志。
 
 ### 端口类型从型号版本派生（WP-1.15 增量）
 
-标准 BOM 中的服务器及交换机端口 `sub_type` 均从父设备已发布型号 `capability_matrix.ports[port_index].sub_type` 派生；breakout 子口允许在没有显式子口项时继承父口 `child_sub_type`。未声明或超出物料字段长度为 BLOCK；预检以固定元数据展示派生来源，避免按百万端口生成 INFO 问题行。宽表兼容入口的临时 MAC/NIC 身份保留 `legacy-port:<port_index>` 标记，等待真实型号接管。
+BOM端口sub_type由父设备已发布型号`capability_matrix.ports[port_index].sub_type`派生；breakout子口可按型号规则继承父口child_sub_type。字段缺失/无效按PRD阻断，禁止以临时端口类型冒充完整型号。宽表临时NIC/端口仅供兼容，真实身份接管须唯一永久MAC且保留版本链。
 
 ### 交换机端口型号能力矩阵（WP-1.16 增量）
 
-已发布 `device_model_versions.capability_matrix.ports` 以端口 `port_index` 为键；单端口可声明 `speed` 或 `speeds[]`，支持 breakout 的父口另列 `breakout_modes[]`（如 `4x200G`）。导入预检逐端口查已绑定型号版本；`swp1s0` 等子口可继承父口 `swp1` 的能力，但子口编号必须落在 breakout 数量内，计划速率必须与模式速率一致。缺端口能力或声明的模式、速率不匹配均为 BLOCK。光模块可由 `fabric/optic_modules.csv.speed/media_type`、已发布光模块型号 `capability_matrix.speed/speeds/media_types`（未填时从 `hw_spec` 取）和交换机端口 `capability_matrix.ports[].optic_media_types` 比对；明确不匹配为 BLOCK，无法确认速率为 WARN `optic_speed_unverified`，不得形成网络就绪 PASS。服务器计算端口 `rail` 必填，按整机汇总去重后与已发布服务器型号 `expected_topology.rail_count` 比较；缺型号 rail 数记 WARN，数量不符或计算端口缺 rail 为 BLOCK。网络侧工程预检增补 `fabric/switches.csv` 的 `planned_psu_count`、`planned_feed_count`、`power_budget_w`、`max_downlink_uplink_ratio`，以及 `fabric/switch_ports.csv` 的 `rail`、`bandwidth_direction`。电源计划值分别对已发布交换机型号 `hw_spec.psu_count/feed_count/max_power_w` 作下界比较；缺任一侧记录 WARN/unknown，明确不足或无效数值 BLOCK。交换机计算口 rail 缺失 BLOCK，Leaf 的已声明 rail 去重数与型号 `expected_topology.rail_count` 核对，缺期望值 WARN。带宽比按交换机汇总有效上下行端口速率（M/G/T 换算为 Gbps），breakout 父子同时存在只计子口。项目内 `network_baseline_versions` 承接外部网络方案的工程限值子集，草稿/批准版本不可变；批准需登记客户和网络工程师批准证据引用并审计。BOM 的 `network_baseline_ref` 指向已批准版本，限值按交换机 SN 优先、角色回退；BOM 自声明限值不得宽于批准限值，超限 BLOCK。未绑定、未覆盖或缺测仍为 WARN/unknown。批准证据引用尚未自动验真，且该子集不包含完整配置模板，因此不能给 FR-0 完整工程 PASS。缺方向/速率/上行或下行容量也为 unknown/WARN。同包线缆两端可唯一解析时，服务器计算口与交换机计算口的规划 rail 不同为 BLOCK；交换机角色缺失为 WARN，角色明确不符为 BLOCK。外部 UID 端点尚不参与此对照。计划 rail 与真实线序的相符性仍须 G2 LLDP 三方确认；本段不构成 FR-0.1.3 完整验收。
+型号版本拥有端口speed/speeds、breakout_modes、介质能力和独立rail/电源期望；BOM只声明计划值。导入逐口核对子口范围、模式速率、光模块能力、rail、上下行容量和电源预算，工程限值来自批准network_baseline_versions（SN优先/角色回退）；明示不符BLOCK，缺能力/缺限值WARN并保留unknown。breakout父子容量不重复计数。判据和缺测口径只引用PRD FR-0.1.3/附录A.7，不能把工程限值子集批准当完整网络基线或FR-0 PASS；规划rail不能代替G2实测三方确认。
 
 ### ADR-20 BOM 导入包：单批次目录形态与幂等（v3.0.2 新增）
 
-**决策**：BOM 导入采用**目录/压缩包形态的导入包**（`manifest.json` + 逐实体 CSV，PRD 附录 A.5–A.8）作为标准形态，单文件宽表作为兼容形态：
-1. **一次导入 = 一个 `bom_import_batch_id`**：包内服务器物料与网络物料**同批提交**，避免分两次导入后靠人工对齐连接关系；`manifest.json` 声明 schema 版本、批次号、项目、项目模板版本、逐文件列清单与 `content_hash`。
-2. **解析管线（两段式，对齐 FR-2.1.6）**：`只读预检（格式/一致性/工程三段 → 问题清单）` → `单事务提交（幂等 upsert）`；预检阶段零写库，问题按**文件 + `bom_line_no` + 字段**三级定位，可导出 CSV 回传。
-3. **身份与幂等**：导入即分配稳定 `Machine/Component/PhysicalPort` uid；`(category, serial)`、线缆两端排序 uid、`(parent_uid, port_index)` 为业务唯一键；同批次号且摘要相同的重复导入幂等，同号异摘要拒绝覆盖；新版本用新 seq 按 diff 增量并保留版本链。摘要按 PRD 附录 A.6 排除 manifest 自身并覆盖所有声明文件。
-4. **兼容**：宽表按 `sn` 折叠为 server + N 部件/端口（固定折叠规则）；仅有 MAC 而无 NIC 序列号时以 `LEGACY-MAC-<mac>` 标记临时 NIC 身份，后续标准包凭相同永久 MAC 补入真实序列号；多临时身份映射到同一 NIC 时 BLOCK 并人工核对；网络物料（breakout/线缆两端）必须走目录形态；标准包七个逐实体 CSV 均声明且存在，server_ports.csv 逐口记录永久 MAC 并与部件 MAC 汇总交叉核对；服务器单文件宽表只作兼容入口。
-5. **校验边界**：model-svc 提供型号期望值（服务器与网络设备同库），导入侧调用；catalog-svc 仅管参数目录，不重叠（§11 注记）。
+统一bom_item是双域物料唯一事实源，标准包格式/列/唯一键/摘要算法只定义在PRD FR-2.1与附录A.5–A.8。一次目录/压缩包导入一个批次，七个实体CSV全声明且存在；零行是否合法由项目所需物料与引用完整性判断，不能硬编码“每类至少一行”。宽表只兼容服务器物料，按SN折叠并保留临时MAC身份接管规则，不能解锁网络前置。
 
-**理由**：BOM 是全平台物料唯一事实源（§1.3 单一事实源），导入形态必须能一次承载双域物料与连接关系，否则线缆两端 uid 与三方比对无从锚定；目录形态同时给设计院/网络团队提供可回传的定位粒度。
+两段式：只读预检→绑定会话/项目/manifest/文件摘要的确认令牌→重传原包→事务内重验并原子提交。预检不写业务库或创建包ID；预检报告随响应返回，提交后报告可持久化。BLOCK未清零不提交；WARN保留质量，不自动变PASS。model-svc提供独立型号期望，profile提供字段映射，catalog只提供参数，导入侧不另建各自副本。
 
-**后果**：`BOMFile/BOMRecord` 被 `BOMImportPackage` + `BOMItem`（单表）取代/扩展（保留历史表兼容）；解析器、问题清单导出、幂等键入 P1；模型层与 API 见 §4/§4.2。
+全局身份由业务键决定，bom_line_no仅定位；同项目/批次/摘要幂等，同号异摘要拒绝，新seq按diff保存版本历史。摘要不含manifest自身但覆盖全部声明文件；确认令牌须额外绑定原始manifest，避免仅改manifest沿用令牌。解包拒绝路径穿越/符号链接/未声明文件/明文秘密，目录与压缩包相同内容得到相同摘要。
 
 ### 契约冻结约束
 
-ADR 一旦实施，接口契约（proto / OpenAPI / SSE 事件 schema）冻结于 `api/` 目录，前后端共享契约源（契约先行）。
-
----
+API/proto/RBAC/SSE schema在对应WP实现前冻结于api/，变更连同调用方、迁移和契约测试更新。架构示例不是已存在接口；未经实现验证不得作为运行证据。
 
 ## 4. 数据模型（核心实体）
+
+以下为逻辑实体和关键字段，非逐表建库脚本；实际迁移/ent schema/API须保持一致。BOM字段/枚举以PRD附录A为准；网络设备投影不能成为第二份物料主数据。
+
 
 ```text
 User(id, identity_provider, subject, display_name, local_password_hash nullable, enabled)
@@ -404,10 +274,12 @@ Switch(id, item_uid FK→BOMItem, sn, hostname, dc, pod, role[leaf|spine|supersp
        config_state[IN_SYNC|DRIFT_CRITICAL|DRIFT_MAJOR|DRIFT_MINOR|UNKNOWN], last_snapshot_at)
 SwitchPort(id, switch_id FK, item_uid FK→BOMItem, port_index, port_name, breakout_parent nullable,
            speed, breakout_mode, port_role[management|storage|compute|oob|unused], operational_state)
-FabricReadiness(id, project_id, scope_type[fabric|pod|switch], scope_ref, config_push_state, lldp_readable,
-                readiness_at, ttl_seconds, version_fingerprint, np_1, np_2, np_4)
+FabricReadiness(id, project_id, scope_type[fabric|pod|switch], scope_ref, target_set_hash,
+                config_push_state, lldp_readable, readiness_at, ttl_seconds, version_fingerprint,
+                evidence_origin[sim|real], np_1, np_2, np_4, evidence_refs[], gaps[])
 CableCheck(id, project_id, phase[network_precheck|g2_confirmed], port_pair_ref, bom_version,
-           switch_lldp_ref nullable, host_lldp_ref nullable, verdict[PASS|FAIL|BLOCKED|WAIVED],
+           switch_lldp_ref nullable, host_lldp_ref nullable, precheck_status nullable,
+           verdict[PASS|FAIL|BLOCKED|WAIVED], evidence_origin[sim|real],
            rule_version_ref nullable, collected_at, valid_until, evidence_refs[])
 -- N-S5 仅记录交换机互联/服务器接入口预校验；G2 Step 2/3 三方确认后才写 PortModel 并产出 NP-3。
 NetworkIntent(device_id FK→Switch, revision, rendered_config_ref, config_section_set[], source_baseline_ref,
@@ -419,11 +291,12 @@ PushJob(id, project_id, scope_type[batch|role|device], target_set_hash, intent_r
         precheck_report_ref, approval_ref nullable, canary_device_id nullable, concurrency,
         state[CREATED|PRECHECKING|BLOCKED|READY|APPROVED|REJECTED|EXECUTING|VERIFYING|COMPLETED|PARTIAL|ROLLING_BACK|ROLLED_BACK|ARCHIVED],
         state_version, rollback_snapshot_ref, started_at, finished_at)
-ZtpSession(id, switch_id FK, boot_channel[239|143|60-43], identity_priority[sn|mgmt_mac|base_mac|other],
+ZtpSession(id, switch_id FK, boot_channel[239|143], dhcp_vendor_options[], identity_priority[sn|mgmt_mac|base_mac|other],
            observed_identity, conflict_state[none|sn_dup|mac_mismatch|binding_conflict], started_at, managed_at)
-FabricRule(rule_id, domain[lossless|ddm|log|precheck], name, scope jsonb, version, window_seconds,
-           comparator, hit_threshold, observe_threshold, severity, safe_range, state[draft|released|disabled],
-           parent_version nullable, change_reason, approved_by[], created_at)
+FabricRule(rule_id, domain[lossless|optics|log|precheck], name, scope jsonb, version, subject_unit,
+           metric_key, window_seconds, comparator, hit_threshold, observe_threshold, sustained,
+           severity, health_deduction_weight, degrade_to_unknown_when, safe_range,
+           state[draft|released|disabled], parent_version nullable, change_reason, approved_by[], created_at)
 FabricRuleFinding(rule_id, rule_version, device_id, port_id nullable, priority nullable, metric_key,
                   window_start, window_end, value, verdict, approximation_flags[])
 HealthScore(id, scope_type[device|pod|fabric], scope_ref, score, device_min, weights_ref, computed_at,
@@ -456,7 +329,8 @@ PortModel(physical_port_id PK, project_id, mapping_revision_id nullable, mapping
 PortEvent(id, physical_port_id, mapping_revision_id nullable, event_type, payload, at)
 Issue(id, project_id, source[topology|g2|fabric|g5|g6|portmon|bmc],
       responsible_domain[host|fabric|unknown], category[T1..T7],
-      machine_id, component_id nullable, physical_port_id nullable, phase[delivery|post-delivery],
+      machine_id nullable, component_id nullable, physical_port_id nullable,
+      switch_id nullable, switch_port_id nullable, cable_item_uid nullable, phase[delivery|post-delivery],
       state[open|assigned|in_repair|verify|closed|reopened], state_version,
       evidence_refs[], action_taken, replaced_component_ids[], verify_exec_id,
       opened_at, closed_at, assignee)
@@ -518,7 +392,8 @@ KnowledgeDocument(id, scope_key, source_ref, version, classification, content_ha
 KnowledgeChunk(id, document_id, ordinal, text_ref, embedding_model, embedding_version, vector)
 AIInvoc(id, project_id, actor, action, context_refs[], citation_refs[], provider_id, result_ref, tokens)
 ProjectProfile(id, scope_key, name, version, bom_mapping, param_defaults,
-               device_model_version_refs[], blueprint_versions[], gate_policy_version, kb_bundle, status)
+               device_model_version_refs[], blueprint_versions[], gate_policy_version, kb_bundle,
+               server_baseline_ref, network_baseline_ref, role_plan_version, collect_policy_ref, status)
 AuditLog(id, project_id nullable, actor, action, target, detail_ref, trace_id, at)
 PciTopologySnapshot(id, project_id, machine_id, version, model_version_id, gpu_nic_map,
                     upstream_paths, numa_map, nvlink_matrix, lnk_sta, raw_output_ref, verdict, created_at)
@@ -533,55 +408,63 @@ FirmwareRun(id, project_id, component[bios|bmc|cpld|hgx_sbi|hgx_nvswitch], media
             rollback_supported, canary_result, applied_at)
 ```
 
-关键字段说明：
-- `Machine.ssh_trust`：SSH 任务派发准入字段（ADR-06）；普通带内采集要求 established；初始化/修复例外不能代替门禁通过；
-- `PhysicalPort` 是早于 G2 的身份；`PortModel` 是当前投影；`MappingRevision` 是 G3 确认后的不可变映射，三者不能混用（ADR-08）；
-- `MediaItem.deps`：介质依赖图（驱动↔内核↔CUDA 版本），参数目录依赖校验的数据源；
-- `ParamSnapshot`：Execution 冻结的参数快照，"当时用什么版本"的永久证据；
-- `Issue`：统一故障档案，`source` 标记来源、`phase` 区分实施期/交付后（v2.3）、`category` T1–T7 分类、`physical_port_id` 锚定 PhysicalPort，也可仅关联 Component 或 Machine；
-- `PciTopologySnapshot/TopologyDiff`（v2.3）：设备内拓扑的版本化证据链，T7 工单与 FR-16.6 固件升级重验的数据源（ADR-15）；
-- `StepReport`（v2.3）：四步线序核查的逐步结果记录（FR-4.2），G2 门禁详情页时间线数据源；
-- `Project`（v2.3）：项目执行主体（FR-17.3 生命周期状态机），ProjectContext 的持久层（ADR-17）。
-- `BOMImportPackage`/`BOMItem`（v3.0.2）：导入包为两段式提交（预检只读 → 单事务写库），`BOMItem` 是全平台物料唯一事实源，双域（服务器/网络）同表同编号规则；稳定 `Machine/Component/PhysicalPort` uid 在提交时分配（ADR-20、PRD 附录 A）；
-- `Switch/SwitchPort/OpticModule`（v3.0）：网络物料稳定身份，`SwitchPort.breakout_parent` 表达子口归属，端口唯一键 `(switch_id, port_index)`；`OpticModule.ddm_source` 字段级标 `switch|host`，不混源（PRD 附录 C-11）；
-- `FabricReadiness`（v3.0）：就绪证明带 `readiness_at`/`ttl_seconds`/`version_fingerprint`，`gate.readiness_ttl=30s`，执行前必须刷新（NP-4）；
-- `NetworkIntent/NetworkSnapshot/NetworkDiff/PushJob`（v3.0）：网络配置闭环四件套；`PushJob` 13 态状态机为唯一定义（PRD FR-0.4.8）；每次下发前自动快照，失败回滚到快照；
-- `FabricRule/FabricRuleFinding`（v3.0）：告警规则版本化（`rule_id@version`），禁止物理删除（仅 `disabled`），判定产物携带 `rule_id@version`；规则调整不改变采集计划（NFR-20、PRD 附录 C-06）；
-- `HealthScore`（v3.0）：设备/端口/优先级加权健康分，`device_min` 为 fabric 健康门禁的 min 口径（PRD FR-0.6）；
-- `GateEvidence.network_readiness`（PRD FR-4.3 对象字段）及内部 `network_readiness_ref`、`network_evidence_refs[]`、`fabric_stage`、`network_degradation[]`：服务器域消费网络前置证据；`fabric_stage` 取值 `N-S0..N-S9` 仅作证据标签。NP-3 由 G2 的 CableCheck `g2_confirmed` 产出，不随 N-S5 预校验伪造。
+
+
+**数据归属与共用信封**：
+
+| 事实 | 拥有者与不可混用边界 |
+|---|---|
+| 资产/期望/当前投影 | BOMItem保留导入版本链；型号期望由model-svc发布；Machine/Switch/PortModel为身份或当前投影；MappingRevision为G3确认结果 |
+| 证据 | 所有采集/判定保留project、对象、观察/接收时间、来源、原始引用、解析/规则版本、质量与有效期；网络证据另区分evidence_origin=sim\|real和source=host\|switch |
+| GateEvidence | 四值结论PASS/FAIL/BLOCKED/WAIVED；validity独立；目标集合、端口对覆盖、档位/版本/来源冻结，不能只挂项目通过率 |
+| FabricReadiness | 包含目标范围、配置/LLDP状态、NP-1/2/4、缺口及版本指纹，按PRD gate.readiness_ttl过期；生产准入拒绝sim证据 |
+| CableCheck | phase=network_precheck时保存pending/异常与可采证据，服务器端口对的门禁结论保持BLOCKED；phase=g2_confirmed时才按四值返回三方比对结论，PASS可供NP-3消费；不新增“预检通过”门禁值 |
+| 网络配置 | NetworkIntent/NetworkSnapshot/NetworkDiff/PushJob绑定同一批准基线/计划/目标快照；变更计划、报告或目标即旧审批失效 |
+| 规则/健康 | FabricRule遵循PRD FR-0.7完整结构；rule_id、单位、metric_key、unknown约束不可改；Finding固定rule_id@version；健康rollup取min，unknown限制结论，算法与权重引用PRD |
+| 工单 | source保留首次发现模块，responsible_domain为定位归属；允许仅交换机/交换机端口/线缆，不强制存在Machine；必须至少锚定一个受授权稳定对象 |
+| 模板 | ProjectProfile承载项目差异及服务器/网络基线；版本、型号、角色、介质/参数引用冻结；不得用条件分支硬编码不同项目 |
+
+逻辑模型未展开的NetworkBaselineVersion、CredentialBatch/Approval和设备能力注册表，须在对应WP前补齐schema/约束/API；不得将“有一个JSON字段”当完整契约。密码/私钥/token只能在密钥系统，领域实体保存引用。
 
 ### 4.1 状态机（v2.0 扩展）
 
-**Machine（当前项目生命周期投影）**：`unknown → provisioning → provisioned → trust_established → collected(G1) → lldp(G2) → mapped(G3) → configured(G4) → netverified(G5) → tested(G6) → maintained`
-- **`netverified` 态**：G5 通过后的展示里程碑；NCCL 准入实际检查目标组当前有效的范围证据，`tested` 后可调优重测，不能只做字符串相等判断；
-- **`maintained` 态**：技术清理、分阶段归档 ACK 和凭据撤销证据齐全后进入（FR-9.6），不等待客户签署；带内任务/采集停止、相应规则停用，B7 监控/告警继续。仅 ADR-18 白名单可执行，CMDB 可查询/维护人工字段/BMC 只读刷新；客户签署另行控制 Project.delivered；
-- 门禁失败停留当前态并标记 `blocked(reason)`；豁免可跳过单门禁（审计）；
-- **blocked 原因枚举（v2.2 补充）**：`gate_pending`（门禁待评估）/ `gate_failed`（门禁失败）/ `waiver_expired`（豁免过期，见不变式 [I-9]）/ `trust_broken`（互信中断）/ `readiness_gap`（就绪握手缺口）；
-- **态转换语义（v2.2 说明）**：门禁通过解锁下一阶段动作，机器态在对应 Execution 成功后转换；流程图中的 `lldp-ready`/`configured-ready` 等字样仅为 UI 按钮可用性语义，**不是持久化状态**；
-- `ssh_trust` 独立跟踪：broken 时普通 SSH 任务拒绝并进入受限的 trust.repair 队列，修复成功回到 established。
+| 对象 | 状态与推进条件 |
+|---|---|
+| Machine | unknown→provisioning→provisioned→trust_established→collected(G1)→lldp(G2)→mapped(G3)→configured(G4)→netverified(G5)→tested(G6)→maintained；表示当前项目里程碑，准入查证据，不要求state恰等某一字符串 |
+| Project | planning→deploying→verifying→delivered→archived；客户签署控制delivered，技术清理独立控制Machine.maintained |
+| ssh_trust | uninitialized/established/broken/revoked；broken普通SSH拒绝，受限repair按ADR-06；撤销不自动恢复 |
+| Issue | open→assigned→in_repair→verify→closed；验证失败/再次发现可reopened；所有流转为有权限的业务action+expected_version；close需要有效复测证据与NE/DL确认，连续两次verify失败升级DL |
+| Alert | firing→suppressed→resolved；抑制不停止采样；stale/unknown不自动resolved；维护期带内规则停用、B7继续 |
+| MediaItem | uploaded→verified→approved→retired；退役不可逆，对象及历史引用保留 |
+| 网络模板 | draft→tested→released→deprecated；发布需仿真验证剧本通过，released内容不可变 |
+| Switch.config_state | UNKNOWN、IN_SYNC、DRIFT_CRITICAL/MAJOR/MINOR；结构化diff/复采驱动；ZTP完成不直接写IN_SYNC |
+| FabricRule | draft/released/disabled；revise与回滚创建新version，released不可就地改；审批、启停与unknown约束按FR-0.7，不物理删除 |
+| LL结论 | normal/warning/critical/unknown；这是观测结论，不替代GateEvidence四值；缺能力/停用保持unknown并带降级标记 |
 
-**Issue**：`open → assigned → in_repair → verify → closed`；`closed` 后重验证失败可 `reopened`；连续两次 verify 失败升级通知 DL。每次转移使用业务 action 与状态版本 CAS；assign、repair、verify、close 权限分别检查，verify 关联限定范围的复测，close 必须有有效 PASS 证据和 NE/DL 确认。看板拖拽仅调用这些动作，不能直接 PATCH 任意状态。
+**Execution（本节为状态SSOT，PRD FR-1.6引用）**：`created→scheduled→dispatching→running→success|failed|killed|warning`，另有`pausing/paused`、`cancelling`、`reconciling`。TaskAttempt可能unknown；控制语义见§4.3，未确认终止不得显示killed。
 
-**Alert**：`firing → suppressed（明确的处置/时间窗抑制） → resolved`；issue in_repair 可抑制重复通知但继续采样计数。维护期停用带内规则，B7 规则继续；数据 stale/unknown 不自动 resolved。
+**ZTP**：`powered→dhcp→booturl→identity→lookup→fetch→config→restart→managed`；config仅批准最小隔离/管理配置。未知身份进入isolated，冲突进入conflict且不提供脚本；失败按fabric.ztp_retry_max指数退避，超限failed，三段式错误留证。恢复重跑必须重验当前身份、offer和介质，不沿用失效批准；设备回报不替代可管理复验。
 
-**Execution**：`created → scheduled → dispatching → running → success | failed | killed | warning`，另有 `pausing/paused`、`cancelling`、`reconciling` 控制状态。TaskAttempt 可为 unknown；未知副作用未对账前不能报告已 killed/success，具体语义见 §4.3。
+**PushJob（PRD FR-0.4.8为状态SSOT，本文仅列执行约束）**：
 
-**MediaItem**：`uploaded → verified → approved → retired`（单向，retired 不可逆但对象不删除）。
+```text
+CREATED → PRECHECKING ─失败→ BLOCKED ─修复→ PRECHECKING
+                    └合格→ READY ─审批→ APPROVED → EXECUTING → VERIFYING → COMPLETED/PARTIAL
+                                └驳回→ REJECTED
+EXECUTING/VERIFYING异常 → ROLLING_BACK → ROLLED_BACK
+COMPLETED/PARTIAL/ROLLED_BACK/REJECTED → ARCHIVED
+```
 
-**网络底座域状态机（v3.0）**：
-- **ZTP 引导（Switch）**：`powered → dhcp → booturl → identity → lookup → fetch → config → restart → managed`；任一步失败自动重试（指数退避，≤`fabric.ztp_retry_max`）超限置 `failed`，给出三段式定位（现象/原因/下一步动作）；身份未命中 SoT 进入隔离模板（仅 mgmt 可达）；
-- **配置状态（Switch.config_state）**：`UNKNOWN → IN_SYNC ⇄ DRIFT_CRITICAL / DRIFT_MAJOR / DRIFT_MINOR`（结构化 diff 分级），漂移经修复计划闭环回到 `IN_SYNC`；
-- **PushJob（13 态，唯一定义）**：主干 `CREATED → PRECHECKING →（FAIL 则 BLOCKED）→ READY →（驳回则 REJECTED）→ APPROVED → EXECUTING → VERIFYING → COMPLETED / PARTIAL`；异常 `EXECUTING/VERIFYING 失败 → ROLLING_BACK → ROLLED_BACK`；终态 `COMPLETED / PARTIAL / ROLLED_BACK / REJECTED → ARCHIVED`；`BLOCKED → PRECHECKING` 仅在缺口修复后。约束：预检未全过不进 READY；未审批不进 EXECUTING；VERIFYING 做复采复比，未达标设备进 PARTIAL；重试失败设备需创建关联的新 PushJob 并重新审批，或按原批准范围回滚；
-- **FabricRule**：`draft → released ⇄ disabled`（`publish` 需预演已执行且审批通过；`revise` 复制为新 version，released 不可就地修改；critical 级 disable 需双签 + 必填 `change_reason`；**禁止物理删除**，仅 `disabled`）；
-- **LL-01～LL-07 结论**：`normal / warning / critical / unknown`（不可采集一律 `unknown` + `degraded`/`approximation`/`estimated`，禁止静默为 `normal`，NFR-19）。
+共13态；Doublecheck在设备PRECHECKING之前，FAIL清零且WARN逐项确认才READY。审批固定目标/计划/报告摘要和不同签名账号；未批准不得EXECUTING。VERIFYING复采复比，失败按批准策略回滚并验证；PARTIAL重试或REJECTED修改只能创建关联新PushJob和新审批，不能复用原批准执行；单设备暂停/跳过需留事件，不篡改整批结论。sim/real分区，重试只处理允许范围，成功设备不重复执行。回滚效果未知时保留回执/锁进行对账，不能把ROLLING_BACK直接当ROLLED_BACK。
 
----
+**阻塞与豁免**：blocked不是Machine新生命周期态，原因枚举`gate_pending/gate_failed/waiver_expired/trust_broken/readiness_gap`；按钮“ready”也非持久态。失败停留已完成里程碑，有效豁免只覆盖批准的缺口/对象/版本/时间；WAIVED不得改写PASS。
 
 ### 4.2 API 设计规范
 
-规范：REST + OpenAPI 3.1，`/api/v1/*`；cursor 分页（**适用范围 v2.2 注记**：cursor 分页仅用于明细列表接口；聚合视图接口如 `/cmdb/machines/{machine_id}` 360°、`readiness` 为单资源/小结果集接口，不适用 cursor 分页）；SSE 实时流；统一错误体 `{code, message, details[], trace_id}`；变更操作 `Idempotency-Key`；契约文件 `api/openapi.yaml` 唯一事实源。本文表为端点节选，不表示接口已经实现；完整 schema、分页、权限、幂等、错误码及 SSE 事件需在对应 WP 前进入契约。项目请求显式携带 project_id；资源不属项目拒绝访问。状态/集合版本冲突返回 409，已删除或过期证据返回明确原因；无登录返回 401，无权限返回 403。
 
-**v2.0 核心端点（节选）**：
+规范：REST + OpenAPI 3.1，`/api/v1/*`；cursor 分页（**适用范围 v2.2 注记**：cursor 分页仅用于明细列表接口；聚合视图接口如 `/cmdb/machines/{machine_id}` 360°、`readiness` 为单资源/小结果集接口，不适用 cursor 分页）；SSE 实时流；统一错误体 `{code, message, details[], trace_id}`；变更操作 `Idempotency-Key`；契约文件 `api/openapi.yaml` 唯一事实源。本文表为端点节选，不表示接口已经实现；完整 schema、分页、权限、幂等、错误码及 SSE 事件需在对应 WP 前进入契约。项目请求显式携带 project_id；资源不属项目拒绝访问。状态/集合版本冲突返回 409，已删除或过期证据返回明确原因；无登录返回401；动作无权限403；资源不存在或无项目读取授权统一404（§4.6）。
+
+**领域端点索引（设计节选，不代表已实现）**：
 
 | 方法 | 路径 | 用途 |
 |---|---|---|
@@ -657,7 +540,7 @@ FirmwareRun(id, project_id, component[bios|bmc|cpld|hgx_sbi|hgx_nvswitch], media
 | GET | /api/v1/fabric/switches/{id} | 网络设备抽屉 8 Tab 聚合 |
 | GET | /api/v1/fabric/readiness?scope=fabric\|pod\|switch | 就绪状态（`readiness_at`/`ttl_seconds`，执行前刷新） |
 | POST | /api/v1/fabric/ztp/onboard | ZTP 开通编排（批次/角色/单设备） |
-| POST | /api/v1/fabric/intents/render | 意图承接与渲染（pongo2 沙箱；禁止手写单机配置） |
+| POST | /api/v1/fabric/intents/render | 意图承接与渲染（pongo2 沙箱；禁止绕过基线手写单机配置） |
 | POST | /api/v1/fabric/doublecheck | Doublecheck 三层复核（语法/语义/一致性） |
 | POST | /api/v1/fabric/pushjobs | 创建 PushJob（预检→审批→灰度→下发→复采） |
 | POST | /api/v1/fabric/pushjobs/{id}/actions | PushJob 状态转移（审批/驳回/执行/回滚/归档，带 expected_version） |
@@ -677,7 +560,7 @@ FirmwareRun(id, project_id, component[bios|bmc|cpld|hgx_sbi|hgx_nvswitch], media
 | GET | /api/v1/fabric/optics/evidence?port= | FR-0.8.5 返回交换机侧 DDM 与日志证据引用 |
 
 
-**v2.5 补充契约端点（P1 先定义，随功能阶段实现）**：
+**认证与跨域端点索引**：
 
 | 方法 | 路径 | 用途 |
 |---|---|---|
@@ -696,393 +579,295 @@ FirmwareRun(id, project_id, component[bios|bmc|cpld|hgx_sbi|hgx_nvswitch], media
 | GET | /api/v1/events | 会话及项目授权的 SSE，支持 cursor/Last-Event-ID 重放 |
 | GET | /api/v1/nccl/runs/{id}/groups | 通信组成员/rank/启动屏障/整体结果和覆盖口径 |
 
+
+**动作与事件契约**：所有写动作返回更新后的state_version/资源引用，长任务返回Execution或PushJob ID；不能让前端直接PATCH任意状态。SSE至少包含event_id、type/schema_version、project_id、aggregate_id/version、observed_at及载荷引用，支持Last-Event-ID重放；已过期游标返回resync_required。事件名如PortStatusChanged/IssueStateChanged/GateVerdictChanged需进入版本化schema。网络readiness、预校验、规则dry-run及导出都必须携带来源、范围、版本和质量；空列表不能隐含健康PASS。
+
 ### 4.3 执行一致性、资源互斥与控制语义
 
-资源锁由 PostgreSQL 保存权威状态，Redis 只加速排队；所有通道共同申请。锁按稳定资源 ID 排序申请，组任务原子预留全部成员，避免占住一半资源后死锁。租约到期不等于目标机操作已经停止：先核对回执/进程/Redfish TaskService，未确认则进入 reconciling，禁止冲突任务进入。Agent 验证 fencing_token；无法由设备验证 token 的 BMC/SSH 动作由控制面单写派发与回执对账共同约束，不宣称设备具备天然 fencing。
+资源锁权威存PostgreSQL，所有Agent/SSH/BMC/Kea/交换机写动作共用。按稳定资源ID排序申请；组任务原子预留全部成员。租约到期先查回执/进程/TaskService，未知进入reconciling并拒绝冲突任务。Agent验证fencing_token；BMC/普通SSH不天然支持fencing，须单写派发+回执对账，不作设备强保证。
 
-| 操作类别 | 资源模式 | 冲突范围 |
-|---|---|---|
-| 普通只读资产/健康采集 | machine shared | 可共享；遇固件/重装等独占则等待或使用明确允许的 BMC 状态查询 |
-| 配置/装机/固件/清理/电源 | machine exclusive（配置可进一步细分） | 与同机 Agent/SSH/BMC 写动作、测试互斥 |
-| RoCE/NCCL 性能测试 | group + GPU/NIC + 测试窗口 exclusive | 组成员资源整体预留；隔离可影响结果的并行流量/采样 |
-| UID 灯 | bmc.uid 独立受限动作 | 不与性能数据面互斥，但受固件更新能力限制 |
+| 类别 | 锁与冲突范围 |
+|---|---|
+| 只读采集 | machine/switch shared；独占写期间等待，仅允许明确的状态查询 |
+| 配置/装机/固件/清理/电源 | machine/switch exclusive；跨通道互斥；可细分的资源需能力契约证明安全 |
+| Kea配置 | 实例/生效配置范围exclusive，防止不同批次丢失更新；预期hash校验后staging/commit/回读 |
+| RoCE/NCCL | group+GPU/NIC+测试窗口exclusive；整体预留并隔离影响结果的流量/采样 |
+| UID | bmc.uid独立受限动作，仍受更新服务能力限制 |
 
-- **Pause**：停止新派发，当前已启动任务继续并回收结果；只有已运行任务结束/到安全点后进入 paused。不会默认 SIGSTOP 远端进程，也不会暂停半个 NCCL communicator。Resume 重验权限、证据和资源锁后继续未派发任务。
-- **Kill**：先停止派发，再按能力取消目标进程组/远端作业；NCCL 以 GroupRun 整组终止。收到所有必要终止回执后才 killed。不可取消的刷写进入 cancelling/reconciling，显示继续等待或需人工处置，不能以 UI 成功掩盖后台仍运行。
-- **重试**：只读/声明幂等任务可按策略重试；非幂等写入先查询 command_id 回执和真实状态，结果 unknown 时不创建新的有副作用 attempt。数据库状态更新与 outbox 同事务，消费者去重后再决定派发。
-- **重启恢复**：重建待派发队列、查询未完成回执、恢复租约/监控动态窗口；覆盖 DB 成功而 Stream 未发布、发布后未 ACK、远端完成但回执丢失等故障切点。
+- **Pause/Resume**：停止新派发，运行任务完成安全步骤或支持的检查点后paused；不默认SIGSTOP或暂停半个communicator。Resume重验权限、证据、锁后继续未派发任务。
+- **Kill**：停止新派发，按能力取消进程组/远端任务；NCCL整组终止。必要回执全到才killed，不可中断刷写继续cancelling/reconciling。
+- **重试**：只读/声明幂等任务可重试；写动作先查稳定command_id和真实状态，unknown不创建新副作用attempt；成功目标不重复执行。
+- **恢复**：重建待派发队列、对账未完成回执/租约/动态监控窗口，覆盖DB已提交未发布、重复/丢ACK、远端完成回执丢失等切点。
 
 ### 4.4 门禁证据与原子准入
 
-GateEvidence 保存范围、版本和数据有效期；GateRecord 是评审记录，Machine.state 只是里程碑投影。A–B 与 C–D 通过不能证明 A–C 路径通过；G5 证据的 port_pair_coverage 与测试档位必须覆盖本次 GroupRun 需要的路径，允许的抽样必须由已发布 gate policy 声明。G6 交付范围必须由明确测试覆盖计划支持。
+GateEvidence是范围/版本/新鲜度事实，GateRecord是评审记录，Machine.state为投影。证据须覆盖本次目标集合、端口对/路径、档位与通信组；A–B和C–D通过不能证明A–C。抽样必须由发布gate policy明确，G6交付范围须有测试覆盖计划。
 
-提交请求包含目标集合版本和证据指纹，服务端依次校验认证/项目/动作权限、生命周期、范围覆盖、各来源新鲜度、工单/豁免、参数依赖与资源能力；事务中 CAS 相关版本、预留资源、冻结 Execution 快照并写 outbox。派发前重新检查外部就绪有效期与锁，失败返回缺口，不自动扩大目标范围。未来新增设备不自动加入已批准批次。
+提交带目标版本/证据指纹，服务端检查认证、项目/动作权限、生命周期、范围覆盖、来源与新鲜度、阻断工单/有效豁免、参数依赖和能力；事务内CAS相关版本、预留资源、冻结Execution快照并写outbox。实际派发前再验外部readiness有效期和锁，失败返回逐目标缺口。部分执行必须用户显式选择合格子集，不扩大批准范围。
 
-BOM、型号版本、部件、拓扑、MappingRevision、RoleBinding、ConfigSet 或规则变更后按依赖图标记受影响证据 invalidated。历史报告仍可读且明确当时版本；不得篡改旧 PASS。数据 `unknown/stale/unsupported/unreachable` 与 fail/pass 分开，缺失数据不得算通过。各数据类型 TTL 在版本化 CollectPolicy/gate policy 中明确，默认引用 PRD 的 asset.freshness_max_age、gate.evidence_ttl、gate.readiness_ttl、mon.snapshot_stale_after 参数；readiness 缓存上限 30s。必填配置缺失时阻断并提示，不能假定无限有效。豁免绑定具体缺口/范围/有效期/审批人和补偿措施；过期或版本变化后重验。
+BOM/型号/换件/拓扑/映射/角色/配置/规则变更按依赖图invalidate受影响证据；旧PASS保留历史但不得继续准入。unknown/stale/unsupported/unreachable均不能算通过。TTL引用PRD参数与版本化策略，动态readiness独立于静态资产TTL。豁免有具体缺口、范围、有效期、审批和补偿措施，过期/换版后重新阻断。
+
+**网络依赖防环**：G2输入NP-1/2/4，三方确认后输出NP-3；N-S5 pending不能要求既有Mapping/G2，不能产出NP-3；G3只消费对应有效三方确认，G5/G6追加NP-5/6。仿真准入与生产准入显式隔离，禁止sim把真实断言置PASS。
 
 ### 4.5 NCCL GroupRun 与结果归属
 
-NCCLTestRun 保存测试计划，每个 GroupRun 冻结成员、GPU UUID/数量、global/local rank、world_size、网络接口/rail、算子、消息大小、迭代次数、工具与参数版本。gang 调度预留整组资源后建立 rendezvous，所有成员 ready 后一次启动，屏障超时整体退出并释放已确认结束的成员资源。组内任何 rank 失败使该次 collective 无效，取消剩余成员并对账；重新测试创建整组新 attempt，不只重试单台。
+NCCLTestRun保存覆盖计划；GroupRun冻结成员、GPU UUID/数量、global/local rank、world_size、接口/rail、算子、消息、迭代和工具参数版本。gang预留整组资源后rendezvous/barrier一次启动；屏障超时或任意rank失败使整次collective无效，取消其余成员并对账，重测创建整组新attempt。
 
-报告的 `coverage_mode` 统一为 `grouped_coverage`（全部目标分组覆盖）或 `single_communicator`（全域 GPU 同一通信组），与 PRD FR-6.2 一致；单机/跨机测试档位由 test_profile 表达，不混入覆盖模式枚举。不得将分批滚动覆盖标成全局通信测试。HGX 节点与 GB300 NVL72 的机架/NVLink domain 分别建模，不把每个节点都硬编码为 8 GPU。
+coverage_mode仅`grouped_coverage`（全部目标分组覆盖）或`single_communicator`（全域同组），单机/跨机是test_profile维度。HGX节点与GB300机柜/NVLink domain分别建模，不硬编码8GPU。
 
-algbw/busbw 为 collective 或 group 测量，单位 GB/s，并保存 nccl-tests 的计算口径与参与规模。节点掉队依据有来源的 rank timing、DCGM、NIC 吞吐/错误与组对照，不能把同一组 busbw 复制为每台独立测量。阈值按型号/拓扑/通信规模/算子/消息大小的基线版本判断；未建立基线时显示待校准，不用硬件峰值自动宣布合格。
+algbw/busbw为collective/group测量（GB/s），保留nccl-tests口径与规模；不复制成各台独立busbw。节点掉队用有来源rank timing/DCGM/NIC/组对照分析。阈值来自已批准型号/拓扑/规模/算子/消息基线，无基线为待校准，硬件峰值不能当合格线。
 
 ### 4.6 登录、会话与授权
 
-`/login` 为 keel 公共入口，提供本地账户和已配置的 OIDC/LDAP；LDAP 密码仅传给后端并通过可信 TLS 访问目录。浏览器统一使用随机不透明 session ID 的同源 `HttpOnly; Secure; SameSite=Lax` cookie；只在显式开发配置且绑定回环 HTTP 时允许关闭 Secure。session 记录服务端存储并支持即时撤销；不将 bearer token、密码或 refresh token 放入 localStorage。
+浏览器用同源随机不透明session的HttpOnly/Secure/SameSite=Lax cookie，服务端可即时撤销；不在localStorage保存token/密码。开发HTTP例外必须显式development且回环Origin。公共/login提供已配置本地/OIDC/LDAP，LDAP仅后端可信TLS访问。
 
-本地密码存储使用 Argon2id 等经过验证的密码哈希；首次管理员通过服务端交互 CLI 创建，无默认账号口令/公共初始化 API；凭据不写日志。登录/LDAP/OIDC 回调统一失败文案，按账号与来源限流，认证成功轮换 session ID。所有修改请求校验绑定会话的 CSRF token 与 Origin；登录也使用预登录 CSRF。OIDC 使用授权码 + PKCE 并验证 state、nonce、issuer、audience 和精确 redirect URI；`next` 仅允许同源相对路径，拒绝协议相对 URL、外域和编码绕过。
+本地密码Argon2id等验证哈希；首管理员由服务端交互CLI初始化，无默认密码/公共初始化API。账号+来源限流，统一失败消息，成功轮换session。所有修改含登录均验证会话CSRF与Origin；OIDC授权码+PKCE及state/nonce/issuer/audience/精确redirect校验。next仅同源相对路径并防编码绕过，现有阶段可用路径与尚未开放业务路由按docs/DEVELOPMENT.md记录，不能在设计中凭空宣称已开放。
 
-会话空闲/最长有效期和登录失败限制使用 PRD FR-10.1/参数目录的 auth.idle_timeout、auth.absolute_timeout、auth.login_max_failures、auth.lockout_window，session API 返回 expires_at；过期统一 401、停止订阅并返回登录页，保留允许保存且不含秘密的草稿。退出撤销服务端 session 并清理前端用户/项目缓存和 SSE。SSE 使用同源 cookie 鉴权，连接建立与每次重放检查项目权限，权限撤销/会话过期主动关闭；URL 不带访问令牌。
+超时/锁定引用PRD FR-10.1参数；过期401并关闭SSE、清私有缓存、回登录，保留允许的无秘密草稿；退出撤销服务端会话并清Cookie/订阅。SSE建立/每次重放检查项目权限，撤权主动关闭；URL不带token。
 
-RBAC 的六类角色（DE/DL/NE/SRE/Viewer/Admin）和权限代码维护在 `api/rbac.yaml`，OpenAPI 每个操作引用权限及 scope，前端消费 session.permissions；后端始终再校验。issue assign/verify/close、trust bootstrap/repair、固件、电源、清理、门禁豁免、介质批准分别为独立动作；Viewer 仅在获授权范围导出，Admin 不隐式绕过交付审批。
+RBAC维护于api/rbac.yaml：服务器基础角色DE/DL/NE/SRE/Viewer/Admin，网络增加NDE/NH；角色为默认权限包，最终授权以权限点+项目资源归属为准。项目Admin不等平台Admin，Admin不自动绕过独立审批；assign/verify/close、trust、固件/电源、cleanup、waive、media批准、fabric执行/批准独立。账号/成员界面角色下拉存在基准冲突，按docs/DEVELOPMENT.md BASE-09补齐，不能删除NDE/NH需求。
 
-P1资源错误约定：未认证返回401，无动作权限返回403；项目详情等资源读取在不存在或无项目授权时均返回404，避免泄露资源存在性。此行为保持拒绝跨项目访问的判据。
+未认证401；已知动作越权403；项目/资源读取不存在或无项目授权统一404，避免泄露；状态/目标版本冲突409，前端重新预览确认，不静默重放危险提交。
 
 ### 4.7 指标、历史与页面刷新
 
-所有指标使用 `{value, unit, source, observed_at, received_at, freshness, method, scope, quality}`，区分网络 Gb/s 与 NCCL GB/s；空值/未知/不支持显式编码。在线率分别表示 Agent 通道、SSH 可达或 BMC 电源状态，Agent 失联不能推断设备断电；unknown 区间单列并显示覆盖率，不悄悄计入可用或不可用。
+指标信封`{value,unit,source,observed_at,received_at,freshness,method,scope,quality}`，网络Gb/s与NCCL GB/s不可混用；缺测不补零。Agent在线、SSH可达、BMC电源状态分别计算，未知区间单列覆盖率，不能推断彼此。
 
-页面首次打开获取带 snapshot_version/cursor 的快照；活动页/Tab 按 DESIGN-SYSTEM 的 poll 或 SSE 更新，隐藏或卸载时取消不需要的订阅。SSE 事件含 event_id、aggregate_id/version 与 project_id，支持 Last-Event-ID 重放和去重；服务端游标过期返回 resync_required，客户端重取快照再接增量。采集 delta 也包含 base_version，缺失增量后要求完整快照。断线保留最后数据与时间，显示 stale 状态，不以降低文字透明度掩盖故障或破坏可读性。
+快照含snapshot_version/cursor，活动页面/Tab按DS登记poll/SSE，隐藏时停无用订阅；事件去重/版本校验，过期游标resync后重取快照。采集delta有base_version，缺增量要求全量。断线保留最后数据/时点和stale提示，文字保持可读；筛选/排序/活动Tab入URL。
 
-历史服务显式支持 1h/24h/7d，默认展示分辨率为 1h 窗口用 1min 桶、24h 用 5min 桶、7d 用 1h 桶；原始样本保留至少 7d，小时桶至少 90d；交付/审计证据按独立长期策略保存。桶包含 min/max/avg/count/coverage、来源和质量，禁止跨单位或不同含义来源混聚合。PG 可支撑开发/小规模，容量档可选 ClickHouse；清单声明保留周期、基数、存储量和降采样配置，变更需留痕。未来 24h 计划来自调度器持久化 cron/时区/暂停/错过触发策略，webhook/事件触发只显示等待条件，不伪造未来时间。
+历史查询1h/24h/7d按DS约定时间桶，返回min/max/avg/count/coverage与源/质量，禁止跨单位/不同事实混合。通用服务器指标按DS至少7d原始/90d小时桶；**网络DDM/接口/无损时序必须按PRD NFR-10至少90d原始/18个月降采样**，不能被通用默认缩短。配置快照/网络基线归报告证据长期保存，日志/审计保留分别引用PRD。PG开发/小规模与ClickHouse容量档使用同一查询/质量契约。
+
+未来24h计划来自持久化cron/时区/暂停/错过触发策略；事件/webhook只显示等待条件，不伪造未来时间。
 
 ### 4.8 AI 检索与建议边界
 
-三类知识（Runbook、NVIDIA 文档、案例）以 KnowledgeDocument/Chunk 建模并保存来源、审批、版本及访问范围。默认实现采用 PostgreSQL + pgvector 检索适配器，扩展版本固定在镜像清单；缺少扩展的开发档允许有标识的词法/mock 检索，不冒充语义检索已验收。embedding 模型与维数版本化，更新模型重建索引并保留旧引用。
+Runbook/NVIDIA文档/案例以Document/Chunk保存来源、批准版本与访问范围；默认PG+pgvector，扩展版本固定。无扩展开发档可标识词法/mock检索，不冒充语义验收；embedding模型/维数换版重建索引并保留旧引用。
 
-检索过滤先应用用户与项目授权，再做向量/关键词召回和重排；模型输出包含引用、适用型号和版本，未知时说明缺口。外部资料和工具输出始终按数据处理，fenced block 不能替代权限隔离。AI 仅生成可审查建议、Flow/ConfigSet 草稿；发布/执行仍走正常权限、审批、介质校验和门禁，不给模型直接执行凭据。AI 不因资料中的指令扩大取数范围或调用工具。
-
-验证覆盖召回命中、引用正确性、错误建议与应拒答场景、跨项目泄漏、恶意内容及未经批准执行；采纳率来自真实用户反馈。OpenAI-compatible、Anthropic、vLLM 三适配器均交付流式/取消/错误/用量契约测试，mock 成功不等于真实 Provider 或现场 PoC 已通过。
-
----
+先授权过滤再召回/重排，答案带来源、适用型号/版本；外部资料始终是数据，不能扩大取数或执行权限。AI只产出建议、Flow/ConfigSet草稿，发布/执行仍按权限/审批/介质/门禁。三Provider适配器覆盖流式/取消/错误/用量契约，测试召回、引用、错误建议/拒答、泄漏与恶意资料；mock不替代Provider/PoC实测，采纳率只来自真实反馈。
 
 ## 5. 关键流程时序（v2.0）
 
 ### 5.1 装机与互信链（扩展）
 
+```text
+BOM/型号/介质前置 → 渲染cloud-init（含域公钥）→ PXE/HTTP装机
+→ 一次性回调核验身份/指纹 → 受限trust.bootstrap首连验证
+→ established/TrustEstablished → 解锁预收集
+失败 → 批准批次凭据修复 → 验证后established
 ```
-BOM 导入 → OS 镜像选择（介质库下拉） → cloud-init 渲染（hostname 规则 + 平台域公钥注入）
-→ PXE 装机（HTTP-first） → 一次性回调身份核验 → 受限 trust.bootstrap（exec true + 已验证 host key）
-→ ssh_trust=established → 事件 TrustEstablished → 解锁预收集 Flow
-互信失败 → 修复队列（降级：vault 批次密码一次性首登注入，见 ADR-06） → 修复验证 → established
-```
-
-（v2.2 注：渲染发生在 PXE 装机之前——cloud-init 模板渲染完成才进入分发链，与 ADR-04 描述顺序对齐。）
 
 ### 5.2 验机全链（G1→G3，含拓扑验证与四步线序，v2.3 重排）
 
+```text
+预收集/G1 → PCIe实际与独立型号期望比对（差异T7处置重验）
+→ G2 readiness：G1+拓扑+NP-1/NP-2/NP-4，不要求NP-3
+→ Step1 GPU-NIC关系 → Step2 主机LLDP/本地MAC
+→ Step3 FR-0.8交换机LLDP+BOM三方比对 → 逐端口对确认/NP-3或T1–T6工单
+→ Step4 DL确认有效结果/豁免 → G2 → G3覆盖/冲突检查 → MappingRevision
 ```
-装机+互信完成 → 事件触发 precollect Flow（DOM 一并采集）
-G1 评估（字段完整+MAC↔BOM+DOM 能力标注） → pass → 机器态→collected
-PCIe 拓扑验证（FR-4.8）：sysfs 采集 + nvidia-smi（NVLink）+ LnkCap/LnkSta
-  → 预期(型号库) vs 实际对比 → pass → 产出 GPU-NIC 关系表（Step 1 输入）
-  → 拓扑差异 → T7 工单 → 经批准 issue.repair（按证据选择 Runbook）→ 定向重验
-DE 点击 [启动线序核查] → 前置：GET /validation/readiness（本端 G1+拓扑 pass + NP-1/NP-2/NP-4；不要求 NP-3）
-Step 1 GPU-NIC 关系表输出（含 PCIe BDF/上游路径/NUMA）→ StepReport(1)
-Step 2 lldpd 批量下发 → 实际邻居关系 + 本地 MAC 清单 → StepReport(2)
-Step 3 经 FR-0.8.2 回读交换机 LLDP → 三方比对（服务器 LLDP↔交换机 LLDP↔BOM）→ 确认端口对写 PortModel、产出 NP-3 或差异 T1–T6 分类开单 → StepReport(3)
-Step 4 全部通过/有效豁免 → DL 线序确认 → G2 pass → mapping-svc 生成待确认映射
-G3 评估（覆盖+冲突） → pass → 发布 MappingRevision → 机器态→mapped（基线配置解锁）
-```
-（Component/PhysicalPort 身份在 BOM/预收集已建立；每步 StepReport 版本化，FAIL 阻断正常后续步骤并建单。获批准的 issue.repair 只豁免其修复对象涉及的上游门禁，不豁免身份/凭据、介质兼容、资源锁及维护期白名单，完成后 issue.verify 重验，防止 G3 前故障无法修复。）
+
+Component/PhysicalPort身份先于G2，StepReport逐步版本化；正常流程FAIL阻断。issue.repair/verify按批准对象和范围可修复上游故障，仍检查身份/凭据/介质兼容/锁/维护白名单，不允许形成“须先通过G3才能修复G2”的循环。
 
 ### 5.3 连通性测试链（G5）
 
+```text
+冻结目标/档位 → 有效G4/范围/版本/工单/NP-4/NP-5/NP-6原子准入
+→ 参数介质快照 → L1链路 → L2 ping → L3 RDMA定向 → L4全带宽路径 → L5无损验证
+→ per-pair/路径证据+失败开单 → 报告 → G5 GateEvidence → netverified
 ```
-DE 发起（冻结目标/档位/时长） → 原子准入（有效 G4 + 范围/版本 + 未处置故障检查 + NP-4/NP-5/NP-6）
-  （关联工单的 issue.verify 允许限定故障范围定向复测；其他目标仍正常检查）
-→ 参数快照冻结（工具版本来自介质库） → 分层执行：
-  L1 链路层（读 PortModel，不发流量） → L2 网状 ping（分批） → L3 RDMA 定向打流（per NIC pair，分批滚动）
-  → L4 全带宽打流矩阵（rail 间路径热点覆盖） → L5 PFC/拥塞验证（FR-0.8.4 交换机侧计数与降级结论交叉）
-→ per-pair 结果入 NetTestPairResult → 失败分类（T1–T6）→ 开单
-→ 报告生成（分层结果+端口对覆盖+版本+失败统计+工单清单）
-→ 全 PASS 或有效 DL 豁免 → 发布 G5 GateEvidence → 机器态→netverified
-```
+
+正常测试与限定issue.verify分开授权；G5结果保留真实PASS/FAIL/BLOCKED/WAIVED，不把豁免记PASS。
 
 ### 5.4 NCCL 测试链（G6，v2.0 细化）
 
+```text
+当前G5覆盖/档位与NP-5/6 → S1预检 → S2介质/环境
+→ S3单机组 → S4跨机组 → S5计划覆盖 → S6组结果 → S7报告
+→ S8端口/G5/DCGM/工单溯源 → S9调优清单 → DL G6评审
+→ ConfigSet修改/应用 → 定向重测 → 案例沉淀
 ```
-跨机/网络档目标组准入（当前有效 G5 范围证据与 NP-5/NP-6，允许 tested 重测）；纯机内 NVLink 诊断可在 G4 后单独运行但不产出 G6 PASS → S1 预检（版本/实机/RAS/P2P）
-→ S2 环境准备（NCCL 包介质库分发→缓存命中检测、环境一致性校验）
-→ S3 单机 GroupRun → S4 跨机 GroupRun（rack 内→rack 组，整组屏障/熔断）
-→ S5 按计划选择分组覆盖或全量单 communicator（报告明确 coverage_mode，不混同）
-→ S6 结果回收聚合（按同规格 GroupRun 统计 P10/P50/P90；有来源的 rank/节点掉队诊断）→ S7 报告生成
-→ S8 失败溯源（PortModel 端口定位 + G5 基线比对 + DCGM 事件 + 工单关联）
-→ S9 调优清单（2.31 系环境变量差异汇总，AI 辅助解读）
-→ G6 评审（DL）→ pass → 解锁优雅退出
-调优落地：S9 清单 → ConfigSet 版本化修改 → 应用 → 定向重测 → 案例库自动沉淀（FR-6.7）
-```
+
+GroupRun规则见§4.5；tested可重测，maintained拒绝。纯机内NVLink诊断可按PRD在G4后单独跑，不产出G6 PASS。
 
 ### 5.5 故障工单闭环链（v2.0 新增）
 
-```
-来源触发（fabric 网络侧发现 / G2 差异 / G5 失败 / G6 网络问题 / portmon 告警 / T7 拓扑 / BMC）
-→ issue-svc 开单（保留首次发现 source；经定位后另记 responsible_domain；机器/部件/PhysicalPort 身份 + 类别 + 期望/实际 + 版本证据 + 日志引用）
-→ 分派 NE → 处置登记（动作枚举+实物 SN 核对）
-→ 定向重验证（按类别编排：T2→LLDP 单口；T3/T4→LLDP+DOM+单路径连通；T5→预收集增量+LLDP+连通；T6→配置读回+连通；T7→拓扑与受影响门禁）
-→ PASS → 提议关闭 → 确认 → closed（档案永久留档）
-→ FAIL ×2 → 升级 DL（建议换件）
-```
+工单基础依稳定物理身份和权限即可使用，必须先于N-S5/G2/T7首次失败交付；不依赖G3 Mapping或网口监控，后续portmon只挂接既有服务，避免故障修复依赖尚未通过的门禁。
+
+fabric/G2/G5/G6/portmon/topology/BMC发现→issue-svc保留首次source、稳定对象与原始/版本证据→分派/处置→类别Runbook定向重验→有效PASS与NE/DL确认关闭；失败两次升级DL。类别/重验组合引用PRD FR-4.7，fabric侧映射引用FR-0.5.3，不另创T8。
 
 ### 5.6 优雅退出链（扩展）
 
 ```text
-有效 G6 → 冻结交付范围/源版本，拒绝新带内作业并 drain 已运行任务
-→ 生成所有权清单（固定路径 + OwnershipRecord；检查 canonical path、符号链接、对象身份）
-→ 上传原始执行日志/交付证据/最后采集快照及清单 → 控制面持久化 pre_cleanup ACK
-→ 受控 Agentless 会话逐项清理平台创建的服务/文件/账号/规则/缓存；保留撤销所需会话及凭据
-→ 残留扫描 + 清理报告 + CMDB 归档清单（引用原始证据和源水位）→ 控制面持久化 residue ACK
-→ DL 确认待退出范围/报告 → 撤销平台 SSH 公钥与临时凭据（最后一个带内动作）
-→ 经已有会话采集撤销回执，新连接拒绝验证；关闭原会话 → 汇总最终报告
-→ 控制面持久化 final_technical ACK → 技术清理完成 → maintained + B7 监控白名单
-另行签署链：DL 确认最终报告 → 客户 PDF 签署 → 签署件归档 → 解锁 Project.delivered 评审
+有效G6 → 冻结范围/源水位，拒绝新带内作业并drain
+→ 所有权清单 → 原始日志/证据/最后快照上传 → pre_cleanup ACK
+→ Agentless精确清理平台对象（保留撤销通道）
+→ 残留扫描+报告+CMDB清单 → residue ACK → DL确认范围/报告
+→ 最后带内动作：撤平台SSH公钥/临时凭据 → 撤销回执/新连接拒绝/关闭原会话
+→ 最终技术报告 → final_technical ACK → maintained/B7白名单
+另行：DL最终报告确认 → 客户PDF签署 → 签署件归档 → Project.delivered评审
 ```
 
-CleanRun 为持久化步骤编排，每步带幂等键和证据，不以一条丢失事件决定完成。archive_ack 按 pre_cleanup、residue、final_technical 三个阶段记录对象摘要和持久化回执，后续步骤不能把前一阶段 ACK 当作自己的完成证明；清理前必须保全仍在目标机上的原始日志与证据。平台只移除自身所有权对象，不能清空共享目录、客户账户或整份 authorized_keys；文件被替换/目录为符号链接/所有权不符时停止该项并报告。私钥撤销不等于既有会话或 Agent 自动消失，须单独确认卸载、停采、关闭会话。
+CleanRun持久化每步、幂等键、对象摘要/回执；三个ACK不能互代。OwnershipRecord逐项核对canonical path、符号链接、对象身份和创建凭据，不清空共享目录、客户账户或整份authorized_keys；目标已被替换/不属平台则停止该项报告。
 
-撤销前中断可用尚有效受控会话按最后一个已确认步骤恢复；pre_cleanup ACK 缺失不能开始删除，residue ACK 缺失不能撤销互信。撤销后回执不确定进入 `reconciling`，核验控制面记录、目标新连接拒绝和 BMC 状态，不能自动重建 SSH 信任。必要时由有权限人员批准一次性修复会话，完成后重新撤销并补证；无法证明清理/撤销则不显示技术清理成功。技术证据及 final_technical ACK 齐全后通过 outbox 对账推进 maintained，客户尚未签署不恢复带内调度，也不阻止 B7 监控。签署状态与 technical_state 分开保存，签署未完成只阻断项目 delivered；客户签署为外部确认，自动化不能代签。
-
----
+pre_cleanup ACK缺失不删除，residue ACK缺失不撤信任。撤销前从已确认步骤恢复；撤销后未知进reconciling，核对控制面记录、新连接拒绝/BMC，不自动重建SSH。必要的一次性修复须批准，完成后重撤并补证。技术证据齐全经outbox推进maintained，客户未签不恢复带内；签署独立阻断项目delivered，自动化不代签。
 
 ## 6. Agent 设计（keel-agent）
 
-```
-/opt/keel-agent/keel-agent          # 单二进制（Go, static）
-/opt/keel-agent/keel-agent.conf     # 控制面地址、TLS、注册凭据
+```text
+/opt/keel-agent/keel-agent          # Go二进制
+/opt/keel-agent/keel-agent.conf     # 控制面/TLS/注册凭据
 /etc/systemd/system/keel-agent.service
-/var/lib/keel-agent/               # 任务状态、幂等记录
-/var/log/keel/                     # 执行日志
-/opt/keel-cache/media/             # 介质缓存（SHA256 寻址）
-/opt/keel-cache/nccl/              # NCCL 测试工作目录
+/var/lib/keel-agent/               # 任务/回执/幂等记录
+/var/log/keel/                     # 目标临时日志
+/opt/keel-cache/media/             # SHA256缓存
+/opt/keel-cache/nccl/              # 测试目录
 ```
 
-- **启动**：systemd → 注册（SN/版本/指纹 + 一次性短期 enrollment token）→ 校验设备归属并签发设备 mTLS 证书 → gRPC 任务等待；控制面 CA/轮换/吊销由服务端管理，目标机只持有本机凭据；重放 token 或错项目绑定拒绝；
-- **任务执行**：核对 command_id/fencing_token → 持久化接收回执 → fork 进程组（资源限额/超时）→ 流式回传 + 结构化 output → 持久化终态回执；控制面断线后仍可查询，不把重连当重新执行；
-- **v2.0 心跳扩展**：心跳消息附网口状态增量（ethtool + ethtool -m 摘要）+ 介质缓存清单（ADR-02）；
-- **自我升级**：新版本二进制作为介质分发（media://agent/<ver>）→ systemd restart，失败回滚；
-- **卸载**：Agentless 显式停止并卸载 agent、吊销设备 mTLS 证书；完成清理后最后撤销 SSH 互信，两个通道分别验证。
-
----
+启动使用短期一次性enrollment token核验设备/项目再签mTLS，重放/错项目拒绝；控制面管理CA轮换/吊销。执行先验证command_id/token、持久化接收回执，再fork受限进程组，流式输出并持久化终态；重连不是重执行。升级通过已批准media://agent版本并验证回滚能力。卸载由Agentless停止服务/删平台对象/吊销Agent证书，再按§5.6撤SSH；两个通道分别验证。
 
 ### 6.1 部署拓扑
 
 ### 现场单机形态（默认）
 
-```
-┌──────────── 交付机房管理网 ────────────────┐
-│  ┌────────────────────────────────────┐  │
-│  │ 平台节点（1 台物理机/VM）             │  │
-│  │ docker compose:                    │  │
-│  │  api(单二进制) postgres redis minio │  │
-│  │  dnsmasq(ProxyDHCP)                 │  │
-│  │  nginx(静态前端+反代+PXE HTTP        │  │
-│  │       +介质镜像源目录)               │  │
-│  └────────────────────────────────────┘  │
-│      │ 管理网: SSH(互信)/Redfish/gRPC     │
-│      ▼                                    │
-│  10,000+ 目标机 (agent / SSH / HTTP 拉流) │
-└───────────────────────────────────────────┘
-        ▲ 对外: 网络平台 REST（握手/回读/计数）
+```text
+管理网 → 反代/静态前端 + keel-api + PostgreSQL + Redis + MinIO
+          ├─ 介质/PXE HTTP + 服务器ProxyDHCP
+          ├─ Kea DHCP + boot-svc 239/143受控设备入口
+          └─ 采集/Runner → 服务器、交换机、BMC
 ```
 
-**交付形态（v2.2 新增，对齐 NFR-4）**：
+同一进程可承载API与独立设备listener，但认证边界/证书/管理网入口独立；设备无浏览器session不能因此开放普通管理API。Kea、引导服务、采集器、仓库环境自检全绿后才N-S4。实际开发端口/镜像/迁移查HANDOFF/DEPLOYMENT，不在目标拓扑写死开发服务器地址。
 
-| 形态 | 架构 | HA 承诺 | 适用场景 |
-|---|---|---|---|
-| **single-node（默认）** | 上图单节点 compose 全栈 | 无 HA；进程级自恢复（systemd/compose restart），故障后人工介入恢复 | 交付现场快速起平台，交付期短、可容忍分钟级停机 |
-| **ha-cluster（可选）** | 2 节点 api（负载分担）+ PostgreSQL 主备流复制 + Redis 哨兵 + MinIO 纠删码 | RTO<5min（**NFR-4 仅在此形态承诺**） | 长驻交付/7×24 交付期 |
+| 形态 | 承诺与验证 |
+|---|---|
+| single-node（默认） | Compose单节点，进程级自恢复，无HA；磁盘/节点故障需恢复流程 |
+| ha-cluster（可选） | 多API+PG主备+Redis哨兵+MinIO纠删码；仅此形态适用NFR-4 RTO；仲裁/存储/切换拓扑实现前明确并实测，不能用“两台API”证明全栈HA |
 
-形态选择为部署配置项（`KEEL_DEPLOY_TOPO=single|ha`），应用代码无差异；ha-cluster 的 PG 切换、哨兵仲裁和 MinIO 存储拓扑在交付形态验证时落实并进行故障演练；未验证不能承诺 HA RTO。mock 证明恢复逻辑，不能代替真实基础设施故障恢复证据。
+部署配置选择KEEL_DEPLOY_TOPO，不改变领域契约。引导服务目标多副本无单点，single-node不能据此承诺基础设施HA。
 
 ### 性能预算（v2.2 重校准）
 
-| 环节 | 预算 | 依据 |
-|---|---|---|
-| Dispatcher 取目标（10k） | <2s | 索引查询 |
-| ExecutionTarget 生成（10k） | <5s | 批量 insert |
-| 扇出执行（10k × 30s，Agent） | 端到端 ≤5min 目标；记录提交至最后有效终态 | 默认并发 1,000 的纯运行下界已为 300s，不能保证含调度开销的 SLO；容量验收档需 >1,000 并实测资源余量，固定环境/档位写报告 |
-| 扇出执行（10k × 30s，SSH） | 同一端到端 ≤5min 目标，池上限须容纳验收并发 | 默认 1,000/池 2,000 仅默认配置；容量档需预热/认证/回执开销预算和 >1,000 实测并发。资源受限可降档并标记“该档未达到标准 SLO”，不可算标准验收通过 |
-| 介质分发（500MB 驱动包 ×10k 机，缓存命中 95%） | 首次 ≤15min（要求介质出口 ≥50Gbps，见 A-6）/ 重发 ≤2min | HTTP 并发拉取 + 缓存命中跳过；**出口带宽不足时按规模分档断言**（2,000 台 ≤15min @ ≥10Gbps；万卡分层分发为 Open-2 候选） |
-| Redfish 采集（10k BMC，16 并发） | 全量 <2h | L1 ~8s/BMC |
-| 网口状态呈现延迟 | **按档位承诺（NFR-12 v2.2）**：M1 ≤5min / M2–M4 ≤90s / 维护态转 B7 | 心跳周期档位化（ADR-02）+ mon-svc ingest 开销 |
-| **监控 ingest 吞吐** | 聚合预算 ≤1Gbps；单机 50KB/s 稳态与 200KB/s 动态为上限而非保证同时可用；可丢遥测样本 <0.1% | 10k×50KB/s≈4Gbps、全动态≈16Gbps，控制面按项目/优先级/活跃窗口分配全局令牌桶，必要时合并降采样；状态、告警、任务最终回执不可按遥测丢弃策略处理 |
-| **CMDB 聚合查询（v2.1）** | 单机 360° ≤2s；项目级统计 ≤5s（万卡，物化视图口径 ≤60s 滞后，ADR-12） | 联邦视图聚合 API + 索引（NFR-14） |
-| 连通性测试（1 rail × 128 机，快速档） | ≤25min | L2 网状 ping 抽样档 + L3/L4 打流分批滚动（配对策略参数化，PRD FR-11.1） |
-| **PCIe 拓扑采集（v2.3）** | 单机 ≤30s（sysfs 遍历+nvidia-smi）；万卡快照（并发 1,000）≤15min；对比判定单机 ≤5s | NFR-15（量纲：10,000×30s÷1,000=300s≤15min ✓） |
-| **BMC 维护期轮询** | 10k 台默认每 5min 更新，默认并发上限 128，失败率 <1%；逾期显示 stale | 预算按每台完整轮询请求数 k 及实测耗时核算（ADR-18），不能沿用单轮 52min 口径；不达标必须调整容量/采集方案并重新验证 |
-| **BMC 实时读取（v2.3）** | 抽屉状态灯/资产刷新单机 ≤3s | NFR-16 |
-| **项目切换** | 当前标签页 URL 项目切换后视图刷新 ≤2s；列表 ≤1s | NFR-17；其他标签页冻结的项目/表单不得漂移 |
-| 状态矩阵页刷新 | <1s 聚合 | Redis 缓存 + 增量 SSE |
-| **Fleet / 矩阵渲染** | 万级逻辑行、双轴虚拟化；微指标单行增量 <1ms，滚动 60fps 目标，固定浏览器/数据集/硬件 | TanStack Virtual + 可见单元格 CSS/SVG；服务端筛选/聚合/cursor 分页，成本按可见单元格计；不为每行创建 ECharts 实例 |
+本文保留工程量纲，不复制PRD阈值表；验收目标以PRD NFR与ACCEPTANCE性能项为准，报告必须记录档位、环境和计时边界。
 
----
+| 环节 | 容量/实现约束 |
+|---|---|
+| 控制面调度 | 原有工程预算：10k目标索引查询<2s、ExecutionTarget批量生成<5s、状态矩阵聚合刷新<1s；仍需在标准容量档实测 |
+| 扇出10k×30s | 默认并发1000纯运行下界已300s；满足含调度端到端目标须更高验收并发、认证/回执/队列预算与实测；SSH池须容纳档位，不能算术宣布SLO通过 |
+| 介质冷/热缓存 | 500MB×10k=5TB，15min在90%效率下约49.4Gbps，现场低带宽须分档或分层缓存；缓存95%命中不能宣称冷启动成本消失 |
+| 监控ingest | 10k×50KB/s≈4Gbps、全动态200KB/s≈16Gbps；总预算1Gbps须全局令牌桶、优先级/活跃窗口、delta/合并降采样；状态/告警/最终回执不按遥测丢弃策略处理 |
+| 资产采集 | 原有预算：10k BMC全量Redfish采集在16并发/约8s每台假设下<2h；按实际设备请求数和尾延迟验证，不能替代维护期轮询新鲜度 |
+| BMC轮询 | 设备数×每台请求数×耗时/周期决定并发，见ADR-18；逾期stale，保留失败/重试/尾延迟 |
+| 身份/端口 | 80k服务器口+5000×256交换机子口至少1.36M端口；索引item_uid、(parent_uid,port_index)、端点引用，测导入/解析/分页而非只测对象计数 |
+| 列表/矩阵 | 万级逻辑行双轴虚拟化、服务端聚合/cursor、只渲染可见单元格；不为每行创建ECharts；固定浏览器/数据集/机器后测帧率 |
+| 查询/配置/线缆/规则 | 按NFR-14～NFR-20及FR-0批次规模测360°/统计、模板吞吐、10万端口对比、DDM P95、规则热加载/dry-run；不能以小样本功能测试替代容量验收 |
 
-**网络身份容量**：PRD NFR-1 要求统一 BOM 支持至少 80,000 个服务器物理口及最多 5,000×256 个交换机 breakout 子口，合计至少 1,360,000 个端口实体；按 `(parent_uid, port_index)`、稳定 `item_uid` 与端点外键建立索引，容量测试应核对插入、引用解析与分页查询。明细时序原始样本至少保留 90 天，过期后保留聚合、LL 事件与越限快照，不能以“长期不保存明细”缩短原始保留期。
-
-**容量验证边界**：开发服务器资源只代表开发档，不能推导可同时运行 10k 容器或现场全量介质。CI 使用少量真实 SSH/Agent/BMC 传输端点验证协议，负载发生器模拟 10k 逻辑身份与故障种子；报告记录逻辑身份数、真实连接数、目标硬件、服务资源、数据体积、冷/热缓存和计时边界。模拟器证明行为与控制面容量；RDMA/NVLink/CUDA/Arm64 真机能力由 H-1～H-18 对应 PoC 独立出具，未测/跳过不能记 PASS。介质、日志、指标保留、备份与磁盘水位分别估算，恢复演练覆盖数据库/对象存储/密钥备份的一致性。
+开发负载发生器可模拟10k身份，但报告须分别记录逻辑身份、真实连接、硬件、资源、体积、故障seed与冷/热缓存。控制面规模不等于RDMA/NVLink/CUDA/Arm64真机能力，硬件由H-1～H-18 PoC留证。介质/日志/时序保留、备份和磁盘水位分别估算；恢复演练验证DB/对象/密钥备份一致性。
 
 ## 7. 安全设计（v2.5）
 
-| 层面 | 措施 |
+| 边界 | 约束 |
 |---|---|
-| 传输 | API 同源 HTTPS、agent mTLS、可信 Redfish TLS；SSH host key 按可信回调/授权导入验证，禁止未知指纹自动接受（ADR-06） |
-| 凭据 | BMC/SSH 密码池/AI key 全入 vault；平台域私钥（keel-ctrl-*）仅存控制面（内存/加密盘），永不落目标机 |
-| 互信 | 公钥注入唯一主路径 cloud-init；降级密码首登走 vault 批次凭据且**一次性消费**（ADR-06 v2.2）；互信撤销是退出必要条件 |
-| 权限 | RBAC 6 角色（DE/DL/NE/SRE/Viewer/Admin）× 模块动作矩阵；门禁豁免、介质审批、清理执行、模板同步等高危动作二次确认+审计 |
-| 目标机 | agent 注册凭据一次性分发；root 作业显式声明 + 审批标记 + **会话录像归档**（v2.2，AuditLog 关联 log_ref） |
-| 审计 | 应用角色对 AuditLog 仅 INSERT/SELECT；管理员仍可能改数据库，不能宣称绝对不可篡改。证据摘要、对象版本/保留锁及异地备份共同提供校验；介质、工单、互信、权限、登录全留痕，控制面交付/审计保留至少 3 年，受配置与客户约定约束 |
-| AI | 出域开关、脱敏、授权检索与来源版本；资料按不可信数据处理；AI 生成草稿不持有执行凭据，执行仍走正常审批与门禁（§4.8） |
-| 前端 | 同源 HttpOnly session cookie + CSRF，登录过期/退出撤销；敏感字段按权限返回，不在 localStorage 存访问令牌（§4.6） |
-| Webhook（v2.2） | **入站**（FR-7.2）：校验已配置来源/绑定项目、HMAC 原始报文签名、时间窗和事件去重，拒绝重放/错项目；**出站**（FR-10 通知）：目标白名单 + HMAC 签名（可配，默认开启签名） |
+| 传输/身份 | 同源HTTPS、Agent mTLS、可信Redfish TLS、可信SSH host-key；设备239/143边界按ADR-19与FR-0.3 |
+| 凭据 | Vault/加密控制面存储、按用途最小权、领域表只存引用；控制面域私钥不落目标；轮换/撤销留回执 |
+| 权限/审批 | 六服务器基础角色+NDE/NH，按动作和项目授权；高危确认不替代后端；执行与审批分离、Admin不绕过批准 |
+| 原始输入 | 包/模板/脚本/设备输出/日志受界限校验；路径/符号链接/命令参数安全，网络模板沙箱；AI资料不赋权 |
+| 审计 | 应用角色AuditLog只INSERT/SELECT，脱敏日志/介质/工单/互信/权限/认证全留痕；DB管理员仍可能改结构，摘要/对象版本与保留锁/异地备份提供校验，不宣称绝对防篡改 |
+| Webhook | 入站校验绑定项目/来源、原始报文HMAC、时间窗与事件去重；出站目标白名单+签名（默认开），拒绝重放/错项目 |
+| 浏览器 | HttpOnly session/CSRF、退出清私有缓存与SSE、敏感字段按权限；不在URL/浏览器存储留秘密 |
 
----
+规则dry-run计算必须零持久化、零告警/事件/健康副作用；与PRD通用“所有API审计”有上游张力，调用审计边界在docs/DEVELOPMENT.md BASE-08保留待决，不能自行设例外或据此给验收PASS。
 
 ## 8. 可观测性（v2.0 扩充）
 
-- **Metrics**：execution 分布、扇出水位、SSH/gRPC 错误率、Redfish 成功率、gate 通过率、**介质分发吞吐与缓存命中率、网口状态翻转率、工单开单/关闭速率、连通性分层通过率、NCCL busbw 基线**；
-- **Tracing**：OTel 全链路，trace_id 透传前端；
-- **平台自诊断**：system flows 定时（组件健康、队列积压、磁盘水位、**介质桶存储水位、互信异常率**）。
-
----
+平台Metrics覆盖execution/调度/队列/通道错误与回执对账、Gate缺口、介质吞吐/缓存、采集新鲜度/未知覆盖率、工单闭环、测试分层、ZTP/PushJob/规则/健康。指标带单位/来源/版本/质量，不将unknown纳入正常比例。OTel trace_id贯穿API/执行/产物。system flows自诊断组件、积压、磁盘/介质桶、凭据/互信异常；业务证据与平台遥测保留策略分开。
 
 ## 9. 前后端协作约束（vibecoding 契约，v2.0 扩充）
 
-1. **契约先行**：`api/openapi.yaml` + `api/proto/` + `api/rbac.yaml` 同源描述接口/事件/动作；前端类型自动生成，契约存在/设计冻结不等于接口已实现；
-2. **错误规范**：统一错误体 + trace_id；前端全局错误处理分支；
-3. **实时刷新**：列表轮询 + 详情 SSE；SSE 事件 schema 契约化（新增 `PortStatusChanged`、`IssueStateChanged`、`GateVerdictChanged` 事件）；
-4. **虚拟滚动契约**：矩阵行/列及列表使用 TanStack Virtual，服务端筛选/排序/cursor 与聚合分离；跨页全选冻结查询和实际目标 ID/摘要并显示排除数量，不只保存当前页选中态；
-5. **权限映射**：api/rbac.yaml 与 OpenAPI operation 同源，后端返回 `permissions[]`，前端按钮/拖拽按动作渲染；行内动作固定本行，批量动作只能从批量条发起。后端重验冻结的项目、目标、权限和 expected_version，关闭工单需验证证据；
-6. **i18n 键规范**：层级命名，展示文案全在前端；
-7. **参数下拉契约（v2.0）**：业务任务版本选择统一 ParamSelect（`GET /catalog/params`）并校验依赖；介质/型号/配置的“登记新版本”表单允许输入新版本标识，经服务端校验后发布。lint 检查业务执行表单不绕过已批准目录，不禁止版本源头创建；
-8. **就绪握手契约（v2.0）**：所有跨系统触发按钮（LLDP/连通性）必须绑定 readiness API 状态，禁用态必须展示缺口明细（组件 ReadinessGate 封装该逻辑）；
-9. **环境抽象契约（v2.1 补充，ADR-14）**：面向交付硬件的前后端开发 mock-first——①前端开发基于契约生成的 mock server（不依赖后端真实实现）；②后端外部依赖（网络平台/BMC/SSH/打流/AI）一律先写 mock 实现再写真实实现，同 PR 交付；③环境地址/凭据/开关全部配置化且默认 mock 档，**禁止硬编码真实环境地址**（CI 静态扫描项）；④性能设计以 PRD NFR 压力为依据，mock 报告注明边界，承诺硬件性能或 GA 时仍需指定 PoC 实测；授权远端开发环境可正常联网开发；
-10. **页面数据流契约（v2.3 新增，AI 审计 B-2/C-1）**：每个页面的实时数据协议在 DESIGN-SYSTEM §3 导航树逐页标注——`[SSE]`（状态矩阵/网口面板/执行详情/告警中心）、`[poll 5s]`（设备列表/工单池/测试批次，用户可调 5–60s）、`[poll 60s]`（CMDB/项目时间线聚合）、`[on-demand]`（首次打开才拉快照；活动标签可另标 poll/SSE，协议按 §4.7 配合使用）。**SSE 断连前端契约**：顶部全局黄条“实时连接中断，显示最后数据 HH:MM”+ stale 徽标 + 自动重连；保持正文对比度，**不清空已有数据**（Beszel 模式）。**列表筛选一律 URL search params 同步**（刷新/分享/回退可复现视图，TanStack Admin 模式）。
-
----
-
-**Flow 编辑一致性**：YAML、拓扑和 No-code 视图共享版本化 AST；高级表达式不能被无代码编辑器表达时保留原节点并显示只读/返回 YAML，不静默丢字段。保存前运行 schema、引用、依赖与危险动作检查；回滚通过新建引用旧内容的 FlowVersion 实现，执行固定版本不改历史。
+1. **契约**：OpenAPI/proto/RBAC/SSE schema同源，类型生成；每页面先有真实查询/操作/错误/权限/事件契约，设计端点存在不等于已实现。
+2. **工作台先行**：业务页面复用DS顶栏/侧栏/双平面、令牌/组件/数据状态，不以临时横向导航替代；完整布局符合性需浏览器证据。
+3. **集合与动作**：服务端筛选/排序/cursor/聚合；跨页全选冻结selection_token/目标ID摘要及排除数，行内只作用本行，批量条发起批量；后端重验范围/权限/版本。
+4. **状态可恢复**：错误体含trace_id，401/403/409/429等按DS处理；活动Tab按DS协议拉快照+增量；SSE断线保留旧值/时间与stale，不清空/假成功；筛选/Tab入URL。
+5. **参数与就绪**：业务版本用ParamSelect选批准目录并验依赖；登记页可输入新版本元数据。ReadinessGate展示本次动作逐目标适用断言/缺口，提交后端重验；不能用一个全局ready替代G2/G5/PushJob不同前置。
+6. **环境**：UI接真实业务API/授权/存储；契约mock仅用于隔离联调，硬件适配器默认mock且与real共契约，endpoint/CA/凭据配置化；外部输入仿真须标识，不呈现虚构生产健康。
+7. **编辑**：YAML/拓扑/No-code共享版本化AST；无法表达节点保留原文并只读/回YAML，不静默丢字段；保存/发布校验schema、引用/依赖/危险动作，回滚建新FlowVersion。
+8. **权限/i18n**：按钮/拖拽消费后端permissions/allowed_transitions，后端为准；所有展示文案用层级i18n键，来源原始日志可保留原文；确认框冻结项目/对象/版本。
 
 ## 10. 假设与依赖登记（v2.0 更新）
 
-| # | 假设/依赖 | 影响范围 | 验证时点（P=构建阶段，对应 PoC 执行包） |
-|---|---|---|---|
-| A-1 | ~~网络平台提供 LLDP/就绪/打流计数 API~~ → **v3.0 起域内自供（FR-0.8）**；仅当客户自有网管时经**适配器**实现同一契约（不可提供能力返回 `unknown`） | G2/G5/G6 | P2 前联调（域内无外部依赖；适配器形态执行包 #P2） |
-| A-2 | BOM 由网络团队/服务器团队产出（**v3.0.2 导入包目录格式，PRD 附录 A.5**），含 SN/MAC/hostname 规则/rail/breakout/线缆两端/**凭据批次**；字段映射由项目模板声明 | FR-2.1 | P1 导入测试（执行包 #P1） |
-| A-3 | BMC Redfish 满足 DMTF 1.9+ | FR-3 | P2 PoC（执行包 #P2） |
-| A-4 | 按 HGX B300（amd64）与 GB300 Grace（arm64）分别验证 OS/内核、cloud-init、公钥/指纹回调、agent 和工具包；支持矩阵引用批准版本 | FR-2.3/FR-6/FR-16 | P1/P3 各架构 PoC，未测架构不标支持 |
-| A-5 | NCCL/CUDA/驱动/内核/固件以批准兼容矩阵组合，CUDA 13 常规路径驱动至少 R580 并校验具体补丁要求；工具包按 arch 签名/摘要锁定 | FR-6/FR-11 | P3 PoC + 基线数据版本 |
-| A-6 | 现场管理网 SSH 22 端口可达；**平台介质分发出口 ≥50Gbps**（万卡同发 500MB×10k=5TB（十进制） 首次 ≤15min 口径，按 90% 传输效率折算 约49.4Gbps 需求；现场不足时按规模分档断言：2,000 台 ≤15min @ ≥10Gbps，万卡启用分层分发/机柜级缓存——REVIEW-FINDINGS Open-2） | Agentless/介质分发 | P1 模拟器 + 执行包 #P1 回填实测 |
-| A-7 | IP 由 BOM 携带（IPAM 对接 P1 增强） | FR-5.2 | 首现场调研 |
-| A-8 | 光模块 DOM 读出在主流 CX8 平台可用（不可读走降级标注） | FR-4.5 | P2 真机 PoC（执行包 #P2） |
-| A-9 | ~~网络平台提供 PFC/ECN 计数~~ → **v3.0 起 fabricmon-svc 经 `ethtool -S`/NVUE/WJH 采集（FR-0.6.2）**，不可采集置 `unknown`（NFR-19） | FR-0.6/FR-11 层 5 | P3 联调（执行包 #P3） |
-| A-10 | 交换机 NOS 为 Cumulus Linux 5.x，可用 SSH/NVUE/ethtool/syslog/DDM；其他 NOS 经适配层接入 | FR-0.3/FR-0.5/FR-0.6 | P2/P3（NFR-8） |
-| A-11 | 客户可提供商定后的网络配置基线（地址/命名/VLAN/ASN/VNI/QoS/breakout）用于导入 | FR-0.2/FR-0.4.1 | P2 导入承接（PRD §1.4 Out of Scope 的商定部分） |
+| ID | 实现前需确认的输入/决策 | 处理与验证落点 |
+|---|---|---|
+| A-1 | 第三方网络平台能力 | 内置FR-0.8不依赖外部控制器；第三方需同契约适配，缺能力unknown，P2契约/PoC |
+| A-2 | BOM/项目模板/商定基线 | 按PRD附录A交付，字段映射/必需物料清单/凭据引用有发布版本；P1导入验证 |
+| A-3 | BMC实现差异 | DMTF版本不等于每项可用；逐型号适配/能力/超时与恢复，P2/维护期PoC |
+| A-4 | amd64/arm64与硬件组合 | HGX B300/GB300分别锁OS/内核/cloud-init/Agent/工具，未实测架构不宣称支持 |
+| A-5 | CUDA/驱动/NCCL兼容 | 准确补丁组合及工具能力由批准兼容矩阵+P3 PoC确认，不把候选版本写死业务逻辑 |
+| A-6 | 管理网与分发出口 | SSH/引导/证书/网段/出口带宽按现场清单，按§6.1容量档实测；分层分发方案未落地前不承诺低带宽万卡SLO |
+| A-7 | IPAM/地址规划 | 输入BOM/已批准地址规则或可选IPAM适配；平台按规则分配，不设计网络方案 |
+| A-8 | DOM/设备计数能力 | 缺测显式unknown/降级，host与switch保留来源；P2/P3三种降级PoC |
+| A-9 | PFC/ECN/WJH/队列口径 | NOS适配器+指标注册表+golden样本；单位/重置/时间窗/无数据语义先冻结 |
+| A-10 | NOS/网络型号范围 | Cumulus基线与其他NOS分别适配，真实命令/计数/恢复先PoC；不能只改配置就宣称支持 |
+| A-11 | 客户/NE批准输入 | 外部方案source_ref/签署证据的验真范围明确；工程限值子集不代表完整模板或生产变更批准 |
+
+**尚须落地的工程决策**：FR-0.8的NP逐项响应和证据来源schema、完整NetworkBaseline/Approval/CredentialBatch模型、Kea与ProxyDHCP广播域/持久化配置所有权、多副本引导路由与证书吊销、HA仲裁/存储拓扑、全量规模容量档、规则dry-run审计边界。相关WP开始实现前提交具体契约/迁移/测试决策，不以空字段或“后续支持”宣称完成；上游冲突统一查docs/DEVELOPMENT.md §2。
 
 ## 11. 模块-服务映射（架构 ⇄ PRD 对照，按 FR 序排列）
 
-| PRD 模块 | 架构承载 | 核心表 |
+| PRD | 唯一写入/判定职责 | 主要实体与消费边界 |
 |---|---|---|
-| **FR-0 网络底座交付域（前置域）** | **fabric-svc（物料/规划/ZTP/意图/Doublecheck/比对/预检/PushJob）+ fabricmon-svc（交换机采集/无损判定/健康分/日志）+ netbaseline-svc（网络配置基线导入+pongo2 沙箱渲染）+ boot-svc（Kea/引导/身份反查）** | **BOMImportPackage/BOMItem/Switch/SwitchPort/OpticModule/FabricReadiness/NetworkIntent/NetworkSnapshot/NetworkDiff/PushJob/ZtpSession/FabricRule/HealthScore** |
-| **FR-0.8 网络证据与排障接口域** | fabric-svc 对外契约 + 第三方适配器（ADR-14/ADR-19） | FabricReadiness/FabricBaselineExport/证据引用 |
-| FR-2.1 BOM 导入包 | fabric-svc + model-svc（期望值）+ profile-svc（字段映射）；provision-svc 消费 | BOMImportPackage/BOMImportManifestFile/BOMImportIssue/BOMItem |
-| FR-1 作业平台 | flow-svc + execution-svc + 双通道 Runner + outbox/Stream | Flow/FlowVersion/Execution/TaskAttempt/ResourceLease/OutboxEvent |
-| FR-1.8 介质库 | media-svc + MinIO media 桶 + nginx 镜像源 + agent 缓存协议 | MediaItem/MediaDistLog |
-| FR-1.9 参数目录 | catalog-svc + 介质元数据联动 + Execution 快照冻结 | ParamKey/ParamSnapshot |
-| FR-2 PXE（含互信） | provision-svc + render-svc（cloud-init 公钥注入）+ 首连验证 | BOMImportPackage/BOMItem/Machine/TrustLog |
-| FR-3 采集 | redfish-svc + 原始层 + JSONB 视图 | CollectRecord |
-| FR-4 验机 | validation-svc(G1/G2) + mapping-svc(G3) + issue-svc | Component/PhysicalPort/GateEvidence/GateRecord/MappingRevision/PortModel/Issue |
-| FR-4.5 网口监控视角 | portmon-svc（消费 mon-svc 数据）+ ServerDetailDrawer 聚合 API | PortModel/PortEvent |
-| FR-5 配置（含 FR-5.9 角色） | config-svc + render-svc（参数占位符 + 角色渲染） | ConfigSet/ConfigApply/RoleBinding |
-| FR-6 NCCL | nccl-svc + report-svc（S1–S9 + 溯源 + 调优清单） | NCCLTestRun/GroupRun/NCCLIssueLink |
-| FR-7 自定义作业 | flow-svc 设计器 + 蓝图库 + media/param 函数解析 | Flow |
-| FR-8 AI | ai-svc + RAG（FR-6.7 三库种子） | AIProvider/AIInvoc/KnowledgeDocument/KnowledgeChunk |
-| FR-9 退出（含 FR-9.6 维护态） | cleanup-svc（清理 + 互信撤销 + maintained 转换事件） | CleanRun |
-| FR-10 平台级 | api-gateway(session/RBAC/CSRF/project) + notify-svc + audit-svc | User/Session/ProjectMember/AuditLog |
-| FR-11 连通性测试 | nettest-svc（五层编排 + **FR-0.8 网络计数消费**，域内 fabricmon-svc / 第三方适配器） | NetTestRun/NetTestPairResult |
-| FR-12 项目模板 | profile-svc（模板版本化 + 型号引用 + 项目初始化） | ProjectProfile |
-| FR-13 监控告警 | mon-svc（策略下发/ingest/告警引擎/停采转换） | CollectPolicy/MetricSample/Alert |
-| FR-14 型号库 | model-svc（型号版本化/槽位/角色默认/唯一性约束；BOM 导入校验的期望值定义方，导入侧调用其接口） | DeviceModel/DeviceModelVersion/DeviceModelSlot/RoleBinding |
-| FR-15 CMDB | cmdb-svc（联邦视图聚合/快照归档/人工字段/AIOps 导出） | CMDBRef/CMDBSnapshot/CMDBManualField |
-| FR-16 BMC 带外管理 | redfish-svc 扩展（BMC 控制/BIOS/BMC 设置/固件升级，ADR-16）+ mon-svc（维护期轮询，ADR-18） | BiosConfigSet/BiosApply/FirmwareRun |
-| FR-17 项目执行/双平面 | api-gateway（显式 project_id 授权）+ profile-svc（生命周期），P1 建立 | Project/ProjectAsset/ProjectMember |
+| FR-0 | fabric-svc：规划/开通/预校验/Doublecheck/diff/PushJob编排；fabricmon-svc：交换机采集/无损/健康/日志；netbaseline-svc：基线/模板；boot-svc：Kea/设备引导/身份 | Switch/Port、NetworkIntent/Snapshot/Diff、PushJob、ZtpSession、FabricRule/Finding/HealthScore；复用执行、型号、介质、参数 |
+| FR-0.8 | fabric-svc证据门面+第三方适配器 | FabricReadiness/CableCheck/计数/原始引用/导出；服务器模块不得绕过门面直读设备或另作网络健康判定 |
+| FR-2.1 | BOM导入模块（fabric-svc承载） | BOMImportPackage/ManifestFile/Issue/Item；model-svc给期望，profile-svc给映射，双域原子写入 |
+| FR-1 | flow-svc/execution-svc+Runner | FlowVersion/Execution/TaskAttempt/Receipt/Lease/outbox；Kestra仅参考 |
+| FR-1.8/1.9 | media-svc/catalog-svc | MediaItem/DistLog、ParamKey/Snapshot；版本/依赖/阈值单一源 |
+| FR-2 | provision-svc/render-svc/trust | 装机、cloud-init、Machine/TrustLog；网络ZTP不在服务器PXE服务内混写 |
+| FR-3 | redfish-svc | CollectRecord原始/结构化；独立能力适配 |
+| FR-4 | validation-svc/mapping-svc/issue-svc；portmon-svc只读投影 | GateEvidence/Record、MappingRevision、PhysicalPort/PortModel/PortEvent、StepReport/TopologyDiff |
+| FR-5 | config-svc/render-svc | ConfigSet/Apply/RoleBinding；服务器配置与网络pongo2分开 |
+| FR-6 | nccl-svc/report-svc | NCCLTestRun/GroupRun/NCCLIssueLink；组级结果不冒充单机测量 |
+| FR-7 | flow-svc | 编辑器、蓝图、版本AST/触发器；执行复用FR-1 |
+| FR-8 | ai-svc | AIProvider/Invoc、KnowledgeDocument/Chunk；只建议不执行 |
+| FR-9 | cleanup-svc | OwnershipRecord/CleanRun；分阶段ACK/撤销/技术完成 |
+| FR-10 | API身份/项目授权、notify-svc/audit-svc | User/Session/ProjectMember/AuditLog；高危动作独立授权 |
+| FR-11 | nettest-svc/report-svc | NetTestRun/PairResult；网络计数经FR-0.8 |
+| FR-12 | profile-svc | ProjectProfile不可变版本，项目差异/基线/角色/参数引用唯一承载 |
+| FR-13 | mon-svc | CollectPolicy/MetricSample/Alert；portmon/Dashboard只读聚合，维护B7 |
+| FR-14 | model-svc | DeviceModel/Version/Slot；服务器/网络型号同库，拥有独立BOM期望 |
+| FR-15 | cmdb-svc | Ref/Snapshot/ManualField；联邦聚合、归档、AIOps导出 |
+| FR-16 | redfish-svc + mon-svc维护轮询 | BiosConfigSet/Apply、FirmwareRun；能力/任务回执/维护白名单 |
+| FR-17 | 项目授权边界+profile-svc | Project/ProjectAsset/Member、双平面上下文、生命周期 |
 
-> **支撑服务注记（v2.2）**：notify-svc / audit-svc / profile-svc / report-svc 为横向支撑服务，分别挂接 FR-10（通知/审计）、FR-12（项目模板）、FR-6 与 FR-11（报告聚合共用）；完整服务清单见 §1.2 领域服务层。BOM 导入校验职责边界：model-svc 拥有型号与 BOM 期望值定义，catalog-svc 仅负责参数目录，二者不重叠。
-> **网络域服务注记（v3.0）**：fabric-svc / fabricmon-svc / netbaseline-svc / boot-svc 为网络底座前置域承载，命名前缀 `keel-fabric`（ADR-19）；复用 model-svc（网络设备型号 `kind=switch`）、catalog-svc（阈值单一源）、audit-svc/notify-svc/report-svc。**网络配置变更唯一走 PushJob 主链路，无旁路直下发**。
+横向notify/audit/report不拥有业务判据。服务名是包边界；catalog不负责型号期望，CMDB不负责改源资产，前端不负责DDM/无损判定。
 
 ## 12. 端到端依赖总图
 
-````
-                    ┌──────────┐         ┌──────────┐
-                    │ 项目模板  │ FR-12   │ 型号库    │ FR-14
-                    └────┬─────┘         └────┬─────┘
-              套用初始化 │（参数默认值/蓝图/      │ 槽位/角色方案/BOM 期望
-              门禁策略/型号引用）                │
-                        ▼                     ▼
-  ┌──────────────────────────────────────────────────────────────┐
-  │ 网络底座前置域 FR-0（keel-fabric）:  BOM导入包→网络建模→ZTP→     │
-  │ 网络侧 N-S5 预校验→Golden闭环→全网健康 → NP-1/2/4/5/6       │
-  └───────────────────────────┬──────────────────────────────────┘
-                              ▼ NP-1/2/4 启动 G2；NP-5/6 准入 G5/G6
- ┌──────┐  OS镜像(media://)  ┌─────────┐  公钥注入   ┌──────────┐
- │介质库 │──────────────────▶│ PXE装机  │───────────▶│ SSH互信   │
- │FR-1.8│                    └────┬────┘            └────┬─────┘
- └──┬───┘                          ▼ 回调               established
-    │ 参数目录FR-1.9          ┌─────────┐                   ▼
-    │ (下拉传参)              │ 预收集G1 │◀── 事件触发 ───────┘
-    │                        └────┬────┘
-    │                             ▼
-    │        ┌────────────────────────────────┐
-    │        │ LLDP线序G2（NP-1/2/4 后启动） │
-    │        └────┬───────────────────────────┘
-    │             ▼ NP-3 端口对三方确认；差异 T1–T7
-    │        ┌─────────┐    开单     ┌──────────┐
-    │        │ 工单闭环 │◀───────────│ issue-svc│
-    │        └────┬────┘   处置+重验证 └──────────┘
-    │             ▼ 关闭
-    │        ┌─────────────┐ MappingRevision ┌───────────┐
-    │        │ Mapping G3  │──────────────▶│ 网口监控    │
-    │        └────┬────────┘               │ portmon   │
-    │             ▼                        └─────┬─────┘
-    │        ┌─────────────┐   参数快照+        │ 告警
-    │        │ 基线配置 G4  │◀─ 角色方案(FR-5.9)  │ 开单
-    │        └────┬────────┘   ← model-svc      │
-    │             ▼                             ▼
-    │        ┌──────────────────────┐    ┌──────────┐
-    │        │ RoCE连通性测试 G5     │───▶│ 工单闭环  │
-    │        └────┬─────────────────┘    └──────────┘
-    │             ▼ netverified
-    │        ┌─────────────┐  失败溯源/调优
-    │        │ NCCL测试 G6  │────────────▶ S8/S9 → 工单/ConfigSet
-    │        └────┬────────┘
-    │             ▼
-    │        ┌─────────────┐ 先归档ACK/再撤销 ┌─────────────┐
-    │        │ 优雅退出     │◀─────────────▶│ CMDB 归档    │ FR-15
-    │        └────┬────────┘  ssh_trust=    │ (全息快照/    │
-    │             │            revoked      │  maintained) │
-    │             │                          └──────┬──────┘
-    │             ▼                                 ▼
-    │        ┌──────────────────────────────────────────┐
-    └────────┴─▶ 全程：介质分发（media://）+ 参数传参（param()）+ 审计   │
-             └──────────────────────────────────────────┘
-                                                    │
-                                     AIOps/运维系统 ◀┘（OpenAPI/导出消费）
-````
+```text
+ProjectProfile + DeviceModelVersion + Media/Param批准版本
+  → 统一BOM导入（服务器+网络）
+  → FR-0第0步：N-S2规划 → N-S3就绪 → N-S4最小ZTP
+     → N-S5网络预校验（主机口pending）→ N-S6 Golden/PushJob → N-S7健康/无损
+服务器可并行装机/G1/拓扑，但：
+  G2启动 ← NP-1 + NP-2（ZTP+Golden）+ NP-4新鲜readiness
+  G2三方确认 → NP-3 → G3映射 → G4基线配置
+  G5连通 / G6 NCCL ← 对应范围前序GateEvidence + NP-5/NP-6
+  → 清理/分阶段归档ACK/撤销 → maintained；客户签署另控Project.delivered
+全程：执行/资源锁/回执 + 源版本/证据 + 工单修复重验 + 审计
+```
 
-**依赖不变式（架构级断言，CI 校验，[I-1]–[I-12]，v3.0）**：
+**依赖不变式（架构级断言，CI校验，[I-1]–[I-12]）**：
 
-1. **[I-1] SSH 准入**：普通任务必须 established；仅受限 `trust.bootstrap`/`trust.repair` 可使用批准的一次性凭据建立/修复互信。不可将该例外扩为任意脚本；maintained 不允许通过该入口自动恢复带内访问。
-2. **[I-2] 介质引用**：涉及介质分发/安装/刷写的任务必须引用已批准 `media://` 对象与摘要；纯查询、等待、KV 等任务无需虚构介质引用。Flow 保存可接受合法草稿，发布/执行时完成引用和依赖校验。
-3. **[I-3] NCCL 准入**：本次目标集合/通信组所需 G5 范围和路径必须有当前有效 GateEvidence，版本/档位匹配；tested 等后续状态可重测，maintained 仍拒绝。前后端均检查，API 返回实际缺口，不能以 Machine.state 恰等 netverified 代替。
-4. **[I-4] 工单修复与复测**：正常测试遇关联的未处置阻断告警拒绝；`issue.verify` 可在绑定工单/精确范围/有效权限下复测以形成关闭证据。G3 前的 T7 等允许获批 `issue.repair` 修复受影响上游门禁，不豁免身份/凭据/介质兼容/资源锁或维护白名单，修复后必须重验。
-5. **[I-5] 快照完整**：Execution 必须冻结项目、目标、FlowVersion、ParamSnapshot、介质摘要与 GateEvidence 指纹；参数可为空对象但快照不可缺失，不执行可变草稿。
-6. **[I-6] 独立期望与身份**：G1 前必须绑定已发布 model_version_id；Component/PhysicalPort 身份先于 G2；G3 确认 MappingRevision 并进入 mapped。BDF 仅为观察值，实际数据不能自行构造独立预期。
-7. **[I-7] 角色方案同源**：unused 槽位的配置跳过、监控不作在用端口告警、BOM 期望一致；仅检查项目 enabled_required_roles，角色/型号版本变更使受影响证据失效。
-8. **[I-8] 维护期白名单**：带内任务/动态采集停止；允许 BMC 自动只读轮询、人工只读刷新、人工 UID 和经独立审批授权的电源动作，B7 告警继续。其他动作须显式维护变更流程，不能借通用 Flow 或监控白名单执行。
-9. **[I-9] 豁免有限范围**：有效豁免只覆盖批准缺口、目标、版本和时间；进入 Waiver Register。过期/范围变化/上游版本改变重新阻断，GA 前清零或在签署交付报告明确接受，不可让 unknown/skipped 默认为 PASS。
-10. **[I-10] 项目隔离**：请求、Query key、SSE、草稿、确认框均明确 project_id；授权以请求与资源实际归属为准，不受其他标签页修改 session 偏好影响。两种切换入口只导航当前页；跨项目运维仅聚合用户获授权的范围。
-11. **[I-11] 网络证据不冒充 PASS**：网络前置（NP-1～NP-6）与无损判定（LL-01～LL-07）在数据不可采集/规则停用/设备能力不支持时，结论必须为 `unknown`/`BLOCKED` 并标注 `degraded`/`approximation`/`estimated`，**不得静默为 `normal`/PASS**；G5/G6 消费网络证据时按 GateEvidence 四值枚举（`PASS/FAIL/BLOCKED/WAIVED`），缺数据不得推定通过（NFR-19、PRD §1.5.3）。
-12. **[I-12] 导入包单批次一致性**：标准 BOM 导入包（PRD 附录 A.5）须包含七个逐实体 CSV，在一次提交内保证服务器物料与网络物料的引用完整性——线缆两端、`parent_uid`、端口 `(parent_uid, port_index)` 全部可解析，同一 `bom_import_batch_id` 同摘要幂等、异摘要拒绝覆盖；`BLOCK` 问题未清零不得进入 N-S4/ZTP 与 PXE 装机；字段映射由项目模板声明，不得代码硬编码。
+1. **[I-1] SSH准入**：普通任务established；仅受限trust.bootstrap/repair可用批准一次性凭据，例外不能扩为任意脚本或maintained自动恢复。
+2. **[I-2] 介质引用**：分发/安装/刷写引用approved media://与摘要；查询/等待/KV不虚构介质；发布/执行验引用，草稿可未就绪。
+3. **[I-3] NCCL准入**：目标/通信组所需当前有效G5范围/路径/档位匹配，tested可重测、maintained拒绝，不能只比Machine.state。
+4. **[I-4] 工单修复与复测**：正常测试拒绝关联未处置阻断故障；issue.repair/verify限定对象/权限/范围，不豁免身份/凭据/介质/锁/维护白名单，完成须重验。
+5. **[I-5] 快照完整**：Execution冻结project、目标、FlowVersion、ParamSnapshot、介质摘要和GateEvidence指纹；空参数仍保存快照，不执行可变草稿。
+6. **[I-6] 独立期望与身份**：G1前发布型号绑定；Component/PhysicalPort先于G2；G3发布MappingRevision；BDF/实测不能自造独立期望。
+7. **[I-7] 角色同源**：unused/required角色在BOM、渲染、采集/告警同源；角色/型号换版invalidate相关证据。
+8. **[I-8] 维护白名单**：停带内；仅BMC只读/UID与独立审批电源等明确动作，其他变更走维护流程，不借Flow/监控绕过。
+9. **[I-9] 有限豁免**：只覆盖批准缺口/对象/版本/时间，Waiver Register留存；过期/换版阻断，GA前清零或签署明确接受，unknown/skipped不变PASS。
+10. **[I-10] 项目隔离**：请求/缓存/SSE/草稿/确认框显式项目与实际资源归属一致；双入口只导航当前标签，运维仅聚合获授权项目。
+11. **[I-11] 网络证据不冒充PASS**：NP与LL缺数据/停规则/能力不支持均unknown并按门禁BLOCKED+降级；sim不冒充real；N-S5不产NP-3，N-S4不单独产NP-2。
+12. **[I-12] 导入包单批一致**：标准包七实体CSV存在，单事务双域引用完整；身份按业务键，同批同摘要幂等/异摘要拒绝；BLOCK不提交/不启动N-S4或PXE，映射来自项目模板。
 
-**验证落点**：契约/RBAC schema 检查 + gate/执行状态机集成测试 + 双标签页 E2E + 故障注入。覆盖事件重复/丢 ACK、已执行未回执、过期证据/换件失效、异通道资源争用、整组 NCCL 失败、T7 修复与工单复测、撤销后断线恢复、跨项目缓存/SSE 和无权限拖拽。mock/模拟规模、真实传输和真机 PoC 分开报告，不将设计契约存在当作实现通过；**网络侧增补：ZTP 引导失败注入、PushJob 13 态与灰度/回滚、规则 dry-run 零副作用、无损降级三路径（无 WJH/per-XOFF/队列深度）全部 `unknown`、导入包缺列/坏引用/路径穿越注入**。mock/模拟规模、真实传输和真机 PoC 分开报告，不将设计契约存在当作实现通过。
+**验证节奏**：同一完整能力先运行关键决策unit/协议连通，再做一次真实持久化→API→UI功能集成；仅在新增改动、失败或明确未解决风险时定向重跑。PR/阶段执行规定全套门禁，性能和硬件指标按既定验收时点留证。无硬件不反复重跑模拟全套，也不删掉业务逻辑、安全拒绝和恢复覆盖；详见实施计划的验证方法表。
+
+验证映射到ACCEPTANCE的契约、状态机/故障注入、浏览器和H组PoC：重复/丢ACK、未知副作用、过期/换件失效、跨通道争锁、组任务失败、上游修复、撤销恢复、跨标签/项目、ZTP隔离/冲突、PushJob13态/灰度/回滚、规则零副作用/三种unknown降级、BOM坏引用/路径穿越。报告分别注明设计检查、sim、真实传输和真机范围；本文检查通过仅证明文档契约完整。

@@ -2,8 +2,8 @@
   "schema_version": 1,
   "design_version": "v3.0.3",
   "product": "keel",
-  "updated_at": "2026-10-20",
-  "status_semantics": "Design mappings are requirements, not evidence that implementation or validation has passed. FR-0 (network base prerequisite domain) is mapped alongside FR-1..FR-17; network capabilities are supplied in-domain (FR-0.8 evidence interface) with a third-party adapter form.",
+  "updated_at": "2026-10-23",
+  "status_semantics": "Design mappings define required scope, not completed implementation. planned/partial describe the whole mapped requirement; individual tests, deployment health and hardware PoC are separate evidence. Preserve valid evidence and rerun only affected checks; full gates run at the documented PR/phase boundaries. Current runtime and remaining work are in docs/HANDOFF.md.",
   "requirements": [
     {
       "id": "FR-0",
@@ -55,7 +55,7 @@
         "F-0.12"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Unified BOM/network modeling and project-scoped ZTP identity preview plus simulation session timeline are partial development work. Real boot channels, Kea, approved isolation template, network readiness evidence and NP-1..NP-6 remain unimplemented; no FR-0 acceptance PASS is claimed."
+      "implementation_notes": "BOM/model and ZTP framework are partially implemented. Mock offers, protocol/listener primitives and simulation evidence are distinct from real DHCP/device readiness. N-S5 files are unreviewed worktree drafts, not a delivered API/UI. Golden, health/lossless, rule governance, readiness and final cross-domain evidence remain incomplete."
     },
     {
       "id": "FR-1",
@@ -81,7 +81,8 @@
         "F-1.12",
         "F-1.13"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Execution simulation, media/parameter/model references and supporting pages have P1 implementation records. The complete Agent/SSH runtime, task catalog, scheduler and all FR-1 acceptance requirements still need verification; this documentation revision does not claim PASS."
     },
     {
       "id": "FR-2",
@@ -111,7 +112,8 @@
         "F-2.4",
         "H-1"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Unified BOM import and compatibility entry are partially implemented; complete PXE/boot/media/trust acceptance remains incomplete. The server-only wide table cannot satisfy the FR-0 standard-package prerequisite."
     },
     {
       "id": "FR-3",
@@ -303,7 +305,7 @@
         "S-6"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Implemented local sign-in/session/logout, CLI bootstrap and six-role project reads. LDAP/OIDC, user-management UI, full permission catalog and audit UI remain planned.",
+      "implementation_notes": "Local authentication/session/revocation, project authorization and account/member/audit management have implementation records. LDAP/OIDC, full network roles/permissions, notifications and remaining platform controls are incomplete.",
       "evidence_refs": [
         "docs/HANDOFF.md",
         "internal/platform/store_integration_test.go",
@@ -399,7 +401,8 @@
         "F-14.3",
         "F-14.5"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Device model/version registry and import drafts, server/switch capability validation have implementation records. Full hardware capability coverage, model-based operations and corresponding PoC acceptance remain incomplete."
     },
     {
       "id": "FR-15",
@@ -465,7 +468,7 @@
         "F-17.5"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Implemented persisted project creation/list/detail and member authorization. Lifecycle transitions, asset assignment/history, cross-project operations and SSE remain planned.",
+      "implementation_notes": "Project persistence and membership scope exist. The shared Shell, dual project-switch entry, full ProjectContext, lifecycle and cross-project operations remain incomplete; preserve the distinction between a project tab bar and the final dual-plane workspace.",
       "evidence_refs": [
         "docs/HANDOFF.md",
         "internal/platform/store_integration_test.go",
@@ -1272,7 +1275,8 @@
         "WP-1.3",
         "WP-1.10",
         "WP-1.5",
-        "WP-1.12"
+        "WP-1.12",
+        "WP-1.15"
       ],
       "acceptance": [
         "F-2.1",
@@ -1299,14 +1303,17 @@
       "acceptance": [
         "F-1.5",
         "U-2",
+        "U-3",
         "U-5",
         "U-11",
         "U-12",
         "U-14",
-        "U-15"
+        "U-15",
+        "F-17.1",
+        "F-17.5"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Keel keel/rib login illustration, slogan, local login, project shell, and a project-scoped simulated executions view with target registration, execution detail, run control and paginated task attempts. OIDC callback, the Flow designer and the full component catalog remain planned.",
+      "implementation_notes": "Login, basic project workspace and simulated execution pages exist. The current horizontal navigation/header/content width do not satisfy the shared Shell in DESIGN-SYSTEM: 56px topbar, 240/56px sidebar, full-width content and dual-entry URL-derived ProjectContext remain incomplete. Existing page presence is not U-3 PASS.",
       "evidence_refs": [
         "web/src/features/execution/ExecutionsPage.tsx",
         "scripts/check-control-browser.mjs",
@@ -1438,7 +1445,7 @@
         "U-12"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Implemented local credentials, operator bootstrap, server sessions, CSRF, Origin checks, throttling, logout/revocation and authorized next. LDAP/OIDC remain planned.",
+      "implementation_notes": "Local credentials/bootstrap, sessions, CSRF/Origin, throttling, authorized next, revocation and account/member/audit administration have implementation records. LDAP/OIDC and the full v3.0.3 network role/permission catalog remain incomplete; see HANDOFF for evidence scope.",
       "evidence_refs": [
         "docs/HANDOFF.md",
         "internal/platform/store_integration_test.go",
@@ -1492,7 +1499,8 @@
       "depends_on": [
         "WP-2.3",
         "WP-2.14",
-        "WP-2.15"
+        "WP-2.15",
+        "WP-2.7"
       ],
       "acceptance": [
         "F-4.4",
@@ -1520,7 +1528,8 @@
       "phase": "P2",
       "depends_on": [
         "WP-2.5",
-        "WP-2.10"
+        "WP-2.10",
+        "WP-2.7"
       ],
       "acceptance": [
         "F-4.11",
@@ -1533,7 +1542,8 @@
       "id": "WP-2.7",
       "phase": "P2",
       "depends_on": [
-        "WP-2.6"
+        "WP-1.3",
+        "WP-1.6"
       ],
       "acceptance": [
         "F-4.7",
@@ -1620,7 +1630,8 @@
       "phase": "P2",
       "depends_on": [
         "WP-2.3",
-        "WP-1.12"
+        "WP-1.12",
+        "WP-2.7"
       ],
       "acceptance": [
         "F-4.14",
@@ -1636,7 +1647,8 @@
       "phase": "P2",
       "depends_on": [
         "WP-2.4",
-        "WP-2.12"
+        "WP-2.12",
+        "WP-2.7"
       ],
       "acceptance": [
         "F-4.17"
@@ -1924,7 +1936,8 @@
         "WP-4.5",
         "WP-4.7d",
         "WP-4.8",
-        "WP-4.9"
+        "WP-4.9",
+        "WP-4.10"
       ],
       "acceptance": [
         "F-1.10.1",
@@ -2028,7 +2041,11 @@
         "P-7",
         "P-8",
         "P-9",
-        "P-10"
+        "P-10",
+        "P-11",
+        "P-12",
+        "P-13",
+        "P-14"
       ],
       "implementation_status": "planned"
     },
@@ -2044,7 +2061,9 @@
         "S-3",
         "S-4",
         "S-5",
-        "S-6"
+        "S-6",
+        "S-7",
+        "S-8"
       ],
       "implementation_status": "planned"
     },
@@ -2141,14 +2160,18 @@
       "phase": "P1",
       "depends_on": [
         "WP-1.15",
-        "WP-1.6"
+        "WP-1.16",
+        "WP-1.4",
+        "WP-1.6",
+        "WP-1.10",
+        "WP-1.11"
       ],
       "acceptance": [
         "F-0.5",
         "H-16"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Switch BOM persists mgmt/base/other MAC identities with conflict checks; project-scoped identity preview resolves SN > mgmt > base > other. ZtpOnboardBoard lists and drives project simulation sessions; sessions persist the nine-stage evidence timeline, version checks, failure triad and bounded retry window; sim.managed never updates real switch readiness. Mock Kea validates/stages/commits 239/143/60/43 options and emits a golden DORA contract; project-scoped staging/active configs now persist and DORA is exposed through an authenticated simulation API. ZTP simulation DHCP transition now requires a backend mock DORA ACK from the committed project/batch N-S4 plan and records mock-kea:<hash>; nothing writes to real Kea. A 239 device GET path now checks direct management peer, exact committed URL, six Cumulus headers, SoT verdict and approved ztp_script digest before serving fixed isolation-v1; no production config. Dedicated 239 TLS and 143 mTLS/IDevID channels now serve approved isolation only. Mock offer commit requires approved media and rejects overlapping 143 routes; retired media stops simulated ACK. RFC 8572 JSON progress reports are bound to recent IDevID bootstrap delivery and stored as append-only observations, never as verified managed state. BOM credential batch metadata now persists references only; simulated reachable/expired/unreachable verdicts gate managed, feed retry and record project issues. A run action now drives remaining simulation stages through the same gates and records retryable gate failures; its safe fixture is durable and the due worker automatically resumes those stages to the bounded final failure. Real Kea jobs/DORA, device trust/hardware PoC, real device full-stage execution, real Vault/device credential checks and full golden contracts remain; F-0.5 is not passed.",
+      "implementation_notes": "BOM identity lookup, durable mock Kea plans/DORA, dedicated 239/143 listener primitives, isolation artifact approval, simulated timeline/retry and credential failure classification exist. The real Kea adapter is not connected to the complete approved Flow; personalized minimal management configuration, actual credential provider/reachability and environment preflight remain incomplete. Keep the existing fixtures; do not extend manual simulation controls as the main deliverable. No real managed/NP-2 or hardware PoC PASS is claimed.",
       "evidence_refs": [
         "internal/platform/bom_switch_identity.go",
         "internal/platform/migrations/015_switch_identity_macs.sql",
@@ -2205,7 +2228,8 @@
       "phase": "P2",
       "depends_on": [
         "WP-1.16",
-        "WP-1.17"
+        "WP-1.17",
+        "WP-2.7"
       ],
       "acceptance": [
         "F-0.6",
@@ -2221,6 +2245,7 @@
       "depends_on": [
         "WP-1.15",
         "WP-1.16",
+        "WP-1.11",
         "WP-2.14"
       ],
       "acceptance": [
@@ -2234,6 +2259,8 @@
       "phase": "P3",
       "depends_on": [
         "WP-2.14",
+        "WP-2.15",
+        "WP-2.10",
         "WP-1.11"
       ],
       "acceptance": [
@@ -2254,13 +2281,14 @@
         "WP-2.15"
       ],
       "acceptance": [
-        "F-0.5",
-        "F-0.6",
-        "F-0.10",
-        "F-0.11",
+        "E-6",
         "H-15",
         "H-16",
         "H-17",
+        "H-18",
+        "P-11",
+        "P-12",
+        "P-13",
         "P-14"
       ],
       "implementation_status": "planned"
@@ -2270,21 +2298,30 @@
       "phase": "P4",
       "depends_on": [
         "WP-3.14",
+        "WP-3.15",
         "WP-2.15",
         "WP-2.13",
         "WP-4.4"
       ],
       "acceptance": [
         "F-0.12",
-        "H-18",
-        "F-0.13"
+        "F-0.13",
+        "P-11",
+        "P-12",
+        "P-13",
+        "P-14",
+        "H-15",
+        "H-16",
+        "H-17",
+        "H-18"
       ],
       "implementation_status": "planned"
     }
   ],
   "implementation_checkpoint": {
-    "stage": "P1 stage gate complete at p1-complete (e7d5f1a); development restarted from this tag",
-    "scope": "P1 sim and PoC package evidence only; FR-0 network, P2-P5 and hardware PoC execution remain planned",
-    "runtime": "3000 development preview at df95d0b with 25 migrations; FR-0 remains partial, operational details in docs/HANDOFF.md"
-  }
+    "stage": "Development branch derives from p1-complete (e7d5f1a), which closed the historical P1 scope before v3.0.3 network expansion; it does not close the current P1 work packages.",
+    "scope": "FR-0 remains partial; actual progress, untracked drafts and paused code-development status are in docs/HANDOFF.md. Current task reorganizes documentation only.",
+    "runtime": "3000 last verified at df95d0b; last deployment record has 25 migrations. Runtime snapshot and backup references are maintained only in docs/HANDOFF.md."
+  },
+  "execution_guide": "docs/DEVELOPMENT.md"
 }

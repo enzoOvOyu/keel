@@ -2,63 +2,48 @@
 
 **Knowledge-led Execution, Enforcement & Lifecycle**
 
-自动交付部署平台。品牌字标使用 **Keel**，仓库、包名与服务标识使用 `keel`。设计基线为 PRD v3.0.3，覆盖 FR-0 网络前置域与 FR-1～FR-17。部署预览 3000 端口现运行 `dev/p1-network-bom` 的 `df95d0b` 开发镜像；该分支以登录页完成版 `p1-complete`（`e7d5f1a`）为祖先，登录页源码未改动。FR-0 仍在开发，3000 用于查看当前已实现的 BOM/ZTP 页面，不代表 FR-0 验收完成。
+面向 B300/GB300 集群的交付部署平台。目标范围为 PRD v3.0.3 的 FR-0 网络前置域与 FR-1～FR-17；具体已实现能力、运行版本和剩余项见 [HANDOFF](docs/HANDOFF.md)。设计范围不等于实现进度。
 
-## 当前可用能力
+## 开发入口
 
-- `/login`：船体龙骨与肋骨线条动画、中文/英文、明暗主题、移动布局与减少动画偏好。
-- 本地账号登录、预登录 CSRF、HttpOnly 服务端会话、退出撤销、账号/IP 失败限流。没有默认口令或公开注册；首个管理员通过服务器 CLI 初始化。
-- `/projects`：真实授权项目列表与空状态；平台管理员可创建项目。`/p/<projectId>` 显示该项目的真实基础信息和当前角色。
-- PostgreSQL 持久化用户、会话、项目、成员、审计与幂等回执；项目创建、创建者成员关系和审计同事务。六种项目角色已建立，当前只开放已实现的项目权限。
-- Go/gin/ent 后端、React/TypeScript/Vite 前端、OpenAPI 类型生成、受校验的版本迁移、Compose 与 tmux 开发环境。
-
-`/healthz` 只表示进程存活。`/api/v1` 返回 `phase: p1-foundation`；`business_ready: false` 表示整体交付业务尚未就绪。认证状态为 `not_configured`、`setup_required` 或 `ready`，登录页据此展示真实入口。
-
-LDAP/OIDC、成员管理网页、项目生命周期变更、ProjectAsset、执行调度、Agent 与硬件联调属于后续工作；页面没有虚构设备指标或执行能力。
-
-## 在远端继续开发
-
-主工作区：`ubuntu@43.207.20.26:/opt/keel`。先读 [协作约定](AGENTS.md)、[交接记录](docs/HANDOFF.md) 与 [部署说明](docs/DEPLOYMENT.md)。
+主工作区：`ubuntu@43.207.20.26:/opt/keel`，既有 tmux 会话：`codex-keel`。
 
 ```sh
 cd /opt/keel
 git status -sb
-sh scripts/dev-session.sh
 tmux attach -t codex-keel
 ```
 
-已有 `codex-keel` 会话包含 work/api/web/logs；脚本不重启已有窗口。按 **Ctrl-b，再按 d** 分离，SSH 断开后进程继续。开发 API 使用3001，Vite使用5173，部署预览使用3000。
+先读 [AGENTS](AGENTS.md) 与 [Codex 开发入口](docs/DEVELOPMENT.md)。Ctrl-b 再按 d 仅分离会话。当前 `scripts/dev-session.sh` 固定使用另一会话名 `keel`，恢复本项目时直接复用 `codex-keel`。
 
-从自己的电脑建立隧道：
-
-```sh
-ssh -i /path/to/enzo-using.pem -N   -L 3000:127.0.0.1:3000   -L 5173:127.0.0.1:5173   ubuntu@43.207.20.26
-```
-
-访问 `http://localhost:3000/login`，或打开 `http://localhost:5173` 进行热更新开发。每台电脑自行配置私钥路径，不把密钥放进仓库。
-
-## 检查与持久化
-
-```sh
-npm ci
-make check
-make build
-```
-
-`make check` 包含设计检查、Go vet/race、前端类型检查和构建。真实 PostgreSQL 单测需另设 `KEEL_TEST_DATABASE_URL`；未配置时会明确跳过这部分，不能据此声称集成验证通过。隔离数据库及 HTTP/浏览器验证方式见 [部署说明](docs/DEPLOYMENT.md)。
-
-`make dev-api` 自动读取服务器 `/home/ubuntu/.config/keel/development.env`，使用受限数据库账号 `keel_app`。数据库迁移和账号管理使用独立 `admin.env`，通过 `keel-admin` CLI 执行；API 启动不会自动修改数据库结构。两份配置及初始密码文件均仅保留服务器，权限600。
-
-## 设计入口
-
-| 文档 | 职责 |
+| 文档 | 负责的内容 |
 |---|---|
-| [PRD](PRD.md) | 功能与业务判据 |
-| [架构](ARCHITECTURE.md) | 模型、协议、状态与边界 |
-| [前端设计](DESIGN-SYSTEM.md) | Keel品牌、登录、页面与交互 |
-| [实施计划](IMPLEMENTATION-PLAN.md) | 工作包与依赖 |
-| [验收](ACCEPTANCE.md) | 验收ID与证据要求 |
-| [需求追踪](docs/requirements-traceability.json) | 需求、设计和实现状态 |
-| [工具链](docs/TOOLCHAIN.json) | 固定版本与来源 |
+| [PRD v3.0.3](PRD.md) | 产品需求、业务判据、BOM 权威格式和网络前置 |
+| [DESIGN-SYSTEM v3.0.3](DESIGN-SYSTEM.md) | 品牌、工作台布局、页面、组件、交互与令牌 |
+| [ARCHITECTURE](ARCHITECTURE.md) | 模块、数据、状态、协议和执行不变式 |
+| [IMPLEMENTATION-PLAN](IMPLEMENTATION-PLAN.md) | 工作包、依赖、交付物和阶段退出条件 |
+| [ACCEPTANCE](ACCEPTANCE.md) | 功能/性能/安全/UX/PoC 判据与证据格式 |
+| [需求追踪](docs/requirements-traceability.json) | FR→WP→验收映射与实现状态 |
+| [HANDOFF](docs/HANDOFF.md) / [DEPLOYMENT](docs/DEPLOYMENT.md) | 当前事实 / 操作方法 |
 
-GitHub：`https://github.com/enzoOvOyu/keel`。服务器 origin 使用 `git@github.com:enzoOvOyu/keel.git`，通信已恢复；源码提交、运行镜像和 GitHub Actions 的结果分别核验。
+[开发入口](docs/DEVELOPMENT.md) 同时登记两份基准的差异和下游采用依据。历史审查与交接原文保留在 [history](docs/history/2026-10-23/README.md)，不作为当前开发指令。
+
+## 访问与检查
+
+部署预览为远端 3000；开发 API 为 3001，Vite 为 5173。源码更新不会自动更新已构建的 3000 镜像。
+
+```sh
+ssh -i /path/to/enzo-using.pem -N -L 3000:127.0.0.1:3000 -L 5173:127.0.0.1:5173 ubuntu@43.207.20.26
+```
+
+通过隧道访问 `http://localhost:3000/login`；需要热更新时使用已启动的 `http://localhost:5173`。私钥和真实配置不进入仓库。
+
+```sh
+python3 scripts/check-design.py
+```
+
+纯设计修改运行上面的检查；实现修改按影响运行 Go/前端检查，完整工程检查为 `make check`，构建为 `make build`。真实 PostgreSQL 集成测试需独立 `keel_test_` 数据库，缺失配置时的 Skip 不是通过；运行方法见 [DEPLOYMENT](docs/DEPLOYMENT.md)。
+
+固定工具链见 [TOOLCHAIN](docs/TOOLCHAIN.json) 及 lockfile。源码、镜像、数据库迁移、浏览器交互与 GitHub Actions 结果分别核验；`/healthz` 只表示进程存活。
+
+仓库：[enzoOvOyu/keel](https://github.com/enzoOvOyu/keel)。
