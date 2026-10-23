@@ -305,12 +305,14 @@
         "S-6"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Local authentication/session/revocation, project authorization and account/member/audit management have implementation records. LDAP/OIDC, full network roles/permissions, notifications and remaining platform controls are incomplete.",
+      "implementation_notes": "Local authentication/session/revocation, project authorization and account/member/audit management have implementation records. LDAP/OIDC, full network roles/permissions, notifications and remaining platform controls are incomplete. Network member roles NDE/NH now span CLI/API/database/UI. Implemented ZTP writes use target-project fabric:plan checks; cross-project capability union is navigation only. Approval signatures and production push authorization remain incomplete.",
       "evidence_refs": [
         "docs/HANDOFF.md",
         "internal/platform/store_integration_test.go",
         "scripts/check-auth-integration.py",
-        "scripts/check-auth-browser.mjs"
+        "scripts/check-auth-browser.mjs",
+        "internal/platform/fabric_permissions.go",
+        "internal/platform/fabric_permissions_integration_test.go"
       ]
     },
     {

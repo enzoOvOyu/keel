@@ -86,7 +86,7 @@ go run ./cmd/keel-admin init-admin --username enzo --display-name Enzo --passwor
 
 初始化只允许一次。密码至少12字节、最多1024字节，不通过命令参数或 stdin 明文传入；省略密码文件时从真实终端隐藏输入。账号创建、改密、禁用、解锁、成员授权等用 `go run ./cmd/keel-admin --help` 和相应子命令查看当前参数，不在本文复制第二份完整 CLI 目录。
 
-当前六角色实现与目标 NDE/NH 扩展的差异见 HANDOFF/DEVELOPMENT；不能因 CLI 接受某个角色名称就声称完整网络权限已交付。平台 Admin 与项目 Admin 分开；禁用/改密/成员变更撤销旧会话，最后有效管理员保护由服务端执行。
+成员目录已支持八角色（含NDE/NH）；当前网络权限实施范围见HANDOFF/DEVELOPMENT。接受角色名称不代表审批签名、生产下发及完整网络权限已交付。平台 Admin 与项目 Admin 分开；禁用/改密/成员变更撤销旧会话，最后有效管理员保护由服务端执行。
 
 ## 5. 检查和隔离集成验证
 
