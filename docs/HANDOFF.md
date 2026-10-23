@@ -77,3 +77,13 @@
 下一完整功能：将批准规划与新鲜N-S3报告接入真实Kea/Execution准入及239/143设备入口，补配置持久化/读回/DORA、个性化最小管理配置与真实凭据取用；之后推进N-S5/Golden。不扩展手动推进仿真。
 
 发布记录：`6dfd0df` 已推送并部署3000；从干净归档构建，未纳入026草稿或AGENTS用户修改。迁移前备份 `/home/ubuntu/.local/state/keel/backups/pre-ztp-preparation-20261023T110442Z.dump`，pg_restore目录可读，未演练恢复；028迁移及应用角色新表授权成功。进程健康与部署UI/CSS摘要复核通过。GitHub Actions未在本轮查询，不声称CI通过。
+
+## 10. Kea 控制作业与统一Runner增量
+
+新增Kea暂存/执行API及页面，复用N-S2规划、有效N-S3、独立批准脚本与SoT管理MAC；已接入现有Execution/attempt/outbox/fencing/资源租约/回执。统一目标注册新增kea类型，未伪装成sim库存；generic sim入口拒绝系统Kea流程，普通DE/SRE不能操作Kea控制。
+
+真实协议适配支持config-get/test/set/write、活动与完整内容读回；只合并批准子网内目标239预留，完整配置/其中凭据只在内存中。写入不明不伪造失败回执，reaper隔离资源并阻止后续写入。修改入口/协议依据/PoC配置与剩余边界见[KEA-RUNNER](KEA-RUNNER.md)。新增029迁移独立于未提交026草稿。
+
+实际验证：定向Kea协议、冲突/大整数/秘密保留测试；真实API+worker+PostgreSQL+双向TLS协议桩浏览器链及未知写入隔离通过（`/tmp/keel-shell-mmgiri2k`）。原执行器9组边界回归、24逻辑目标100%完成（`/tmp/keel-shell-g87izpv0`），Go vet、前端类型/构建通过。未跑2000规模，未接真实Kea/交换机，未查GitHub Actions。新模块默认不启用写入。
+
+下一步：真实DORA/lease验证与真实活动引导路由、239/143入口准入接线；随后个性化最小管理渲染、凭据、N-S5/Golden。当前config_persisted不等于设备managed或NP PASS，FR-0仍未闭环。

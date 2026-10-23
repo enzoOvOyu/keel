@@ -76,7 +76,7 @@ function CreateExecutionDialog({ projectId, onClose, onDone }: { projectId: stri
   }
   return <ActionDialog title={t('newExecution')} description={t('newExecutionDetail')} busy={action.busy} confirm={t(action.busy ? 'starting' : 'startExecution')} onSubmit={(event) => void submit(event)} onClose={onClose}>
     <ActionError error={action.error} />{validation && <p className="field-error" role="alert">{validation}</p>}
-    <div className="field"><label htmlFor="execution-flow">{t('selectFlow')}</label><select id="execution-flow" value={flowVersionId} onChange={(event) => setFlowVersionId(event.target.value)} required disabled={action.busy}>{!flowVersionId && <option value="">—</option>}{flows.data?.items.map((flow) => <option key={flow.id} value={flow.id}>{flow.name} · v{flow.version}</option>)}</select>{!flows.data?.items.length && <span className="field-hint">{t('noFlows')}</span>}</div>
+    <div className="field"><label htmlFor="execution-flow">{t('selectFlow')}</label><select id="execution-flow" value={flowVersionId} onChange={(event) => setFlowVersionId(event.target.value)} required disabled={action.busy}>{!flowVersionId && <option value="">—</option>}{flows.data?.items.filter(flow=>flow.definition.api_version==='keel.sim/v1').map((flow) => <option key={flow.id} value={flow.id}>{flow.name} · v{flow.version}</option>)}</select>{!flows.data?.items.length && <span className="field-hint">{t('noFlows')}</span>}</div>
     <div className="field"><label htmlFor="execution-profile">{t('parameterProfile')}</label><input id="execution-profile" value={profile} onChange={(event) => setProfile(event.target.value)} maxLength={64} required disabled={action.busy} /><span className="field-hint">{t('parameterProfileHint')}</span></div>
     <div className="field"><label htmlFor="execution-total">{t('targetCount')}</label><input id="execution-total" type="number" min={1} max={2000} value={total} onChange={(event) => setTotal(event.target.value)} required disabled={action.busy} /></div>
     <div className="field"><label htmlFor="execution-concurrency">{t('concurrency')}</label><input id="execution-concurrency" type="number" min={1} max={64} value={concurrency} onChange={(event) => setConcurrency(event.target.value)} required disabled={action.busy} /></div>
@@ -88,7 +88,7 @@ function ExecutionPanel({ projectId, executionId, onClose }: { projectId: string
   const { t, i18n } = useTranslation(), session = useSession(), client = useQueryClient()
   const control = useAction()
   const [attemptPage, setAttemptPage] = useState(1)
-  const canControl = session.permissions.includes('execution:control')
+  const currentProject=useProject()
   const detail = useQuery({ queryKey: ['private', session.user.id, 'project', projectId, 'execution', executionId],
     queryFn: ({ signal }) => getExecution(projectId, executionId, signal),
     refetchInterval: (query) => { const state = query.state.data?.execution.state; return state && !terminalStates.includes(state) ? 3000 : false } })
@@ -105,9 +105,10 @@ function ExecutionPanel({ projectId, executionId, onClose }: { projectId: string
   if (detail.isPending) return <section className="management-panel" role="status">{t('loadingRecords')}</section>
   if (detail.isError || !detail.data) return <section className="management-panel"><ActionError error={detail.error ?? new Error('unavailable')} /><button className="secondary-button" onClick={onClose}>{t('backToList')}</button></section>
   const execution = detail.data.execution
+  const canControl=execution.mode==='kea'?(session.user.is_admin||['Admin','NDE'].includes(currentProject.role)):session.permissions.includes('execution:control')
   const active = !terminalStates.includes(execution.state)
   return <section className="management-panel" aria-busy={detail.isFetching}>
-    <div className="page-heading"><div><p className="section-eyebrow">{t('simulationNotice')}</p><h1>{t('executionDetail')}</h1><p>{t('noDeviceConnection')}</p></div>
+    <div className="page-heading"><div><p className="section-eyebrow">{t(execution.mode==='kea'?'keaControlNotice':'simulationNotice')}</p><h1>{t('executionDetail')}</h1><p>{t(execution.mode==='kea'?'keaControlDetail':'noDeviceConnection')}</p></div>
       <button className="secondary-button" onClick={onClose}>{t('backToList')}</button></div>
     <dl className="action-target"><dt>{t('executionId')}</dt><dd className="mono-value">{execution.id}</dd><dt>{t('executionState')}</dt><dd>{t('state_' + execution.state)}</dd>
       <dt>{t('executionTargets')}</dt><dd>{detail.data.attempts_total}</dd><dt>{t('executionConcurrency')}</dt><dd>{execution.concurrency}</dd>
@@ -148,15 +149,15 @@ function ExecutionsContent() {
     <div className="page-heading"><div><p className="section-eyebrow">{project.name}</p><h1>{t('executionsTitle')}</h1><p>{t('executionsIntro')}</p></div>
       <div className="table-actions">{canRegister && <button className="secondary-button" onClick={() => { setSuccess(''); setRegister(true) }}>{t('registerTargets')}</button>}
         {canCreate && <button className="primary-button" onClick={() => { setSuccess(''); setCreate(true) }}>{t('newExecution')}</button>}</div></div>
-    <p className="impact-notice">{t('simulationNoticeDetail')}</p>
+    <p className="impact-notice">{t('executionModesNotice')}</p>
     {success && <SuccessNotice>{success}</SuccessNotice>}
     {canRegister && targets.data && <p className="field-hint">{t('targetsRegistered', { total: targets.data.total })}</p>}
     {executionId ? <ExecutionPanel projectId={project.id} executionId={executionId} onClose={() => go(page)} /> : <>
       <section className="management-panel" aria-busy={executions.isFetching}>
         <ActionError error={executions.error} />
         {executions.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : executions.data && <>
-          <div className="table-scroll" tabIndex={0} role="region" aria-label={t('executionListTitle')}><table className="data-table"><thead><tr><th scope="col">{t('executionState')}</th><th scope="col">{t('executionTargets')}</th><th scope="col">{t('executionConcurrency')}</th><th scope="col">{t('executionStarted')}</th><th scope="col">{t('executionFinished')}</th><th scope="col">{t('actions')}</th></tr></thead>
-            <tbody>{executions.data.items.map((execution) => <tr key={execution.id}><td>{t('state_' + execution.state)}</td><td>{execution.target_count}</td><td>{execution.concurrency}</td><td>{format(execution.started_at)}</td><td>{format(execution.finished_at)}</td><td><button onClick={() => go(page, execution.id)}>{t('viewExecution')}</button></td></tr>)}</tbody></table>
+          <div className="table-scroll" tabIndex={0} role="region" aria-label={t('executionListTitle')}><table className="data-table"><thead><tr><th scope="col">{t('executionState')}</th><th scope="col">Mode</th><th scope="col">{t('executionTargets')}</th><th scope="col">{t('executionConcurrency')}</th><th scope="col">{t('executionStarted')}</th><th scope="col">{t('executionFinished')}</th><th scope="col">{t('actions')}</th></tr></thead>
+            <tbody>{executions.data.items.map((execution) => <tr key={execution.id}><td>{t('state_' + execution.state)}</td><td>{execution.mode}</td><td>{execution.target_count}</td><td>{execution.concurrency}</td><td>{format(execution.started_at)}</td><td>{format(execution.finished_at)}</td><td><button onClick={() => go(page, execution.id)}>{t('viewExecution')}</button></td></tr>)}</tbody></table>
             {!executions.data.items.length && <p className="table-loading">{t('noExecutions')}</p>}</div>
           <Pagination offset={(page - 1) * executions.data.page_size} limit={executions.data.page_size} total={executions.data.total} busy={executions.isFetching} onChange={(offset) => go(offset / executions.data.page_size + 1)} /></>}
       </section></>}

@@ -1696,6 +1696,68 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/projects/{id}/ztp/kea-deployments:
+    get:
+      operationId: listKeaDeployments
+      x-permission: fabric:read
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: Operator write capability, approved policy catalog and recent control deployments
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled, deployments, policies]
+                properties:
+                  enabled: { type: boolean }
+                  deployments: { type: array, items: { $ref: '#/components/schemas/KeaDeployment' } }
+                  policies:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name, version]
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+                        version: { type: string }
+  /api/v1/projects/{id}/ztp/kea-deployments/stage:
+    post:
+      operationId: stageKeaDeployment
+      x-permission: fabric:plan
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [batch_ref, policy_media_id]
+              properties:
+                batch_ref: { type: string }
+                policy_media_id: { type: string }
+      responses:
+        '201':
+          description: Persisted immutable plan after live config-get/config-test; no DHCP writes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KeaDeployment' }
+        '409': { description: Missing operator configuration, fresh environment evidence, approved policy or compatible reservation }
+  /api/v1/projects/{id}/ztp/kea-deployments/{deploymentId}/execute:
+    post:
+      operationId: executeKeaDeployment
+      x-permission: fabric:plan
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: deploymentId, in: path, required: true, schema: { type: string } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      responses:
+        '201':
+          description: Accepted into the shared Execution queue; config success does not mean DORA/device/NP success
+          content:
+            application/json:
+              schema: { $ref: './execution.openapi.yaml#/components/schemas/Execution' }
+        '409': { description: Stale/already queued deployment }
   /api/v1/projects/{id}/ztp/environment-checks:
     parameters:
       - { name: id, in: path, required: true, schema: { type: string } }
@@ -2349,6 +2411,45 @@ components:
         reasons:
           type: array
           items: { type: string }
+    KeaDeployment:
+      type: object
+      required: [id, project_id, state, spec, spec_hash, before_hash, candidate_hash, created_at]
+      properties:
+        id: { type: string }
+        project_id: { type: string }
+        execution_id: { type: string }
+        state: { type: string, enum: [staged, queued, applying, config_persisted, blocked, unknown] }
+        spec_hash: { type: string }
+        before_hash: { type: string }
+        candidate_hash: { type: string }
+        active_hash: { type: string }
+        failure_code: { type: string }
+        created_at: { type: string, format: date-time }
+        spec:
+          type: object
+          required: [plan_id, environment_id, probe_hash, controller_key, options, bindings]
+          properties:
+            plan_id: { type: string }
+            environment_id: { type: string }
+            probe_hash: { type: string }
+            controller_key: { type: string }
+            options:
+              type: object
+              required: [batch_ref, option_239_url]
+              properties:
+                batch_ref: { type: string }
+                option_239_url: { type: string }
+              additionalProperties: true
+            bindings:
+              type: array
+              items:
+                type: object
+                required: [switch_id, management_mac, management_ip, hostname]
+                properties:
+                  switch_id: { type: string }
+                  management_mac: { type: string }
+                  management_ip: { type: string }
+                  hostname: { type: string }
     ZTPEnvironmentInput:
       type: object
       required: [batch_ref, boot_channel]

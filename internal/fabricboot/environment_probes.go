@@ -18,12 +18,14 @@ import (
 )
 
 type ProbeTarget struct {
-	URL             string `json:"url"`
-	CAFile          string `json:"ca_file"`
-	CertificateFile string `json:"certificate_file,omitempty"`
-	KeyFile         string `json:"key_file,omitempty"`
-	ThroughAgent    bool   `json:"through_agent,omitempty"`
-	SHA256          string `json:"sha256,omitempty"`
+	AllowConfigWrite    bool   `json:"allow_config_write,omitempty"`
+	WriteTimeoutSeconds int    `json:"write_timeout_seconds,omitempty"`
+	URL                 string `json:"url"`
+	CAFile              string `json:"ca_file"`
+	CertificateFile     string `json:"certificate_file,omitempty"`
+	KeyFile             string `json:"key_file,omitempty"`
+	ThroughAgent        bool   `json:"through_agent,omitempty"`
+	SHA256              string `json:"sha256,omitempty"`
 }
 type ProbeConfig struct {
 	Version string                 `json:"version"`
@@ -219,4 +221,48 @@ func (p environmentProbe) check(ctx context.Context, name, channel string) (stri
 		}
 	}
 	return "ready", "protocol_verified"
+}
+
+func (s *ProbeSuite) DeploymentControl() (*KeaControl, string, error) {
+	if s == nil {
+		return nil, "", errors.New("Kea deployment is not configured")
+	}
+	probe, ok := s.targets["kea"]
+	if !ok || !probe.target.AllowConfigWrite {
+		return nil, "", errors.New("Kea configuration writes are not enabled by the server operator")
+	}
+	timeout := 15 * time.Second
+	if probe.target.WriteTimeoutSeconds != 0 {
+		if probe.target.WriteTimeoutSeconds < 1 || probe.target.WriteTimeoutSeconds > 60 {
+			return nil, "", errors.New("Kea write timeout must be 1 through 60 seconds")
+		}
+		timeout = time.Duration(probe.target.WriteTimeoutSeconds) * time.Second
+	}
+	client := *probe.client
+	client.Timeout = timeout
+	if transport, ok := probe.client.Transport.(*http.Transport); ok {
+		copy := transport.Clone()
+		copy.DisableKeepAlives = true
+		copy.ResponseHeaderTimeout = timeout
+		client.Transport = copy
+	}
+	control, e := newKeaControl(probe.target.URL, &client, probe.target.ThroughAgent)
+	return control, ManagementPlanDigest(struct {
+		URL   string
+		Agent bool
+	}{probe.target.URL, probe.target.ThroughAgent}), e
+}
+func (s *ProbeSuite) BootOrigin() (string, error) {
+	if s == nil {
+		return "", errors.New("boot probe not configured")
+	}
+	probe, ok := s.targets["boot"]
+	if !ok {
+		return "", errors.New("boot probe not configured")
+	}
+	u, e := url.Parse(probe.target.URL)
+	if e != nil {
+		return "", e
+	}
+	return u.Scheme + "://" + u.Host, nil
 }

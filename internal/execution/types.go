@@ -1,5 +1,5 @@
-// Package execution implements a durable simulation-only workflow kernel.
-// It does not execute shell commands, SSH, Agent RPCs, BMC calls, or hardware tests.
+// Package execution implements a durable workflow kernel with isolated simulation and Kea adapters.
+// It does not execute arbitrary shell commands or claim hardware test evidence.
 package execution
 
 import (
@@ -20,7 +20,10 @@ import (
 	"time"
 )
 
-type Service struct{ DB *sql.DB }
+type Service struct {
+	DB       *sql.DB
+	KeaStore *platform.Store
+}
 
 func New(db *sql.DB) *Service { return &Service{DB: db} }
 
@@ -70,7 +73,8 @@ type FlowVersion struct {
 	ContentHash string     `json:"content_hash"`
 	CreatedAt   time.Time  `json:"created_at"`
 }
-type SimTarget struct {
+type Target struct {
+	ResourceKey  string    `json:"resource_key,omitempty"`
 	ID           string    `json:"id"`
 	ProjectID    string    `json:"project_id"`
 	Name         string    `json:"name"`
@@ -80,6 +84,8 @@ type SimTarget struct {
 	CreatedAt    time.Time `json:"created_at"`
 	Mode         string    `json:"mode"`
 }
+type SimTarget = Target
+
 type RegisterInput struct {
 	Prefix string `json:"prefix"`
 	Count  int    `json:"count"`
@@ -121,7 +127,7 @@ type Execution struct {
 	FinishedAt            *time.Time     `json:"finished_at"`
 }
 type Attempt struct {
- Receipt *Receipt `json:"receipt"`
+	Receipt      *Receipt        `json:"receipt"`
 	ID           string          `json:"id"`
 	ExecutionID  string          `json:"execution_id"`
 	TargetID     string          `json:"target_id"`
@@ -139,28 +145,28 @@ type Attempt struct {
 	FinishedAt   *time.Time      `json:"finished_at"`
 }
 type ExecutionSummary struct {
- ID string `json:"id"`
- ProjectID string `json:"project_id"`
- FlowVersionID string `json:"flow_version_id"`
- Mode string `json:"mode"`
- State string `json:"state"`
- StateVersion int64 `json:"state_version"`
- DesiredState string `json:"desired_state"`
- TargetSetHash string `json:"target_set_hash"`
- TargetCount int `json:"target_count"`
- Concurrency int `json:"concurrency"`
- CircuitBreakerPercent int `json:"circuit_breaker_percent"`
- CreatedBy string `json:"created_by"`
- CreatedAt time.Time `json:"created_at"`
- StartedAt *time.Time `json:"started_at"`
- FinishedAt *time.Time `json:"finished_at"`
+	ID                    string     `json:"id"`
+	ProjectID             string     `json:"project_id"`
+	FlowVersionID         string     `json:"flow_version_id"`
+	Mode                  string     `json:"mode"`
+	State                 string     `json:"state"`
+	StateVersion          int64      `json:"state_version"`
+	DesiredState          string     `json:"desired_state"`
+	TargetSetHash         string     `json:"target_set_hash"`
+	TargetCount           int        `json:"target_count"`
+	Concurrency           int        `json:"concurrency"`
+	CircuitBreakerPercent int        `json:"circuit_breaker_percent"`
+	CreatedBy             string     `json:"created_by"`
+	CreatedAt             time.Time  `json:"created_at"`
+	StartedAt             *time.Time `json:"started_at"`
+	FinishedAt            *time.Time `json:"finished_at"`
 }
 
 type Detail struct {
- AttemptsTotal int `json:"attempts_total"`
-	Execution Execution      `json:"execution"`
-	Attempts  []Attempt      `json:"attempts"`
-	Counts    map[string]int `json:"counts"`
+	AttemptsTotal int            `json:"attempts_total"`
+	Execution     Execution      `json:"execution"`
+	Attempts      []Attempt      `json:"attempts"`
+	Counts        map[string]int `json:"counts"`
 }
 type ControlInput struct {
 	Action          string `json:"action"`
@@ -403,7 +409,7 @@ func authorize(ctx context.Context, tx *sql.Tx, a *Actor, projectID string, role
 		return e
 	}
 	if state == "archived" || state == "delivered" {
-		return conflict("project lifecycle does not permit simulated execution changes")
+		return conflict("project lifecycle does not permit execution changes")
 	}
 	if admin {
 		return nil

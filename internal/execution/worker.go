@@ -82,7 +82,7 @@ func (s *Service) Claim(ctx context.Context, worker string, lease time.Duration)
 	cursorTime := time.Unix(0, 0)
 	cursorID := ""
 	for {
-		rows, e := s.DB.QueryContext(ctx, "SELECT id,created_at FROM exec_executions WHERE desired_state='running' AND state IN('scheduled','dispatching','running') AND (created_at,id)>($1,$2) ORDER BY created_at,id LIMIT 64", cursorTime, cursorID)
+		rows, e := s.DB.QueryContext(ctx, "SELECT id,created_at FROM exec_executions WHERE desired_state='running' AND state IN('scheduled','dispatching','running') AND (created_at,id)>($1,$2) AND (mode='sim' OR ($3 AND mode='kea')) ORDER BY created_at,id LIMIT 64", cursorTime, cursorID, s.KeaStore != nil)
 		if e != nil {
 			return nil, e
 		}
@@ -133,10 +133,13 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 	// Lock the original submitter before any domain row, consistent with account
 	// revocation. UI logout does not cancel an accepted job; removed execution
 	// permission or account disable prevents subsequent task dispatch.
-	var creator, projectID string
-	e = tx.QueryRowContext(ctx, "SELECT created_by,project_id FROM exec_executions WHERE id=$1", id).Scan(&creator, &projectID)
+	var creator, projectID, executionMode string
+	e = tx.QueryRowContext(ctx, "SELECT created_by,project_id,mode FROM exec_executions WHERE id=$1", id).Scan(&creator, &projectID, &executionMode)
 	if e != nil {
 		return nil, e
+	}
+	if executionMode == "kea" && s.KeaStore == nil {
+		return nil, nil
 	}
 	var enabled, admin bool
 	e = tx.QueryRowContext(ctx, "SELECT enabled,is_admin FROM users WHERE id=$1 FOR SHARE", creator).Scan(&enabled, &admin)
@@ -155,7 +158,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 		if e != nil && !errors.Is(e, sql.ErrNoRows) {
 			return nil, e
 		}
-		allowed = allowed && (role == "Admin" || role == "DE" || role == "DL" || role == "SRE")
+		allowed = allowed && (role == "Admin" || (executionMode == "kea" && role == "NDE") || (executionMode == "sim" && (role == "DE" || role == "DL" || role == "SRE")))
 	}
 	x, e := scanExecution(tx.QueryRowContext(ctx, "SELECT "+executionColumns+" FROM exec_executions WHERE id=$1 AND desired_state='running' AND state IN('scheduled','dispatching','running') FOR UPDATE SKIP LOCKED", id))
 	if errors.Is(e, sql.ErrNoRows) {
@@ -233,7 +236,11 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 			}
 			resources := []string{}
 			for _, kind := range task.Resources {
-				resources = append(resources, kind+":sim:"+target.ID)
+				if x.Mode == "kea" {
+					resources = append(resources, "kea:"+target.ResourceKey)
+				} else {
+					resources = append(resources, kind+":sim:"+target.ID)
+				}
 			}
 			sort.Strings(resources)
 			mode := "exclusive"
@@ -288,7 +295,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 			if _, e = tx.ExecContext(ctx, "UPDATE exec_executions SET state='running',state_version=state_version+1,started_at=COALESCE(started_at,$2) WHERE id=$1", id, now); e != nil {
 				return nil, e
 			}
-			if e = event(ctx, tx, id, "attempt.started", map[string]any{"attempt_id": attempt.ID, "command_id": attempt.CommandID, "target_id": target.ID, "fencing_token": fence, "mode": "sim"}); e != nil {
+			if e = event(ctx, tx, id, "attempt.started", map[string]any{"attempt_id": attempt.ID, "command_id": attempt.CommandID, "target_id": target.ID, "fencing_token": fence, "mode": x.Mode}); e != nil {
 				return nil, e
 			}
 			attempt.State = "running"
@@ -434,7 +441,7 @@ func applyReceipt(ctx context.Context, tx *sql.Tx, a Attempt, r Receipt, allowRe
 			return e
 		}
 	}
-	return event(ctx, tx, a.ExecutionID, "attempt.receipt_applied", map[string]any{"attempt_id": a.ID, "result": r.Result, "fencing_token": a.FencingToken, "mode": "sim"})
+	return event(ctx, tx, a.ExecutionID, "attempt.receipt_applied", map[string]any{"attempt_id": a.ID, "result": r.Result, "fencing_token": a.FencingToken, "mode": x.Mode})
 }
 func (s *Service) ReapExpired(ctx context.Context) (int, error) {
 	rows, e := s.DB.QueryContext(ctx, "SELECT DISTINCT execution_id FROM exec_task_attempts WHERE state='running' AND lease_until<=now() LIMIT 100")
@@ -508,7 +515,7 @@ func (s *Service) reapExecution(ctx context.Context, id string) (int, error) {
 	if e = settle(ctx, tx, id); e != nil {
 		return 0, e
 	}
-	if e = event(ctx, tx, id, "attempt.result_unknown", map[string]any{"attempt_ids": attempts, "reason": "lease_expired", "mode": "sim"}); e != nil {
+	if e = event(ctx, tx, id, "attempt.result_unknown", map[string]any{"attempt_ids": attempts, "reason": "lease_expired"}); e != nil {
 		return 0, e
 	}
 	if e = audit(ctx, tx, "", projectID, "execution.result_unknown", id, "worker", map[string]any{"attempt_ids": attempts}); e != nil {
@@ -576,7 +583,7 @@ func (s *Service) Reconcile(ctx context.Context, a *Actor, projectID, id, attemp
 	if e = settle(ctx, tx, id); e != nil {
 		return nil, e
 	}
-	if e = audit(ctx, tx, a.User.ID, projectID, "execution.reconcile", attemptID, trace, map[string]any{"mode": "sim", "evidence": in.Evidence, "result": r.Result, "command_id": r.CommandID}); e != nil {
+	if e = audit(ctx, tx, a.User.ID, projectID, "execution.reconcile", attemptID, trace, map[string]any{"evidence": in.Evidence, "result": r.Result, "command_id": r.CommandID}); e != nil {
 		return nil, e
 	}
 	x, e := scanExecution(tx.QueryRowContext(ctx, "SELECT "+executionColumns+" FROM exec_executions WHERE id=$1", id))
@@ -589,17 +596,25 @@ func (s *Service) Reconcile(ctx context.Context, a *Actor, projectID, id, attemp
 	return &x, tx.Commit()
 }
 func (s *Service) WorkerHeartbeat(ctx context.Context, id string, active int) error {
-	_, e := s.DB.ExecContext(ctx, "INSERT INTO exec_worker_heartbeats(id,mode,active_count,observed_at) VALUES($1,'sim',$2,now()) ON CONFLICT(id) DO UPDATE SET active_count=EXCLUDED.active_count,observed_at=EXCLUDED.observed_at", id, active)
+	mode := "sim"
+	if s.KeaStore != nil {
+		mode = "mixed"
+	}
+	_, e := s.DB.ExecContext(ctx, "INSERT INTO exec_worker_heartbeats(id,mode,active_count,observed_at) VALUES($1,$2,$3,now()) ON CONFLICT(id) DO UPDATE SET mode=EXCLUDED.mode,active_count=EXCLUDED.active_count,observed_at=EXCLUDED.observed_at", id, mode, active)
 	return e
 }
 func (s *Service) WorkerHealthy(ctx context.Context, id string) error {
 	var yes bool
-	e := s.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM exec_worker_heartbeats WHERE id=$1 AND mode='sim' AND observed_at>now()-interval '10 seconds')", id).Scan(&yes)
+	mode := "sim"
+	if s.KeaStore != nil {
+		mode = "mixed"
+	}
+	e := s.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM exec_worker_heartbeats WHERE id=$1 AND mode=$2 AND observed_at>now()-interval '10 seconds')", id, mode).Scan(&yes)
 	if e != nil {
 		return e
 	}
 	if !yes {
-		return errors.New("simulation worker heartbeat stale")
+		return errors.New("execution worker heartbeat stale")
 	}
 	return nil
 }

@@ -1,10 +1,11 @@
-// keel-worker executes only the safe, explicitly simulated adapters.
+// keel-worker executes simulation and operator-enabled Kea control adapters.
 package main
 
 import (
 	"context"
 	"flag"
 	"github.com/enzoOvOyu/keel/internal/execution"
+	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/platform"
 	"log/slog"
 	"os"
@@ -17,7 +18,7 @@ import (
 )
 
 func main() {
-	health := flag.Bool("healthcheck", false, "verify this worker's persistent simulation heartbeat")
+	health := flag.Bool("healthcheck", false, "verify this worker's persistent execution heartbeat")
 	flag.Parse()
 	id := os.Getenv("KEEL_WORKER_ID")
 	if id == "" {
@@ -37,12 +38,19 @@ func main() {
 		fail("worker database unavailable")
 	}
 	defer store.Close()
+	store.FabricProbes, e = fabricboot.LoadProbeSuite(os.Getenv("KEEL_FABRIC_PROBES_FILE"))
+	if e != nil {
+		fail("fabric probe configuration rejected")
+	}
 	service := execution.New(store.DB)
+	if _, _, e = store.FabricProbes.DeploymentControl(); e == nil {
+		service.KeaStore = store
+	}
 	if *health {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		if service.WorkerHealthy(ctx, id) != nil {
-			fail("simulation worker heartbeat is stale")
+			fail("execution worker heartbeat is stale")
 		}
 		return
 	}
@@ -75,7 +83,7 @@ func main() {
 	var jobs sync.WaitGroup
 	var active atomic.Int64
 	lastBeat := time.Time{}
-	slog.Info("keel simulation worker started", "worker", id, "mode", "sim", "concurrency", concurrency)
+	slog.Info("keel execution worker started", "worker", id, "kea_enabled", service.KeaStore != nil, "concurrency", concurrency)
 loop:
 	for {
 		select {
@@ -107,20 +115,22 @@ loop:
 					defer jobs.Done()
 					defer active.Add(-1)
 					if err := service.RunClaim(ctx, c); err != nil {
-						slog.Warn("simulator receipt requires reconciliation", "attempt", c.Attempt.ID)
+						slog.Warn("runner receipt requires reconciliation", "attempt", c.Attempt.ID)
 					}
 				}(claim)
 			}
-            // Health means queue/reconciliation SQL succeeded, not merely that
-            // the process can touch its heartbeat table.
-            if cycleOK && time.Since(lastBeat)>=time.Second {
-                if service.WorkerHeartbeat(ctx,id,int(active.Load()))==nil {lastBeat=time.Now()}
-            }
+			// Health means queue/reconciliation SQL succeeded, not merely that
+			// the process can touch its heartbeat table.
+			if cycleOK && time.Since(lastBeat) >= time.Second {
+				if service.WorkerHeartbeat(ctx, id, int(active.Load())) == nil {
+					lastBeat = time.Now()
+				}
+			}
 		}
 	}
 	// Stop new claims immediately, continue lease heartbeats until each finite
 	// simulator confirms its stop/safe endpoint. Container stop grace must be 70s.
 	jobs.Wait()
-	slog.Info("keel simulation worker drained", "worker", id)
+	slog.Info("keel execution worker drained", "worker", id)
 }
 func fail(message string) { slog.Error(message); os.Exit(1) }

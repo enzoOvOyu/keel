@@ -46,7 +46,7 @@ API 均位于 `/api/v1/projects/{id}/ztp/`：`management-plan/preview`、`manage
 
 HTTPS、显式CA、不跟随重定向、读响应≤1MiB、4秒请求超时；四探针并发，批次/通道绑定当前保存规划。缺配置/能力为unknown，协议/连接失败为failed；仅四项ready时报告ready。报告有效期5分钟，过期、配置指纹/规划/BOM/参数变化使读取结果失效；外部请求前后均重新授权和校验规划，避免网络等待期间持锁。
 
-**剩余接线**：当前报告提供可校验的 N-S3 结果，尚未替代旧 mock Kea 会话或接入完整真实 Kea/Runner 作业准入。下一步将规划/新鲜报告接入真实 staging→commit→持久化/readback→DORA 及设备引导入口，再接个性化最小管理配置与凭据取用；不能把当前探针通过写成 N-S4/NP PASS。协议桩连通与真机 PoC 分开记录。
+**当前接线**：报告已接入[共享Kea Runner](KEA-RUNNER.md)的暂存/入队/执行准入，覆盖config-test/set/write和读回；旧mock会话仍独立。DORA、真实活动引导路由/239-143入口准入、个性化管理配置与凭据仍未完成；不能把控制配置结果写成N-S4/NP PASS。协议桩连通与真机PoC分开记录。
 
 ## 已执行检查
 

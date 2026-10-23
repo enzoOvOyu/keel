@@ -1312,7 +1312,8 @@
             "type": "string",
             "enum": [
               "sim.read",
-              "sim.write"
+              "sim.write",
+              "kea.apply"
             ]
           },
           "depends_on": {
@@ -1372,7 +1373,8 @@
           "api_version": {
             "type": "string",
             "enum": [
-              "keel.sim/v1"
+              "keel.sim/v1",
+              "keel.kea/v1"
             ]
           },
           "inputs": {
@@ -1535,8 +1537,13 @@
           "mode": {
             "type": "string",
             "enum": [
-              "sim"
+              "sim",
+              "kea"
             ]
+          },
+          "resource_key": {
+            "type": "string",
+            "description": "Shared controller resource key; present for Kea control targets only."
           }
         },
         "required": [
@@ -1643,7 +1650,8 @@
           "mode": {
             "type": "string",
             "enum": [
-              "sim"
+              "sim",
+              "kea"
             ]
           },
           "flow": {
@@ -1716,7 +1724,8 @@
           "mode": {
             "type": "string",
             "enum": [
-              "sim"
+              "sim",
+              "kea"
             ]
           },
           "state": {
@@ -1844,7 +1853,8 @@
           "mode": {
             "type": "string",
             "enum": [
-              "sim"
+              "sim",
+              "kea"
             ]
           },
           "state": {
@@ -2246,7 +2256,8 @@
           "mode": {
             "type": "string",
             "enum": [
-              "sim"
+              "sim",
+              "kea"
             ]
           }
         },

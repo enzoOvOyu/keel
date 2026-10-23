@@ -712,6 +712,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/ztp/kea-deployments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listKeaDeployments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/kea-deployments/stage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["stageKeaDeployment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/kea-deployments/{deploymentId}/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["executeKeaDeployment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/ztp/environment-checks": {
         parameters: {
             query?: never;
@@ -1123,6 +1171,38 @@ export interface components {
             /** @enum {string} */
             identity_priority?: "sn" | "mgmt" | "base" | "other";
             reasons: string[];
+        };
+        KeaDeployment: {
+            id: string;
+            project_id: string;
+            execution_id?: string;
+            /** @enum {string} */
+            state: "staged" | "queued" | "applying" | "config_persisted" | "blocked" | "unknown";
+            spec_hash: string;
+            before_hash: string;
+            candidate_hash: string;
+            active_hash?: string;
+            failure_code?: string;
+            /** Format: date-time */
+            created_at: string;
+            spec: {
+                plan_id: string;
+                environment_id: string;
+                probe_hash: string;
+                controller_key: string;
+                options: {
+                    batch_ref: string;
+                    option_239_url: string;
+                } & {
+                    [key: string]: unknown;
+                };
+                bindings: {
+                    switch_id: string;
+                    management_mac: string;
+                    management_ip: string;
+                    hostname: string;
+                }[];
+            };
         };
         ZTPEnvironmentInput: {
             batch_ref: string;
@@ -1571,6 +1651,114 @@ export interface components {
             total: number;
             page: number;
             page_size: number;
+        };
+        FlowInput: {
+            /** @enum {string} */
+            type: "string" | "number" | "boolean" | "enum";
+            required: boolean;
+            default?: string | number | boolean;
+            enum?: string[];
+        };
+        SimTaskOptions: {
+            /** @enum {string} */
+            outcome: "success" | "failed" | "drop_receipt";
+            duration_ms: number;
+            /** @default 0 */
+            fail_first: number;
+            /** Format: int64 */
+            seed: number;
+            /** @default false */
+            uncancellable: boolean;
+        };
+        /** @description Acyclic dependencies. Every task includes machine resource; sim.read shared, sim.write exclusive. Retry>0 requires idempotent=true and an explicit failed receipt; never retries unknown. */
+        FlowTask: {
+            id: string;
+            /** @enum {string} */
+            type: "sim.read" | "sim.write" | "kea.apply";
+            depends_on?: string[];
+            retry: number;
+            idempotent: boolean;
+            timeout_ms: number;
+            resources: ("machine" | "gpu" | "nic")[];
+            sim: components["schemas"]["SimTaskOptions"];
+        };
+        FlowDefinition: {
+            /** @enum {string} */
+            api_version: "keel.sim/v1" | "keel.kea/v1";
+            inputs: {
+                [key: string]: components["schemas"]["FlowInput"];
+            };
+            tasks: components["schemas"]["FlowTask"][];
+        };
+        FlowVersion: {
+            id: string;
+            flow_id: string;
+            project_id: string;
+            name: string;
+            version: number;
+            definition: components["schemas"]["FlowDefinition"];
+            yaml_source: string;
+            content_hash: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        SimTarget: {
+            id: string;
+            project_id: string;
+            name: string;
+            /** Format: int64 */
+            seed: number;
+            revision: number;
+            /** @enum {string} */
+            model_version: "sim-model-v1";
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            mode: "sim" | "kea";
+            /** @description Shared controller resource key; present for Kea control targets only. */
+            resource_key?: string;
+        };
+        /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
+        ExecutionSnapshot: {
+            /** @enum {string} */
+            mode: "sim" | "kea";
+            flow: components["schemas"]["FlowVersion"];
+            targets: components["schemas"]["SimTarget"][];
+            /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
+            parameters: {
+                [key: string]: string | number | boolean;
+            };
+            target_set_hash: string;
+            admission: string;
+            /** Format: date-time */
+            frozen_at: string;
+        };
+        Execution: {
+            id: string;
+            project_id: string;
+            flow_version_id: string;
+            /** @enum {string} */
+            mode: "sim" | "kea";
+            /** @enum {string} */
+            state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
+            state_version: number;
+            /** @enum {string} */
+            desired_state: "running" | "paused" | "killed";
+            target_set_hash: string;
+            concurrency: number;
+            circuit_breaker_percent: number;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: date-time */
+            finished_at: string | null;
+            /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
+            parameters: {
+                [key: string]: string | number | boolean;
+            };
+            snapshot: components["schemas"]["ExecutionSnapshot"];
         };
     };
     responses: {
@@ -3264,6 +3452,104 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listKeaDeployments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Operator write capability, approved policy catalog and recent control deployments */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        enabled: boolean;
+                        deployments: components["schemas"]["KeaDeployment"][];
+                        policies: {
+                            id: string;
+                            name: string;
+                            version: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    stageKeaDeployment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    batch_ref: string;
+                    policy_media_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Persisted immutable plan after live config-get/config-test; no DHCP writes */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KeaDeployment"];
+                };
+            };
+            /** @description Missing operator configuration */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    executeKeaDeployment: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                deploymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted into the shared Execution queue; config success does not mean DORA/device/NP success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            /** @description Stale/already queued deployment */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     getZTPEnvironmentCheck: {

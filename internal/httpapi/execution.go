@@ -198,10 +198,22 @@ func (a *authAPI) registerExecution(r *gin.Engine) {
 		}
 		c.JSON(200, x)
 	})
- r.GET(base+"/executions/:executionId/attempts",func(c *gin.Context){
- _,s,ok:=a.executionProject(c,false);if !ok{return};p,ok:=readPagination(c);if !ok{return}
- out,e:=s.Attempts(c.Request.Context(),c.Param("id"),c.Param("executionId"),p);if e!=nil{a.respondError(c,e);return};c.JSON(200,out)
- })
+	r.GET(base+"/executions/:executionId/attempts", func(c *gin.Context) {
+		_, s, ok := a.executionProject(c, false)
+		if !ok {
+			return
+		}
+		p, ok := readPagination(c)
+		if !ok {
+			return
+		}
+		out, e := s.Attempts(c.Request.Context(), c.Param("id"), c.Param("executionId"), p)
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
 	r.POST(base+"/executions/:executionId/control", func(c *gin.Context) {
 		actor, s, ok := a.executionProject(c, true)
 		if !ok {
@@ -257,6 +269,11 @@ func (a *authAPI) registerExecution(r *gin.Engine) {
 		if len(events) > 0 {
 			next = events[len(events)-1].Sequence
 		}
-		c.JSON(200, gin.H{"items": events, "next_cursor": next, "mode": "sim"})
+		mode, e := s.ExecutionMode(c.Request.Context(), c.Param("id"), c.Param("executionId"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, gin.H{"items": events, "next_cursor": next, "mode": mode})
 	})
 }

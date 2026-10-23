@@ -64,6 +64,9 @@ func (s *Service) Create(ctx context.Context, a *Actor, projectID string, in Cre
 	if e != nil {
 		return nil, e
 	}
+	if flow.Definition.APIVersion != "keel.sim/v1" {
+		return nil, invalid("domain-owned workflows require their domain admission endpoint")
+	}
 	params, e := flow.Definition.Parameters(in.Parameters, true)
 	if e != nil {
 		return nil, e
@@ -286,7 +289,7 @@ func (s *Service) Control(ctx context.Context, a *Actor, projectID, id string, i
 		return nil, e
 	}
 	defer tx.Rollback()
-	if e = authorize(ctx, tx, a, projectID, "Admin", "DE", "DL", "SRE"); e != nil {
+	if e = authorize(ctx, tx, a, projectID, "Admin", "DE", "DL", "SRE", "NDE"); e != nil {
 		return nil, e
 	}
 	idem, prior, e := idempotency(ctx, tx, a, "execution.control:"+id, key, in)
@@ -303,6 +306,15 @@ func (s *Service) Control(ctx context.Context, a *Actor, projectID, id string, i
 	}
 	if e != nil {
 		return nil, e
+	}
+	if x.Mode == "kea" {
+		if e = authorize(ctx, tx, a, projectID, "Admin", "NDE"); e != nil {
+			return nil, e
+		}
+	} else {
+		if e = authorize(ctx, tx, a, projectID, "Admin", "DE", "DL", "SRE"); e != nil {
+			return nil, e
+		}
 	}
 	if x.StateVersion != in.ExpectedVersion {
 		return nil, conflict("execution state changed")
@@ -346,7 +358,7 @@ func (s *Service) Control(ctx context.Context, a *Actor, projectID, id string, i
 	if e = event(ctx, tx, id, "execution.control", in); e != nil {
 		return nil, e
 	}
-	if e = audit(ctx, tx, a.User.ID, projectID, "execution."+in.Action, id, trace, map[string]any{"mode": "sim", "state": x.State, "version": x.StateVersion}); e != nil {
+	if e = audit(ctx, tx, a.User.ID, projectID, "execution."+in.Action, id, trace, map[string]any{"mode": x.Mode, "state": x.State, "version": x.StateVersion}); e != nil {
 		return nil, e
 	}
 	if e = remember(ctx, tx, idem, in, x); e != nil {
@@ -453,7 +465,7 @@ func settle(ctx context.Context, tx *sql.Tx, id string) error {
 		if _, e = tx.ExecContext(ctx, "UPDATE exec_executions SET state=$2,desired_state=$3,state_version=state_version+1,finished_at=CASE WHEN $4 THEN now() ELSE NULL END WHERE id=$1", id, state, desired, finished); e != nil {
 			return e
 		}
-		return event(ctx, tx, id, "execution.state_changed", map[string]any{"state": state, "mode": "sim"})
+		return event(ctx, tx, id, "execution.state_changed", map[string]any{"state": state, "mode": x.Mode})
 	}
 	return nil
 }
@@ -479,4 +491,13 @@ func (s *Service) Events(ctx context.Context, projectID, id string, after int64)
 		out = append(out, v)
 	}
 	return out, rows.Err()
+}
+
+func (s *Service) ExecutionMode(ctx context.Context, projectID, id string) (string, error) {
+	var mode string
+	e := s.DB.QueryRowContext(ctx, "SELECT mode FROM exec_executions WHERE project_id=$1 AND id=$2", projectID, id).Scan(&mode)
+	if errors.Is(e, sql.ErrNoRows) {
+		return "", failure(404, "NOT_FOUND", "Execution not found")
+	}
+	return mode, e
 }

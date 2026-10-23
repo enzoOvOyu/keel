@@ -187,7 +187,7 @@ export interface components {
         FlowTask: {
             id: string;
             /** @enum {string} */
-            type: "sim.read" | "sim.write";
+            type: "sim.read" | "sim.write" | "kea.apply";
             depends_on?: string[];
             retry: number;
             idempotent: boolean;
@@ -197,7 +197,7 @@ export interface components {
         };
         FlowDefinition: {
             /** @enum {string} */
-            api_version: "keel.sim/v1";
+            api_version: "keel.sim/v1" | "keel.kea/v1";
             inputs: {
                 [key: string]: components["schemas"]["FlowInput"];
             };
@@ -242,7 +242,9 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            mode: "sim";
+            mode: "sim" | "kea";
+            /** @description Shared controller resource key; present for Kea control targets only. */
+            resource_key?: string;
         };
         RegisterSimTargetsResponse: {
             items: components["schemas"]["SimTarget"][];
@@ -267,7 +269,7 @@ export interface components {
         /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
         ExecutionSnapshot: {
             /** @enum {string} */
-            mode: "sim";
+            mode: "sim" | "kea";
             flow: components["schemas"]["FlowVersion"];
             targets: components["schemas"]["SimTarget"][];
             /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
@@ -284,7 +286,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim";
+            mode: "sim" | "kea";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -311,7 +313,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim";
+            mode: "sim" | "kea";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -409,7 +411,7 @@ export interface components {
             /** Format: int64 */
             next_cursor: number;
             /** @enum {string} */
-            mode: "sim";
+            mode: "sim" | "kea";
         };
         SimTargetPage: {
             items: components["schemas"]["SimTarget"][];
