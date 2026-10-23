@@ -671,7 +671,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Drives the remaining simulated stages using the same backend gates; a blocked stage enters failure and bounded retry. This does not connect to hardware. */
+        /** @description Drives the remaining simulated stages using the same backend gates; a blocked stage enters failure and bounded retry. While failed, the same action can update the saved simulation fixture for the next scheduled retry. This does not connect to hardware. */
         post: operations["runZTPSimSession"];
         delete?: never;
         options?: never;

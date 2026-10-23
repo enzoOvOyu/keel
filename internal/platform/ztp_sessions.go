@@ -253,7 +253,18 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 	if err = requireProjectAdmin(ctx, tx, a, project.ID); err != nil {
 		return nil, err
 	}
-	out, err := getZTPSessionTx(ctx, tx, project.ID, sessionID, true)
+	out, err := s.advanceZTPSimSessionTx(ctx, tx, project.ID, sessionID, input, a.User.ID, trace)
+	if err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *Store) advanceZTPSimSessionTx(ctx context.Context, tx *sql.Tx, projectID, sessionID string, input ZTPSessionAction, actorID, trace string) (*ZTPSessionDetail, error) {
+	out, err := getZTPSessionTx(ctx, tx, projectID, sessionID, true)
 	if err != nil {
 		return nil, err
 	}
@@ -282,10 +293,10 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 				return nil, apiError(400, "ZTP_DORA_REQUIRED", "DORA request is required for DHCP stage")
 			}
 			request := *input.DORA
-			request.ProjectID = project.ID
+			request.ProjectID = projectID
 			request.BatchRef = out.BatchRef
 			request.StageRef = "N-S4"
-			offer, offerErr := simulateZTPDORATx(ctx, tx, project.ID, request)
+			offer, offerErr := simulateZTPDORATx(ctx, tx, projectID, request)
 			if offerErr != nil {
 				return nil, offerErr
 			}
@@ -294,7 +305,7 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 			}
 			evidence = "mock-kea:" + offer.ConfigHash
 		} else if next == "booturl" || next == "fetch" {
-			cfg, activeHash, loadErr := activeZTPSimOfferTx(ctx, tx, project.ID, out.BatchRef)
+			cfg, activeHash, loadErr := activeZTPSimOfferTx(ctx, tx, projectID, out.BatchRef)
 			if loadErr != nil {
 				return nil, loadErr
 			}
@@ -313,7 +324,7 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 				if out.IdentityResolution.Verdict != "matched" {
 					return nil, apiError(409, "ZTP_IDENTITY_NOT_MATCHED", "Unmatched identity cannot fetch configuration")
 				}
-				evidence, loadErr = approvedZTPSimArtifactTx(ctx, tx, project.ID, cfg, out.BootChannel)
+				evidence, loadErr = approvedZTPSimArtifactTx(ctx, tx, projectID, cfg, out.BootChannel)
 				if loadErr != nil {
 					return nil, loadErr
 				}
@@ -327,7 +338,7 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 			if err = json.Unmarshal(rawClaim, &claim); err != nil {
 				return nil, err
 			}
-			resolution, lookupErr := resolveZTPIdentityTx(ctx, tx, project.ID, claim)
+			resolution, lookupErr := resolveZTPIdentityTx(ctx, tx, projectID, claim)
 			if lookupErr != nil {
 				return nil, lookupErr
 			}
@@ -339,7 +350,7 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 			}
 			if resolution.Verdict == "conflict" {
 				identityKey := ztpIssueIdentityKey(claim)
-				if err = upsertZTPIdentityIssueTx(ctx, tx, project.ID, out.BatchRef, "sim", identityKey, claim.Serial, "", trace, resolution.Reasons); err != nil {
+				if err = upsertZTPIdentityIssueTx(ctx, tx, projectID, out.BatchRef, "sim", identityKey, claim.Serial, "", trace, resolution.Reasons); err != nil {
 					return nil, err
 				}
 			}
@@ -350,12 +361,12 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 			return nil, apiError(409, "ZTP_IDENTITY_NOT_MATCHED", "Unmatched identity cannot import configuration")
 		}
 		if next == "managed" && out.SwitchID != "" {
-			ref, refErr := simSwitchCredentialRef(ctx, tx, project.ID, out.SwitchID)
+			ref, refErr := simSwitchCredentialRef(ctx, tx, projectID, out.SwitchID)
 			if refErr != nil {
 				return nil, refErr
 			}
 			if ref != "" {
-				registered, checkErr := simCredentialRegistered(ctx, tx, project.ID, ref)
+				registered, checkErr := simCredentialRegistered(ctx, tx, projectID, ref)
 				if checkErr != nil {
 					return nil, checkErr
 				}
@@ -366,7 +377,7 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 					return nil, apiError(400, "ZTP_SIM_CREDENTIAL_VERDICT_REQUIRED", "Provide a simulated credential verdict")
 				}
 				if verdict != "reachable" {
-					if err = insertZTPCredentialIssueTx(ctx, tx, project.ID, out, ref, verdict, now); err != nil {
+					if err = insertZTPCredentialIssueTx(ctx, tx, projectID, out, ref, verdict, now); err != nil {
 						return nil, err
 					}
 					add("failed", "sim.credential_"+verdict, "mock-credential:"+ref)
@@ -390,14 +401,14 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 			if out.IdentityResolution.Verdict == "conflict" {
 				add("conflict", "sim.identity_conflict", "")
 			} else {
-				cfg, activeHash, loadErr := activeZTPSimOfferTx(ctx, tx, project.ID, out.BatchRef)
+				cfg, activeHash, loadErr := activeZTPSimOfferTx(ctx, tx, projectID, out.BatchRef)
 				if loadErr != nil {
 					return nil, loadErr
 				}
 				if loadErr = requireSimDHCPHashTx(ctx, tx, out.ID, out.Attempt, activeHash); loadErr != nil {
 					return nil, loadErr
 				}
-				artifact, artifactErr := approvedZTPSimArtifactTx(ctx, tx, project.ID, cfg, out.BootChannel)
+				artifact, artifactErr := approvedZTPSimArtifactTx(ctx, tx, projectID, cfg, out.BootChannel)
 				if artifactErr != nil {
 					return nil, artifactErr
 				}
@@ -460,13 +471,10 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 		auditDetail["cause"] = input.Cause
 		auditDetail["next_action"] = input.NextAction
 	}
-	if err = appendAudit(ctx, tx, a.User.ID, project.ID, "ztp.sim."+input.Action, out.ID, trace, auditDetail); err != nil {
+	if err = appendAudit(ctx, tx, actorID, projectID, "ztp.sim."+input.Action, out.ID, trace, auditDetail); err != nil {
 		return nil, err
 	}
 	if err = loadZTPEvents(ctx, tx, out); err != nil {
-		return nil, err
-	}
-	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
 	return out, nil

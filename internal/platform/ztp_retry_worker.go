@@ -3,6 +3,7 @@ package platform
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -23,7 +24,8 @@ func (s *Store) RetryDueZTPSimSessions(ctx context.Context, limit int) (int, err
 		var id, projectID string
 		var version int64
 		var attempt int
-		err = tx.QueryRowContext(ctx, `SELECT id,project_id,state_version,attempt FROM ztp_sessions WHERE mode='sim' AND state='failed' AND next_retry_at<=now() AND attempt<=retry_max ORDER BY next_retry_at,id LIMIT 1 FOR UPDATE SKIP LOCKED`).Scan(&id, &projectID, &version, &attempt)
+		var runInput []byte
+		err = tx.QueryRowContext(ctx, `SELECT id,project_id,state_version,attempt,sim_run_input FROM ztp_sessions WHERE mode='sim' AND state='failed' AND next_retry_at<=now() AND attempt<=retry_max ORDER BY next_retry_at,id LIMIT 1 FOR UPDATE SKIP LOCKED`).Scan(&id, &projectID, &version, &attempt, &runInput)
 		if errors.Is(err, sql.ErrNoRows) {
 			_ = tx.Rollback()
 			return count, nil
@@ -47,6 +49,17 @@ func (s *Store) RetryDueZTPSimSessions(ctx context.Context, limit int) (int, err
 		if err = appendAudit(ctx, tx, "", projectID, "ztp.sim.auto_retry", id, "", map[string]any{"from": "failed", "to": "powered", "attempt": nextAttempt}); err != nil {
 			_ = tx.Rollback()
 			return count, err
+		}
+		if len(runInput) > 0 {
+			var input ZTPSimRunInput
+			if err = json.Unmarshal(runInput, &input); err != nil {
+				_ = tx.Rollback()
+				return count, err
+			}
+			if err = s.resumeZTPSimRunTx(ctx, tx, projectID, id, input); err != nil {
+				_ = tx.Rollback()
+				return count, err
+			}
 		}
 		if err = tx.Commit(); err != nil {
 			return count, err

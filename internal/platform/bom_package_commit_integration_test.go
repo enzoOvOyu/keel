@@ -379,6 +379,55 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 			t.Fatalf("ZTP golden stage %d: %+v want %+v", i, got, want)
 		}
 	}
+	autoRetrySession, autoErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-1", BootChannel: "239", Identity: ZTPIdentityInput{Serial: "SW-1"}}, "test")
+	if autoErr != nil {
+		t.Fatal(autoErr)
+	}
+	autoRetrySession, autoErr = s.RunZTPSimSession(ctx, actor, project, autoRetrySession.ID, ZTPSimRunInput{ExpectedVersion: autoRetrySession.StateVersion, DORA: dora, CredentialVerdict: "expired"}, "test")
+	if autoErr != nil || autoRetrySession.State != "failed" || autoRetrySession.Attempt != 1 {
+		t.Fatalf("first automatic credential failure: %+v %v", autoRetrySession, autoErr)
+	}
+	for wantAttempt := 2; wantAttempt <= autoRetrySession.RetryMax+1; wantAttempt++ {
+		if _, err = s.DB.ExecContext(ctx, `UPDATE ztp_sessions SET next_retry_at=now()-interval '1 second' WHERE id=$1`, autoRetrySession.ID); err != nil {
+			t.Fatal(err)
+		}
+		if count, retryErr := s.RetryDueZTPSimSessions(ctx, 1); retryErr != nil || count != 1 {
+			t.Fatalf("automatic retry %d: %d %v", wantAttempt, count, retryErr)
+		}
+		autoRetrySession, autoErr = s.GetZTPSession(ctx, actor, project, autoRetrySession.ID)
+		if autoErr != nil || autoRetrySession.Attempt != wantAttempt || autoRetrySession.State != "failed" || autoRetrySession.Events[len(autoRetrySession.Events)-1].EventCode != "sim.credential_expired" {
+			t.Fatalf("automatic retry attempt %d: %+v %v", wantAttempt, autoRetrySession, autoErr)
+		}
+		if (autoRetrySession.NextRetryAt == nil) != (wantAttempt == autoRetrySession.RetryMax+1) {
+			t.Fatalf("retry exhaustion incorrect at %d: %+v", wantAttempt, autoRetrySession)
+		}
+	}
+	var automaticCredentialIssues int
+	if err = s.DB.QueryRowContext(ctx, `SELECT count(*) FROM ztp_credential_issues WHERE session_id=$1`, autoRetrySession.ID).Scan(&automaticCredentialIssues); err != nil || automaticCredentialIssues != autoRetrySession.RetryMax+1 {
+		t.Fatalf("retry issues: %d %v", automaticCredentialIssues, err)
+	}
+	recoverySession, autoErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-1", BootChannel: "239", Identity: ZTPIdentityInput{Serial: "SW-1"}}, "test")
+	if autoErr != nil {
+		t.Fatal(autoErr)
+	}
+	recoverySession, autoErr = s.RunZTPSimSession(ctx, actor, project, recoverySession.ID, ZTPSimRunInput{ExpectedVersion: recoverySession.StateVersion, DORA: dora, CredentialVerdict: "unreachable"}, "test")
+	if autoErr != nil || recoverySession.State != "failed" {
+		t.Fatalf("retry recovery setup: %+v %v", recoverySession, autoErr)
+	}
+	updatedFixture, updateErr := s.RunZTPSimSession(ctx, actor, project, recoverySession.ID, ZTPSimRunInput{ExpectedVersion: recoverySession.StateVersion, DORA: dora, CredentialVerdict: "reachable"}, "test")
+	if updateErr != nil || updatedFixture.State != "failed" || len(updatedFixture.Events) != len(recoverySession.Events)+1 || updatedFixture.Events[len(updatedFixture.Events)-1].EventCode != "sim.run_input_updated" {
+		t.Fatalf("retry fixture update: %+v %v", updatedFixture, updateErr)
+	}
+	if _, err = s.DB.ExecContext(ctx, `UPDATE ztp_sessions SET next_retry_at=now()-interval '1 second' WHERE id=$1`, recoverySession.ID); err != nil {
+		t.Fatal(err)
+	}
+	if count, retryErr := s.RetryDueZTPSimSessions(ctx, 1); retryErr != nil || count != 1 {
+		t.Fatalf("automatic recovery retry: %d %v", count, retryErr)
+	}
+	recoverySession, autoErr = s.GetZTPSession(ctx, actor, project, recoverySession.ID)
+	if autoErr != nil || recoverySession.State != "managed" || recoverySession.Attempt != 2 || recoverySession.ManagedAt == nil {
+		t.Fatalf("automatic recovery: %+v %v", recoverySession, autoErr)
+	}
 	blockedSession, autoErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-without-plan", BootChannel: "239", Identity: ZTPIdentityInput{Serial: "SW-1"}}, "test")
 	if autoErr != nil {
 		t.Fatal(autoErr)
@@ -470,7 +519,7 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 		t.Fatalf("persisted timeline: %+v %v", loadedSim, simErr)
 	}
 	listedSims, simErr := s.ListZTPSimSessions(ctx, actor, project)
-	if simErr != nil || len(listedSims) != 7 {
+	if simErr != nil || len(listedSims) != 9 {
 		t.Fatalf("simulation board list: %+v %v", listedSims, simErr)
 	}
 
