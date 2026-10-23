@@ -1340,7 +1340,7 @@ paths:
     post:
       tags: [BOM]
       operationId: commitZTPMockKeaPlan
-      description: Promotes the exact staged mock candidate only when its referenced isolation script media is independently approved and matches the generated digest and size; never writes to real Kea.
+      description: Promotes the exact staged mock candidate only when its referenced isolation script media is independently approved and matches the generated digest and size; rejects overlapping management subnets with the same 143 bootstrap URI across active batches; never writes to real Kea.
       security: [{sessionCookie: []}]
       x-permission: project:fabric:plan
       x-resource-scope: path-project-admin

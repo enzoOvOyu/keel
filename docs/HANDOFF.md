@@ -1,5 +1,9 @@
 # Keel 开发交接
 
+## 2026-10-23 FR-0.3 SZTP 路由唯一性
+
+- mock Kea commit 现在用 PostgreSQL 事务级 advisory lock 串行化计划提交；对于 N-S4，若候选 143 URI 与任何其他 active 批次 URI 相同（主机名大小写等价）且管理网段重叠，返回 `SZTP_ROUTE_AMBIGUOUS`，候选保持 staged，原 active 计划继续可用。设备读取仍保留多路由拒绝作为存量异常兜底。隔离 `keel_test_ztp_route_1023` PostgreSQL 库的 143、239、mock Kea、BOM 身份测试通过并已删除；`python3 scripts/check-design.py`、`go vet ./internal/platform`、`go test -race ./internal/platform -count=1` 与本轮文件 `git diff --check` 通过。P1 3000 镜像未部署本代码；真实 DHCP/设备尚未验证。
+
 ## 2026-10-23 FR-0.3 mock Kea 制品门禁
 
 - `ztp_mock_kea_plans` 的 commit 现要求 239 URL 指向设备脚本端点，`policy` 引用项目或全局已批准 `ztp_script`，且摘要/大小与生成的固定隔离脚本一致；失败保留 staged 候选、不生成 active offer。active 计划的 DORA 仿真在返回 ACK 前重新读介质状态，已退役或变更的脚本使结果为 `no_offer/bootstrap_artifact_unavailable`。设备 fetch 仍独立复核，避免审批状态在会话中变化后继续发脚本。真实 Kea 没有接入，本门禁只证明模拟链路。

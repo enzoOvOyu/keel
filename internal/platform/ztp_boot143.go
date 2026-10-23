@@ -63,7 +63,7 @@ func (s *Store) ServeZTP143(ctx context.Context, certSerial, sourceIP, requestHo
 		uri := "https://" + requestHost
 		found := false
 		for _, candidate := range plan.cfg.Option143URIs {
-			if candidate == uri {
+			if strings.EqualFold(candidate, uri) {
 				found = true
 				break
 			}

@@ -71,14 +71,16 @@ func TestSZTP143ApprovedIsolationAndAmbiguousRoute(t *testing.T) {
 	if err != nil || served.IdentityVerdict != "isolated" || served.ProjectID != project.ID || len(served.CMS) == 0 {
 		t.Fatalf("approved isolation onboarding: %+v %v", served, err)
 	}
-	if err = stage("rack-b"); err != nil {
-		t.Fatal(err)
+	if err = stage("rack-b"); err == nil {
+		t.Fatal("overlapping bootstrap route committed")
+	} else {
+		assertErrorCode(t, err, "SZTP_ROUTE_AMBIGUOUS")
 	}
-	if _, err = call("192.0.2.8", "boot.example.invalid", false); err == nil {
-		t.Fatal("ambiguous active bootstrap route accepted")
+	if result, e := call("192.0.2.8", "BOOT.EXAMPLE.INVALID", false); e != nil || result.ProjectID != project.ID {
+		t.Fatalf("unique active route unavailable after rejected commit: %+v %v", result, e)
 	}
 	var count int
-	if err = s.DB.QueryRowContext(ctx, `SELECT count(*) FROM audits WHERE action='ztp.boot143.serve' AND project_id=$1`, project.ID).Scan(&count); err != nil || count != 1 {
+	if err = s.DB.QueryRowContext(ctx, `SELECT count(*) FROM audits WHERE action='ztp.boot143.serve' AND project_id=$1`, project.ID).Scan(&count); err != nil || count != 2 {
 		t.Fatalf("SZTP serve audit: %d %v", count, err)
 	}
 }

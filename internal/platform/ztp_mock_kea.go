@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
+	"net/netip"
+	"strings"
 	"time"
 )
 
@@ -75,6 +77,11 @@ func (s *Store) CommitZTPMockKeaPlan(ctx context.Context, a *AuthSession, projec
 	if err = requireProjectAdmin(ctx, tx, a, project.ID); err != nil {
 		return nil, err
 	}
+	// Serialize all mock-plan commits before reading active routes. A route
+	// collision must not pass two concurrent transactions independently.
+	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(230923,143)`); err != nil {
+		return nil, err
+	}
 	var stagedHash string
 	var stagedConfig []byte
 	var version int64
@@ -105,6 +112,9 @@ func (s *Store) CommitZTPMockKeaPlan(ctx context.Context, a *AuthSession, projec
 	if _, err = approvedZTPSimArtifactTx(ctx, tx, project.ID, &cfg, "239"); err != nil {
 		return nil, err
 	}
+	if err = rejectOverlappingSZTPRouteTx(ctx, tx, project.ID, &cfg); err != nil {
+		return nil, err
+	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	out := &ZTPMockKeaPlan{BatchRef: input.BatchRef, StageRef: input.StageRef, ActiveHash: stagedHash, Version: version + 1, UpdatedAt: now}
 	_, err = tx.ExecContext(ctx, `UPDATE ztp_mock_kea_plans SET active_config=staged_config,active_hash=staged_hash,staged_config=NULL,staged_hash=NULL,version=$4,updated_by=$5,updated_at=$6 WHERE project_id=$1 AND batch_ref=$2 AND stage_ref=$3`, project.ID, input.BatchRef, input.StageRef, out.Version, a.User.ID, now)
@@ -118,6 +128,50 @@ func (s *Store) CommitZTPMockKeaPlan(ctx context.Context, a *AuthSession, projec
 		return nil, err
 	}
 	return out, nil
+}
+
+// 143 carries no project or batch identifier, so a source subnet and host
+// must select at most one active plan. The commit advisory lock makes this
+// check atomic across concurrent mock-plan commits.
+func rejectOverlappingSZTPRouteTx(ctx context.Context, tx *sql.Tx, projectID string, cfg *fabricboot.DHCPOptions) error {
+	if cfg.StageRef != "N-S4" {
+		return nil
+	}
+	candidate, err := netip.ParsePrefix(cfg.ManagementCIDR)
+	if err != nil {
+		return apiError(409, "ZTP_KEA_ROUTE_INVALID", "Invalid management subnet")
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT project_id,batch_ref,active_config FROM ztp_mock_kea_plans WHERE stage_ref='N-S4' AND active_config IS NOT NULL AND (project_id<>$1 OR batch_ref<>$2)`, projectID, cfg.BatchRef)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var otherProject, otherBatch string
+		var raw []byte
+		if err = rows.Scan(&otherProject, &otherBatch, &raw); err != nil {
+			return err
+		}
+		var other fabricboot.DHCPOptions
+		if err = json.Unmarshal(raw, &other); err != nil || other.ProjectID != otherProject || other.BatchRef != otherBatch || other.StageRef != "N-S4" {
+			return apiError(409, "ZTP_KEA_ROUTE_INVALID", "Active bootstrap route cannot be validated")
+		}
+		otherPrefix, parseErr := netip.ParsePrefix(other.ManagementCIDR)
+		if parseErr != nil {
+			return apiError(409, "ZTP_KEA_ROUTE_INVALID", "Active management subnet cannot be validated")
+		}
+		if !candidate.Overlaps(otherPrefix) {
+			continue
+		}
+		for _, uri := range cfg.Option143URIs {
+			for _, existing := range other.Option143URIs {
+				if strings.EqualFold(uri, existing) {
+					return apiError(409, "SZTP_ROUTE_AMBIGUOUS", "Bootstrap URI and management subnet overlap another active batch")
+				}
+			}
+		}
+	}
+	return rows.Err()
 }
 
 func (s *Store) SimulateZTPDORA(ctx context.Context, a *AuthSession, project *ProjectSummary, req fabricboot.DORARequest) (*fabricboot.DORAResult, error) {
