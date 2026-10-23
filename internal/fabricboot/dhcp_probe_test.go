@@ -10,7 +10,7 @@ import (
 )
 
 func TestDHCPWireDORA(t *testing.T) {
-	for _, scenario := range []string{"ok", "wrong-url", "wrong-identity", "nak", "changed-server", "truncated"} {
+	for _, scenario := range []string{"ok", "dual-ok", "dual-mismatch", "wrong-url", "wrong-identity", "nak", "changed-server", "truncated"} {
 		t.Run(scenario, func(t *testing.T) {
 			server, e := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 			if e != nil {
@@ -67,6 +67,15 @@ func TestDHCPWireDORA(t *testing.T) {
 					response = append(response, lease...)
 					response = append(response, 239, byte(len(url)))
 					response = append(response, []byte(url)...)
+					if strings.HasPrefix(scenario, "dual-") {
+						uri := "https://sztp.example.invalid:8443"
+						if scenario == "dual-mismatch" {
+							uri = "https://foreign.example.invalid:8443"
+						}
+						data, _ := EncodeSZTPRedirect([]string{uri})
+						response = append(response, 143, byte(len(data)))
+						response = append(response, data...)
+					}
 					response = append(response, 255)
 					if scenario == "truncated" {
 						response = response[:len(response)-3]
@@ -75,8 +84,12 @@ func TestDHCPWireDORA(t *testing.T) {
 				}
 			}()
 			cfg := DHCPProbeConfig{Server: server.LocalAddr().String(), Listen: listen, RelayIP: "127.0.0.1", MAC: "02:00:00:00:ff:01", Address: "192.0.2.250", TimeoutSeconds: 1}
-			proof, e := cfg.Verify239(context.Background(), "https://boot.example.invalid/ztp", "cumulus-linux x86_64")
-			if scenario == "ok" {
+			var redirects []string
+			if strings.HasPrefix(scenario, "dual-") {
+				redirects = []string{"https://sztp.example.invalid:8443"}
+			}
+			proof, e := cfg.VerifyBootstrap(context.Background(), "https://boot.example.invalid/ztp", "cumulus-linux x86_64", redirects)
+			if scenario == "ok" || scenario == "dual-ok" {
 				if e != nil || proof == nil || len(proof.TranscriptSHA256) != 64 || proof.LeaseSeconds != 600 {
 					t.Fatalf("proof=%+v err=%v", proof, e)
 				}

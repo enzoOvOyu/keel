@@ -1359,6 +1359,7 @@ export interface components {
             failure_code?: string;
             verification_code?: string;
             dora?: {
+                option_143_uris?: string[];
                 address: string;
                 mac: string;
                 server_id: string;
@@ -1377,6 +1378,7 @@ export interface components {
                     management_ip: string;
                     hostname: string;
                 };
+                sztp_environment_id?: string;
                 plan_id: string;
                 environment_id: string;
                 probe_hash: string;

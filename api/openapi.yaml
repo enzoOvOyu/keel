@@ -2617,6 +2617,7 @@ components:
           type: object
           required: [address, mac, server_id, option_239_url, transcript_sha256, lease_seconds, verified_at]
           properties:
+            option_143_uris: { type: array, items: { type: string } }
             address: { type: string }
             mac: { type: string }
             server_id: { type: string }
@@ -2637,6 +2638,7 @@ components:
                 management_mac: { type: string }
                 management_ip: { type: string }
                 hostname: { type: string }
+            sztp_environment_id: { type: string }
             plan_id: { type: string }
             environment_id: { type: string }
             probe_hash: { type: string }

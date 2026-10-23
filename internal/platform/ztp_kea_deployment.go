@@ -18,13 +18,14 @@ type KeaDeploymentInput struct {
 	PolicyMediaID string `json:"policy_media_id"`
 }
 type KeaDeploymentSpec struct {
-	Canary        *fabricboot.KeaReservation  `json:"canary,omitempty"`
-	PlanID        string                      `json:"plan_id"`
-	EnvironmentID string                      `json:"environment_id"`
-	ProbeHash     string                      `json:"probe_hash"`
-	ControllerKey string                      `json:"controller_key"`
-	Options       fabricboot.DHCPOptions      `json:"options"`
-	Bindings      []fabricboot.KeaReservation `json:"bindings"`
+	SZTPEnvironmentID string                      `json:"sztp_environment_id,omitempty"`
+	Canary            *fabricboot.KeaReservation  `json:"canary,omitempty"`
+	PlanID            string                      `json:"plan_id"`
+	EnvironmentID     string                      `json:"environment_id"`
+	ProbeHash         string                      `json:"probe_hash"`
+	ControllerKey     string                      `json:"controller_key"`
+	Options           fabricboot.DHCPOptions      `json:"options"`
+	Bindings          []fabricboot.KeaReservation `json:"bindings"`
 }
 type KeaDeployment struct {
 	DORA             *fabricboot.DHCPProof `json:"dora,omitempty"`
@@ -92,8 +93,26 @@ func (s *Store) keaDeploymentFactsTx(ctx context.Context, tx *sql.Tx, a *AuthSes
 	}
 	query := url.Values{"project": {projectID}, "batch": {input.BatchRef}, "stage": {"N-S4"}, "policy": {input.PolicyMediaID}}
 	cfg := fabricboot.DHCPOptions{ProjectID: projectID, BatchRef: input.BatchRef, StageRef: "N-S4", ManagementCIDR: plan.Rules.CIDR, Option239URL: origin + "/api/v1/boot/ztp?" + query.Encode(), Option143URIs: []string{origin}, Option60VCI: "cumulus-linux x86_64", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"}}
-	// This first live adapter installs only approved Cumulus isolation option239.
-	// 143/43 and production configuration are not silently approximated.
+	sztpEnvironmentID := ""
+	if sztpOrigin, enabled := s.FabricProbes.SZTPOrigin(); enabled {
+		cfg.Option143URIs = []string{sztpOrigin}
+		var raw []byte
+		readErr := tx.QueryRowContext(ctx, `SELECT report FROM ztp_environment_checks WHERE project_id=$1 AND batch_ref=$2 AND boot_channel='143' ORDER BY checked_at DESC,id DESC LIMIT 1`, projectID, input.BatchRef).Scan(&raw)
+		if errors.Is(readErr, sql.ErrNoRows) {
+			return nil, apiError(409, "ZTP_SZTP_ENVIRONMENT_REQUIRED", "Run the configured 143 channel environment checks before staging")
+		}
+		if readErr != nil {
+			return nil, readErr
+		}
+		var sztp ZTPEnvironmentReport
+		if readErr = json.Unmarshal(raw, &sztp); readErr != nil {
+			return nil, readErr
+		}
+		if !sztp.Ready || sztp.PlanID != plan.ID || sztp.ConfigHash != s.FabricProbes.Fingerprint || !time.Now().Before(sztp.ExpiresAt) {
+			return nil, apiError(409, "ZTP_SZTP_ENVIRONMENT_NOT_READY", "Configured 143 channel needs current ready N-S3 evidence")
+		}
+		sztpEnvironmentID = sztp.ID
+	}
 	if lockMedia {
 		_, e = approvedZTPSimArtifactTx(ctx, tx, projectID, &cfg, "239")
 	} else {
@@ -102,7 +121,7 @@ func (s *Store) keaDeploymentFactsTx(ctx context.Context, tx *sql.Tx, a *AuthSes
 	if e != nil {
 		return nil, e
 	}
-	out := &KeaDeploymentSpec{PlanID: plan.ID, EnvironmentID: report.ID, ProbeHash: report.ConfigHash, ControllerKey: key, Options: cfg, Bindings: []fabricboot.KeaReservation{}}
+	out := &KeaDeploymentSpec{SZTPEnvironmentID: sztpEnvironmentID, PlanID: plan.ID, EnvironmentID: report.ID, ProbeHash: report.ConfigHash, ControllerKey: key, Options: cfg, Bindings: []fabricboot.KeaReservation{}}
 	for _, assignment := range plan.Assignments {
 		if assignment.Batch != input.BatchRef {
 			continue
@@ -165,7 +184,7 @@ func (s *Store) StageKeaDeployment(ctx context.Context, a *AuthSession, p *Proje
 	if e != nil {
 		return nil, apiError(502, "KEA_READ_FAILED", "Cannot read the configured Kea control service")
 	}
-	candidate, e := fabricboot.MergeBootstrap239(live.Config, spec.Options.ManagementCIDR, spec.Options.Option239URL, p.ID, keaDeploymentBindings(spec))
+	candidate, e := renderKeaCandidate(live.Config, spec)
 	if e != nil {
 		return nil, apiError(409, "KEA_CANDIDATE_BLOCKED", e.Error())
 	}
@@ -305,7 +324,7 @@ func (s *Store) RunKeaDeployment(ctx context.Context, jobID, executionID string)
 	}
 	var candidate json.RawMessage
 	if e == nil {
-		candidate, e = fabricboot.MergeBootstrap239(live.Config, facts.Options.ManagementCIDR, facts.Options.Option239URL, job.ProjectID, keaDeploymentBindings(facts))
+		candidate, e = renderKeaCandidate(live.Config, facts)
 	}
 	if e == nil && fabricboot.KeaConfigDigest(candidate) != job.CandidateHash {
 		e = apiError(409, "KEA_CANDIDATE_CHANGED", "Recomputed candidate differs from staged evidence")
@@ -329,7 +348,11 @@ func (s *Store) RunKeaDeployment(ctx context.Context, jobID, executionID string)
 	var proof *fabricboot.DHCPProof
 	verificationCode := "not_configured"
 	if e == nil && s.FabricProbes.DHCPProbe() != nil {
-		proof, verifyErr := s.FabricProbes.DHCPProbe().Verify239(ctx, facts.Options.Option239URL, facts.Options.Option60VCI)
+		var redirects []string
+		if facts.SZTPEnvironmentID != "" {
+			redirects = facts.Options.Option143URIs
+		}
+		proof, verifyErr := s.FabricProbes.DHCPProbe().VerifyBootstrap(ctx, facts.Options.Option239URL, facts.Options.Option60VCI, redirects)
 		if verifyErr != nil {
 			verificationCode = "dora_failed"
 		} else {
@@ -355,7 +378,20 @@ func (s *Store) RunKeaDeployment(ctx context.Context, jobID, executionID string)
 		defer finishTx.Rollback()
 		if proof != nil {
 			// Admission revocation or source changes while DHCP ran must not open a route.
-			current, checkErr := s.keaDeploymentFactsTx(finish, finishTx, actor, job.ProjectID, KeaDeploymentInput{BatchRef: job.Spec.Options.BatchRef, PolicyMediaID: policyMediaID(job.Spec.Options.Option239URL)}, true)
+			var currentEnabled, currentAdmin bool
+			var desired string
+			checkErr := finishTx.QueryRowContext(finish, `SELECT u.enabled,u.is_admin,x.desired_state FROM exec_executions x JOIN users u ON u.id=x.created_by WHERE x.id=$1 AND u.id=$2 FOR SHARE OF u,x`, executionID, actor.User.ID).Scan(&currentEnabled, &currentAdmin, &desired)
+			actor.User.IsAdmin = currentAdmin
+			if checkErr == nil && currentEnabled && !currentAdmin {
+				var role string
+				checkErr = finishTx.QueryRowContext(finish, `SELECT role FROM memberships WHERE project_id=$1 AND user_id=$2 FOR SHARE`, job.ProjectID, actor.User.ID).Scan(&role)
+			}
+			var current *KeaDeploymentSpec
+			if checkErr == nil && currentEnabled && desired == "running" {
+				current, checkErr = s.keaDeploymentFactsTx(finish, finishTx, actor, job.ProjectID, KeaDeploymentInput{BatchRef: job.Spec.Options.BatchRef, PolicyMediaID: policyMediaID(job.Spec.Options.Option239URL)}, true)
+			} else if checkErr == nil {
+				checkErr = ErrForbidden
+			}
 			if checkErr != nil || fabricboot.ManagementPlanDigest(current) != job.SpecHash {
 				proof = nil
 				result.DORA = nil
@@ -421,4 +457,11 @@ func (s *Store) KeaPolicyOptions(ctx context.Context, a *AuthSession, p *Project
 	}
 	rows.Close()
 	return out, tx.Commit()
+}
+
+func renderKeaCandidate(live json.RawMessage, spec *KeaDeploymentSpec) (json.RawMessage, error) {
+	if spec.SZTPEnvironmentID != "" {
+		return fabricboot.MergeBootstrapDual(live, spec.Options.ManagementCIDR, spec.Options.Option239URL, spec.Options.ProjectID, keaDeploymentBindings(spec), spec.Options.Option143URIs)
+	}
+	return fabricboot.MergeBootstrap239(live, spec.Options.ManagementCIDR, spec.Options.Option239URL, spec.Options.ProjectID, keaDeploymentBindings(spec))
 }

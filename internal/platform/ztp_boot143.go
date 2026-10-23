@@ -24,13 +24,14 @@ type SZTPOnboarding struct {
 type activeSZTPPlan struct {
 	projectID, batchRef, stageRef, hash string
 	cfg                                 fabricboot.DHCPOptions
+	live                                *KeaDeployment
 }
 
 // activeSZTPPlanTx selects one validated active route from direct source and
 // TLS Host. Both data delivery and progress reports use the same route gate.
 func (s *Store) activeSZTPPlanTx(ctx context.Context, tx *sql.Tx, source netip.Addr, requestHost string) (*activeSZTPPlan, error) {
 	if s.FabricProbes.LiveBootConfigured() {
-		return nil, ErrNotFound
+		return s.liveSZTPPlanTx(ctx, tx, source, requestHost)
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT project_id,batch_ref,stage_ref,active_config,coalesce(active_hash,'') FROM ztp_mock_kea_plans WHERE stage_ref='N-S4' AND active_config IS NOT NULL FOR SHARE`)
 	if err != nil {
@@ -145,6 +146,9 @@ func (s *Store) ServeZTP143(ctx context.Context, certSerial, sourceIP, requestHo
 			return nil, err
 		}
 		return nil, apiError(409, "ZTP_IDENTITY_CONFLICT", "Device identity conflicts with SoT")
+	}
+	if plan.live != nil && !liveBindingMatches(plan.live, verdict.SwitchID, sourceIP) {
+		return nil, apiError(409, "SZTP_BOOT_BINDING_MISMATCH", "Certificate identity does not match the verified management source")
 	}
 	cms, err := fabricboot.UnsignedIsolationOnboarding(false)
 	if err != nil {

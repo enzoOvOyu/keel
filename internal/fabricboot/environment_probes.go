@@ -92,6 +92,9 @@ func NewProbeSuite(cfg ProbeConfig) (*ProbeSuite, error) {
 				known = true
 			}
 		}
+		if name == "sztp" {
+			known = true
+		}
 		if !known {
 			return nil, errors.New("unknown probe service")
 		}
@@ -114,7 +117,7 @@ func NewProbeSuite(cfg ProbeConfig) (*ProbeSuite, error) {
 			tlsConfig.Certificates = []tls.Certificate{cert}
 			fingerprints[name+"_certificate"] = ManagementPlanDigest(cert.Certificate)
 		}
-		if name == "kea" && len(tlsConfig.Certificates) == 0 {
+		if (name == "kea" || name == "sztp") && len(tlsConfig.Certificates) == 0 {
 			return nil, errors.New("Kea probe requires a client certificate")
 		}
 		if name == "repository" && !keaHashPattern.MatchString(target.SHA256) {
@@ -135,7 +138,13 @@ func (s *ProbeSuite) Check(ctx context.Context, channel string) []ProbeResult {
 			start := time.Now()
 			result := ProbeResult{Service: name, State: "unknown", Code: "not_configured"}
 			if s != nil {
-				if probe, ok := s.targets[name]; ok {
+				targetName := name
+				if name == "boot" && channel == "143" {
+					if _, ok := s.targets["sztp"]; ok {
+						targetName = "sztp"
+					}
+				}
+				if probe, ok := s.targets[targetName]; ok {
 					result.State, result.Code = probe.check(ctx, name, channel)
 				}
 			}
@@ -282,4 +291,23 @@ func (s *ProbeSuite) LiveBootConfigured() bool {
 	}
 	_, ok := s.targets["kea"]
 	return ok
+}
+
+func (s *ProbeSuite) SZTPOrigin() (string, bool) {
+	if s == nil {
+		return "", false
+	}
+	probe, ok := s.targets["sztp"]
+	if !ok {
+		return "", false
+	}
+	u, e := url.Parse(probe.target.URL)
+	if e != nil {
+		return "", false
+	}
+	origin := u.Scheme + "://" + u.Host
+	if _, e = EncodeSZTPRedirect([]string{origin}); e != nil {
+		return "", false
+	}
+	return origin, true
 }

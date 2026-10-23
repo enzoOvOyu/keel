@@ -55,7 +55,7 @@
         "F-0.12"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "BOM/model and ZTP framework are partially implemented. Mock offers, protocol/listener primitives and simulation evidence are distinct from real DHCP/device readiness. N-S5 files are unreviewed worktree drafts, not a delivered API/UI. Golden, health/lossless, rule governance, readiness and final cross-domain evidence remain incomplete. Approved-rule IPv4 management planning, stable allocation, digest-checked atomic save, N-S3 TLS/protocol probes and persisted expiring batch/channel reports now have API/UI and targeted PostgreSQL/browser evidence. Real Kea/Runner admission, production listener enforcement, persistent DHCP config/DORA and individualized management/credentials remain incomplete. Kea control staging and persistence now use shared Execution, generic target registry, fenced leases/outbox/receipts, fresh planning/environment/media/MAC admission and unknown-write quarantine; real API/worker/PostgreSQL/mTLS protocol-fixture browser evidence exists. DORA, active device routes/listener admission, 143/43/IPv6 control, management rendering/credentials and hardware PoC remain incomplete.",
+      "implementation_notes": "BOM/model and ZTP framework are partially implemented. Mock offers, protocol/listener primitives and simulation evidence are distinct from real DHCP/device readiness. N-S5 files are unreviewed worktree drafts, not a delivered API/UI. Golden, health/lossless, rule governance, readiness and final cross-domain evidence remain incomplete. Approved-rule IPv4 management planning, stable allocation, digest-checked atomic save, N-S3 TLS/protocol probes and persisted expiring batch/channel reports now have API/UI and targeted PostgreSQL/browser evidence. Real Kea/Runner admission, production listener enforcement, persistent DHCP config/DORA and individualized management/credentials remain incomplete. Kea control staging and persistence now use shared Execution, generic target registry, fenced leases/outbox/receipts, fresh planning/environment/media/MAC admission and unknown-write quarantine; real API/worker/PostgreSQL/mTLS protocol-fixture browser evidence exists. DORA, active device routes/listener admission, 143/43/IPv6 control, management rendering/credentials and hardware PoC remain incomplete. N-S2/N-S3, Kea shared runner + option239 DORA/live admission, and N-S5 collector/precheck/Fabric UI have partial software evidence. Remaining scope and hardware limits are in docs/HANDOFF.md and module guides; no overall FR-0 PASS.",
       "evidence_refs": [
         "internal/platform/ztp_management.go",
         "internal/platform/ztp_environment.go",
@@ -67,10 +67,9 @@
         "internal/fabricboot/kea_deployment_test.go",
         "scripts/check-kea-browser.mjs",
         "scripts/check-kea-integration.py",
-        "docs/KEA-RUNNER.md"
-      ],
-      "status": "partial",
-      "implementation_note": "N-S2/N-S3, Kea shared runner + option239 DORA/live admission, and N-S5 collector/precheck/Fabric UI have partial software evidence. Remaining scope and hardware limits are in docs/HANDOFF.md and module guides; no overall FR-0 PASS."
+        "docs/KEA-RUNNER.md",
+        "docs/FABRIC-COLLECTION.md"
+      ]
     },
     {
       "id": "FR-1",

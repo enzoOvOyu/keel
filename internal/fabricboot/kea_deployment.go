@@ -123,6 +123,19 @@ type KeaReservation struct {
 // management subnet. Global settings, other subnets and unrelated reservations
 // are preserved; foreign/ambiguous bindings are rejected instead of overwritten.
 func MergeBootstrap239(live json.RawMessage, cidr, bootURL, owner string, bindings []KeaReservation) (json.RawMessage, error) {
+	return mergeBootstrap239(live, cidr, bootURL, owner, bindings, nil)
+}
+func MergeBootstrapDual(live json.RawMessage, cidr, bootURL, owner string, bindings []KeaReservation, uris []string) (json.RawMessage, error) {
+	redirect, e := EncodeSZTPRedirect(uris)
+	if e != nil {
+		return nil, e
+	}
+	if len(redirect) > 255 {
+		return nil, errors.New("option143 payload exceeds the single-option capability")
+	}
+	return mergeBootstrap239(live, cidr, bootURL, owner, bindings, redirect)
+}
+func mergeBootstrap239(live json.RawMessage, cidr, bootURL, owner string, bindings []KeaReservation, redirect []byte) (json.RawMessage, error) {
 	if len(bootURL) > 255 || !strings.HasPrefix(bootURL, "https://") {
 		return nil, errors.New("239 URL must be HTTPS and fit one DHCP option")
 	}
@@ -187,6 +200,10 @@ func MergeBootstrap239(live json.RawMessage, cidr, bootURL, owner string, bindin
 		seenHost[binding.Hostname] = true
 
 		record := map[string]any{"hw-address": canonical, "ip-address": binding.IP, "hostname": binding.Hostname, "user-context": map[string]any{"keel-owner": owner, "keel-switch": binding.SwitchID}, "option-data": []any{map[string]any{"code": 239, "space": "dhcp4", "csv-format": false, "data": hex.EncodeToString([]byte(bootURL)), "always-send": true}}}
+		if len(redirect) > 0 {
+			options := record["option-data"].([]any)
+			record["option-data"] = append(options, map[string]any{"code": 143, "space": "dhcp4", "csv-format": false, "data": hex.EncodeToString(redirect), "always-send": true})
+		}
 		replaced := false
 		for i, entry := range existing {
 			current, ok := entry.(map[string]any)
@@ -208,12 +225,25 @@ func MergeBootstrap239(live json.RawMessage, cidr, bootURL, owner string, bindin
 					return nil, errors.New("managed reservation contains independent metadata")
 				}
 				options, ok := current["option-data"].([]any)
-				if !ok || len(options) != 1 {
+				if !ok || len(options) < 1 || len(options) > 2 || len(redirect) == 0 && len(options) != 1 {
 					return nil, errors.New("managed reservation contains independent options")
 				}
-				option, ok := options[0].(map[string]any)
-				if !ok || fmt.Sprint(option["code"]) != "239" {
-					return nil, errors.New("managed reservation contains independent options")
+				seenCodes := map[string]bool{}
+				for _, rawOption := range options {
+					option, ok := rawOption.(map[string]any)
+					if !ok {
+						return nil, errors.New("invalid managed option")
+					}
+					code := fmt.Sprint(option["code"])
+					if seenCodes[code] || code != "239" && (code != "143" || len(redirect) == 0) {
+						return nil, errors.New("managed reservation contains independent options")
+					}
+					seenCodes[code] = true
+					for field := range option {
+						if field != "code" && field != "space" && field != "csv-format" && field != "data" && field != "always-send" {
+							return nil, errors.New("managed option contains independent settings")
+						}
+					}
 				}
 				if replaced {
 					return nil, errors.New("duplicate managed reservation")

@@ -57,6 +57,15 @@ func (s *Store) RecordZTP143Progress(ctx context.Context, certSerial, sourceIP, 
 	if err != nil {
 		return err
 	}
+	if plan.live != nil {
+		verdict, identityErr := resolveZTPIdentityTx(ctx, tx, plan.projectID, ZTPIdentityInput{Serial: certSerial})
+		if identityErr != nil {
+			return identityErr
+		}
+		if !liveBindingMatches(plan.live, verdict.SwitchID, sourceIP) {
+			return apiError(409, "SZTP_BOOT_BINDING_MISMATCH", "Certificate identity does not match the verified management source")
+		}
+	}
 	var priorSwitch sql.NullString
 	err = tx.QueryRowContext(ctx, `SELECT switch_id FROM ztp_device_observations WHERE project_id=$1 AND batch_ref=$2 AND serial_number=$3 AND source_ip=$4 AND boot_channel='143' AND event_type='data-served' AND offer_hash=$5 AND occurred_at>now()-interval '30 minutes' ORDER BY occurred_at DESC LIMIT 1 FOR SHARE`, plan.projectID, plan.batchRef, certSerial, sourceIP, plan.hash).Scan(&priorSwitch)
 	if errors.Is(err, sql.ErrNoRows) {

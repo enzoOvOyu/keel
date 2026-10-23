@@ -31,7 +31,10 @@ class KeaFixture:
     kind=2 if options[53]==b'\x01' else 5
     url=bytes.fromhex(record['option-data'][0]['data'])
     if fixture.fault.read_text()=='bad-dora':url=b'https://foreign.example.invalid/'
-    response.extend(bytes([53,1,kind,54,4])+socket.inet_aton('127.0.0.1')+bytes([51,4])+struct.pack('!I',600)+bytes([239,len(url)])+url+bytes([255]))
+    response.extend(bytes([53,1,kind,54,4])+socket.inet_aton('127.0.0.1')+bytes([51,4])+struct.pack('!I',600)+bytes([239,len(url)])+url)
+    redirect=next((bytes.fromhex(v['data']) for v in record['option-data'] if v['code']==143),None)
+    if redirect is not None:response.extend(bytes([143,len(redirect)])+redirect)
+    response.extend(bytes([255]))
     fixture.udp.sendto(response,peer)
   self.udp_thread=threading.Thread(target=dora,daemon=True);self.udp_thread.start()
   class Handler(http.server.BaseHTTPRequestHandler):
@@ -49,6 +52,7 @@ class KeaFixture:
      if fixture.fault.read_text()=='fabric-foreign-device':devices[0]['serial']='FOREIGN-DEVICE'
      if fixture.fault.read_text()=='fabric-no-data':devices=[]
      self.answer({'version':'fabric-collection/v1','project_id':self.path.split('/')[3],'evidence_source':'protocol_fixture','devices':devices})
+    elif self.path=='/sztp/readyz':self.answer({'service':'keel-ztp','status':'ready','capabilities':['sztp143']})
     elif self.path=='/boot/readyz':self.answer({'service':'keel-ztp','status':'ready','capabilities':['ztp239']})
     elif self.path=='/collector/readyz':self.answer({'service':'keel-fabric-collector','status':'ready','capabilities':['lldp','interfaces','ddm']})
     elif self.path=='/canary':self.answer(fixture.artifact)
@@ -73,7 +77,7 @@ class KeaFixture:
   self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
   origin='https://127.0.0.1:'+str(self.server.server_port)
   targets={}
-  for name,path in {'kea':'/','boot':'/boot/readyz','collector':'/collector/readyz','repository':'/canary'}.items():
+  for name,path in {'kea':'/','boot':'/boot/readyz','sztp':'/sztp/readyz','collector':'/collector/readyz','repository':'/canary'}.items():
    targets[name]={'url':origin+path,'ca_file':str(self.cert),'certificate_file':str(self.cert),'key_file':str(self.key)}
   targets['kea']['allow_config_write']=True;targets['kea']['through_agent']=True;targets['repository']['sha256']=hashlib.sha256(self.artifact).hexdigest()
   self.configuration=work/'probes.json';self.configuration.write_text(json.dumps({'version':'fabric-probes/v1','targets':targets,'dhcp':{'server':'127.0.0.1:'+str(self.udp.getsockname()[1]),'listen':'127.0.0.1:'+str(self.relay_listen[1]),'relay_ip':'127.0.0.1','mac':'02:00:00:00:ff:01','address':'192.0.2.250','timeout_seconds':2}}));self.configuration.chmod(0o600)

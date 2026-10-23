@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
+	"net/netip"
+	"strings"
 )
 
 // Live control configuration never falls back to the separate mock offer store.
@@ -63,4 +65,55 @@ func (s *Store) active239OptionsTx(ctx context.Context, tx *sql.Tx, project, bat
 		e = ErrNotFound
 	}
 	return raw, hash, nil, e
+}
+
+func liveBindingMatches(job *KeaDeployment, id, source string) bool {
+	for _, b := range job.Spec.Bindings {
+		if b.SwitchID == id && b.IP == source {
+			return true
+		}
+	}
+	return false
+}
+func (s *Store) liveSZTPPlanTx(ctx context.Context, tx *sql.Tx, source netip.Addr, host string) (*activeSZTPPlan, error) {
+	origin := "https://" + host
+	configured, enabled := s.FabricProbes.SZTPOrigin()
+	if !enabled || !strings.EqualFold(origin, configured) {
+		return nil, ErrNotFound
+	}
+	rows, e := tx.QueryContext(ctx, `SELECT DISTINCT project_id,spec->'options'->>'batch_ref' FROM ztp_kea_deployments WHERE state='boot_ready' AND dora_proof->'option_143_uris' @> to_jsonb(ARRAY[$1]::text[]) AND EXISTS(SELECT 1 FROM jsonb_array_elements(spec->'bindings') b WHERE b->>'management_ip'=$2)`, configured, source.String())
+	if e != nil {
+		return nil, e
+	}
+	type candidate struct{ project, batch string }
+	candidates := []candidate{}
+	for rows.Next() {
+		var c candidate
+		if e = rows.Scan(&c.project, &c.batch); e != nil {
+			break
+		}
+		candidates = append(candidates, c)
+	}
+	if e == nil {
+		e = rows.Err()
+	}
+	rows.Close()
+	if e != nil {
+		return nil, e
+	}
+	if len(candidates) == 0 {
+		return nil, ErrNotFound
+	}
+	if len(candidates) != 1 {
+		return nil, apiError(409, "SZTP_ROUTE_AMBIGUOUS", "Management peer matches more than one verified bootstrap scope")
+	}
+	c := candidates[0]
+	job, e := s.liveBootRouteTx(ctx, tx, c.project, c.batch, "N-S4")
+	if e != nil {
+		return nil, e
+	}
+	if job.Spec.SZTPEnvironmentID == "" || job.DORA == nil || len(job.DORA.Option143URIs) != 1 || job.DORA.Option143URIs[0] != configured {
+		return nil, ErrNotFound
+	}
+	return &activeSZTPPlan{projectID: c.project, batchRef: c.batch, stageRef: "N-S4", hash: job.ActiveHash, cfg: job.Spec.Options, live: job}, nil
 }

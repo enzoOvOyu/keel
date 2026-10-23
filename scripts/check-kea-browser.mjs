@@ -38,6 +38,7 @@ try{
  const batch=await page.locator('#environment-batch').inputValue()
  const denied=await context.request.post(base+'/ztp/kea-deployments/stage',{headers,data:{batch_ref:batch,policy_media_id:media.id}});assert.equal(denied.status(),409)
  await environment.getByRole('button',{name:'执行环境自检',exact:true}).click();await environment.getByText('环境探针通过',{exact:false}).waitFor()
+ await post(base+'/ztp/environment-checks',{batch_ref:batch,boot_channel:'143'})
  await page.locator('#kea-live-policy').selectOption(media.id)
  async function stage(){const pending=page.waitForResponse(r=>r.url().endsWith('/kea-deployments/stage'));await kea.getByRole('button',{name:'读取并预检 Kea 变更',exact:true}).click();const response=await pending;const body=await response.json();assert.equal(response.status(),201,body.code??'Kea stage');return body}
  async function execute(job){const result=await post(base+'/ztp/kea-deployments/'+job.id+'/execute',undefined,201,job.id);return result}
@@ -51,12 +52,12 @@ try{
  const replay=await post(base+'/ztp/kea-deployments/'+job.id+'/execute',undefined,201,job.id);assert.equal(replay.id,running.id)
  const generic=await context.request.post(base+'/executions',{headers:{...headers,'Idempotency-Key':crypto.randomUUID()},data:{mode:'sim',flow_version_id:running.flow_version_id,target_ids:[running.snapshot.targets[0].id],parameters:{}}});assert.notEqual(generic.status(),201)
  await kea.getByText('DORA 已验证／引导路由就绪',{exact:true}).waitFor()
- const verified=await(await context.request.get(base+'/ztp/kea-deployments')).json();const proof=verified.deployments.find(v=>v.id===job.id);assert.equal(proof.state,'boot_ready');assert.equal(proof.dora.address,'192.0.2.250');assert.equal(proof.dora.transcript_sha256.length,64);verifyRoute('ready')
+ const verified=await(await context.request.get(base+'/ztp/kea-deployments')).json();const proof=verified.deployments.find(v=>v.id===job.id);assert.equal(proof.state,'boot_ready');assert.equal(proof.dora.address,'192.0.2.250');assert.equal(proof.dora.option_143_uris.length,1);assert.equal(proof.dora.transcript_sha256.length,64);verifyRoute('ready')
  const failedDora=await stage();await writeFile(c.fault_file,'bad-dora');const failedRun=await execute(failedDora)
  await poll(async()=>await(await context.request.get(base+'/executions/'+failedRun.id)).json(),d=>d.execution?.state==='success')
  const rejectedProof=await(await context.request.get(base+'/ztp/kea-deployments')).json();const rejectedJob=rejectedProof.deployments.find(v=>v.id===failedDora.id);assert.equal(rejectedJob.state,'config_persisted');assert.equal(rejectedJob.verification_code,'dora_failed');assert.equal(rejectedJob.dora,undefined);verifyRoute('not_ready');await writeFile(c.fault_file,'')
  console.log('PASS approved planning/N-S3/media admission, immutable staging and shared Execution/worker receipt')
- console.log('PASS wire DORA transcript, dedicated canary and foreign-option rejection; persisted configuration alone cannot open a route')
+ console.log('PASS wire DORA transcript for 239+143, dedicated canary and foreign-option rejection; persisted configuration alone cannot open a route')
  console.log('PASS config-test/set/write/full readback, queue idempotency, mode separation and no raw configuration secrets in API evidence')
  const unknown=await stage();await writeFile(c.fault_file,'drop-set');const second=await execute(unknown)
  await poll(async()=>await(await context.request.get(base+'/ztp/kea-deployments')).json(),v=>v.deployments?.some(x=>x.id===unknown.id&&x.state==='unknown'))

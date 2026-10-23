@@ -55,6 +55,22 @@ func TestLive239WorkerRoute(t *testing.T) {
 	if _, e = call("198.51.100.22"); e == nil {
 		t.Fatal("foreign source admitted")
 	}
+	if job.Spec.SZTPEnvironmentID != "" {
+		origin, _ := url.Parse(job.Spec.Options.Option143URIs[0])
+		sztp, sztpErr := store.ServeZTP143(ctx, serial, binding.IP, origin.Host, "live-sztp-test", false)
+		if expected == "ready" {
+			if sztpErr != nil || sztp == nil || sztp.IdentityVerdict != "matched" || len(sztp.CMS) == 0 {
+				t.Fatalf("live143 route failed: %v", sztpErr)
+			}
+			if len(job.Spec.Bindings) > 1 {
+				if _, err := store.ServeZTP143(ctx, serial, job.Spec.Bindings[1].IP, origin.Host, "live-sztp-test", false); err == nil {
+					t.Fatal("143 admitted another device source")
+				}
+			}
+		} else if sztpErr == nil {
+			t.Fatal("unverified143 route admitted")
+		}
+	}
 	out, e := call(binding.IP)
 	if expected == "ready" {
 		if e != nil || out == nil || out.IdentityVerdict != "matched" {

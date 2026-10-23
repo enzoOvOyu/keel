@@ -25,6 +25,7 @@ type DHCPProbeConfig struct {
 	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
 }
 type DHCPProof struct {
+	Option143URIs    []string  `json:"option_143_uris,omitempty"`
 	Address          string    `json:"address"`
 	MAC              string    `json:"mac"`
 	ServerID         string    `json:"server_id"`
@@ -73,7 +74,7 @@ func dhcpPacket(xid []byte, mac net.HardwareAddr, relay netip.Addr, kind byte, r
 	copy(b[236:240], []byte{99, 130, 83, 99})
 	b = append(b, 53, 1, kind, 61, 7, 1)
 	b = append(b, mac...)
-	b = append(b, 55, 5, 1, 3, 51, 54, 239)
+	b = append(b, 55, 6, 1, 3, 51, 54, 239, 143)
 	if len(vendor) > 0 {
 		b = append(b, 60, byte(len(vendor)))
 		b = append(b, []byte(vendor)...)
@@ -129,6 +130,20 @@ func dhcpOptions(packet []byte, xid []byte, mac net.HardwareAddr, relay netip.Ad
 	return out, nil
 }
 func (p DHCPProbeConfig) Verify239(ctx context.Context, url, vendor string) (*DHCPProof, error) {
+	return p.VerifyBootstrap(ctx, url, vendor, nil)
+}
+func (p DHCPProbeConfig) VerifyBootstrap(ctx context.Context, url, vendor string, uris []string) (*DHCPProof, error) {
+	if e := ctx.Err(); e != nil {
+		return nil, e
+	}
+	var redirect []byte
+	if len(uris) > 0 {
+		var err error
+		redirect, err = EncodeSZTPRedirect(uris)
+		if err != nil || len(redirect) > 255 {
+			return nil, errors.New("invalid expected SZTP redirect")
+		}
+	}
 	if e := p.Validate(); e != nil {
 		return nil, e
 	}
@@ -189,6 +204,9 @@ func (p DHCPProbeConfig) Verify239(ctx context.Context, url, vendor string) (*DH
 			if err != nil {
 				return nil, nil, err
 			}
+			if len(redirect) > 0 && !bytes.Equal(options[143], redirect) {
+				return nil, nil, errors.New("DHCP SZTP redirect does not match the approved bootstrap server")
+			}
 			if options[53][0] != kind || !bytes.Equal(raw[16:20], ip[:]) || string(options[239]) != url || server != nil && !bytes.Equal(options[54], server) {
 				return nil, nil, errors.New("DHCP offer/ack does not match the approved canary, server and bootstrap URL")
 			}
@@ -206,7 +224,7 @@ func (p DHCPProbeConfig) Verify239(ctx context.Context, url, vendor string) (*DH
 	}
 	var serverIP [4]byte
 	copy(serverIP[:], ack[54])
-	return &DHCPProof{Address: p.Address, MAC: mac.String(), ServerID: netip.AddrFrom4(serverIP).String(), Option239URL: url, TranscriptSHA256: hex.EncodeToString(transcript.Sum(nil)), LeaseSeconds: binary.BigEndian.Uint32(ack[51]), VerifiedAt: time.Now().UTC()}, nil
+	return &DHCPProof{Option143URIs: append([]string(nil), uris...), Address: p.Address, MAC: mac.String(), ServerID: netip.AddrFrom4(serverIP).String(), Option239URL: url, TranscriptSHA256: hex.EncodeToString(transcript.Sum(nil)), LeaseSeconds: binary.BigEndian.Uint32(ack[51]), VerifiedAt: time.Now().UTC()}, nil
 }
 func (s *ProbeSuite) DHCPProbe() *DHCPProbeConfig {
 	if s == nil || s.dhcp == nil {
