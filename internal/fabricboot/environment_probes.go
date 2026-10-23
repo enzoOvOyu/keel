@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/enzoOvOyu/keel/internal/netbaseline"
 	"io"
 	"net/http"
 	"net/url"
@@ -92,7 +93,7 @@ func NewProbeSuite(cfg ProbeConfig) (*ProbeSuite, error) {
 				known = true
 			}
 		}
-		if name == "sztp" {
+		if name == "sztp" || name == "network" {
 			known = true
 		}
 		if !known {
@@ -117,7 +118,7 @@ func NewProbeSuite(cfg ProbeConfig) (*ProbeSuite, error) {
 			tlsConfig.Certificates = []tls.Certificate{cert}
 			fingerprints[name+"_certificate"] = ManagementPlanDigest(cert.Certificate)
 		}
-		if (name == "kea" || name == "sztp") && len(tlsConfig.Certificates) == 0 {
+		if (name == "kea" || name == "sztp" || name == "network") && len(tlsConfig.Certificates) == 0 {
 			return nil, errors.New("Kea probe requires a client certificate")
 		}
 		if name == "repository" && !keaHashPattern.MatchString(target.SHA256) {
@@ -310,4 +311,31 @@ func (s *ProbeSuite) SZTPOrigin() (string, bool) {
 		return "", false
 	}
 	return origin, true
+}
+
+func (s *ProbeSuite) NetworkClient() (*netbaseline.Client, error) {
+	if s == nil {
+		return nil, errors.New("network adapter is not configured")
+	}
+	probe, ok := s.targets["network"]
+	if !ok {
+		return nil, errors.New("network adapter is not configured")
+	}
+	transport, ok := probe.client.Transport.(*http.Transport)
+	if !ok || transport.TLSClientConfig == nil || len(transport.TLSClientConfig.Certificates) == 0 {
+		return nil, errors.New("network adapter requires mTLS")
+	}
+	client := *probe.client
+	client.Timeout = 30 * time.Second
+	if probe.target.WriteTimeoutSeconds != 0 {
+		if probe.target.WriteTimeoutSeconds < 1 || probe.target.WriteTimeoutSeconds > 60 {
+			return nil, errors.New("network adapter timeout must be 1 through 60 seconds")
+		}
+		client.Timeout = time.Duration(probe.target.WriteTimeoutSeconds) * time.Second
+	}
+	copy := transport.Clone()
+	copy.DisableKeepAlives = true
+	copy.ResponseHeaderTimeout = client.Timeout
+	client.Transport = copy
+	return netbaseline.NewClient(probe.target.URL, &client, probe.target.AllowConfigWrite)
 }

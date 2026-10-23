@@ -105,10 +105,10 @@ function ExecutionPanel({ projectId, executionId, onClose }: { projectId: string
   if (detail.isPending) return <section className="management-panel" role="status">{t('loadingRecords')}</section>
   if (detail.isError || !detail.data) return <section className="management-panel"><ActionError error={detail.error ?? new Error('unavailable')} /><button className="secondary-button" onClick={onClose}>{t('backToList')}</button></section>
   const execution = detail.data.execution
-  const canControl=execution.mode==='kea'?(session.user.is_admin||['Admin','NDE'].includes(currentProject.role)):session.permissions.includes('execution:control')
+  const canControl=execution.mode!=='sim'?(session.user.is_admin||['Admin','NDE'].includes(currentProject.role)):session.permissions.includes('execution:control')
   const active = !terminalStates.includes(execution.state)
   return <section className="management-panel" aria-busy={detail.isFetching}>
-    <div className="page-heading"><div><p className="section-eyebrow">{t(execution.mode==='kea'?'keaControlNotice':'simulationNotice')}</p><h1>{t('executionDetail')}</h1><p>{t(execution.mode==='kea'?'keaControlDetail':'noDeviceConnection')}</p></div>
+    <div className="page-heading"><div><p className="section-eyebrow">{t(execution.mode==='fabric'?'networkExecutionNotice':execution.mode==='kea'?'keaControlNotice':'simulationNotice')}</p><h1>{t('executionDetail')}</h1><p>{t(execution.mode==='fabric'?'networkExecutionDetail':execution.mode==='kea'?'keaControlDetail':'noDeviceConnection')}</p></div>
       <button className="secondary-button" onClick={onClose}>{t('backToList')}</button></div>
     <dl className="action-target"><dt>{t('executionId')}</dt><dd className="mono-value">{execution.id}</dd><dt>{t('executionState')}</dt><dd>{t('state_' + execution.state)}</dd>
       <dt>{t('executionTargets')}</dt><dd>{detail.data.attempts_total}</dd><dt>{t('executionConcurrency')}</dt><dd>{execution.concurrency}</dd>

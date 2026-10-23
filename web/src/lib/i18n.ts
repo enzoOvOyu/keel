@@ -1,3 +1,5 @@
+import { networkPushTranslations } from './network-push-i18n'
+import { networkTranslations } from './network-i18n'
 import { fabricTranslations } from './fabric-i18n'
 import i18n from 'i18next'
 import { managementPlanningTranslations } from './ztp-management-i18n'
@@ -15,6 +17,8 @@ export const resources = {
   zh: { translation: {
     ...managementTranslations.zh,
     ...fabricTranslations.zh,
+    ...networkPushTranslations.zh,
+    ...networkTranslations.zh,
     ...executionTranslations.zh,
     ...modelsTranslations.zh,
     ...mediaTranslations.zh,
@@ -115,6 +119,8 @@ export const resources = {
   en: { translation: {
     ...managementTranslations.en,
     ...fabricTranslations.en,
+    ...networkPushTranslations.en,
+    ...networkTranslations.en,
     ...executionTranslations.en,
     ...modelsTranslations.en,
     ...mediaTranslations.en,

@@ -307,7 +307,7 @@ func (s *Service) Control(ctx context.Context, a *Actor, projectID, id string, i
 	if e != nil {
 		return nil, e
 	}
-	if x.Mode == "kea" {
+	if x.Mode == "kea" || x.Mode == "fabric" {
 		if e = authorize(ctx, tx, a, projectID, "Admin", "NDE"); e != nil {
 			return nil, e
 		}

@@ -192,7 +192,7 @@ func (s *Store) SessionResponse(ctx context.Context, a *AuthSession) (*SessionRe
 			fabric[permission] = true
 		}
 	}
-	for _, permission := range []string{"fabric:read", "fabric:plan", "fabric:collect"} {
+	for _, permission := range []string{"fabric:read", "fabric:plan", "fabric:collect", "fabric:template:edit"} {
 		if fabric[permission] {
 			permissions = append(permissions, permission)
 		}

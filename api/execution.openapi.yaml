@@ -1538,7 +1538,8 @@
             "type": "string",
             "enum": [
               "sim",
-              "kea"
+              "kea",
+              "fabric"
             ]
           },
           "resource_key": {
@@ -1651,7 +1652,8 @@
             "type": "string",
             "enum": [
               "sim",
-              "kea"
+              "kea",
+              "fabric"
             ]
           },
           "flow": {
@@ -1725,7 +1727,8 @@
             "type": "string",
             "enum": [
               "sim",
-              "kea"
+              "kea",
+              "fabric"
             ]
           },
           "state": {
@@ -1854,7 +1857,8 @@
             "type": "string",
             "enum": [
               "sim",
-              "kea"
+              "kea",
+              "fabric"
             ]
           },
           "state": {
@@ -2257,7 +2261,8 @@
             "type": "string",
             "enum": [
               "sim",
-              "kea"
+              "kea",
+              "fabric"
             ]
           }
         },

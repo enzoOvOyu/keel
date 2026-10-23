@@ -2160,6 +2160,178 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/FabricDeviceEvidence' }
 
+  /api/v1/projects/{id}/fabric/templates:
+    get:
+      operationId: listNetworkTemplates
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Immutable template versions and adapter capability.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [templates, adapter_configured]
+                properties:
+                  templates: { type: array, items: { $ref: '#/components/schemas/NetworkTemplateVersion' } }
+                  adapter_configured: { type: boolean }
+    post:
+      operationId: createNetworkTemplate
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NetworkTemplateInput' }
+      responses:
+        '201':
+          description: A new draft version; source/schema are immutable.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkTemplateVersion' }
+  /api/v1/projects/{id}/fabric/templates/{templateId}/test:
+    post:
+      operationId: testNetworkTemplate
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: templateId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [baseline_ref, batch_ref]
+              properties:
+                baseline_ref: { type: string }
+                batch_ref: { type: string }
+      responses:
+        '200':
+          description: Three-layer checks, rehearsal and matching golden readback; provenance retained.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkTemplateVersion' }
+  /api/v1/projects/{id}/fabric/templates/{templateId}/release:
+    post:
+      operationId: releaseNetworkTemplate
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: templateId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Independent NH/Admin release after current approved facts recheck.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkTemplateVersion' }
+
+  /api/v1/projects/{id}/fabric/push-jobs:
+    get:
+      operationId: listNetworkPushJobs
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Project-scoped PushJobs with frozen evidence and distinct approval identities.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [jobs, writes_enabled]
+                properties:
+                  jobs: { type: array, items: { $ref: '#/components/schemas/NetworkPushJob' } }
+                  writes_enabled: { type: boolean }
+    post:
+      operationId: createNetworkPushJob
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NetworkPushInput' }
+      responses:
+        '201':
+          description: Immutable plan targets, intended configurations and approved baseline facts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkPushJob' }
+  /api/v1/projects/{id}/fabric/push-jobs/{jobId}/decision:
+    post:
+      operationId: decideNetworkPushJob
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: jobId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [review_hash, decision, comment]
+              properties:
+                review_hash: { type: string }
+                decision: { type: string, enum: [approve, reject] }
+                comment: { type: string, minLength: 1, maxLength: 2000 }
+      responses:
+        '200':
+          description: Frozen plan signature or rejection; NE plus DE, with NH for Critical changes.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkPushJob' }
+
+  /api/v1/projects/{id}/fabric/push-jobs/{jobId}/prepare:
+    post:
+      operationId: prepareNetworkPushJob
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: jobId, in: path, required: true, schema: { type: string } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      responses:
+        '201':
+          description: Domain-owned shared Execution, linked by its id; no separate queue.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, mode]
+                properties:
+                  id: { type: string }
+                  mode: { type: string, enum: [fabric] }
+
+  /api/v1/projects/{id}/fabric/push-jobs/{jobId}/push:
+    post:
+      operationId: pushNetworkPushJob
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: jobId, in: path, required: true, schema: { type: string } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      responses:
+        '201':
+          description: Domain-owned shared Execution, linked by its id; no separate queue.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, mode]
+                properties:
+                  id: { type: string }
+                  mode: { type: string, enum: [fabric] }
+
+  /api/v1/projects/{id}/fabric/push-jobs/{jobId}/archive:
+    post:
+      operationId: archiveNetworkPushJob
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: jobId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Archive a terminal job; approvals, evidence and events retained.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkPushJob' }
+
 components:
 
   securitySchemes:
@@ -2216,6 +2388,167 @@ components:
         maximum: 100
         default: 20
   schemas:
+
+    NetworkPushInput:
+      type: object
+      required: [template_id, baseline_ref, batch_ref]
+      properties:
+        template_id: { type: string }
+        baseline_ref: { type: string }
+        batch_ref: { type: string }
+    NetworkPushJob:
+      type: object
+      required: [id, project_id, template_id, baseline_id, input, facts_hash, config_hash, state, review_hash, critical, canary_min_size, concurrency, prepare_execution_id, push_execution_id, created_by, created_at, devices, signatures]
+      properties:
+        id: { type: string }
+        project_id: { type: string }
+        template_id: { type: string }
+        baseline_id: { type: string }
+        input: { $ref: '#/components/schemas/NetworkPushInput' }
+        facts_hash: { type: string }
+        config_hash: { type: string }
+        state: { type: string, enum: [CREATED, PRECHECKING, BLOCKED, READY, APPROVED, REJECTED, EXECUTING, VERIFYING, COMPLETED, PARTIAL, ROLLING_BACK, ROLLED_BACK, ARCHIVED] }
+        review_hash: { type: string }
+        critical: { type: boolean }
+        canary_min_size: { type: integer }
+        concurrency: { type: integer }
+        prepare_execution_id: { type: string }
+        push_execution_id: { type: string }
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+        signatures:
+          type: array
+          items:
+            type: object
+            required: [user_id, role, review_hash, comment]
+            properties:
+              user_id: { type: string }
+              role: { type: string, enum: [NE, DE, NH] }
+              review_hash: { type: string }
+              comment: { type: string }
+        devices:
+          type: array
+          items:
+            type: object
+            required: [device, state, running_hash, snapshot_ref, diff, code, ordinal]
+            properties:
+              device: { $ref: '#/components/schemas/NetworkPlannedDevice' }
+              state: { type: string, enum: [PENDING, PREPARED, BLOCKED, APPLYING, VERIFIED, PARTIAL, ROLLED_BACK, UNKNOWN, PAUSED, SKIPPED] }
+              running_hash: { type: string }
+              snapshot_ref: { type: string }
+              code: { type: string }
+              ordinal: { type: integer }
+              prepare: { $ref: '#/components/schemas/NetworkOperationResult' }
+              apply: { $ref: '#/components/schemas/NetworkOperationResult' }
+              verify: { $ref: '#/components/schemas/NetworkOperationResult' }
+              diff:
+                type: array
+                items:
+                  type: object
+                  required: [path, severity, before, after, before_present, after_present]
+                  properties:
+                    path: { type: string }
+                    severity: { type: string, enum: [Critical, Major, Minor] }
+                    before: {}
+                    after: {}
+                    before_present: { type: boolean }
+                    after_present: { type: boolean }
+
+    NetworkTemplateDefinition:
+      type: object
+      required: [source, variables]
+      properties:
+        source: { type: string, maxLength: 65536 }
+        variables:
+          type: object
+          additionalProperties:
+            type: object
+            required: [type]
+            properties:
+              type: { type: string, enum: [string, number, integer, boolean, array, object] }
+              required: { type: boolean }
+              enum: { type: array, items: { type: string } }
+    NetworkTemplateInput:
+      type: object
+      required: [name, source_ref, definition]
+      properties:
+        name: { type: string, maxLength: 120 }
+        source_ref: { type: string, maxLength: 300 }
+        definition: { $ref: '#/components/schemas/NetworkTemplateDefinition' }
+    NetworkTemplateVersion:
+      type: object
+      required: [id, project_id, name, version, state, source_ref, definition, content_hash, created_by, created_at]
+      properties:
+        id: { type: string }
+        project_id: { type: string }
+        name: { type: string }
+        version: { type: integer }
+        state: { type: string, enum: [draft, tested, released, deprecated] }
+        source_ref: { type: string }
+        definition: { $ref: '#/components/schemas/NetworkTemplateDefinition' }
+        content_hash: { type: string }
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+        test_report: { $ref: '#/components/schemas/NetworkTemplateReport' }
+    NetworkPlannedDevice:
+      type: object
+      required: [intended_id, id, serial, hostname, management_ip, model_version_id, credential_batch_ref, intended_hash]
+      properties:
+        approved_variables: { type: object, additionalProperties: true }
+        intended_id: { type: string }
+        id: { type: string }
+        serial: { type: string }
+        hostname: { type: string }
+        management_ip: { type: string }
+        model_version_id: { type: string }
+        credential_batch_ref: { type: string }
+        intended_hash: { type: string }
+    NetworkTemplateReport:
+      type: object
+      required: [id, baseline_id, baseline_ref, batch_ref, facts_hash, config_hash, evidence_source, checked_at, devices, checks]
+      properties:
+        id: { type: string }
+        baseline_id: { type: string }
+        baseline_ref: { type: string }
+        batch_ref: { type: string }
+        facts_hash: { type: string }
+        config_hash: { type: string }
+        evidence_source: { type: string, enum: [device, protocol_fixture] }
+        checked_at: { type: string, format: date-time }
+        devices: { type: array, items: { $ref: '#/components/schemas/NetworkPlannedDevice' } }
+        checks: { type: array, items: { $ref: '#/components/schemas/NetworkOperationResult' } }
+    NetworkOperationResult:
+      type: object
+      required: [version, operation_id, project_id, device_id, serial, input_sha256, fencing_token, state, code, evidence_source, provider, observed_at, gates, exit_code, duration_ms]
+      properties:
+        version: { type: string, enum: [network-operation/v1] }
+        operation_id: { type: string }
+        project_id: { type: string }
+        device_id: { type: string }
+        serial: { type: string }
+        input_sha256: { type: string }
+        fencing_token: { type: integer }
+        state: { type: string, enum: [completed, rejected] }
+        code: { type: string }
+        evidence_source: { type: string, enum: [device, protocol_fixture] }
+        provider: { type: string }
+        observed_at: { type: string, format: date-time }
+        running: { type: object, additionalProperties: true }
+        running_hash: { type: string }
+        snapshot_ref: { type: string }
+        exit_code: { type: integer }
+        duration_ms: { type: integer }
+        gates:
+          type: array
+          items:
+            type: object
+            required: [id, state, location, code, evidence_sha256]
+            properties:
+              id: { type: string }
+              state: { type: string, enum: [PASS, WARN, FAIL, UNKNOWN] }
+              location: { type: string }
+              code: { type: string }
+              evidence_sha256: { type: string }
 
     FabricDeviceSummary:
       type: object
@@ -2733,6 +3066,9 @@ components:
       additionalProperties: false
       required: [switch_bandwidth_ratio_limits]
       properties:
+        configuration_variables:
+          type: object
+          additionalProperties: { type: object, additionalProperties: true }
         management: { $ref: '#/components/schemas/ZTPManagementRules' }
         switch_bandwidth_ratio_limits:
           type: object

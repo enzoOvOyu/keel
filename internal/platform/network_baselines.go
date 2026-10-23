@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/enzoOvOyu/keel/internal/netbaseline"
 	"math"
 	"strings"
 	"time"
@@ -14,6 +15,7 @@ import (
 )
 
 type NetworkEngineeringLimits struct {
+	ConfigurationVariables     map[string]map[string]any   `json:"configuration_variables,omitempty"`
 	Management                 *fabricboot.ManagementRules `json:"management,omitempty"`
 	SwitchBandwidthRatioLimits map[string]float64          `json:"switch_bandwidth_ratio_limits"`
 }
@@ -43,6 +45,18 @@ type ApproveNetworkBaselineInput struct {
 }
 
 func validateNetworkEngineeringLimits(limits NetworkEngineeringLimits) error {
+	if len(limits.ConfigurationVariables) > 5000 {
+		return apiError(400, "NETWORK_CONFIGURATION_LIMIT", "Too many per-device baseline variable sets")
+	}
+	for serial, values := range limits.ConfigurationVariables {
+		if err := netbaseline.ValidateConfiguration(networkJSON(values)); err != nil {
+			return apiError(400, "NETWORK_CONFIGURATION_INVALID", err.Error())
+		}
+		if !snPattern.MatchString(serial) || len(values) > 128 {
+			return apiError(400, "NETWORK_CONFIGURATION_INVALID", "Invalid device variable scope or variable count")
+		}
+	}
+
 	if limits.Management != nil {
 		if err := fabricboot.ValidateManagementRules(*limits.Management); err != nil {
 			return apiError(400, "ZTP_MANAGEMENT_RULES_INVALID", err.Error())

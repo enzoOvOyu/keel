@@ -3,7 +3,7 @@
 labeled disposable test PostgreSQL and a built web/dist; never uses runtime DB.
 Use --sim-regression for the existing execution boundary regression at 24 targets.
 """
-import os,json,secrets,subprocess,tempfile,time,urllib.parse,urllib.request,socket
+import os,json,secrets,subprocess,tempfile,time,urllib.parse,urllib.request,socket,sys
 from pathlib import Path
 os.umask(0o077)
 root=Path(__file__).resolve().parents[1];os.chdir(root)
@@ -38,7 +38,8 @@ try:
  INSERT INTO bom_mapping_profiles(id,project_id,version_ref,state,created_by,created_at) SELECT '{profile}','{project}','fixture-mapping','approved',id,now() FROM users WHERE username='shelladmin';
  INSERT INTO bom_import_packages(id,project_id,bom_import_batch_id,schema_version,profile_version_ref,content_hash,declared_by,manifest,row_count,state,uploaded_by,committed_at) SELECT '{pkg}','{project}','fixture-bom','bom-import/v1','fixture-mapping','sha256:{'a'*64}','design_institute','{{}}',2,'committed',id,now() FROM users WHERE username='shelladmin';
  """
- for index,item in enumerate([switch1,switch2],2):
+ switches=[switch1,switch2]+([uuid.uuid4().hex for _ in range(3)] if '--network' in sys.argv else [])
+ for index,item in enumerate(switches,2):
   sql+=f"""
  INSERT INTO bom_items(item_uid,category,serial,position,pod,role,source_of_record,first_project_id,created_at,updated_at) VALUES('{item}','switch','FIXTURE-SW-{index}','{{"dc":"DC1","rack":"R1","idx":"{index}"}}','P1','leaf','design_bom','{project}',now(),now());
  INSERT INTO switches(id,serial_number,hostname,created_at,updated_at) VALUES('{item}','FIXTURE-SW-{index}','fixture-{index}',now(),now());
@@ -53,9 +54,10 @@ try:
   sql+=f"INSERT INTO bom_items(item_uid,category,parent_uid,port_index,port_name,source_of_record,first_project_id,created_at,updated_at) VALUES('{uid}','port','{parent}','{index}','{name}','design_bom','{project}',now(),now());"
  for uid,left,right in [(cable_a,port_a,port_b),(cable_b,port_c,host_port)]:
   left,right=sorted([left,right]);sql+=f"INSERT INTO bom_items(item_uid,category,endpoint_a_uid,endpoint_b_uid,source_of_record,first_project_id,created_at,updated_at) VALUES('{uid}','cable','{left}','{right}','design_bom','{project}',now(),now());"
- for row,uid in enumerate([server_id,port_a,port_b,port_c,host_port,cable_a,cable_b],4):
+ for row,uid in enumerate([server_id,port_a,port_b,port_c,host_port,cable_a,cable_b],len(switches)+2):
   sql+=f"INSERT INTO bom_item_revisions(package_id,item_uid,bom_line_no,project_id,row_snapshot,recorded_at) VALUES('{pkg}','{uid}',{row},'{project}','{{}}',now());"
- subprocess.run(['docker','exec','-i','keel-auth-test-postgres','psql','-v','ON_ERROR_STOP=1','-U',owner,'-d',database],input=sql,text=True,check=True,capture_output=True)
+ result=subprocess.run(['docker','exec','-i','keel-auth-test-postgres','psql','-v','ON_ERROR_STOP=1','-U',owner,'-d',database],input=sql,text=True,capture_output=True)
+ if result.returncode:raise RuntimeError(result.stderr.replace(password,'[redacted]'))
  api=subprocess.Popen([str(work/'keel-api')],env=env,stdout=(work/'api.log').open('w'),stderr=subprocess.STDOUT)
  for _ in range(50):
   if api.poll() is not None:raise RuntimeError('Isolated API exited; inspect protected process log')
@@ -69,6 +71,7 @@ try:
  env.update(KEEL_AUTH_BROWSER_CREDENTIALS_FILE=str(credentials),KEEL_WORKSPACE_EVIDENCE_DIR=str(work))
  import sys
  command=['node','scripts/check-kea-browser.mjs']
+ if '--network' in sys.argv:command=['node','scripts/check-network-browser.mjs']
  if '--fabric' in sys.argv:command=['node','scripts/check-fabric-browser.mjs']
  if '--sim-regression' in sys.argv:
   command=['python3','scripts/check-execution-integration.py'];env['KEEL_SIM_TEST_TARGETS']='24'

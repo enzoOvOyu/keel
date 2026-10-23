@@ -82,7 +82,7 @@ func (s *Service) Claim(ctx context.Context, worker string, lease time.Duration)
 	cursorTime := time.Unix(0, 0)
 	cursorID := ""
 	for {
-		rows, e := s.DB.QueryContext(ctx, "SELECT id,created_at FROM exec_executions WHERE desired_state='running' AND state IN('scheduled','dispatching','running') AND (created_at,id)>($1,$2) AND (mode='sim' OR ($3 AND mode='kea')) ORDER BY created_at,id LIMIT 64", cursorTime, cursorID, s.KeaStore != nil)
+		rows, e := s.DB.QueryContext(ctx, "SELECT id,created_at FROM exec_executions WHERE desired_state='running' AND state IN('scheduled','dispatching','running') AND (created_at,id)>($1,$2) AND (mode='sim' OR ($3 AND mode='kea') OR ($4 AND mode='fabric')) ORDER BY created_at,id LIMIT 64", cursorTime, cursorID, s.KeaStore != nil, s.NetworkStore != nil)
 		if e != nil {
 			return nil, e
 		}
@@ -138,6 +138,9 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 	if e != nil {
 		return nil, e
 	}
+	if executionMode == "fabric" && s.NetworkStore == nil {
+		return nil, nil
+	}
 	if executionMode == "kea" && s.KeaStore == nil {
 		return nil, nil
 	}
@@ -158,7 +161,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 		if e != nil && !errors.Is(e, sql.ErrNoRows) {
 			return nil, e
 		}
-		allowed = allowed && (role == "Admin" || (executionMode == "kea" && role == "NDE") || (executionMode == "sim" && (role == "DE" || role == "DL" || role == "SRE")))
+		allowed = allowed && (role == "Admin" || ((executionMode == "kea" || executionMode == "fabric") && role == "NDE") || (executionMode == "sim" && (role == "DE" || role == "DL" || role == "SRE")))
 	}
 	x, e := scanExecution(tx.QueryRowContext(ctx, "SELECT "+executionColumns+" FROM exec_executions WHERE id=$1 AND desired_state='running' AND state IN('scheduled','dispatching','running') FOR UPDATE SKIP LOCKED", id))
 	if errors.Is(e, sql.ErrNoRows) {
@@ -234,9 +237,22 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 			if target.ID == "" {
 				return nil, fmt.Errorf("frozen target missing")
 			}
+			if x.Mode == "fabric" {
+				job, _ := x.Parameters["network_push_id"].(string)
+				phase, _ := x.Parameters["network_phase"].(string)
+				admitted, err := s.NetworkStore.NetworkClaimAllowedTx(ctx, tx, x.ProjectID, job, target.ResourceKey, phase)
+				if err != nil {
+					return nil, err
+				}
+				if !admitted {
+					continue
+				}
+			}
 			resources := []string{}
 			for _, kind := range task.Resources {
-				if x.Mode == "kea" {
+				if x.Mode == "fabric" {
+					resources = append(resources, kind+":switch:"+target.ResourceKey)
+				} else if x.Mode == "kea" {
 					resources = append(resources, "kea:"+target.ResourceKey)
 				} else {
 					resources = append(resources, kind+":sim:"+target.ID)
@@ -597,7 +613,7 @@ func (s *Service) Reconcile(ctx context.Context, a *Actor, projectID, id, attemp
 }
 func (s *Service) WorkerHeartbeat(ctx context.Context, id string, active int) error {
 	mode := "sim"
-	if s.KeaStore != nil {
+	if s.KeaStore != nil || s.NetworkStore != nil {
 		mode = "mixed"
 	}
 	_, e := s.DB.ExecContext(ctx, "INSERT INTO exec_worker_heartbeats(id,mode,active_count,observed_at) VALUES($1,$2,$3,now()) ON CONFLICT(id) DO UPDATE SET mode=EXCLUDED.mode,active_count=EXCLUDED.active_count,observed_at=EXCLUDED.observed_at", id, mode, active)
@@ -606,7 +622,7 @@ func (s *Service) WorkerHeartbeat(ctx context.Context, id string, active int) er
 func (s *Service) WorkerHealthy(ctx context.Context, id string) error {
 	var yes bool
 	mode := "sim"
-	if s.KeaStore != nil {
+	if s.KeaStore != nil || s.NetworkStore != nil {
 		mode = "mixed"
 	}
 	e := s.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM exec_worker_heartbeats WHERE id=$1 AND mode=$2 AND observed_at>now()-interval '10 seconds')", id, mode).Scan(&yes)

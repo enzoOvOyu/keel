@@ -8,3 +8,5 @@
 .management-plan-table th { position: sticky; top: 0; background: var(--color-surface); }
 .management-plan-digest { overflow-wrap: anywhere; }
 .management-planning pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.network-push-card {border-top:1px solid var(--color-border);padding:16px 0;overflow-wrap:anywhere} .network-push-heading {display:flex;align-items:center;gap:16px;flex-wrap:wrap} .network-push-card pre {max-width:640px;max-height:280px;overflow:auto;font-size:12px} .network-push-state {font-weight:600}

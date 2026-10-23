@@ -1003,10 +1003,282 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/fabric/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listNetworkTemplates"];
+        put?: never;
+        post: operations["createNetworkTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/templates/{templateId}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["testNetworkTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/templates/{templateId}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["releaseNetworkTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/push-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listNetworkPushJobs"];
+        put?: never;
+        post: operations["createNetworkPushJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/push-jobs/{jobId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decideNetworkPushJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/push-jobs/{jobId}/prepare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["prepareNetworkPushJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/push-jobs/{jobId}/push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["pushNetworkPushJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/push-jobs/{jobId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["archiveNetworkPushJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        NetworkPushInput: {
+            template_id: string;
+            baseline_ref: string;
+            batch_ref: string;
+        };
+        NetworkPushJob: {
+            id: string;
+            project_id: string;
+            template_id: string;
+            baseline_id: string;
+            input: components["schemas"]["NetworkPushInput"];
+            facts_hash: string;
+            config_hash: string;
+            /** @enum {string} */
+            state: "CREATED" | "PRECHECKING" | "BLOCKED" | "READY" | "APPROVED" | "REJECTED" | "EXECUTING" | "VERIFYING" | "COMPLETED" | "PARTIAL" | "ROLLING_BACK" | "ROLLED_BACK" | "ARCHIVED";
+            review_hash: string;
+            critical: boolean;
+            canary_min_size: number;
+            concurrency: number;
+            prepare_execution_id: string;
+            push_execution_id: string;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            signatures: {
+                user_id: string;
+                /** @enum {string} */
+                role: "NE" | "DE" | "NH";
+                review_hash: string;
+                comment: string;
+            }[];
+            devices: {
+                device: components["schemas"]["NetworkPlannedDevice"];
+                /** @enum {string} */
+                state: "PENDING" | "PREPARED" | "BLOCKED" | "APPLYING" | "VERIFIED" | "PARTIAL" | "ROLLED_BACK" | "UNKNOWN" | "PAUSED" | "SKIPPED";
+                running_hash: string;
+                snapshot_ref: string;
+                code: string;
+                ordinal: number;
+                prepare?: components["schemas"]["NetworkOperationResult"];
+                apply?: components["schemas"]["NetworkOperationResult"];
+                verify?: components["schemas"]["NetworkOperationResult"];
+                diff: {
+                    path: string;
+                    /** @enum {string} */
+                    severity: "Critical" | "Major" | "Minor";
+                    before: unknown;
+                    after: unknown;
+                    before_present: boolean;
+                    after_present: boolean;
+                }[];
+            }[];
+        };
+        NetworkTemplateDefinition: {
+            source: string;
+            variables: {
+                [key: string]: {
+                    /** @enum {string} */
+                    type: "string" | "number" | "integer" | "boolean" | "array" | "object";
+                    required?: boolean;
+                    enum?: string[];
+                };
+            };
+        };
+        NetworkTemplateInput: {
+            name: string;
+            source_ref: string;
+            definition: components["schemas"]["NetworkTemplateDefinition"];
+        };
+        NetworkTemplateVersion: {
+            id: string;
+            project_id: string;
+            name: string;
+            version: number;
+            /** @enum {string} */
+            state: "draft" | "tested" | "released" | "deprecated";
+            source_ref: string;
+            definition: components["schemas"]["NetworkTemplateDefinition"];
+            content_hash: string;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            test_report?: components["schemas"]["NetworkTemplateReport"];
+        };
+        NetworkPlannedDevice: {
+            approved_variables?: {
+                [key: string]: unknown;
+            };
+            intended_id: string;
+            id: string;
+            serial: string;
+            hostname: string;
+            management_ip: string;
+            model_version_id: string;
+            credential_batch_ref: string;
+            intended_hash: string;
+        };
+        NetworkTemplateReport: {
+            id: string;
+            baseline_id: string;
+            baseline_ref: string;
+            batch_ref: string;
+            facts_hash: string;
+            config_hash: string;
+            /** @enum {string} */
+            evidence_source: "device" | "protocol_fixture";
+            /** Format: date-time */
+            checked_at: string;
+            devices: components["schemas"]["NetworkPlannedDevice"][];
+            checks: components["schemas"]["NetworkOperationResult"][];
+        };
+        NetworkOperationResult: {
+            /** @enum {string} */
+            version: "network-operation/v1";
+            operation_id: string;
+            project_id: string;
+            device_id: string;
+            serial: string;
+            input_sha256: string;
+            fencing_token: number;
+            /** @enum {string} */
+            state: "completed" | "rejected";
+            code: string;
+            /** @enum {string} */
+            evidence_source: "device" | "protocol_fixture";
+            provider: string;
+            /** Format: date-time */
+            observed_at: string;
+            running?: {
+                [key: string]: unknown;
+            };
+            running_hash?: string;
+            snapshot_ref?: string;
+            exit_code: number;
+            duration_ms: number;
+            gates: {
+                id: string;
+                /** @enum {string} */
+                state: "PASS" | "WARN" | "FAIL" | "UNKNOWN";
+                location: string;
+                code: string;
+                evidence_sha256: string;
+            }[];
+        };
         FabricDeviceSummary: {
             id: string;
             serial: string;
@@ -1456,6 +1728,11 @@ export interface components {
             created_at?: string;
         } | null;
         NetworkEngineeringLimits: {
+            configuration_variables?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
             management?: components["schemas"]["ZTPManagementRules"];
             /** @description Keys are serial:<switch SN> or role:<leaf|spine|superspine|mgmt>; explicit values only. */
             switch_bandwidth_ratio_limits: {
@@ -1907,14 +2184,14 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            mode: "sim" | "kea";
+            mode: "sim" | "kea" | "fabric";
             /** @description Shared controller resource key; present for Kea control targets only. */
             resource_key?: string;
         };
         /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
         ExecutionSnapshot: {
             /** @enum {string} */
-            mode: "sim" | "kea";
+            mode: "sim" | "kea" | "fabric";
             flow: components["schemas"]["FlowVersion"];
             targets: components["schemas"]["SimTarget"][];
             /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
@@ -1931,7 +2208,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea";
+            mode: "sim" | "kea" | "fabric";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -4381,6 +4658,274 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FabricDeviceEvidence"];
+                };
+            };
+        };
+    };
+    listNetworkTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable template versions and adapter capability. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        templates: components["schemas"]["NetworkTemplateVersion"][];
+                        adapter_configured: boolean;
+                    };
+                };
+            };
+        };
+    };
+    createNetworkTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NetworkTemplateInput"];
+            };
+        };
+        responses: {
+            /** @description A new draft version; source/schema are immutable. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkTemplateVersion"];
+                };
+            };
+        };
+    };
+    testNetworkTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    baseline_ref: string;
+                    batch_ref: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Three-layer checks, rehearsal and matching golden readback; provenance retained. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkTemplateVersion"];
+                };
+            };
+        };
+    };
+    releaseNetworkTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Independent NH/Admin release after current approved facts recheck. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkTemplateVersion"];
+                };
+            };
+        };
+    };
+    listNetworkPushJobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped PushJobs with frozen evidence and distinct approval identities. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        jobs: components["schemas"]["NetworkPushJob"][];
+                        writes_enabled: boolean;
+                    };
+                };
+            };
+        };
+    };
+    createNetworkPushJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NetworkPushInput"];
+            };
+        };
+        responses: {
+            /** @description Immutable plan targets, intended configurations and approved baseline facts. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkPushJob"];
+                };
+            };
+        };
+    };
+    decideNetworkPushJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    review_hash: string;
+                    /** @enum {string} */
+                    decision: "approve" | "reject";
+                    comment: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Frozen plan signature or rejection; NE plus DE, with NH for Critical changes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkPushJob"];
+                };
+            };
+        };
+    };
+    prepareNetworkPushJob: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Domain-owned shared Execution, linked by its id; no separate queue. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** @enum {string} */
+                        mode: "fabric";
+                    };
+                };
+            };
+        };
+    };
+    pushNetworkPushJob: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Domain-owned shared Execution, linked by its id; no separate queue. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** @enum {string} */
+                        mode: "fabric";
+                    };
+                };
+            };
+        };
+    };
+    archiveNetworkPushJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archive a terminal job; approvals, evidence and events retained. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkPushJob"];
                 };
             };
         };

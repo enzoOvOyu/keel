@@ -7,9 +7,9 @@
 | 项目 | 当前记录 |
 |---|---|
 | 工作区 | `ubuntu@43.207.20.26:/opt/keel`；tmux `codex-keel` |
-| 分支/本轮起点 | `dev/p1-network-bom`；整理文档前 HEAD `c8955ca`（docs），最近代码提交 `5c256fd`（此前 `df95d0b` 为旧仿真增量） |
+| 分支/本轮起点 | `dev/p1-network-bom`；整理文档前 HEAD `c8955ca`（docs），最近已部署代码提交 `8b6971c`（此前 `df95d0b` 为旧仿真增量） |
 | 历史 P1 基点 | `p1-complete` = `e7d5f1a`，为当前开发分支祖先；该标签只代表当时的 P1 范围，不证明 v3.0.3 新增网络任务完成 |
-| 3000 预览 | `keel:5c256fd6ba3bb768e81d11fd709a24caee7461ca`；本轮 `/healthz` 实测版本一致、容器 healthy，规划UI/CSS摘要与已验证构建一致 |
+| 3000 预览 | `keel:8b6971c3fe3d7382107f2f6c6fb84c72b71cb152`；本轮 `/healthz` 实测版本一致、容器 healthy，规划UI/CSS摘要与已验证构建一致 |
 | 运行库 | 当前镜像包含30个已发布迁移：001～025 + 027网络角色 + 028规划/自检 + 029统一目标/Kea执行 + 030 DORA证据 + 031 N-S5采集；未包含026 N-S5草稿。新表已授权受限应用角色，不改变既有成员授权 |
 | 开发入口 | API 3001；Vite 5173。与 3000 构建镜像分别检查 |
 | 工作状态 | 用户已恢复开发；Kea Runner、DORA与真实239入口已发布3000；N-S5采集/页面增量已验证并发布；真实写入默认关闭 |
@@ -109,3 +109,16 @@ N-S5最终权限集成证据：`/tmp/keel-shell-ienrztcf`，覆盖Viewer只读�
 Kea143二进制选项、独立mTLS探针/双通道N-S3引用、DORA同时核对239/143、真实143引导与进度路由已接线。证书序列号必须匹配管理源绑定；239旧证明、最新失败或未知写入不开放143；配置真实端点后禁写不回退mock。落库前重验并锁定账号/角色/执行意图。详见KEA-RUNNER末节。有效集成证据`/tmp/keel-shell-7ly7d7cy`，新143错误URI负例、136编码、原控制协议定向检查及Go vet/前端构建通过；未跑硬件PoC。
 
 N-S5发布确认：3000当前5c256fd，健康版本一致，031迁移成功。备份`/home/ubuntu/.local/state/keel/backups/pre-fabric-collection-20261023T123608Z.dump`目录可读，未做恢复演练；026及AGENTS原修改仍未纳入。后续继续最小管理个性化/凭据/自动真实状态收敛、Golden/PushJob、健康/规则/Readiness与归档，不将本次双通道视为FR-0闭环。
+
+## 14. 2026-10-23 网络模板与 PushJob 增量
+
+此前8b6971c已部署3000，补齐143与239双通道 DORA、批准源地址/身份准入；仍为30个发布迁移，未启用生产网络写入。当前增量待下述提交和部署记录确认：
+
+- 新增 pongo2 v6.1.0 沙箱、批准基线逐SN变量、不可变模板/意图版本、三层检查/预演/golden 读回、独立NH/Admin发布；配置页面 `/p/{projectId}/configuration` 已接入共享导航及中英文/Intel字体。
+- 新增 PushJob 冻结快照/结构化差异、普通NE+DE双签/Critical加NH三签、禁止自签和重复计票、当前审批权限复核；准备和下发均复用统一Execution/outbox/Runner/SSH租约/fencing/回执。
+- 达门槛批次先一台金丝雀，复采通过再放行余量；失败恢复快照；审批后外部漂移明确拒绝写入且不覆盖外部变更；未知写入不提交虚假失败/停止回执，保留共享资源隔离。终态支持归档，审批通过后仍可由独立审核者撤回为REJECTED。
+- mTLS网关为可替换设备边界，不接受浏览器端点；显式生产写入默认关闭，未连接真机。模块与契约见 [NETWORK-CONFIGURATION](NETWORK-CONFIGURATION.md)。新增032/033迁移，部署仍须排除旧026草稿。
+
+实际证据：`go test ./internal/netbaseline ./internal/fabricboot ./internal/fabricmon -count=1`、相关五包`go vet`、前端生成类型/TypeScript/Vite构建通过。最终网络集成目录 `/tmp/keel-shell-82z3_1on`：真实API/PostgreSQL/Worker/浏览器、mTLS设备协议夹具，覆盖完整模板/三签/金丝雀、外部漂移保护、失败阻断/恢复、审批角色撤销/撤回/归档、UNKNOWN隔离、项目授权、UI字体/来源标签。原执行器9组/24目标回归目录 `/tmp/keel-shell-itp33210` 全部通过；该结果不代表2000台规模或真机验收。测试库/进程/临时密钥均已清理。
+
+尚未交付的模板/PushJob细项及PoC接入限制已明确列入模块文档；Golden到NP-2投影、全网健康/规则治理/Readiness、ZTP剩余范围与完整FR-0验收仍未完成，不标FR-0闭环。用户目标仍为持续开发至FR-0整体闭环。

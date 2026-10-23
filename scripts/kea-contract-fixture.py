@@ -7,7 +7,7 @@ class KeaFixture:
   self.cert=work/'tls.pem';self.key=work/'tls.key'
   subprocess.run(['openssl','req','-x509','-newkey','rsa:2048','-nodes','-keyout',str(self.key),'-out',str(self.cert),'-days','1','-subj','/CN=127.0.0.1','-addext','subjectAltName=IP:127.0.0.1','-addext','basicConstraints=critical,CA:TRUE','-addext','extendedKeyUsage=serverAuth,clientAuth'],check=True,capture_output=True)
   self.config={'Dhcp4':{'valid-lifetime':600,'lease-database':{'type':'memfile','password':'fixture-only-secret'},'subnet4':[{'id':1,'subnet':'192.0.2.0/24','pools':[{'pool':'192.0.2.2 - 192.0.2.254'}]}]}}
-  self.artifact=b'approved-fixture-canary';fixture=self
+  self.network_running={};self.network_receipts={};self.artifact=b'approved-fixture-canary';fixture=self
   self.udp=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);self.udp.bind(('127.0.0.1',0));self.udp.settimeout(.2);self.udp_stop=threading.Event()
   local=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);local.bind(('127.0.0.1',0));self.relay_listen=local.getsockname();local.close()
   def dora():
@@ -58,7 +58,28 @@ class KeaFixture:
     elif self.path=='/canary':self.answer(fixture.artifact)
     else:self.answer({},404)
    def do_POST(self):
-    body=json.loads(self.rfile.read(int(self.headers['Content-Length'])));cmd=body['command']
+    raw=self.rfile.read(int(self.headers['Content-Length']));body=json.loads(raw)
+    if re.fullmatch(r'/v1/projects/[a-f0-9]{32}/network-operations',self.path):
+     op=body;phase=op['phase'];key=(op['project_id'],op['device_id']);fault=fixture.fault.read_text()
+     with fixture.log.open('a') as f:f.write('network-'+phase+':'+op['serial']+'\n')
+     if op['operation_id'] in fixture.network_receipts:self.answer(fixture.network_receipts[op['operation_id']]);return
+     intended=op['intended'];hashof=lambda value:hashlib.sha256(json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
+     running=fixture.network_running.setdefault(key,{**intended,'asn':65001,'description':'before'})
+     gates=['syntax','semantic','consistency','rehearsal','golden'] if phase=='template-test' else ['syntax','semantic','consistency','reachability','credentials','system','ports','neighbors','configuration','services','batfish','assertions','rehearsal'] if phase=='prepare' else ['applied'] if phase=='apply' else ['restored'] if phase=='rollback' else ['connectivity','bgp','nvue','hardware','lossless']
+     result={'version':'network-operation/v1','operation_id':op['operation_id'],'project_id':op['project_id'],'device_id':op['device_id'],'serial':op['serial'],'input_sha256':hashlib.sha256(raw).hexdigest(),'fencing_token':op['fencing_token'],'state':'completed','code':'','evidence_source':'protocol_fixture','provider':'protocol-fixture/v1','observed_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'gates':[{'id':gate,'state':'PASS','location':gate,'code':'fixture','evidence_sha256':hashof([gate,intended])} for gate in gates],'exit_code':0,'duration_ms':1,'snapshot_ref':'fixture:snapshot:'+hashof(running)}
+     if phase=='template-test':running=intended
+     if phase=='prepare' and fault=='network-precheck-fail':result['gates'][0]['state']='FAIL'
+     if phase=='apply':
+      if fault=='network-drift-before-apply':running={**running,'description':'external-change'};fixture.network_running[key]=running
+      assert op['fencing_token']>0 and op['credential_batch_ref'] is not None
+      if op.get('expected_running_hash')!=hashof(running):result.update(state='rejected',exit_code=1,code='running_changed')
+      else:fixture.network_running[key]=intended;running=intended
+      if fault=='network-drop-apply':self.answer({},503);return
+     if phase=='rollback':fixture.network_running[key]=intended;running=intended
+     if phase=='verify' and fault=='network-verify-fail':result['gates'][0]['state']='FAIL'
+     result['running']=running;result['running_hash']=hashof(running)
+     fixture.network_receipts[op['operation_id']]=result;self.answer(result);return
+    cmd=body['command']
     with fixture.log.open('a') as f:f.write(cmd+'\n')
     active=lambda:hashlib.sha256(json.dumps(fixture.config,sort_keys=True,separators=(',',':')).encode()).hexdigest().upper()
     args={}
@@ -77,9 +98,9 @@ class KeaFixture:
   self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
   origin='https://127.0.0.1:'+str(self.server.server_port)
   targets={}
-  for name,path in {'kea':'/','boot':'/boot/readyz','sztp':'/sztp/readyz','collector':'/collector/readyz','repository':'/canary'}.items():
+  for name,path in {'kea':'/','boot':'/boot/readyz','sztp':'/sztp/readyz','collector':'/collector/readyz','repository':'/canary','network':'/network/readyz'}.items():
    targets[name]={'url':origin+path,'ca_file':str(self.cert),'certificate_file':str(self.cert),'key_file':str(self.key)}
-  targets['kea']['allow_config_write']=True;targets['kea']['through_agent']=True;targets['repository']['sha256']=hashlib.sha256(self.artifact).hexdigest()
+  targets['network']['allow_config_write']=True;targets['kea']['allow_config_write']=True;targets['kea']['through_agent']=True;targets['repository']['sha256']=hashlib.sha256(self.artifact).hexdigest()
   self.configuration=work/'probes.json';self.configuration.write_text(json.dumps({'version':'fabric-probes/v1','targets':targets,'dhcp':{'server':'127.0.0.1:'+str(self.udp.getsockname()[1]),'listen':'127.0.0.1:'+str(self.relay_listen[1]),'relay_ip':'127.0.0.1','mac':'02:00:00:00:ff:01','address':'192.0.2.250','timeout_seconds':2}}));self.configuration.chmod(0o600)
  def close(self):
   self.udp_stop.set();self.udp.close();self.udp_thread.join(timeout=2)

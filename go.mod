@@ -4,11 +4,13 @@ go 1.27.2
 
 require (
 	entgo.io/ent v0.14.6
+	github.com/flosch/pongo2/v6 v6.1.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/jackc/pgx/v5 v5.11.0
 	golang.org/x/crypto v0.58.0
 	golang.org/x/sys v0.49.0
 	golang.org/x/term v0.47.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -70,7 +72,6 @@ require (
 	golang.org/x/tools v0.51.0 // indirect
 	golang.org/x/tools/go/packages/packagestest v0.1.1-deprecated // indirect
 	google.golang.org/protobuf v1.36.9 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 tool entgo.io/ent/cmd/ent

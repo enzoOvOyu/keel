@@ -46,6 +46,9 @@ func main() {
 	if _, _, e = store.FabricProbes.DeploymentControl(); e == nil {
 		service.KeaStore = store
 	}
+	if _, e = store.FabricProbes.NetworkClient(); e == nil {
+		service.NetworkStore = store
+	}
 	if *health {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
