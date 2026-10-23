@@ -1423,6 +1423,39 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/ztp/identity-issues/{issueId}/resolve:
+    post:
+      tags: [BOM]
+      operationId: resolveZTPIdentityIssue
+      description: Project administrator records a resolution reason. A later identity conflict reopens the same issue.
+      security: [{sessionCookie: []}]
+      x-permission: project:fabric:plan
+      x-resource-scope: path-project-admin
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      - name: issueId
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZTPIdentityIssueResolveInput' }
+      responses:
+        '200':
+          description: Resolved issue.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZTPIdentityIssue' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/projects/{id}/ztp/identity-issues:
     get:
       tags: [BOM]
@@ -2022,10 +2055,16 @@ components:
         attempt: { type: integer }
         identity_verdict: { type: string }
         updated_at: { type: string, format: date-time }
+    ZTPIdentityIssueResolveInput:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 300 }
     ZTPIdentityIssue:
       type: object
       additionalProperties: false
-      required: [id, batch_ref, boot_channel, identity_key, serial_number, reasons, event_count, first_seen_at, last_seen_at]
+      required: [id, batch_ref, boot_channel, identity_key, serial_number, reasons, event_count, state, first_seen_at, last_seen_at]
       properties:
         id: { $ref: '#/components/schemas/EntityID' }
         batch_ref: { type: string }
@@ -2037,6 +2076,9 @@ components:
           type: array
           items: { type: string }
         event_count: { type: integer, minimum: 1 }
+        state: { type: string, enum: [open, resolved] }
+        resolution_reason: { type: string }
+        resolved_at: { type: string, format: date-time }
         first_seen_at: { type: string, format: date-time }
         last_seen_at: { type: string, format: date-time }
     ZTPDeviceObservation:

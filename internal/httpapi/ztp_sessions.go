@@ -8,6 +8,30 @@ import (
 
 func (a *authAPI) registerZTPSimSessions(r *gin.Engine) {
 	base := "/api/v1/projects/:id/ztp/sim-sessions"
+	r.POST("/api/v1/projects/:id/ztp/identity-issues/:issueId/resolve", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		if !a.writeAllowed(c) {
+			return
+		}
+		var input platform.ZTPIdentityIssueResolveInput
+		if !decodeBody(c, &input) {
+			return
+		}
+		project, err := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		out, err := a.store.ResolveZTPIdentityIssue(c.Request.Context(), actor, project, c.Param("issueId"), input.Reason, c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, out)
+	})
 	r.GET("/api/v1/projects/:id/ztp/identity-issues", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {

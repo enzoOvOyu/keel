@@ -324,6 +324,41 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if issueErr != nil || len(issues) != 2 {
 		t.Fatalf("simulation conflict issue: %+v %v", issues, issueErr)
 	}
+	var deviceIssue ZTPIdentityIssue
+	for _, issue := range issues {
+		if issue.BootChannel == "239" {
+			deviceIssue = issue
+		}
+	}
+	if deviceIssue.ID == "" {
+		t.Fatal("device issue missing")
+	}
+	if _, issueErr = s.ResolveZTPIdentityIssue(ctx, actor, project, deviceIssue.ID, " ", "test"); issueErr == nil {
+		t.Fatal("empty resolution reason accepted")
+	}
+	resolvedIssue, issueErr := s.ResolveZTPIdentityIssue(ctx, actor, project, deviceIssue.ID, "BOM binding reviewed", "test")
+	if issueErr != nil || resolvedIssue.State != "resolved" || resolvedIssue.ResolvedAt == nil {
+		t.Fatalf("resolve issue: %+v %v", resolvedIssue, issueErr)
+	}
+	if _, issueErr = s.ResolveZTPIdentityIssue(ctx, actor, project, deviceIssue.ID, "repeat", "test"); issueErr == nil {
+		t.Fatal("resolved issue closed twice")
+	}
+	if _, simErr = s.ServeZTP239(ctx, project.ID, "sim-batch-1", "N-S4", scriptMedia.ID, "192.0.2.8", "https", "boot.example.invalid", parsedBootURL.Path, parsedBootURL.RawQuery, "test", conflictClaim); simErr == nil {
+		t.Fatal("repeated conflict served after issue resolution")
+	}
+	issues, issueErr = s.ListZTPIdentityIssues(ctx, actor, project)
+	if issueErr != nil {
+		t.Fatal(issueErr)
+	}
+	var reopenedIssue ZTPIdentityIssue
+	for _, issue := range issues {
+		if issue.ID == deviceIssue.ID {
+			reopenedIssue = issue
+		}
+	}
+	if reopenedIssue.State != "open" || reopenedIssue.EventCount != 3 || reopenedIssue.ResolvedAt != nil {
+		t.Fatalf("issue did not reopen: %+v", reopenedIssue)
+	}
 	failedSim, simErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-1", BootChannel: "239", Identity: ZTPIdentityInput{Serial: "SW-1"}}, "test")
 	if simErr != nil {
 		t.Fatal(simErr)

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ProjectWorkspace, canManageProject, useProject } from '../../components/ProjectWorkspace'
 import { useSession, useExpireOnUnauthorized } from '../../lib/session'
 import { useAction } from '../../lib/management'
-import { actZTPSimSession, createZTPSimSession, getZTPSimSession, getZTPIsolationScriptManifest, listZTPSimSessions, listZTPDeviceObservations, listZTPIdentityIssues, stageZTPMockKea, commitZTPMockKea, deactivateZTPMockKea, type ZTPMockKeaPlan, type ZTPAction } from '../../lib/ztp'
+import { actZTPSimSession, createZTPSimSession, getZTPSimSession, getZTPIsolationScriptManifest, listZTPSimSessions, listZTPDeviceObservations, listZTPIdentityIssues, resolveZTPIdentityIssue, stageZTPMockKea, commitZTPMockKea, deactivateZTPMockKea, type ZTPMockKeaPlan, type ZTPAction } from '../../lib/ztp'
 
 const stages = ['powered', 'dhcp', 'booturl', 'identity', 'lookup', 'fetch', 'config', 'restart', 'managed']
 function Board() {
@@ -17,6 +17,7 @@ function Board() {
   const [vci, setVci] = useState('cumulus-linux x86_64'), [nos, setNos] = useState('cumulus-linux'), [versionIntent, setVersionIntent] = useState('')
   const [linkIP, setLinkIP] = useState(''), [plan, setPlan] = useState<ZTPMockKeaPlan | null>(null)
   const [deactivateReason, setDeactivateReason] = useState(''), [deactivateConfirmed, setDeactivateConfirmed] = useState(false)
+  const [issueResolutionReason, setIssueResolutionReason] = useState('')
   const canManage = canManageProject(project, session.user.is_admin)
   const scriptManifest = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-isolation-script'], queryFn: ({ signal }) => getZTPIsolationScriptManifest(project.id, signal) })
   const list = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-sims'], queryFn: ({ signal }) => listZTPSimSessions(project.id, signal) })
@@ -39,6 +40,11 @@ function Board() {
     if (!plan?.active_hash || !deactivateConfirmed || !deactivateReason.trim()) return
     const result = await action.run(() => deactivateZTPMockKea(project.id, { batch_ref: plan.batch_ref, stage_ref: plan.stage_ref, active_hash: plan.active_hash!, expected_version: plan.version, reason: deactivateReason.trim() }, session.csrf_token))
     if (result.ok) { setPlan(result.value); setDeactivateReason(''); setDeactivateConfirmed(false) }
+  }
+  async function resolveIssue(issueId: string) {
+    if (!issueResolutionReason.trim()) return
+    const result = await action.run(() => resolveZTPIdentityIssue(project.id, issueId, issueResolutionReason.trim(), session.csrf_token))
+    if (result.ok) { setIssueResolutionReason(''); await issues.refetch() }
   }
   async function create(event: FormEvent) {
     event.preventDefault()
@@ -94,7 +100,8 @@ function Board() {
     <section className="panel"><h2>{t('ztpIdentityIssues')}</h2><p>{t('ztpIdentityIssuesBoundary')}</p><button type="button" className="secondary-button" onClick={() => void issues.refetch()}>{t('ztpRefresh')}</button>
       {issues.isError && <p role="alert">{t('ztpLoadError')}</p>}
       {issues.data?.length === 0 && <p>{t('ztpIdentityIssuesNone')}</p>}
-      <ol>{issues.data?.map(item => <li key={item.id}><time>{new Date(item.last_seen_at).toLocaleString()}</time> · {item.serial_number || item.identity_key} · {item.batch_ref} · {item.boot_channel} · {item.reasons.join(', ')} · {item.event_count}</li>)}</ol>
+      {canManage && <div className="field"><label htmlFor="ztp-issue-resolution">{t('ztpIdentityIssueResolutionReason')}</label><input id="ztp-issue-resolution" maxLength={300} value={issueResolutionReason} onChange={e => setIssueResolutionReason(e.target.value)} /></div>}
+      <ol>{issues.data?.map(item => <li key={item.id}><time>{new Date(item.last_seen_at).toLocaleString()}</time> · {item.serial_number || item.identity_key} · {item.batch_ref} · {item.boot_channel} · {item.reasons.join(', ')} · {item.event_count} · {item.state}{item.resolution_reason && <> · {item.resolution_reason}</>}{canManage && item.state === 'open' && <button type="button" disabled={action.busy || !issueResolutionReason.trim()} onClick={() => void resolveIssue(item.id)}>{t('ztpIdentityIssueResolve')}</button>}</li>)}</ol>
     </section>
     <section className="panel"><h2>{t('ztpDeviceObservations')}</h2><p>{t('ztpDeviceObservationBoundary')}</p><button type="button" className="secondary-button" onClick={() => void observations.refetch()}>{t('ztpRefresh')}</button>
       {observations.isError && <p role="alert">{t('ztpLoadError')}</p>}

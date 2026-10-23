@@ -1,3 +1,7 @@
+## 2026-10-23 WP-1.17 身份问题处置闭环
+
+- migration 023 为身份问题增加 open/resolved 及处置原因/操作者/时间。项目管理员经 CSRF 保护的 API/UI 填写原因后关闭；重复冲突原子重开、计数递增，处置审计仍保留。隔离 `keel_test_ztpissues_resolve_1023` PostgreSQL 库验证空原因拒绝、重复关闭拒绝、再次冲突重开，测试库已清理。关闭只表示人工登记处置，真实设备身份是否修复仍需重新验证。P1 3000 镜像未迁移。
+
 ## 2026-10-23 WP-1.17 身份冲突问题清单
 
 - migration 022 新增项目级 `ztp_identity_issues`：239/143 设备请求及仿真 lookup 冲突会在拒绝引导数据时原子记录，重复同批次/通道/身份键事件合并计数，保留原因、最近来源和时间。MAC-only 仿真身份键先规范化，避免空 SN 的不同设备合并。新增项目只读 API、OpenAPI 和 ZtpOnboardBoard 列表。隔离 `keel_test_ztpissues_1023` 与 `keel_test_ztpissues_final_1023` PostgreSQL 库回归通过并清理；仅证明问题被记录，人工处置/关闭流程仍待补。P1 3000 镜像未迁移。
