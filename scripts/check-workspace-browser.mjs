@@ -20,6 +20,14 @@ async function ready() { await page.locator('.workspace-content').waitFor(); awa
 async function size(selector) { return page.locator(selector).evaluate(element => ({ width: element.getBoundingClientRect().width, height: element.getBoundingClientRect().height })) }
 try {
   await page.goto('/login')
+  await page.evaluate(async () => {
+    await Promise.all([400, 500, 700].map(weight => document.fonts.load(`${weight} 14px "Intel One Mono"`)))
+  })
+  for (const selector of ['body', '#username', '#password', '#login-form button[type="submit"]']) {
+    assert.match(await page.locator(selector).evaluate(element => getComputedStyle(element).fontFamily), /^"Intel One Mono"/)
+  }
+  assert(await page.evaluate(() => [400, 500, 700].every(weight => [...document.fonts].some(font => font.family.replaceAll('"', '') === 'Intel One Mono' && font.weight === String(weight) && font.status === 'loaded'))))
+  pass('Bundled Intel One Mono 400/500/700 loaded; login and controls share the font')
   await page.locator('#username').fill(credentials.username)
   await page.locator('#password').fill(credentials.password)
   await page.locator('#login-form button[type="submit"]').click()
@@ -33,6 +41,9 @@ try {
   }
   const [alpha, beta] = projects
   await page.goto(`/p/${alpha.id}/ztp`); await ready()
+  for (const selector of ['.workspace-header', '.workspace-project-switcher select', '.workspace-sidebar-nav', '.workspace-content code']) {
+    assert.match(await page.locator(selector).first().evaluate(element => getComputedStyle(element).fontFamily), /^"Intel One Mono"/)
+  }
   assert.equal((await size('.workspace-header')).height, 56)
   assert.equal((await size('.workspace-sidebar')).width, 240)
   assert.equal(await page.locator('.workspace-content').evaluate(element => getComputedStyle(element).paddingLeft), '24px')

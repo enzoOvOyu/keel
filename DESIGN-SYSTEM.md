@@ -119,9 +119,11 @@
 
 ### 2.2 字体
 
+2026-10-23 用户追加约束：前端统一使用 Intel One Mono，正文、表单、表格、导航和代码使用同一字体令牌栈，不允许组件覆盖独立字体。随应用提供官方 V1.4.0 Regular/Medium/Bold WOFF2 与许可证，不依赖用户安装或外部 CDN；不包含的中文字形回退至该栈中的系统字体。
+
 ```css
---font-sans: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
---font-mono: "JetBrains Mono", "Source Code Pro", Consolas, monospace;
+--font-sans: "Intel One Mono", "Noto Sans Mono CJK SC", "Sarasa Mono SC", "PingFang SC", "Microsoft YaHei", monospace;
+--font-mono: "Intel One Mono", "Noto Sans Mono CJK SC", "Sarasa Mono SC", "PingFang SC", "Microsoft YaHei", monospace;
 --font-size-xs: 11px;  /* 矩阵格子辅助信息 */
 --font-size-sm: 12px;  /* 表格次要列、标签 */
 --font-size-base: 13px; /* 正文/表格主字号 */
@@ -164,7 +166,7 @@ tokens:
     focus: "#a855f7"
     rail: {0: "#a855f7", 1: "#ec4899", 2: "#0ea5e9", 3: "#10b981", 4: "#f59e0b", 5: "#6366f1", 6: "#14b8a6", 7: "#f43f5e"}
   font:
-    family: {sans: ["Inter", "PingFang SC", "Microsoft YaHei", "system-ui"], mono: ["JetBrains Mono", "Source Code Pro", "Consolas"]}
+    family: {sans: ["Intel One Mono", "Noto Sans Mono CJK SC", "Sarasa Mono SC", "PingFang SC", "Microsoft YaHei", "monospace"], mono: ["Intel One Mono", "Noto Sans Mono CJK SC", "Sarasa Mono SC", "PingFang SC", "Microsoft YaHei", "monospace"]}
     size: {xs: 11, sm: 12, base: 13, lg: 15, xl: 18, "2xl": 24}   # px
   space: {1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32}          # px
   radius: {sm: 6, md: 10, lg: 14}                                  # px
