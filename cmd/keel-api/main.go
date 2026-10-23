@@ -84,6 +84,25 @@ func main() {
 		slog.Error("ZTP 239 listener rejected", "error", err)
 		os.Exit(1)
 	}
+	if store != nil {
+		go func() {
+			ticker := time.NewTicker(time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					workCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+					_, retryErr := store.RetryDueZTPSimSessions(workCtx, 32)
+					cancel()
+					if retryErr != nil && ctx.Err() == nil {
+						slog.Error("ZTP simulation retry", "error", retryErr)
+					}
+				}
+			}
+		}()
+	}
 	servers := []struct {
 		server   *http.Server
 		listener net.Listener

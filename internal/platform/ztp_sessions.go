@@ -406,7 +406,13 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 	if err != nil {
 		return nil, err
 	}
-	if err = appendAudit(ctx, tx, a.User.ID, project.ID, "ztp.sim."+input.Action, out.ID, trace, map[string]any{"from": original, "to": out.State, "attempt": out.Attempt}); err != nil {
+	auditDetail := map[string]any{"from": original, "to": out.State, "attempt": out.Attempt}
+	if input.Action == "fail" {
+		auditDetail["phenomenon"] = input.Phenomenon
+		auditDetail["cause"] = input.Cause
+		auditDetail["next_action"] = input.NextAction
+	}
+	if err = appendAudit(ctx, tx, a.User.ID, project.ID, "ztp.sim."+input.Action, out.ID, trace, auditDetail); err != nil {
 		return nil, err
 	}
 	if err = loadZTPEvents(ctx, tx, out); err != nil {

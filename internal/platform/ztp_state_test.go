@@ -17,7 +17,7 @@ func TestZTPStageOrderAndRetryBounds(t *testing.T) {
 			t.Fatalf("terminal state %s advanced", terminal)
 		}
 	}
-	if ztpRetryDelay(1).Seconds() != 10 || ztpRetryDelay(2).Seconds() != 20 || ztpRetryDelay(3).Seconds() != 40 {
+	if ztpRetryDelay(1).Seconds() != 10 || ztpRetryDelay(2).Seconds() != 20 || ztpRetryDelay(3).Seconds() != 40 || ztpRetryDelay(4).Seconds() != 80 || ztpRetryDelay(10).Seconds() != 5120 {
 		t.Fatal("retry backoff changed")
 	}
 }

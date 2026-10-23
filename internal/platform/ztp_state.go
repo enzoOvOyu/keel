@@ -26,8 +26,8 @@ func ztpRetryDelay(attempt int) time.Duration {
 	if attempt < 1 {
 		attempt = 1
 	}
-	if attempt > 3 {
-		attempt = 3
+	if attempt > 10 {
+		attempt = 10
 	}
 	return time.Duration(10*(1<<(attempt-1))) * time.Second
 }

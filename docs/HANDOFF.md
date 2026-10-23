@@ -1,3 +1,7 @@
+## 2026-10-23 WP-1.17 ZTP 仿真自动重试
+
+- API 进程新增每秒扫描到期 `sim/failed` 会话的 worker，使用 `FOR UPDATE SKIP LOCKED` 及状态版本/唯一事件序号保证多副本与人工重试互斥；在退避时间后恢复到 `powered`，超过 `retry_max` 不再恢复。失败三段式写入审计，失败和重试事件仍在会话时间线。迁移 021 增加到期索引。隔离 `keel_test_ztpretry_1023` 与最终 `keel_test_ztpretry_final_1023` PostgreSQL 库的并发/提前/耗尽测试和受影响 BOM/ZTP 集成测试通过且已清理；退避指数现覆盖配置允许的 10 次重试。`python3 scripts/check-design.py`、相关 Go vet/race 与本轮差异检查通过。此处只自动调度仿真重试，不会自动驱动完整九态或证明设备侧重试。P1 3000 镜像未部署。
+
 ## 2026-10-23 FR-0.3 239 交付观察
 
 - migration 020 将 append-only 设备观察扩展到 239 脚本交付；成功交付时记录项目、批次、SN、管理网来源、active offer 摘要、脚本 SHA256 与 trace。mock Kea 撤销现在同时阻断最近 30 分钟的 143/239 交付。239 没有设备执行结果回报，此证据只证明服务端已提供脚本；隔离 `keel_test_239obs_1023` PostgreSQL 库的 239、143 与 mock Kea 集成测试通过且已清理。P1 运行库未迁移。
