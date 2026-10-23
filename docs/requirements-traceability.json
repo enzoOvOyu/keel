@@ -2184,6 +2184,9 @@
         "internal/platform/migrations/019_ztp_device_observations.sql",
         "internal/httpapi/ztp_boot143.go",
         "internal/httpapi/ztp_boot143_test.go",
+        "poc/ztp-h16/ENVIRONMENT.md",
+        "poc/ztp-h16/evidence.template.json",
+        "poc/ztp-h16/validate.py",
         "internal/platform/ztp_retry_worker.go",
         "internal/platform/ztp_retry_worker_integration_test.go",
         "internal/platform/migrations/021_ztp_sim_retry_due.sql"

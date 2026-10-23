@@ -1,3 +1,7 @@
+## 2026-10-23 WP-1.17 H-16 执行包
+
+- `poc/ztp-h16/` 已给出环境清单、239/143 与身份/隔离/冲突/PushJob/Golden 的采证步骤、结果模板和证据 SHA256 校验器；校验器只输出 READY_FOR_REVIEW，不自动宣告硬件 PASS。临时合成证据的完整与篡改负例验证通过；目标交换机尚未执行，H-16 维持 NOT_RUN，且现有 PushJob/Golden 缺口会阻止完整 H-16 签署。
+
 ## 2026-10-23 WP-1.17 ZTP 仿真自动重试
 
 - API 进程新增每秒扫描到期 `sim/failed` 会话的 worker，使用 `FOR UPDATE SKIP LOCKED` 及状态版本/唯一事件序号保证多副本与人工重试互斥；在退避时间后恢复到 `powered`，超过 `retry_max` 不再恢复。失败三段式写入审计，失败和重试事件仍在会话时间线。迁移 021 增加到期索引。隔离 `keel_test_ztpretry_1023` 与最终 `keel_test_ztpretry_final_1023` PostgreSQL 库的并发/提前/耗尽测试和受影响 BOM/ZTP 集成测试通过且已清理；退避指数现覆盖配置允许的 10 次重试。`python3 scripts/check-design.py`、相关 Go vet/race 与本轮差异检查通过。此处只自动调度仿真重试，不会自动驱动完整九态或证明设备侧重试。P1 3000 镜像未部署。
