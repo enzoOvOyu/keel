@@ -450,6 +450,14 @@ func (s *Store) CommitBOMPackage(ctx context.Context, a *AuthSession, project *P
 			return nil, err
 		}
 	}
+	for _, row := range pkg.Rows["credential_batches.csv"] {
+		v := row.Values
+		_, err = tx.ExecContext(ctx, `INSERT INTO bom_credential_batches(project_id,credential_batch_ref,scope,rotation_policy,vault_path,owner,package_id,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+ON CONFLICT(project_id,credential_batch_ref) DO UPDATE SET scope=excluded.scope,rotation_policy=excluded.rotation_policy,vault_path=excluded.vault_path,owner=excluded.owner,package_id=excluded.package_id,updated_at=excluded.updated_at`, project.ID, v["credential_batch_ref"], v["scope"], v["rotation_policy"], v["vault_path"], v["owner"], result.PackageID, now)
+		if err != nil {
+			return nil, err
+		}
+	}
 	for _, m := range materials {
 		if err = writeBOMMaterial(ctx, tx, project.ID, result.PackageID, m, now); err != nil {
 			return nil, err

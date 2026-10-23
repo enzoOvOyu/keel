@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ProjectWorkspace, canManageProject, useProject } from '../../components/ProjectWorkspace'
 import { useSession, useExpireOnUnauthorized } from '../../lib/session'
 import { useAction } from '../../lib/management'
-import { actZTPSimSession, createZTPSimSession, getZTPSimSession, getZTPIsolationScriptManifest, listZTPSimSessions, listZTPDeviceObservations, listZTPIdentityIssues, resolveZTPIdentityIssue, stageZTPMockKea, commitZTPMockKea, deactivateZTPMockKea, type ZTPMockKeaPlan, type ZTPAction } from '../../lib/ztp'
+import { actZTPSimSession, createZTPSimSession, getZTPSimSession, getZTPIsolationScriptManifest, listZTPSimSessions, listZTPDeviceObservations, listZTPIdentityIssues, listZTPCredentialIssues, resolveZTPIdentityIssue, stageZTPMockKea, commitZTPMockKea, deactivateZTPMockKea, type ZTPMockKeaPlan, type ZTPAction } from '../../lib/ztp'
 
 const stages = ['powered', 'dhcp', 'booturl', 'identity', 'lookup', 'fetch', 'config', 'restart', 'managed']
 function Board() {
@@ -18,13 +18,15 @@ function Board() {
   const [linkIP, setLinkIP] = useState(''), [plan, setPlan] = useState<ZTPMockKeaPlan | null>(null)
   const [deactivateReason, setDeactivateReason] = useState(''), [deactivateConfirmed, setDeactivateConfirmed] = useState(false)
   const [issueResolutionReason, setIssueResolutionReason] = useState('')
+  const [credentialVerdict, setCredentialVerdict] = useState<'reachable' | 'expired' | 'unreachable'>('reachable')
   const canManage = canManageProject(project, session.user.is_admin)
   const scriptManifest = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-isolation-script'], queryFn: ({ signal }) => getZTPIsolationScriptManifest(project.id, signal) })
   const list = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-sims'], queryFn: ({ signal }) => listZTPSimSessions(project.id, signal), refetchInterval: 5000 })
   const observations = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-device-observations'], queryFn: ({ signal }) => listZTPDeviceObservations(project.id, signal) })
   const issues = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-identity-issues'], queryFn: ({ signal }) => listZTPIdentityIssues(project.id, signal) })
+  const credentialIssues = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-credential-issues'], queryFn: ({ signal }) => listZTPCredentialIssues(project.id, signal) })
   const detail = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-sim', selectedId], queryFn: ({ signal }) => getZTPSimSession(project.id, selectedId, signal), enabled: !!selectedId, refetchInterval: selectedId ? 2000 : false })
-  useExpireOnUnauthorized(scriptManifest.error ?? list.error ?? detail.error ?? observations.error ?? issues.error)
+  useExpireOnUnauthorized(scriptManifest.error ?? list.error ?? detail.error ?? observations.error ?? issues.error ?? credentialIssues.error)
   async function stagePlan(event: FormEvent) {
     event.preventDefault()
     const result = await action.run(() => stageZTPMockKea(project.id, { batch_ref: batch.trim(), stage_ref: 'N-S4', management_cidr: pool.trim(), option_239_url: bootURL.trim(), option_143_uris: [redirectURI.trim()], option_60_vci: vci.trim(), option_43: { nos: nos.trim(), version_intent: versionIntent.trim() } }, session.csrf_token))
@@ -55,11 +57,11 @@ function Board() {
   }
   async function change(kind: ZTPAction['action']) {
     if (!detail.data) return
-    const payload: ZTPAction = { action: kind, expected_version: detail.data.state_version, ...(kind === 'advance' && detail.data.state === 'powered' ? { dora: { batch_ref: detail.data.batch_ref, stage_ref: 'N-S4', interface: 'eth0', link_ip: linkIP.trim(), vendor_class: vci.trim() } } : {}), ...(kind === 'advance' && detail.data.state !== 'powered' ? { evidence_ref: evidence.trim() } : {}), ...(kind === 'fail' ? { phenomenon: phenomenon.trim(), cause: cause.trim(), next_action: nextAction.trim() } : {}) }
+    const payload: ZTPAction = { action: kind, expected_version: detail.data.state_version, ...(kind === 'advance' && detail.data.state === 'powered' ? { dora: { batch_ref: detail.data.batch_ref, stage_ref: 'N-S4', interface: 'eth0', link_ip: linkIP.trim(), vendor_class: vci.trim() } } : {}), ...(kind === 'advance' && detail.data.state !== 'powered' ? { evidence_ref: evidence.trim() } : {}), ...(kind === 'advance' && detail.data.state === 'restart' ? { credential_verdict: credentialVerdict } : {}), ...(kind === 'fail' ? { phenomenon: phenomenon.trim(), cause: cause.trim(), next_action: nextAction.trim() } : {}) }
     const result = await action.run(() => actZTPSimSession(project.id, detail.data!.id, payload, session.csrf_token))
     if (!result.ok) { void detail.refetch(); return }
     client.setQueryData(['private', session.user.id, project.id, 'ztp-sim', result.value.id], result.value)
-    setEvidence(''); void list.refetch()
+    setEvidence(''); void list.refetch(); void credentialIssues.refetch()
   }
   const current = detail.data, canAdvance = current && stages.indexOf(current.state) >= 0 && current.state !== 'managed'
   useEffect(() => {
@@ -103,6 +105,10 @@ function Board() {
       {canManage && <div className="field"><label htmlFor="ztp-issue-resolution">{t('ztpIdentityIssueResolutionReason')}</label><input id="ztp-issue-resolution" maxLength={300} value={issueResolutionReason} onChange={e => setIssueResolutionReason(e.target.value)} /></div>}
       <ol>{issues.data?.map(item => <li key={item.id}><time>{new Date(item.last_seen_at).toLocaleString()}</time> · {item.serial_number || item.identity_key} · {item.batch_ref} · {item.boot_channel} · {item.reasons.join(', ')} · {item.event_count} · {item.state}{item.resolution_reason && <> · {item.resolution_reason}</>}{canManage && item.state === 'open' && <button type="button" disabled={action.busy || !issueResolutionReason.trim()} onClick={() => void resolveIssue(item.id)}>{t('ztpIdentityIssueResolve')}</button>}</li>)}</ol>
     </section>
+    <section className="panel"><h2>模拟凭据问题</h2><p>以下结果由操作员提供的仿真输入产生，不代表 Vault 或交换机的真实可达性。</p><button type="button" className="secondary-button" onClick={() => void credentialIssues.refetch()}>{t('ztpRefresh')}</button>
+      {credentialIssues.isError && <p role="alert">{t('ztpLoadError')}</p>}
+      <ol>{credentialIssues.data?.map(item => <li key={item.id}><time>{new Date(item.occurred_at).toLocaleString()}</time> · {item.credential_batch_ref} · {item.verdict} · attempt {item.attempt} · <button type="button" className="secondary-button" onClick={() => setSelectedId(item.session_id)}>{item.session_id}</button></li>)}</ol>
+    </section>
     <section className="panel"><h2>{t('ztpDeviceObservations')}</h2><p>{t('ztpDeviceObservationBoundary')}</p><button type="button" className="secondary-button" onClick={() => void observations.refetch()}>{t('ztpRefresh')}</button>
       {observations.isError && <p role="alert">{t('ztpLoadError')}</p>}
       {observations.data?.length === 0 && <p>{t('ztpDeviceObservationsNone')}</p>}
@@ -114,7 +120,7 @@ function Board() {
       {current.next_retry_at && <p>{t('ztpRetryAt')}: {new Date(current.next_retry_at).toLocaleString()}</p>}
       {current.failure_phenomenon && <p>{t('ztpPhenomenon')}: {current.failure_phenomenon} · {t('ztpCause')}: {current.failure_cause} · {t('ztpNextAction')}: {current.failure_next_action}</p>}
       {canManage && <div>
-        {canAdvance && <>{current.state === 'powered' ? <div className="field"><label htmlFor="ztp-link-ip">{t('ztpKeaLinkIP')}</label><input id="ztp-link-ip" value={linkIP} onChange={e => setLinkIP(e.target.value)} placeholder="192.0.2.1" /></div> : <div className="field"><label htmlFor="ztp-evidence">{t('ztpEvidence')}</label><input id="ztp-evidence" value={evidence} onChange={e => setEvidence(e.target.value)} /></div>}<button disabled={action.busy || (current.state === 'powered' ? !linkIP.trim() || !vci.trim() : !evidence.trim())} onClick={() => void change('advance')}>{t('ztpAdvance')}</button></>}
+        {canAdvance && <>{current.state === 'restart' && <div className="field"><label htmlFor="ztp-credential-verdict">凭据批次仿真结果</label><select id="ztp-credential-verdict" value={credentialVerdict} onChange={e => setCredentialVerdict(e.target.value as typeof credentialVerdict)}><option value="reachable">可达</option><option value="expired">已过期</option><option value="unreachable">不可达</option></select><small>仅为仿真输入；不连接 Vault 或设备。</small></div>}{current.state === 'powered' ? <div className="field"><label htmlFor="ztp-link-ip">{t('ztpKeaLinkIP')}</label><input id="ztp-link-ip" value={linkIP} onChange={e => setLinkIP(e.target.value)} placeholder="192.0.2.1" /></div> : <div className="field"><label htmlFor="ztp-evidence">{t('ztpEvidence')}</label><input id="ztp-evidence" value={evidence} onChange={e => setEvidence(e.target.value)} /></div>}<button disabled={action.busy || (current.state === 'powered' ? !linkIP.trim() || !vci.trim() : !evidence.trim())} onClick={() => void change('advance')}>{t('ztpAdvance')}</button></>}
         {canAdvance && <><div className="field"><label htmlFor="ztp-phenomenon">{t('ztpPhenomenon')}</label><input id="ztp-phenomenon" value={phenomenon} onChange={e => setPhenomenon(e.target.value)} /></div><div className="field"><label htmlFor="ztp-cause">{t('ztpCause')}</label><input id="ztp-cause" value={cause} onChange={e => setCause(e.target.value)} /></div><div className="field"><label htmlFor="ztp-next">{t('ztpNextAction')}</label><input id="ztp-next" value={nextAction} onChange={e => setNextAction(e.target.value)} /></div><button className="secondary-button" disabled={action.busy || !phenomenon.trim() || !cause.trim() || !nextAction.trim()} onClick={() => void change('fail')}>{t('ztpFail')}</button></>}
         {current.state === 'failed' && current.next_retry_at && <button disabled={action.busy || clock < new Date(current.next_retry_at).getTime()} onClick={() => void change('retry')}>{t('ztpRetry')}</button>}
       </div>}

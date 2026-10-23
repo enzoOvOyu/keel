@@ -18,13 +18,14 @@ type ZTPSimSessionInput struct {
 }
 
 type ZTPSessionAction struct {
-	DORA            *fabricboot.DORARequest `json:"dora,omitempty"`
-	Action          string                  `json:"action"`
-	ExpectedVersion int64                   `json:"expected_version"`
-	EvidenceRef     string                  `json:"evidence_ref"`
-	Phenomenon      string                  `json:"phenomenon"`
-	Cause           string                  `json:"cause"`
-	NextAction      string                  `json:"next_action"`
+	DORA              *fabricboot.DORARequest `json:"dora,omitempty"`
+	Action            string                  `json:"action"`
+	ExpectedVersion   int64                   `json:"expected_version"`
+	EvidenceRef       string                  `json:"evidence_ref"`
+	CredentialVerdict string                  `json:"credential_verdict,omitempty"`
+	Phenomenon        string                  `json:"phenomenon"`
+	Cause             string                  `json:"cause"`
+	NextAction        string                  `json:"next_action"`
 }
 
 type ZTPSessionEvent struct {
@@ -348,7 +349,43 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 		if next == "config" && out.IdentityResolution.Verdict != "matched" {
 			return nil, apiError(409, "ZTP_IDENTITY_NOT_MATCHED", "Unmatched identity cannot import configuration")
 		}
-		add(next, "sim."+next, evidence)
+		if next == "managed" && out.SwitchID != "" {
+			ref, refErr := simSwitchCredentialRef(ctx, tx, project.ID, out.SwitchID)
+			if refErr != nil {
+				return nil, refErr
+			}
+			if ref != "" {
+				registered, checkErr := simCredentialRegistered(ctx, tx, project.ID, ref)
+				if checkErr != nil {
+					return nil, checkErr
+				}
+				verdict := input.CredentialVerdict
+				if !registered {
+					verdict = "unregistered"
+				} else if verdict != "reachable" && verdict != "expired" && verdict != "unreachable" {
+					return nil, apiError(400, "ZTP_SIM_CREDENTIAL_VERDICT_REQUIRED", "Provide a simulated credential verdict")
+				}
+				if verdict != "reachable" {
+					if err = insertZTPCredentialIssueTx(ctx, tx, project.ID, out, ref, verdict, now); err != nil {
+						return nil, err
+					}
+					add("failed", "sim.credential_"+verdict, "mock-credential:"+ref)
+					out.FailurePhenomenon = "Simulated switch credential check: " + verdict
+					out.FailureCause = "Credential batch " + ref + " is " + verdict + " in this simulation"
+					out.FailureNextAction = "Review switch credential batch reference and Vault rotation, then retry ZTP"
+					if out.Attempt <= out.RetryMax {
+						retry := now.Add(ztpRetryDelay(out.Attempt))
+						out.NextRetryAt = &retry
+					}
+				} else {
+					evidence = "mock-credential:" + ref + ":reachable"
+				}
+			}
+		}
+		if out.State != "failed" {
+			add(next, "sim."+next, evidence)
+		}
+
 		if next == "lookup" && out.IdentityResolution.Verdict != "matched" {
 			if out.IdentityResolution.Verdict == "conflict" {
 				add("conflict", "sim.identity_conflict", "")
@@ -413,6 +450,11 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 		return nil, err
 	}
 	auditDetail := map[string]any{"from": original, "to": out.State, "attempt": out.Attempt}
+	if out.State == "failed" {
+		auditDetail["phenomenon"] = out.FailurePhenomenon
+		auditDetail["cause"] = out.FailureCause
+		auditDetail["next_action"] = out.FailureNextAction
+	}
 	if input.Action == "fail" {
 		auditDetail["phenomenon"] = input.Phenomenon
 		auditDetail["cause"] = input.Cause

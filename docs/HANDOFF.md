@@ -1,3 +1,8 @@
+## 2026-10-23 WP-1.17 交换机凭据批次仿真
+
+- migration 024 登记 BOM `credential_batches.csv` 的项目、批次、scope、rotation_policy、vault_path、owner 元数据；不保存口令或私钥。交换机 BOM 中的 `credential_batch_ref` 在 ZTP 仿真从 restart 进入 managed 时读取。已登记的 switch 批次要求操作员显式给出 reachable/expired/unreachable 仿真输入；reachable 在时间线保留 `mock-credential` 引用，expired/unreachable 原子进入 failed、三段式定位、指数退避和项目问题清单；未登记或 scope 不符按 unregistered 失败。页面和项目只读 API 展示问题。此结果仅是模拟输入，不验证 Vault 或真实交换机。
+- 隔离 PostgreSQL 回归覆盖 BOM 批次提交、可达、过期、不可达、缺少 verdict 拒绝、问题保留与 worker 到期恢复；P1 3000 镜像/运行库未迁移，FR-0.3.6 实际凭据取用与网络可达性仍待做。
+
 ## 2026-10-23 ZTP 仿真状态刷新
 
 - ZtpOnboardBoard 对选中会话每 2 秒、会话列表每 5 秒刷新，使后台自动重试从 failed 恢复到 powered 后 UI 能及时显示新版本和时间线。该刷新只读取项目数据，不驱动状态转换。

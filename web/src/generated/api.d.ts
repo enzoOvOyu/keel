@@ -577,6 +577,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/ztp/credential-issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists project-scoped simulated credential reachability failures; no Vault or switch connection is implied. */
+        get: operations["listZTPCredentialIssues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/ztp/identity-issues": {
         parameters: {
             query?: never;
@@ -890,6 +907,17 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        ZTPCredentialIssue: {
+            id: components["schemas"]["EntityID"];
+            session_id: components["schemas"]["EntityID"];
+            switch_id: components["schemas"]["EntityID"];
+            credential_batch_ref: string;
+            /** @enum {string} */
+            verdict: "expired" | "unreachable" | "unregistered";
+            attempt: number;
+            /** Format: date-time */
+            occurred_at: string;
+        };
         ZTPIdentityIssueResolveInput: {
             reason: string;
         };
@@ -943,6 +971,11 @@ export interface components {
             expected_version: number;
             dora?: components["schemas"]["ZTPDORARequest"];
             evidence_ref?: string;
+            /**
+             * @description Operator supplied simulation fixture for a registered switch credential batch at the managed transition.
+             * @enum {string}
+             */
+            credential_verdict?: "reachable" | "expired" | "unreachable";
             phenomenon?: string;
             cause?: string;
             next_action?: string;
@@ -2831,6 +2864,31 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    listZTPCredentialIssues: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recent simulated credential issues. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPCredentialIssue"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listZTPIdentityIssues: {

@@ -181,16 +181,19 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	for name, data := range files {
 		identityPackage[name] = append([]byte(nil), data...)
 	}
-	identityPackage["fabric/switches.csv"] = []byte("bom_line_no,sn,hostname,model_ref,role,rack,idx,dc,pod,source_of_record,status,mgmt_mac,base_mac,other_macs\n4,SW-1,leaf-1," + modelIDs["switch"] + ",leaf,R01,1,DC,P1,design_bom,planned,aa:bb:cc:dd:ff:01,aa:bb:cc:dd:ff:02,aa:bb:cc:dd:ff:03\n")
+	identityPackage["fabric/switches.csv"] = []byte("bom_line_no,sn,hostname,model_ref,role,rack,idx,dc,pod,source_of_record,status,mgmt_mac,base_mac,other_macs,credential_batch_ref\n4,SW-1,leaf-1," + modelIDs["switch"] + ",leaf,R01,1,DC,P1,design_bom,planned,aa:bb:cc:dd:ff:01,aa:bb:cc:dd:ff:02,aa:bb:cc:dd:ff:03,cred-switch-1\n")
+	identityPackage["credential_batches.csv"] = []byte("credential_batch_ref,scope,rotation_policy,vault_path,owner\ncred-switch-1,switch,quarterly,vault://kv/keel/switches,network-team\n")
 	var identityManifest BOMPackageManifest
 	if err = json.Unmarshal(identityPackage["manifest.json"], &identityManifest); err != nil {
 		t.Fatal(err)
 	}
 	identityManifest.BatchID = "BOM-BATCH-P1-20261020-11"
 	identityManifest.Seq = 11
+	identityManifest.RowCount = 9
+	identityManifest.DomainFiles = append(identityManifest.DomainFiles, BOMPackageFile{Domain: "credential", File: "credential_batches.csv", Entity: "credential_batch", Columns: []string{"credential_batch_ref", "scope", "rotation_policy", "vault_path", "owner"}})
 	for i := range identityManifest.DomainFiles {
 		if identityManifest.DomainFiles[i].File == "fabric/switches.csv" {
-			identityManifest.DomainFiles[i].Columns = []string{"bom_line_no", "sn", "hostname", "model_ref", "role", "rack", "idx", "dc", "pod", "source_of_record", "status", "mgmt_mac", "base_mac", "other_macs"}
+			identityManifest.DomainFiles[i].Columns = []string{"bom_line_no", "sn", "hostname", "model_ref", "role", "rack", "idx", "dc", "pod", "source_of_record", "status", "mgmt_mac", "base_mac", "other_macs", "credential_batch_ref"}
 		}
 	}
 	identityPackage["manifest.json"], _ = json.Marshal(identityManifest)
@@ -291,6 +294,12 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 		if stage == "dhcp" {
 			action.DORA = dora
 		}
+		if stage == "managed" {
+			if _, missingErr := s.AdvanceZTPSimSession(ctx, actor, project, sim.ID, action, "test"); missingErr == nil {
+				t.Fatal("credential verdict omitted but managed accepted")
+			}
+			action.CredentialVerdict = "reachable"
+		}
 		sim, simErr = s.AdvanceZTPSimSession(ctx, actor, project, sim.ID, action, "test")
 		if simErr != nil || sim.State != stage {
 			t.Fatalf("stage %s: %+v %v", stage, sim, simErr)
@@ -298,6 +307,47 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	}
 	if sim.Mode != "sim" || len(sim.Events) != 9 || sim.ManagedAt == nil || sim.Events[1].EvidenceRef != "mock-kea:"+keaPlan.StagedHash {
 		t.Fatalf("simulation timeline: %+v", sim)
+	}
+	if sim.Events[len(sim.Events)-1].EvidenceRef != "mock-credential:cred-switch-1:reachable" {
+		t.Fatalf("credential simulation evidence missing: %+v", sim.Events)
+	}
+	for _, verdict := range []string{"expired", "unreachable"} {
+		caseSession, caseErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-1", BootChannel: "239", Identity: ZTPIdentityInput{Serial: "SW-1"}}, "test")
+		if caseErr != nil {
+			t.Fatal(caseErr)
+		}
+		for _, stage := range []string{"dhcp", "booturl", "identity", "lookup", "fetch", "config", "restart"} {
+			action := ZTPSessionAction{Action: "advance", ExpectedVersion: caseSession.StateVersion, EvidenceRef: "sim-evidence-" + stage}
+			if stage == "dhcp" {
+				action.DORA = dora
+			}
+			caseSession, caseErr = s.AdvanceZTPSimSession(ctx, actor, project, caseSession.ID, action, "test")
+			if caseErr != nil {
+				t.Fatalf("credential %s stage %s: %v", verdict, stage, caseErr)
+			}
+		}
+		caseSession, caseErr = s.AdvanceZTPSimSession(ctx, actor, project, caseSession.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: caseSession.StateVersion, EvidenceRef: "operator-fixture", CredentialVerdict: verdict}, "test")
+		if caseErr != nil || caseSession.State != "failed" || caseSession.NextRetryAt == nil || caseSession.FailureCause == "" || caseSession.Events[len(caseSession.Events)-1].EventCode != "sim.credential_"+verdict {
+			t.Fatalf("credential %s failure: %+v %v", verdict, caseSession, caseErr)
+		}
+	}
+	var expiredSessionID string
+	if err = s.DB.QueryRowContext(ctx, `SELECT session_id FROM ztp_credential_issues WHERE project_id=$1 AND verdict='expired'`, project.ID).Scan(&expiredSessionID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.DB.ExecContext(ctx, `UPDATE ztp_sessions SET next_retry_at=now()-interval '1 second' WHERE id=$1`, expiredSessionID); err != nil {
+		t.Fatal(err)
+	}
+	if resumed, retryErr := s.RetryDueZTPSimSessions(ctx, 1); retryErr != nil || resumed != 1 {
+		t.Fatalf("credential failure retry: %d %v", resumed, retryErr)
+	}
+	expiredSession, retryErr := s.GetZTPSession(ctx, actor, project, expiredSessionID)
+	if retryErr != nil || expiredSession.State != "powered" || expiredSession.Attempt != 2 {
+		t.Fatalf("credential retry state: %+v %v", expiredSession, retryErr)
+	}
+	credentialIssues, issueErr := s.ListZTPCredentialIssues(ctx, actor, project)
+	if issueErr != nil || len(credentialIssues) != 2 || credentialIssues[0].Verdict != "unreachable" || credentialIssues[1].Verdict != "expired" {
+		t.Fatalf("credential issues: %+v %v", credentialIssues, issueErr)
 	}
 	if _, simErr = s.AdvanceZTPSimSession(ctx, actor, project, sim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: 1, EvidenceRef: "stale"}, "test"); simErr == nil {
 		t.Fatal("stale ZTP state version accepted")
@@ -382,7 +432,7 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 		t.Fatalf("persisted timeline: %+v %v", loadedSim, simErr)
 	}
 	listedSims, simErr := s.ListZTPSimSessions(ctx, actor, project)
-	if simErr != nil || len(listedSims) != 3 {
+	if simErr != nil || len(listedSims) != 5 {
 		t.Fatalf("simulation board list: %+v %v", listedSims, simErr)
 	}
 

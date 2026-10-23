@@ -1456,6 +1456,30 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/ztp/credential-issues:
+    get:
+      tags: [BOM]
+      operationId: listZTPCredentialIssues
+      description: Lists project-scoped simulated credential reachability failures; no Vault or switch connection is implied.
+      security: [{sessionCookie: []}]
+      x-permission: project:fabric:read
+      x-resource-scope: path-project
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      responses:
+        '200':
+          description: Recent simulated credential issues.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ZTPCredentialIssue' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/projects/{id}/ztp/identity-issues:
     get:
       tags: [BOM]
@@ -2055,6 +2079,18 @@ components:
         attempt: { type: integer }
         identity_verdict: { type: string }
         updated_at: { type: string, format: date-time }
+    ZTPCredentialIssue:
+      type: object
+      additionalProperties: false
+      required: [id, session_id, switch_id, credential_batch_ref, verdict, attempt, occurred_at]
+      properties:
+        id: { $ref: '#/components/schemas/EntityID' }
+        session_id: { $ref: '#/components/schemas/EntityID' }
+        switch_id: { $ref: '#/components/schemas/EntityID' }
+        credential_batch_ref: { type: string }
+        verdict: { type: string, enum: [expired, unreachable, unregistered] }
+        attempt: { type: integer, minimum: 1 }
+        occurred_at: { type: string, format: date-time }
     ZTPIdentityIssueResolveInput:
       type: object
       additionalProperties: false
@@ -2116,6 +2152,7 @@ components:
         expected_version: { type: integer, minimum: 1 }
         dora: { $ref: '#/components/schemas/ZTPDORARequest' }
         evidence_ref: { type: string, maxLength: 300 }
+        credential_verdict: { type: string, enum: [reachable, expired, unreachable], description: Operator supplied simulation fixture for a registered switch credential batch at the managed transition. }
         phenomenon: { type: string, maxLength: 1000 }
         cause: { type: string, maxLength: 1000 }
         next_action: { type: string, maxLength: 1000 }

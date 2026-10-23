@@ -296,6 +296,27 @@ func ValidateBOMPackage(files map[string][]byte) (*BOMPackage, error) {
 					}
 				}
 			}
+			if name == "credential_batches.csv" {
+				for _, field := range []string{"credential_batch_ref", "scope", "rotation_policy", "vault_path", "owner"} {
+					if values[field] == "" {
+						add("BLOCK", name, field, "required", line)
+					}
+				}
+				if values["scope"] != "bmc" && values["scope"] != "switch" {
+					add("BLOCK", name, "scope", "invalid_scope", line)
+				}
+				if len(values["credential_batch_ref"]) > 120 || len(values["rotation_policy"]) > 160 || len(values["vault_path"]) > 300 || len(values["owner"]) > 160 {
+					add("BLOCK", name, "", "credential_metadata_too_long", line)
+				}
+				if strings.ContainsAny(values["vault_path"], "?#@") || strings.Contains(values["vault_path"], " ") {
+					add("BLOCK", name, "vault_path", "invalid_vault_reference", line)
+				}
+				for _, previous := range out.Rows[name] {
+					if previous.Values["credential_batch_ref"] == values["credential_batch_ref"] {
+						add("BLOCK", name, "credential_batch_ref", "duplicate_credential_batch", line)
+					}
+				}
+			}
 			out.Rows[name] = append(out.Rows[name], BOMPackageRow{File: name, Line: line, Values: values})
 		}
 	}

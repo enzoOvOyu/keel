@@ -117,6 +117,34 @@ func TestBOMPackageRejectsBOMAndSecrets(t *testing.T) {
 	}
 }
 
+func TestBOMCredentialBatchMetadataValidation(t *testing.T) {
+	files := bomFixture(t)
+	files["credential_batches.csv"] = []byte("credential_batch_ref,scope,rotation_policy,vault_path,owner\ncred-switch-1,switch,quarterly,kv/keel/switches,network-team\n")
+	var manifest BOMPackageManifest
+	if err := json.Unmarshal(files["manifest.json"], &manifest); err != nil {
+		t.Fatal(err)
+	}
+	manifest.DomainFiles = append(manifest.DomainFiles, BOMPackageFile{Domain: "credential", File: "credential_batches.csv", Entity: "credential_batch", Columns: []string{"credential_batch_ref", "scope", "rotation_policy", "vault_path", "owner"}})
+	manifest.RowCount++
+	files["manifest.json"], _ = json.Marshal(manifest)
+	rehashBOMFixture(t, files)
+	pkg, err := ValidateBOMPackage(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, issue := range pkg.Issues {
+		if issue.Severity == "BLOCK" {
+			t.Fatalf("valid credential metadata blocked: %+v", issue)
+		}
+	}
+	files["credential_batches.csv"] = []byte("credential_batch_ref,scope,rotation_policy,vault_path,owner,password\ncred-switch-1,router,quarterly,kv/keel/switches,network-team,secret\n")
+	rehashBOMFixture(t, files)
+	pkg, err = ValidateBOMPackage(files)
+	if err != nil || !issueFound(pkg, "invalid_scope") || !issueFound(pkg, "plaintext_secret") {
+		t.Fatalf("invalid credential metadata accepted: %+v %v", pkg, err)
+	}
+}
+
 func TestBOMArchiveExtraction(t *testing.T) {
 	files := bomFixture(t)
 	var buf bytes.Buffer
