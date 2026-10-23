@@ -1,3 +1,7 @@
+## 2026-10-23 FR-0.3 mock Kea 计划撤销
+
+- 新增项目管理员撤销 active 模拟计划的 API 和 UI：要求精确 active 哈希、版本及原因；与 commit 用同一数据库事务锁，保留 staged 候选并记录审计。143 数据交付后 30 分钟内拒绝撤销，避免设备进度回报失去路由；旧批次撤销后可复用管理网段与 143 URI。隔离 `keel_test_deactivate_1023` PostgreSQL 库的 mock Kea 与 143 集成测试通过并已清理。仅改变 mock offer，未修改真实 Kea 或 P1 运行库。
+
 # Keel 开发交接
 
 ## 2026-10-23 FR-0.3 设备进度观察记录

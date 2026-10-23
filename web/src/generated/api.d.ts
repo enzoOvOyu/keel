@@ -526,6 +526,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/ztp/mock-kea/plans/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Deactivates an exact active simulated plan after hash and version checks. Recent 143 device bootstrap delivery blocks deactivation. Does not change real Kea. */
+        post: operations["deactivateZTPMockKeaPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/ztp/mock-kea/dora": {
         parameters: {
             query?: never;
@@ -792,6 +809,13 @@ export interface components {
             version: number;
             /** Format: date-time */
             updated_at: string;
+        };
+        ZTPMockKeaDeactivateInput: {
+            batch_ref: string;
+            stage_ref: string;
+            active_hash: string;
+            expected_version: number;
+            reason: string;
         };
         ZTPMockKeaCommitInput: {
             batch_ref: string;
@@ -2643,6 +2667,37 @@ export interface operations {
         };
         responses: {
             /** @description Active simulated option plan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPMockKeaPlan"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    deactivateZTPMockKeaPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZTPMockKeaDeactivateInput"];
+            };
+        };
+        responses: {
+            /** @description Plan with no active mock offer; any staged candidate remains. */
             200: {
                 headers: {
                     [name: string]: unknown;

@@ -108,6 +108,16 @@ func TestSZTP143ApprovedIsolationAndAmbiguousRoute(t *testing.T) {
 	if err = s.DB.QueryRowContext(ctx, `SELECT count(*) FROM ztp_sessions WHERE project_id=$1 AND mode='device' AND state='managed'`, project.ID).Scan(&managedCount); err != nil || managedCount != 0 {
 		t.Fatalf("device completion claim projected to managed: %d %v", managedCount, err)
 	}
+	var activeHash string
+	var activeVersion int64
+	if err = s.DB.QueryRowContext(ctx, `SELECT active_hash,version FROM ztp_mock_kea_plans WHERE project_id=$1 AND batch_ref='rack-a' AND stage_ref='N-S4'`, project.ID).Scan(&activeHash, &activeVersion); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.DeactivateZTPMockKeaPlan(ctx, uploader, project, ZTPMockKeaDeactivateInput{BatchRef: "rack-a", StageRef: "N-S4", ActiveHash: activeHash, ExpectedVersion: activeVersion, Reason: "replace batch"}, "test"); err == nil {
+		t.Fatal("active device bootstrap deactivated")
+	} else {
+		assertErrorCode(t, err, "ZTP_KEA_DEVICE_IN_PROGRESS")
+	}
 	if err = stage("rack-b"); err == nil {
 		t.Fatal("overlapping bootstrap route committed")
 	} else {

@@ -97,6 +97,32 @@ func TestZTPMockKeaDurableStageCommit(t *testing.T) {
 	if err != nil || crossProject.Outcome != "no_offer" {
 		t.Fatalf("project scope leaked: %+v %v", crossProject, err)
 	}
+	if _, err = s.DeactivateZTPMockKeaPlan(ctx, actor, project, ZTPMockKeaDeactivateInput{BatchRef: "rack-a", StageRef: "N-S4", ActiveHash: active.ActiveHash, ExpectedVersion: 2, Reason: "replace old batch"}, "test"); err == nil {
+		t.Fatal("stale active version deactivated")
+	}
+	deactivated, err := s.DeactivateZTPMockKeaPlan(ctx, actor, project, ZTPMockKeaDeactivateInput{BatchRef: "rack-a", StageRef: "N-S4", ActiveHash: active.ActiveHash, ExpectedVersion: replacement.Version, Reason: "replace old batch"}, "test")
+	if err != nil || deactivated.ActiveHash != "" || deactivated.StagedHash != replacement.StagedHash || deactivated.Version != 4 {
+		t.Fatalf("deactivate: %+v %v", deactivated, err)
+	}
+	oldOffer, err := reopened.SimulateZTPDORA(ctx, actor, project, req)
+	if err != nil || oldOffer.Outcome != "no_offer" {
+		t.Fatalf("deactivated plan still offered: %+v %v", oldOffer, err)
+	}
+	cfg.BatchRef = "rack-b"
+	cfg.Option239URL = fmt.Sprintf("https://boot.example.invalid/api/v1/boot/ztp?project=%s&batch=rack-b&stage=N-S4&policy=%s", project.ID, media.ID)
+	next, err := s.StageZTPMockKeaPlan(ctx, actor, project, cfg, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextActive, err := s.CommitZTPMockKeaPlan(ctx, actor, project, ZTPMockKeaCommitInput{BatchRef: "rack-b", StageRef: "N-S4", StagedHash: next.StagedHash, ExpectedVersion: next.Version}, "test")
+	if err != nil || nextActive.ActiveHash == "" {
+		t.Fatalf("reused route: %+v %v", nextActive, err)
+	}
+	req.BatchRef = "rack-b"
+	newOffer, err := reopened.SimulateZTPDORA(ctx, actor, project, req)
+	if err != nil || newOffer.Outcome != "ack" {
+		t.Fatalf("new batch offer: %+v %v", newOffer, err)
+	}
 	if _, err = s.TransitionMedia(ctx, reviewer, project, media.ID, "retired", "test"); err != nil {
 		t.Fatal(err)
 	}

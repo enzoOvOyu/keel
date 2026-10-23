@@ -18,3 +18,5 @@ export const getZTPIsolationScriptManifest = (projectId: string, signal?: AbortS
 
 export type ZTPDeviceObservation = components['schemas']['ZTPDeviceObservation']
 export const listZTPDeviceObservations = (projectId: string, signal?: AbortSignal) => request<ZTPDeviceObservation[]>(`/projects/${encodeURIComponent(projectId)}/ztp/device-observations`, { signal })
+
+export const deactivateZTPMockKea = (projectId: string, input: components['schemas']['ZTPMockKeaDeactivateInput'], csrf: string) => request<ZTPMockKeaPlan>(`/projects/${encodeURIComponent(projectId)}/ztp/mock-kea/plans/deactivate`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: JSON.stringify(input) })

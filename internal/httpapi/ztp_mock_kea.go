@@ -57,6 +57,30 @@ func (a *authAPI) registerZTPMockKea(r *gin.Engine) {
 		}
 		c.JSON(http.StatusOK, out)
 	})
+	r.POST(base+"/plans/deactivate", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		if !a.writeAllowed(c) {
+			return
+		}
+		var input platform.ZTPMockKeaDeactivateInput
+		if !decodeBody(c, &input) {
+			return
+		}
+		project, err := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		out, err := a.store.DeactivateZTPMockKeaPlan(c.Request.Context(), actor, project, input, c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, out)
+	})
 	r.POST(base+"/dora", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {

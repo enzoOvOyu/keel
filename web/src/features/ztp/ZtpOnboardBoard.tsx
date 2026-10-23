@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ProjectWorkspace, canManageProject, useProject } from '../../components/ProjectWorkspace'
 import { useSession, useExpireOnUnauthorized } from '../../lib/session'
 import { useAction } from '../../lib/management'
-import { actZTPSimSession, createZTPSimSession, getZTPSimSession, getZTPIsolationScriptManifest, listZTPSimSessions, listZTPDeviceObservations, stageZTPMockKea, commitZTPMockKea, type ZTPMockKeaPlan, type ZTPAction } from '../../lib/ztp'
+import { actZTPSimSession, createZTPSimSession, getZTPSimSession, getZTPIsolationScriptManifest, listZTPSimSessions, listZTPDeviceObservations, stageZTPMockKea, commitZTPMockKea, deactivateZTPMockKea, type ZTPMockKeaPlan, type ZTPAction } from '../../lib/ztp'
 
 const stages = ['powered', 'dhcp', 'booturl', 'identity', 'lookup', 'fetch', 'config', 'restart', 'managed']
 function Board() {
@@ -16,6 +16,7 @@ function Board() {
   const [pool, setPool] = useState(''), [bootURL, setBootURL] = useState(''), [redirectURI, setRedirectURI] = useState('')
   const [vci, setVci] = useState('cumulus-linux x86_64'), [nos, setNos] = useState('cumulus-linux'), [versionIntent, setVersionIntent] = useState('')
   const [linkIP, setLinkIP] = useState(''), [plan, setPlan] = useState<ZTPMockKeaPlan | null>(null)
+  const [deactivateReason, setDeactivateReason] = useState(''), [deactivateConfirmed, setDeactivateConfirmed] = useState(false)
   const canManage = canManageProject(project, session.user.is_admin)
   const scriptManifest = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-isolation-script'], queryFn: ({ signal }) => getZTPIsolationScriptManifest(project.id, signal) })
   const list = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-sims'], queryFn: ({ signal }) => listZTPSimSessions(project.id, signal) })
@@ -32,6 +33,11 @@ function Board() {
     const candidate = plan, digest = plan.staged_hash
     const result = await action.run(() => commitZTPMockKea(project.id, { batch_ref: candidate.batch_ref, stage_ref: candidate.stage_ref, staged_hash: digest, expected_version: candidate.version }, session.csrf_token))
     if (result.ok) setPlan(result.value)
+  }
+  async function deactivatePlan() {
+    if (!plan?.active_hash || !deactivateConfirmed || !deactivateReason.trim()) return
+    const result = await action.run(() => deactivateZTPMockKea(project.id, { batch_ref: plan.batch_ref, stage_ref: plan.stage_ref, active_hash: plan.active_hash!, expected_version: plan.version, reason: deactivateReason.trim() }, session.csrf_token))
+    if (result.ok) { setPlan(result.value); setDeactivateReason(''); setDeactivateConfirmed(false) }
   }
   async function create(event: FormEvent) {
     event.preventDefault()
@@ -68,7 +74,7 @@ function Board() {
       <div className="field"><label htmlFor="kea-version">{t('ztpKeaVersion')}</label><input id="kea-version" required value={versionIntent} onChange={e => { setVersionIntent(e.target.value); setPlan(null) }} /></div>
       <button disabled={action.busy}>{t('ztpKeaStage')}</button>
       {plan?.staged_hash && <p>{t('ztpKeaStaged')}: <code>{plan.staged_hash}</code> <button type="button" disabled={action.busy} onClick={() => void commitPlan()}>{t('ztpKeaCommit')}</button></p>}
-      {plan?.active_hash && <p>{t('ztpKeaActive')}: <code>{plan.active_hash}</code></p>}
+      {plan?.active_hash && <><p>{t('ztpKeaActive')}: <code>{plan.active_hash}</code></p><details><summary>{t('ztpKeaDeactivate')}</summary><p>{t('ztpKeaDeactivateBoundary')}</p><div className="field"><label htmlFor="ztp-deactivate-reason">{t('ztpKeaDeactivateReason')}</label><input id="ztp-deactivate-reason" maxLength={300} value={deactivateReason} onChange={e => setDeactivateReason(e.target.value)} /></div><label><input type="checkbox" checked={deactivateConfirmed} onChange={e => setDeactivateConfirmed(e.target.checked)} />{t('ztpKeaDeactivateConfirm')}</label><button type="button" className="secondary-button" disabled={action.busy || !deactivateConfirmed || !deactivateReason.trim()} onClick={() => void deactivatePlan()}>{t('ztpKeaDeactivate')}</button></details></>}
     </form>}
     {canManage && <form onSubmit={(event) => void create(event)} className="panel">
       <h2>{t('ztpCreate')}</h2>

@@ -27,6 +27,14 @@ type ZTPMockKeaCommitInput struct {
 	ExpectedVersion int64  `json:"expected_version"`
 }
 
+type ZTPMockKeaDeactivateInput struct {
+	BatchRef        string `json:"batch_ref"`
+	StageRef        string `json:"stage_ref"`
+	ActiveHash      string `json:"active_hash"`
+	ExpectedVersion int64  `json:"expected_version"`
+	Reason          string `json:"reason"`
+}
+
 // StageZTPMockKeaPlan only records validated candidate options. In particular,
 // it never sends Kea a config-set or changes the active simulated DORA result.
 func (s *Store) StageZTPMockKeaPlan(ctx context.Context, a *AuthSession, project *ProjectSummary, input fabricboot.DHCPOptions, trace string) (*ZTPMockKeaPlan, error) {
@@ -128,6 +136,59 @@ func (s *Store) CommitZTPMockKeaPlan(ctx context.Context, a *AuthSession, projec
 		return nil, err
 	}
 	return out, nil
+}
+
+// DeactivateZTPMockKeaPlan retires only the simulated active offer. The
+// staged candidate, if any, remains reviewable and must be separately
+// committed. Recent SZTP deliveries block deactivation while progress reports
+// may still arrive through the active route.
+func (s *Store) DeactivateZTPMockKeaPlan(ctx context.Context, a *AuthSession, project *ProjectSummary, input ZTPMockKeaDeactivateInput, trace string) (*ZTPMockKeaPlan, error) {
+	if !ztpSHA256Pattern.MatchString(input.ActiveHash) || input.ExpectedVersion < 1 || !bootRouteRef.MatchString(input.BatchRef) || !bootRouteRef.MatchString(input.StageRef) || strings.TrimSpace(input.Reason) == "" || len(input.Reason) > 300 || strings.ContainsAny(input.Reason, "\r\n\x00") {
+		return nil, apiError(400, "ZTP_KEA_DEACTIVATE_INVALID", "Active hash, version, scope and reason are required")
+	}
+	tx, err := s.beginControl(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	if err = requireProjectAdmin(ctx, tx, a, project.ID); err != nil {
+		return nil, err
+	}
+	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(230923,143)`); err != nil {
+		return nil, err
+	}
+	var activeHash, stagedHash string
+	var version int64
+	err = tx.QueryRowContext(ctx, `SELECT coalesce(active_hash,''),coalesce(staged_hash,''),version FROM ztp_mock_kea_plans WHERE project_id=$1 AND batch_ref=$2 AND stage_ref=$3 FOR UPDATE`, project.ID, input.BatchRef, input.StageRef).Scan(&activeHash, &stagedHash, &version)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if version != input.ExpectedVersion || activeHash != input.ActiveHash {
+		return nil, apiError(409, "ZTP_KEA_ACTIVE_CONFLICT", "Active mock Kea plan changed")
+	}
+	var pending bool
+	err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM ztp_device_observations WHERE project_id=$1 AND batch_ref=$2 AND boot_channel='143' AND event_type='data-served' AND offer_hash=$3 AND occurred_at>now()-interval '30 minutes')`, project.ID, input.BatchRef, activeHash).Scan(&pending)
+	if err != nil {
+		return nil, err
+	}
+	if pending {
+		return nil, apiError(409, "ZTP_KEA_DEVICE_IN_PROGRESS", "Recent device bootstrap delivery requires the active route")
+	}
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	_, err = tx.ExecContext(ctx, `UPDATE ztp_mock_kea_plans SET active_config=NULL,active_hash=NULL,version=version+1,updated_by=$4,updated_at=$5 WHERE project_id=$1 AND batch_ref=$2 AND stage_ref=$3`, project.ID, input.BatchRef, input.StageRef, a.User.ID, now)
+	if err != nil {
+		return nil, err
+	}
+	if err = appendAudit(ctx, tx, a.User.ID, project.ID, "ztp.mock_kea.deactivate", input.BatchRef+":"+input.StageRef, trace, map[string]any{"active_hash": activeHash, "reason": input.Reason, "version": version + 1}); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &ZTPMockKeaPlan{BatchRef: input.BatchRef, StageRef: input.StageRef, StagedHash: stagedHash, Version: version + 1, UpdatedAt: now}, nil
 }
 
 // 143 carries no project or batch identifier, so a source subnet and host
