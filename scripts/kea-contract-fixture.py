@@ -1,5 +1,5 @@
 """Version-1 TLS Kea/boot/collector/repository fixture; no device or external network access."""
-import http.server,ssl,threading,hashlib,json,subprocess,socket,struct
+import http.server,ssl,threading,hashlib,json,subprocess,socket,struct,datetime,re
 from pathlib import Path
 class KeaFixture:
  def __init__(self,work):
@@ -39,7 +39,17 @@ class KeaFixture:
    def answer(self,data,status=200):
     self.send_response(status);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(data if isinstance(data,bytes) else json.dumps(data).encode())
    def do_GET(self):
-    if self.path=='/boot/readyz':self.answer({'service':'keel-ztp','status':'ready','capabilities':['ztp239']})
+    if re.fullmatch(r'/v1/projects/[a-f0-9]{32}/snapshots',self.path):
+     now=datetime.datetime.now(datetime.timezone.utc)
+     if fixture.fault.read_text()=='fabric-stale':now-=datetime.timedelta(hours=1)
+     devices=[]
+     for index,other in [(2,3),(3,2)]:
+      port='swp99' if fixture.fault.read_text()=='fabric-wrong-port' and index==2 else 'swp1'
+      devices.append({'version':'fabric-snapshot/v1','source':'switch','provider':'protocol-fixture/v1','serial':'FIXTURE-SW-'+str(index),'nos':'cumulus-fixture','collected_at':now.isoformat(),'capabilities':{'lldp':True,'interfaces':True,'ddm':True,'bgp':True,'ptp':True},'bgp_up':True,'ptp_locked':True,'ports':[{'name':'swp1','link_up':True,'lldp_readable':True,'neighbor':{'serial':'FIXTURE-SW-'+str(other),'chassis_id':'02:00:00:00:01:'+str(other).zfill(2),'port_id':port,'sysname':'fixture-'+str(other),'sysdesc':'fixture'},'speed_mbps':100000,'mtu':9216,'crc':0,'flaps':0,'optics':{'vendor':'fixture','model':'fixture-optic','serial':'OPTIC-'+str(index),'media_type':'optical','rx_dbm':-4,'tx_dbm':-3,'temperature_c':42,'voltage_v':3.3,'bias_ma':5,'supported':True},'metrics':{'pfc_tx_pause_frames':0}}],'fdb':[],'arp':[]})
+     if fixture.fault.read_text()=='fabric-foreign-device':devices[0]['serial']='FOREIGN-DEVICE'
+     if fixture.fault.read_text()=='fabric-no-data':devices=[]
+     self.answer({'version':'fabric-collection/v1','project_id':self.path.split('/')[3],'evidence_source':'protocol_fixture','devices':devices})
+    elif self.path=='/boot/readyz':self.answer({'service':'keel-ztp','status':'ready','capabilities':['ztp239']})
     elif self.path=='/collector/readyz':self.answer({'service':'keel-fabric-collector','status':'ready','capabilities':['lldp','interfaces','ddm']})
     elif self.path=='/canary':self.answer(fixture.artifact)
     else:self.answer({},404)

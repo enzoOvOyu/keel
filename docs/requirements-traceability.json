@@ -68,7 +68,9 @@
         "scripts/check-kea-browser.mjs",
         "scripts/check-kea-integration.py",
         "docs/KEA-RUNNER.md"
-      ]
+      ],
+      "status": "partial",
+      "implementation_note": "N-S2/N-S3, Kea shared runner + option239 DORA/live admission, and N-S5 collector/precheck/Fabric UI have partial software evidence. Remaining scope and hardware limits are in docs/HANDOFF.md and module guides; no overall FR-0 PASS."
     },
     {
       "id": "FR-1",

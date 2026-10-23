@@ -954,10 +954,184 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/fabric/collections/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["latestFabricCollection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Pull trusted mTLS collector observations, bind the current BOM, persist immutable switch evidence and N-S5 prechecks. Never creates NP-3 PASS. */
+        post: operations["collectFabric"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/devices/{deviceId}/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["fabricDeviceEvidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FabricDeviceSummary: {
+            id: string;
+            serial: string;
+            hostname: string;
+            pod: string;
+            role: string;
+            rack: string;
+            management_ip: string;
+            /** @enum {string} */
+            state: "observed" | "unknown";
+            code?: string;
+            nos: string;
+            port_count: number;
+            /** Format: date-time */
+            collected_at?: string;
+            content_hash?: string;
+            capabilities: {
+                [key: string]: boolean;
+            };
+        };
+        FabricCollectionReport: {
+            id?: string;
+            package_id: string;
+            source_hash: string;
+            /** @enum {string} */
+            evidence_source: "device" | "protocol_fixture";
+            /** @enum {string} */
+            stage: "N-S5";
+            /** @enum {string} */
+            np3: "BLOCKED";
+            stale: boolean;
+            /** Format: date-time */
+            collected_at: string;
+            /** Format: date-time */
+            valid_until: string;
+            devices: components["schemas"]["FabricDeviceSummary"][];
+            findings: {
+                cable_uid: string;
+                endpoint_a_uid: string;
+                endpoint_b_uid: string;
+                /** @enum {string} */
+                verdict: "pending" | "anomaly" | "precheck_pass";
+                issue_type?: string;
+                reason: string;
+                /** @enum {string} */
+                source: "switch";
+                rule_ref: string;
+            }[];
+        } | null;
+        FabricOpticsData: {
+            vendor: string;
+            model: string;
+            serial: string;
+            media_type: string;
+            rx_dbm: number | null;
+            tx_dbm: number | null;
+            temperature_c: number | null;
+            voltage_v: number | null;
+            bias_ma: number | null;
+            supported: boolean | null;
+        } | null;
+        FabricSwitchSnapshot: {
+            /** @enum {string} */
+            version: "fabric-snapshot/v1";
+            /** @enum {string} */
+            source: "switch";
+            provider: string;
+            serial: string;
+            nos: string;
+            /** Format: date-time */
+            collected_at: string;
+            capabilities: {
+                [key: string]: boolean;
+            };
+            bgp_up: boolean | null;
+            ptp_locked: boolean | null;
+            ports: {
+                name: string;
+                link_up: boolean | null;
+                lldp_readable: boolean;
+                speed_mbps: number | null;
+                mtu: number | null;
+                crc: number | null;
+                flaps: number | null;
+                metrics: {
+                    [key: string]: number;
+                } | null;
+                optics: components["schemas"]["FabricOpticsData"];
+                neighbor: {
+                    chassis_id: string;
+                    port_id: string;
+                    sysname: string;
+                    sysdesc: string;
+                    serial?: string;
+                } | null;
+            }[];
+            fdb: {
+                mac: string;
+                port: string;
+                vlan: number;
+            }[] | null;
+            arp: {
+                address: string;
+                mac: string;
+                port: string;
+            }[] | null;
+        };
+        FabricDeviceEvidence: {
+            run_id: string;
+            content_hash: string;
+            stale: boolean;
+            /** @enum {string} */
+            evidence_source: "device" | "protocol_fixture";
+            snapshot: components["schemas"]["FabricSwitchSnapshot"];
+            optics: {
+                port: string;
+                data: components["schemas"]["FabricOpticsData"];
+                /** @enum {string} */
+                state: "normal" | "warning" | "critical" | "unknown";
+                reasons: string[];
+                /** @enum {string} */
+                source: "switch";
+                rule_ref: string;
+            }[];
+        };
         ZTPIsolationScriptManifest: {
             /** @enum {string} */
             type: "ztp_script";
@@ -4135,6 +4309,77 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    latestFabricCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest network-only collection and collector capability; no data is null. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        configured: boolean;
+                        report: components["schemas"]["FabricCollectionReport"];
+                        inventory: components["schemas"]["FabricDeviceSummary"][];
+                    };
+                };
+            };
+        };
+    };
+    collectFabric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Persisted collection; missing capabilities/devices remain unknown. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FabricCollectionReport"];
+                };
+            };
+        };
+    };
+    fabricDeviceEvidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                deviceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Typed switch evidence with server-side DDM judgement. No running credentials or raw controller configuration. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FabricDeviceEvidence"];
+                };
             };
         };
     };

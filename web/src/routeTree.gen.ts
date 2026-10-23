@@ -19,6 +19,7 @@ import { Route as PProjectIdRouteImport } from './routes/p.$projectId'
 import { Route as PProjectIdAssetsRouteImport } from './routes/p_.$projectId.assets'
 import { Route as PProjectIdAuditsRouteImport } from './routes/p_.$projectId.audits'
 import { Route as PProjectIdExecutionsRouteImport } from './routes/p_.$projectId.executions'
+import { Route as PProjectIdFabricRouteImport } from './routes/p_.$projectId.fabric'
 import { Route as PProjectIdMediaRouteImport } from './routes/p_.$projectId.media'
 import { Route as PProjectIdMembersRouteImport } from './routes/p_.$projectId.members'
 import { Route as PProjectIdModelsRouteImport } from './routes/p_.$projectId.models'
@@ -74,6 +75,11 @@ const PProjectIdExecutionsRoute = PProjectIdExecutionsRouteImport.update({
   path: '/p/$projectId/executions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PProjectIdFabricRoute = PProjectIdFabricRouteImport.update({
+  id: '/p_/$projectId/fabric',
+  path: '/p/$projectId/fabric',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PProjectIdMediaRoute = PProjectIdMediaRouteImport.update({
   id: '/p_/$projectId/media',
   path: '/p/$projectId/media',
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/p/$projectId/assets': typeof PProjectIdAssetsRoute
   '/p/$projectId/audits': typeof PProjectIdAuditsRoute
   '/p/$projectId/executions': typeof PProjectIdExecutionsRoute
+  '/p/$projectId/fabric': typeof PProjectIdFabricRoute
   '/p/$projectId/media': typeof PProjectIdMediaRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
   '/p/$projectId/models': typeof PProjectIdModelsRoute
@@ -122,6 +129,7 @@ export interface FileRoutesByTo {
   '/p/$projectId/assets': typeof PProjectIdAssetsRoute
   '/p/$projectId/audits': typeof PProjectIdAuditsRoute
   '/p/$projectId/executions': typeof PProjectIdExecutionsRoute
+  '/p/$projectId/fabric': typeof PProjectIdFabricRoute
   '/p/$projectId/media': typeof PProjectIdMediaRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
   '/p/$projectId/models': typeof PProjectIdModelsRoute
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   '/p_/$projectId/assets': typeof PProjectIdAssetsRoute
   '/p_/$projectId/audits': typeof PProjectIdAuditsRoute
   '/p_/$projectId/executions': typeof PProjectIdExecutionsRoute
+  '/p_/$projectId/fabric': typeof PProjectIdFabricRoute
   '/p_/$projectId/media': typeof PProjectIdMediaRoute
   '/p_/$projectId/members': typeof PProjectIdMembersRoute
   '/p_/$projectId/models': typeof PProjectIdModelsRoute
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/assets'
     | '/p/$projectId/audits'
     | '/p/$projectId/executions'
+    | '/p/$projectId/fabric'
     | '/p/$projectId/media'
     | '/p/$projectId/members'
     | '/p/$projectId/models'
@@ -173,6 +183,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/assets'
     | '/p/$projectId/audits'
     | '/p/$projectId/executions'
+    | '/p/$projectId/fabric'
     | '/p/$projectId/media'
     | '/p/$projectId/members'
     | '/p/$projectId/models'
@@ -189,6 +200,7 @@ export interface FileRouteTypes {
     | '/p_/$projectId/assets'
     | '/p_/$projectId/audits'
     | '/p_/$projectId/executions'
+    | '/p_/$projectId/fabric'
     | '/p_/$projectId/media'
     | '/p_/$projectId/members'
     | '/p_/$projectId/models'
@@ -206,6 +218,7 @@ export interface RootRouteChildren {
   PProjectIdAssetsRoute: typeof PProjectIdAssetsRoute
   PProjectIdAuditsRoute: typeof PProjectIdAuditsRoute
   PProjectIdExecutionsRoute: typeof PProjectIdExecutionsRoute
+  PProjectIdFabricRoute: typeof PProjectIdFabricRoute
   PProjectIdMediaRoute: typeof PProjectIdMediaRoute
   PProjectIdMembersRoute: typeof PProjectIdMembersRoute
   PProjectIdModelsRoute: typeof PProjectIdModelsRoute
@@ -284,6 +297,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectIdExecutionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p_/$projectId/fabric': {
+      id: '/p_/$projectId/fabric'
+      path: '/p/$projectId/fabric'
+      fullPath: '/p/$projectId/fabric'
+      preLoaderRoute: typeof PProjectIdFabricRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p_/$projectId/media': {
       id: '/p_/$projectId/media'
       path: '/p/$projectId/media'
@@ -326,6 +346,7 @@ const rootRouteChildren: RootRouteChildren = {
   PProjectIdAssetsRoute: PProjectIdAssetsRoute,
   PProjectIdAuditsRoute: PProjectIdAuditsRoute,
   PProjectIdExecutionsRoute: PProjectIdExecutionsRoute,
+  PProjectIdFabricRoute: PProjectIdFabricRoute,
   PProjectIdMediaRoute: PProjectIdMediaRoute,
   PProjectIdMembersRoute: PProjectIdMembersRoute,
   PProjectIdModelsRoute: PProjectIdModelsRoute,

@@ -46,6 +46,15 @@ try:
  INSERT INTO switch_mac_bindings(switch_id,kind,mac,package_id,updated_at) VALUES('{item}','mgmt','02:00:00:00:00:{index:02x}','{pkg}',now());
  INSERT INTO switch_mac_bindings(switch_id,kind,mac,package_id,updated_at) VALUES('{item}','base','02:00:00:00:01:{index:02x}','{pkg}',now());
  """
+ # Versioned BOM input fixture for switch interconnect and uninstalled server.
+ port_a,port_b,port_c,server_id,host_port,cable_a,cable_b=[uuid.uuid4().hex for _ in range(7)]
+ sql+=f"INSERT INTO bom_items(item_uid,category,serial,source_of_record,first_project_id,created_at,updated_at) VALUES('{server_id}','server','FIXTURE-SERVER','design_bom','{project}',now(),now());"
+ for uid,parent,index,name in [(port_a,switch1,'1','swp1'),(port_b,switch2,'1','swp1'),(port_c,switch1,'2','swp2'),(host_port,server_id,'1','eth1')]:
+  sql+=f"INSERT INTO bom_items(item_uid,category,parent_uid,port_index,port_name,source_of_record,first_project_id,created_at,updated_at) VALUES('{uid}','port','{parent}','{index}','{name}','design_bom','{project}',now(),now());"
+ for uid,left,right in [(cable_a,port_a,port_b),(cable_b,port_c,host_port)]:
+  left,right=sorted([left,right]);sql+=f"INSERT INTO bom_items(item_uid,category,endpoint_a_uid,endpoint_b_uid,source_of_record,first_project_id,created_at,updated_at) VALUES('{uid}','cable','{left}','{right}','design_bom','{project}',now(),now());"
+ for row,uid in enumerate([server_id,port_a,port_b,port_c,host_port,cable_a,cable_b],4):
+  sql+=f"INSERT INTO bom_item_revisions(package_id,item_uid,bom_line_no,project_id,row_snapshot,recorded_at) VALUES('{pkg}','{uid}',{row},'{project}','{{}}',now());"
  subprocess.run(['docker','exec','-i','keel-auth-test-postgres','psql','-v','ON_ERROR_STOP=1','-U',owner,'-d',database],input=sql,text=True,check=True,capture_output=True)
  api=subprocess.Popen([str(work/'keel-api')],env=env,stdout=(work/'api.log').open('w'),stderr=subprocess.STDOUT)
  for _ in range(50):
@@ -60,6 +69,7 @@ try:
  env.update(KEEL_AUTH_BROWSER_CREDENTIALS_FILE=str(credentials),KEEL_WORKSPACE_EVIDENCE_DIR=str(work))
  import sys
  command=['node','scripts/check-kea-browser.mjs']
+ if '--fabric' in sys.argv:command=['node','scripts/check-fabric-browser.mjs']
  if '--sim-regression' in sys.argv:
   command=['python3','scripts/check-execution-integration.py'];env['KEEL_SIM_TEST_TARGETS']='24'
  result=subprocess.run(command,env=env,capture_output=True,text=True)

@@ -11,8 +11,10 @@ import (
 func fabricPermissions(role string) []string {
 	switch role {
 	case "Admin", "NDE":
-		return []string{"fabric:read", "fabric:plan"}
-	case "DE", "DL", "NE", "NH", "SRE", "Viewer":
+		return []string{"fabric:read", "fabric:plan", "fabric:collect"}
+	case "NE":
+		return []string{"fabric:read", "fabric:collect"}
+	case "DE", "DL", "NH", "SRE", "Viewer":
 		return []string{"fabric:read"}
 	default:
 		return []string{}

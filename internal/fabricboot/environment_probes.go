@@ -280,6 +280,6 @@ func (s *ProbeSuite) LiveBootConfigured() bool {
 	if s == nil {
 		return false
 	}
-	probe, ok := s.targets["kea"]
-	return ok && probe.target.AllowConfigWrite
+	_, ok := s.targets["kea"]
+	return ok
 }

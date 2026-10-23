@@ -1,3 +1,4 @@
+import { fabricTranslations } from './fabric-i18n'
 import i18n from 'i18next'
 import { managementPlanningTranslations } from './ztp-management-i18n'
 import { initReactI18next } from 'react-i18next'
@@ -13,6 +14,7 @@ import { readPreference } from './preferences'
 export const resources = {
   zh: { translation: {
     ...managementTranslations.zh,
+    ...fabricTranslations.zh,
     ...executionTranslations.zh,
     ...modelsTranslations.zh,
     ...mediaTranslations.zh,
@@ -112,6 +114,7 @@ export const resources = {
   } },
   en: { translation: {
     ...managementTranslations.en,
+    ...fabricTranslations.en,
     ...executionTranslations.en,
     ...modelsTranslations.en,
     ...mediaTranslations.en,

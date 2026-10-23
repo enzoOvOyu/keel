@@ -2116,6 +2116,50 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
         '413': { description: Archive exceeds the upload limit }
+  /api/v1/projects/{id}/fabric/collections/latest:
+    get:
+      operationId: latestFabricCollection
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Latest network-only collection and collector capability; no data is null.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [configured, report, inventory]
+                properties:
+                  configured: { type: boolean }
+                  report: { $ref: '#/components/schemas/FabricCollectionReport' }
+                  inventory:
+                    type: array
+                    items: { $ref: '#/components/schemas/FabricDeviceSummary' }
+  /api/v1/projects/{id}/fabric/collections:
+    post:
+      operationId: collectFabric
+      description: Pull trusted mTLS collector observations, bind the current BOM, persist immutable switch evidence and N-S5 prechecks. Never creates NP-3 PASS.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '201':
+          description: Persisted collection; missing capabilities/devices remain unknown.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FabricCollectionReport' }
+  /api/v1/projects/{id}/fabric/devices/{deviceId}/evidence:
+    get:
+      operationId: fabricDeviceEvidence
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: deviceId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Typed switch evidence with server-side DDM judgement. No running credentials or raw controller configuration.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FabricDeviceEvidence' }
+
 components:
 
   securitySchemes:
@@ -2172,6 +2216,150 @@ components:
         maximum: 100
         default: 20
   schemas:
+
+    FabricDeviceSummary:
+      type: object
+      required: [id, serial, hostname, pod, role, rack, management_ip, state, nos, port_count, capabilities]
+      properties:
+        id: { type: string }
+        serial: { type: string }
+        hostname: { type: string }
+        pod: { type: string }
+        role: { type: string }
+        rack: { type: string }
+        management_ip: { type: string }
+        state: { type: string, enum: [observed, unknown] }
+        code: { type: string }
+        nos: { type: string }
+        port_count: { type: integer }
+        collected_at: { type: string, format: date-time }
+        content_hash: { type: string }
+        capabilities: { type: object, additionalProperties: { type: boolean } }
+    FabricCollectionReport:
+      type: object
+      nullable: true
+      required: [package_id, source_hash, evidence_source, stage, np3, stale, collected_at, valid_until, devices, findings]
+      properties:
+        id: { type: string }
+        package_id: { type: string }
+        source_hash: { type: string }
+        evidence_source: { type: string, enum: [device, protocol_fixture] }
+        stage: { type: string, enum: [N-S5] }
+        np3: { type: string, enum: [BLOCKED] }
+        stale: { type: boolean }
+        collected_at: { type: string, format: date-time }
+        valid_until: { type: string, format: date-time }
+        devices:
+          type: array
+          items: { $ref: '#/components/schemas/FabricDeviceSummary' }
+        findings:
+          type: array
+          items:
+            type: object
+            required: [cable_uid, endpoint_a_uid, endpoint_b_uid, verdict, reason, source, rule_ref]
+            properties:
+              cable_uid: { type: string }
+              endpoint_a_uid: { type: string }
+              endpoint_b_uid: { type: string }
+              verdict: { type: string, enum: [pending, anomaly, precheck_pass] }
+              issue_type: { type: string }
+              reason: { type: string }
+              source: { type: string, enum: [switch] }
+              rule_ref: { type: string }
+    FabricOpticsData:
+      type: object
+      nullable: true
+      required: [vendor, model, serial, media_type, rx_dbm, tx_dbm, temperature_c, voltage_v, bias_ma, supported]
+      properties:
+        vendor: { type: string }
+        model: { type: string }
+        serial: { type: string }
+        media_type: { type: string }
+        rx_dbm: { type: number, nullable: true }
+        tx_dbm: { type: number, nullable: true }
+        temperature_c: { type: number, nullable: true }
+        voltage_v: { type: number, nullable: true }
+        bias_ma: { type: number, nullable: true }
+        supported: { type: boolean, nullable: true }
+    FabricSwitchSnapshot:
+      type: object
+      required: [version, source, provider, serial, nos, collected_at, capabilities, ports, fdb, arp, bgp_up, ptp_locked]
+      properties:
+        version: { type: string, enum: [fabric-snapshot/v1] }
+        source: { type: string, enum: [switch] }
+        provider: { type: string }
+        serial: { type: string }
+        nos: { type: string }
+        collected_at: { type: string, format: date-time }
+        capabilities: { type: object, additionalProperties: { type: boolean } }
+        bgp_up: { type: boolean, nullable: true }
+        ptp_locked: { type: boolean, nullable: true }
+        ports:
+          type: array
+          items:
+            type: object
+            required: [name, link_up, lldp_readable, neighbor, speed_mbps, mtu, crc, flaps, optics, metrics]
+            properties:
+              name: { type: string }
+              link_up: { type: boolean, nullable: true }
+              lldp_readable: { type: boolean }
+              speed_mbps: { type: integer, nullable: true }
+              mtu: { type: integer, nullable: true }
+              crc: { type: integer, nullable: true }
+              flaps: { type: integer, nullable: true }
+              metrics: { type: object, nullable: true, additionalProperties: { type: number } }
+              optics: { $ref: '#/components/schemas/FabricOpticsData' }
+              neighbor:
+                type: object
+                nullable: true
+                required: [chassis_id, port_id, sysname, sysdesc]
+                properties:
+                  chassis_id: { type: string }
+                  port_id: { type: string }
+                  sysname: { type: string }
+                  sysdesc: { type: string }
+                  serial: { type: string }
+        fdb:
+          type: array
+          nullable: true
+          items:
+            type: object
+            required: [mac, port, vlan]
+            properties:
+              mac: { type: string }
+              port: { type: string }
+              vlan: { type: integer }
+        arp:
+          type: array
+          nullable: true
+          items:
+            type: object
+            required: [address, mac, port]
+            properties:
+              address: { type: string }
+              mac: { type: string }
+              port: { type: string }
+    FabricDeviceEvidence:
+      type: object
+      required: [run_id, content_hash, stale, evidence_source, snapshot, optics]
+      properties:
+        run_id: { type: string }
+        content_hash: { type: string }
+        stale: { type: boolean }
+        evidence_source: { type: string, enum: [device, protocol_fixture] }
+        snapshot: { $ref: '#/components/schemas/FabricSwitchSnapshot' }
+        optics:
+          type: array
+          items:
+            type: object
+            required: [port, data, state, reasons, source, rule_ref]
+            properties:
+              port: { type: string }
+              data: { $ref: '#/components/schemas/FabricOpticsData' }
+              state: { type: string, enum: [normal, warning, critical, unknown] }
+              reasons: { type: array, items: { type: string } }
+              source: { type: string, enum: [switch] }
+              rule_ref: { type: string }
     ZTPIsolationScriptManifest:
       type: object
       required: [type, version, sha256, size, os_scope, script]
