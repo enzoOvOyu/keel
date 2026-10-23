@@ -1423,6 +1423,30 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/ztp/identity-issues:
+    get:
+      tags: [BOM]
+      operationId: listZTPIdentityIssues
+      description: Lists recent project identity conflicts from simulated and device boot requests; no business config is served on conflict.
+      security: [{sessionCookie: []}]
+      x-permission: project:fabric:read
+      x-resource-scope: path-project
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      responses:
+        '200':
+          description: Project-scoped identity issues.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ZTPIdentityIssue' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/projects/{id}/ztp/device-observations:
     get:
       tags: [BOM]
@@ -1998,6 +2022,23 @@ components:
         attempt: { type: integer }
         identity_verdict: { type: string }
         updated_at: { type: string, format: date-time }
+    ZTPIdentityIssue:
+      type: object
+      additionalProperties: false
+      required: [id, batch_ref, boot_channel, identity_key, serial_number, reasons, event_count, first_seen_at, last_seen_at]
+      properties:
+        id: { $ref: '#/components/schemas/EntityID' }
+        batch_ref: { type: string }
+        boot_channel: { type: string, enum: ['239', '143', sim] }
+        identity_key: { type: string }
+        serial_number: { type: string }
+        source_ip: { type: string }
+        reasons:
+          type: array
+          items: { type: string }
+        event_count: { type: integer, minimum: 1 }
+        first_seen_at: { type: string, format: date-time }
+        last_seen_at: { type: string, format: date-time }
     ZTPDeviceObservation:
       type: object
       additionalProperties: false
@@ -2008,7 +2049,7 @@ components:
         switch_id: { $ref: '#/components/schemas/EntityID' }
         serial_number: { type: string }
         source_ip: { type: string }
-        boot_channel: { type: string, enum: ['143'] }
+        boot_channel: { type: string, enum: ['143', '239'] }
         event_type: { type: string, enum: [data-served, report] }
         progress_type: { type: string }
         message: { type: string, maxLength: 1000 }

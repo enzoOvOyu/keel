@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ProjectWorkspace, canManageProject, useProject } from '../../components/ProjectWorkspace'
 import { useSession, useExpireOnUnauthorized } from '../../lib/session'
 import { useAction } from '../../lib/management'
-import { actZTPSimSession, createZTPSimSession, getZTPSimSession, getZTPIsolationScriptManifest, listZTPSimSessions, listZTPDeviceObservations, stageZTPMockKea, commitZTPMockKea, deactivateZTPMockKea, type ZTPMockKeaPlan, type ZTPAction } from '../../lib/ztp'
+import { actZTPSimSession, createZTPSimSession, getZTPSimSession, getZTPIsolationScriptManifest, listZTPSimSessions, listZTPDeviceObservations, listZTPIdentityIssues, stageZTPMockKea, commitZTPMockKea, deactivateZTPMockKea, type ZTPMockKeaPlan, type ZTPAction } from '../../lib/ztp'
 
 const stages = ['powered', 'dhcp', 'booturl', 'identity', 'lookup', 'fetch', 'config', 'restart', 'managed']
 function Board() {
@@ -21,8 +21,9 @@ function Board() {
   const scriptManifest = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-isolation-script'], queryFn: ({ signal }) => getZTPIsolationScriptManifest(project.id, signal) })
   const list = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-sims'], queryFn: ({ signal }) => listZTPSimSessions(project.id, signal) })
   const observations = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-device-observations'], queryFn: ({ signal }) => listZTPDeviceObservations(project.id, signal) })
+  const issues = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-identity-issues'], queryFn: ({ signal }) => listZTPIdentityIssues(project.id, signal) })
   const detail = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-sim', selectedId], queryFn: ({ signal }) => getZTPSimSession(project.id, selectedId, signal), enabled: !!selectedId })
-  useExpireOnUnauthorized(scriptManifest.error ?? list.error ?? detail.error ?? observations.error)
+  useExpireOnUnauthorized(scriptManifest.error ?? list.error ?? detail.error ?? observations.error ?? issues.error)
   async function stagePlan(event: FormEvent) {
     event.preventDefault()
     const result = await action.run(() => stageZTPMockKea(project.id, { batch_ref: batch.trim(), stage_ref: 'N-S4', management_cidr: pool.trim(), option_239_url: bootURL.trim(), option_143_uris: [redirectURI.trim()], option_60_vci: vci.trim(), option_43: { nos: nos.trim(), version_intent: versionIntent.trim() } }, session.csrf_token))
@@ -89,6 +90,11 @@ function Board() {
       {list.isError && <p role="alert">{t('ztpLoadError')}</p>}
       {list.data?.length === 0 && <p>{t('ztpNone')}</p>}
       <ul>{list.data?.map(item => <li key={item.id}><button type="button" className="secondary-button" onClick={() => setSelectedId(item.id)}>{item.batch_ref} · {item.state} · {item.identity_verdict}</button></li>)}</ul>
+    </section>
+    <section className="panel"><h2>{t('ztpIdentityIssues')}</h2><p>{t('ztpIdentityIssuesBoundary')}</p><button type="button" className="secondary-button" onClick={() => void issues.refetch()}>{t('ztpRefresh')}</button>
+      {issues.isError && <p role="alert">{t('ztpLoadError')}</p>}
+      {issues.data?.length === 0 && <p>{t('ztpIdentityIssuesNone')}</p>}
+      <ol>{issues.data?.map(item => <li key={item.id}><time>{new Date(item.last_seen_at).toLocaleString()}</time> · {item.serial_number || item.identity_key} · {item.batch_ref} · {item.boot_channel} · {item.reasons.join(', ')} · {item.event_count}</li>)}</ol>
     </section>
     <section className="panel"><h2>{t('ztpDeviceObservations')}</h2><p>{t('ztpDeviceObservationBoundary')}</p><button type="button" className="secondary-button" onClick={() => void observations.refetch()}>{t('ztpRefresh')}</button>
       {observations.isError && <p role="alert">{t('ztpLoadError')}</p>}

@@ -274,6 +274,13 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if _, simErr = s.ServeZTP239(ctx, project.ID, "sim-batch-1", "N-S4", scriptMedia.ID, "192.0.2.8", "https", "boot.example.invalid", parsedBootURL.Path, parsedBootURL.RawQuery, "test", conflictClaim); simErr == nil {
 		t.Fatal("conflicting switch received bootstrap script")
 	}
+	if _, simErr = s.ServeZTP239(ctx, project.ID, "sim-batch-1", "N-S4", scriptMedia.ID, "192.0.2.8", "https", "boot.example.invalid", parsedBootURL.Path, parsedBootURL.RawQuery, "test", conflictClaim); simErr == nil {
+		t.Fatal("repeated conflicting switch received bootstrap script")
+	}
+	issues, issueErr := s.ListZTPIdentityIssues(ctx, actor, project)
+	if issueErr != nil || len(issues) != 1 || issues[0].BootChannel != "239" || issues[0].EventCount != 2 || len(issues[0].Reasons) == 0 {
+		t.Fatalf("device conflict issue: %+v %v", issues, issueErr)
+	}
 	frontPanel := *dora
 	frontPanel.Interface = "swp1"
 	if _, simErr = s.AdvanceZTPSimSession(ctx, actor, project, sim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: sim.StateVersion, DORA: &frontPanel}, "test"); simErr == nil {
@@ -312,6 +319,10 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	conflictSim, simErr = s.AdvanceZTPSimSession(ctx, actor, project, conflictSim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: conflictSim.StateVersion, EvidenceRef: "sim-evidence-lookup"}, "test")
 	if simErr != nil || conflictSim.State != "conflict" || len(conflictSim.Events) != 6 {
 		t.Fatalf("conflict timeline: %+v %v", conflictSim, simErr)
+	}
+	issues, issueErr = s.ListZTPIdentityIssues(ctx, actor, project)
+	if issueErr != nil || len(issues) != 2 {
+		t.Fatalf("simulation conflict issue: %+v %v", issues, issueErr)
 	}
 	failedSim, simErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-1", BootChannel: "239", Identity: ZTPIdentityInput{Serial: "SW-1"}}, "test")
 	if simErr != nil {

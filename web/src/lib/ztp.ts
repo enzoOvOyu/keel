@@ -20,3 +20,6 @@ export type ZTPDeviceObservation = components['schemas']['ZTPDeviceObservation']
 export const listZTPDeviceObservations = (projectId: string, signal?: AbortSignal) => request<ZTPDeviceObservation[]>(`/projects/${encodeURIComponent(projectId)}/ztp/device-observations`, { signal })
 
 export const deactivateZTPMockKea = (projectId: string, input: components['schemas']['ZTPMockKeaDeactivateInput'], csrf: string) => request<ZTPMockKeaPlan>(`/projects/${encodeURIComponent(projectId)}/ztp/mock-kea/plans/deactivate`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: JSON.stringify(input) })
+
+export type ZTPIdentityIssue = components['schemas']['ZTPIdentityIssue']
+export const listZTPIdentityIssues = (projectId: string, signal?: AbortSignal) => request<ZTPIdentityIssue[]>(`/projects/${encodeURIComponent(projectId)}/ztp/identity-issues`, { signal })

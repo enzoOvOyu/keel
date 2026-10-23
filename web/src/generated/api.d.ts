@@ -535,7 +535,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Deactivates an exact active simulated plan after hash and version checks. Recent 143 device bootstrap delivery blocks deactivation. Does not change real Kea. */
+        /** @description Deactivates an exact active simulated plan after hash and version checks. Recent 143 or 239 device bootstrap delivery blocks deactivation. Does not change real Kea. */
         post: operations["deactivateZTPMockKeaPlan"];
         delete?: never;
         options?: never;
@@ -554,6 +554,23 @@ export interface paths {
         put?: never;
         /** @description Read-only mock DORA offer selection from the committed management subnet plan. A retired or changed boot artifact yields no_offer, even if the plan remains active for audit. */
         post: operations["simulateZTPDORA"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/identity-issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists recent project identity conflicts from simulated and device boot requests; no business config is served on conflict. */
+        get: operations["listZTPIdentityIssues"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -856,6 +873,21 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        ZTPIdentityIssue: {
+            id: components["schemas"]["EntityID"];
+            batch_ref: string;
+            /** @enum {string} */
+            boot_channel: "239" | "143" | "sim";
+            identity_key: string;
+            serial_number: string;
+            source_ip?: string;
+            reasons: string[];
+            event_count: number;
+            /** Format: date-time */
+            first_seen_at: string;
+            /** Format: date-time */
+            last_seen_at: string;
+        };
         ZTPDeviceObservation: {
             id: components["schemas"]["EntityID"];
             batch_ref: string;
@@ -863,7 +895,7 @@ export interface components {
             serial_number: string;
             source_ip: string;
             /** @enum {string} */
-            boot_channel: "143";
+            boot_channel: "143" | "239";
             /** @enum {string} */
             event_type: "data-served" | "report";
             progress_type?: string;
@@ -2742,6 +2774,31 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    listZTPIdentityIssues: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped identity issues. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPIdentityIssue"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listZTPDeviceObservations: {

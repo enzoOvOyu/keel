@@ -336,6 +336,12 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 			if resolution.SwitchID != "" {
 				evidence += ":" + resolution.SwitchID
 			}
+			if resolution.Verdict == "conflict" {
+				identityKey := ztpIssueIdentityKey(claim)
+				if err = upsertZTPIdentityIssueTx(ctx, tx, project.ID, out.BatchRef, "sim", identityKey, claim.Serial, "", trace, resolution.Reasons); err != nil {
+					return nil, err
+				}
+			}
 		} else if !validZTPEvidence(evidence) {
 			return nil, apiError(400, "ZTP_EVIDENCE_REQUIRED", "Stage evidence reference is required")
 		}

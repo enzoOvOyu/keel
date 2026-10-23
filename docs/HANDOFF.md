@@ -1,3 +1,7 @@
+## 2026-10-23 WP-1.17 身份冲突问题清单
+
+- migration 022 新增项目级 `ztp_identity_issues`：239/143 设备请求及仿真 lookup 冲突会在拒绝引导数据时原子记录，重复同批次/通道/身份键事件合并计数，保留原因、最近来源和时间。MAC-only 仿真身份键先规范化，避免空 SN 的不同设备合并。新增项目只读 API、OpenAPI 和 ZtpOnboardBoard 列表。隔离 `keel_test_ztpissues_1023` 与 `keel_test_ztpissues_final_1023` PostgreSQL 库回归通过并清理；仅证明问题被记录，人工处置/关闭流程仍待补。P1 3000 镜像未迁移。
+
 ## 2026-10-23 WP-1.17 239 URL 可达性门禁
 
 - mock Kea 的项目计划在 commit 前拒绝 HTTP 239 URL：部署的 239 设备入口仅提供 HTTPS，不能发布设备无法访问的引导地址。纯 mock 配置校验仍可表达 HTTP(S) 契约，只有当前项目的真实入口约束在提交时执行。隔离 `keel_test_ztpurl_1023` PostgreSQL 库的 mock Kea、239 与 143 集成测试通过且已清理；未验证真实 Kea 或交换机。

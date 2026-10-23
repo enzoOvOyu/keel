@@ -2184,6 +2184,8 @@
         "internal/platform/migrations/019_ztp_device_observations.sql",
         "internal/httpapi/ztp_boot143.go",
         "internal/httpapi/ztp_boot143_test.go",
+        "internal/platform/ztp_identity_issues.go",
+        "internal/platform/migrations/022_ztp_identity_issues.sql",
         "poc/ztp-h16/ENVIRONMENT.md",
         "poc/ztp-h16/evidence.template.json",
         "poc/ztp-h16/validate.py",

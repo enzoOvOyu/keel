@@ -105,6 +105,9 @@ func (s *Store) ServeZTP239(ctx context.Context, projectID, batchRef, stageRef, 
 		return nil, err
 	}
 	if verdict.Verdict == "conflict" {
+		if err = upsertZTPIdentityIssueTx(ctx, tx, projectID, batchRef, "239", claim.Serial, claim.Serial, sourceIP, trace, verdict.Reasons); err != nil {
+			return nil, err
+		}
 		if err = appendAudit(ctx, tx, "", projectID, "ztp.boot239.conflict", batchRef, trace, map[string]any{"serial": claim.Serial, "source_ip": sourceIP, "reasons": verdict.Reasons}); err != nil {
 			return nil, err
 		}
