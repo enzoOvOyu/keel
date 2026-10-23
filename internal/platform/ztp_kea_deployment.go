@@ -6,7 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
+	"net"
+	"net/netip"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -15,6 +18,7 @@ type KeaDeploymentInput struct {
 	PolicyMediaID string `json:"policy_media_id"`
 }
 type KeaDeploymentSpec struct {
+	Canary        *fabricboot.KeaReservation  `json:"canary,omitempty"`
 	PlanID        string                      `json:"plan_id"`
 	EnvironmentID string                      `json:"environment_id"`
 	ProbeHash     string                      `json:"probe_hash"`
@@ -23,27 +27,32 @@ type KeaDeploymentSpec struct {
 	Bindings      []fabricboot.KeaReservation `json:"bindings"`
 }
 type KeaDeployment struct {
-	ID            string            `json:"id"`
-	ProjectID     string            `json:"project_id"`
-	ExecutionID   string            `json:"execution_id,omitempty"`
-	State         string            `json:"state"`
-	Spec          KeaDeploymentSpec `json:"spec"`
-	SpecHash      string            `json:"spec_hash"`
-	BeforeHash    string            `json:"before_hash"`
-	CandidateHash string            `json:"candidate_hash"`
-	ActiveHash    string            `json:"active_hash,omitempty"`
-	FailureCode   string            `json:"failure_code,omitempty"`
-	CreatedAt     time.Time         `json:"created_at"`
+	DORA             *fabricboot.DHCPProof `json:"dora,omitempty"`
+	VerificationCode string                `json:"verification_code,omitempty"`
+	ID               string                `json:"id"`
+	ProjectID        string                `json:"project_id"`
+	ExecutionID      string                `json:"execution_id,omitempty"`
+	State            string                `json:"state"`
+	Spec             KeaDeploymentSpec     `json:"spec"`
+	SpecHash         string                `json:"spec_hash"`
+	BeforeHash       string                `json:"before_hash"`
+	CandidateHash    string                `json:"candidate_hash"`
+	ActiveHash       string                `json:"active_hash,omitempty"`
+	FailureCode      string                `json:"failure_code,omitempty"`
+	CreatedAt        time.Time             `json:"created_at"`
 }
 
-const keaDeploymentFields = "id,project_id,coalesce(execution_id,''),state,spec,spec_hash,before_hash,candidate_hash,coalesce(active_hash,''),coalesce(failure_code,''),created_at"
+const keaDeploymentFields = "id,project_id,coalesce(execution_id,''),state,spec,spec_hash,before_hash,candidate_hash,coalesce(active_hash,''),coalesce(failure_code,''),created_at,dora_proof,coalesce(verification_code,'')"
 
 func scanKeaDeployment(row scanner) (*KeaDeployment, error) {
 	var out KeaDeployment
-	var raw []byte
-	e := row.Scan(&out.ID, &out.ProjectID, &out.ExecutionID, &out.State, &raw, &out.SpecHash, &out.BeforeHash, &out.CandidateHash, &out.ActiveHash, &out.FailureCode, &out.CreatedAt)
+	var raw, proof []byte
+	e := row.Scan(&out.ID, &out.ProjectID, &out.ExecutionID, &out.State, &raw, &out.SpecHash, &out.BeforeHash, &out.CandidateHash, &out.ActiveHash, &out.FailureCode, &out.CreatedAt, &proof, &out.VerificationCode)
 	if e == nil {
 		e = json.Unmarshal(raw, &out.Spec)
+		if e == nil && len(proof) > 0 {
+			e = json.Unmarshal(proof, &out.DORA)
+		}
 	}
 	return &out, e
 }
@@ -108,7 +117,35 @@ func (s *Store) keaDeploymentFactsTx(ctx context.Context, tx *sql.Tx, a *AuthSes
 		}
 		out.Bindings = append(out.Bindings, fabricboot.KeaReservation{SwitchID: assignment.SwitchID, MAC: mac, IP: assignment.Address, Hostname: assignment.Hostname})
 	}
+	if probe := s.FabricProbes.DHCPProbe(); probe != nil {
+		prefix, _ := netip.ParsePrefix(plan.Rules.CIDR)
+		address, _ := netip.ParseAddr(probe.Address)
+		if !prefix.Contains(address) || address == prefix.Addr() || address.String() == plan.Rules.Gateway || address.Next().IsValid() && !prefix.Contains(address.Next()) {
+			return nil, apiError(409, "DHCP_CANARY_OUTSIDE_PLAN", "Canary must use a dedicated usable address in the approved management subnet")
+		}
+		mac, _ := net.ParseMAC(probe.MAC)
+		for _, assignment := range plan.Assignments {
+			if assignment.Address == probe.Address {
+				return nil, apiError(409, "DHCP_CANARY_CONFLICT", "Canary address overlaps a device allocation")
+			}
+		}
+		var exists bool
+		if e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM switch_mac_bindings WHERE lower(mac)=$1)`, strings.ToLower(mac.String())).Scan(&exists); e != nil {
+			return nil, e
+		}
+		if exists {
+			return nil, apiError(409, "DHCP_CANARY_CONFLICT", "Canary MAC overlaps SoT device identity")
+		}
+		out.Canary = &fabricboot.KeaReservation{SwitchID: "dhcp-canary", MAC: mac.String(), IP: probe.Address, Hostname: "keel-canary-" + projectID[:12]}
+	}
 	return out, nil
+}
+func keaDeploymentBindings(spec *KeaDeploymentSpec) []fabricboot.KeaReservation {
+	out := append([]fabricboot.KeaReservation(nil), spec.Bindings...)
+	if spec.Canary != nil {
+		out = append(out, *spec.Canary)
+	}
+	return out
 }
 func (s *Store) StageKeaDeployment(ctx context.Context, a *AuthSession, p *ProjectSummary, input KeaDeploymentInput, trace string) (*KeaDeployment, error) {
 	tx, e := s.beginControlRead(ctx, a)
@@ -128,7 +165,7 @@ func (s *Store) StageKeaDeployment(ctx context.Context, a *AuthSession, p *Proje
 	if e != nil {
 		return nil, apiError(502, "KEA_READ_FAILED", "Cannot read the configured Kea control service")
 	}
-	candidate, e := fabricboot.MergeBootstrap239(live.Config, spec.Options.ManagementCIDR, spec.Options.Option239URL, p.ID, spec.Bindings)
+	candidate, e := fabricboot.MergeBootstrap239(live.Config, spec.Options.ManagementCIDR, spec.Options.Option239URL, p.ID, keaDeploymentBindings(spec))
 	if e != nil {
 		return nil, apiError(409, "KEA_CANDIDATE_BLOCKED", e.Error())
 	}
@@ -268,7 +305,7 @@ func (s *Store) RunKeaDeployment(ctx context.Context, jobID, executionID string)
 	}
 	var candidate json.RawMessage
 	if e == nil {
-		candidate, e = fabricboot.MergeBootstrap239(live.Config, facts.Options.ManagementCIDR, facts.Options.Option239URL, job.ProjectID, facts.Bindings)
+		candidate, e = fabricboot.MergeBootstrap239(live.Config, facts.Options.ManagementCIDR, facts.Options.Option239URL, job.ProjectID, keaDeploymentBindings(facts))
 	}
 	if e == nil && fabricboot.KeaConfigDigest(candidate) != job.CandidateHash {
 		e = apiError(409, "KEA_CANDIDATE_CHANGED", "Recomputed candidate differs from staged evidence")
@@ -287,17 +324,68 @@ func (s *Store) RunKeaDeployment(ctx context.Context, jobID, executionID string)
 			code = "kea_write_outcome_unknown"
 		}
 	}
+	// DHCP is a separate observation after confirmed persistence. Its failure
+	// cannot erase the persisted configuration or become an unknown config write.
+	var proof *fabricboot.DHCPProof
+	verificationCode := "not_configured"
+	if e == nil && s.FabricProbes.DHCPProbe() != nil {
+		proof, verifyErr := s.FabricProbes.DHCPProbe().Verify239(ctx, facts.Options.Option239URL, facts.Options.Option60VCI)
+		if verifyErr != nil {
+			verificationCode = "dora_failed"
+		} else {
+			// Check that config did not drift during the UDP exchange.
+			readback, readErr := control.ReadFullDHCP4(ctx)
+			if readErr != nil || readback.Hash != result.ActiveHash {
+				verificationCode = "dora_config_changed"
+			} else {
+				result.DORA = proof
+				verificationCode = "dora_verified"
+			}
+		}
+	}
+	proof = resultProof(result)
 	finish, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var hash any
 	if result != nil {
 		hash = result.ActiveHash
 	}
-	_, writeErr := s.DB.ExecContext(finish, `UPDATE ztp_kea_deployments SET state=$2,active_hash=$3,failure_code=$4,updated_at=now() WHERE id=$1 AND state='applying'`, jobID, state, hash, code)
+	finishTx, writeErr := s.DB.BeginTx(finish, nil)
+	if writeErr == nil {
+		defer finishTx.Rollback()
+		if proof != nil {
+			// Admission revocation or source changes while DHCP ran must not open a route.
+			current, checkErr := s.keaDeploymentFactsTx(finish, finishTx, actor, job.ProjectID, KeaDeploymentInput{BatchRef: job.Spec.Options.BatchRef, PolicyMediaID: policyMediaID(job.Spec.Options.Option239URL)}, true)
+			if checkErr != nil || fabricboot.ManagementPlanDigest(current) != job.SpecHash {
+				proof = nil
+				result.DORA = nil
+				verificationCode = "dora_admission_changed"
+			} else {
+				state = "boot_ready"
+			}
+		}
+		var encoded any
+		if proof != nil {
+			encoded, _ = json.Marshal(proof)
+		}
+		_, writeErr = finishTx.ExecContext(finish, `UPDATE ztp_kea_deployments SET state=$2,active_hash=$3,failure_code=$4,dora_proof=$5,verification_code=$6,updated_at=now() WHERE id=$1 AND state='applying'`, jobID, state, hash, code, encoded, verificationCode)
+		if writeErr == nil {
+			writeErr = finishTx.Commit()
+		}
+	}
 	if writeErr != nil {
 		return nil, &fabricboot.KeaMutationUnknown{Stage: "job-evidence-persistence"}
 	}
+	if result != nil {
+		result.VerificationCode = verificationCode
+	}
 	return result, e
+}
+func resultProof(result *fabricboot.KeaApplyResult) *fabricboot.DHCPProof {
+	if result == nil {
+		return nil
+	}
+	return result.DORA
 }
 
 type KeaPolicyOption struct {

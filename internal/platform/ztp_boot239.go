@@ -52,12 +52,7 @@ func (s *Store) ServeZTP239(ctx context.Context, projectID, batchRef, stageRef, 
 		return nil, err
 	}
 	defer tx.Rollback()
-	var raw []byte
-	var activeHash string
-	err = tx.QueryRowContext(ctx, `SELECT active_config,coalesce(active_hash,'') FROM ztp_mock_kea_plans WHERE project_id=$1 AND batch_ref=$2 AND stage_ref=$3 FOR SHARE`, projectID, batchRef, stageRef).Scan(&raw, &activeHash)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
-	}
+	raw, activeHash, liveJob, err := s.active239OptionsTx(ctx, tx, projectID, batchRef, stageRef)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +68,7 @@ func (s *Store) ServeZTP239(ctx context.Context, projectID, batchRef, stageRef, 
 	}
 	mock := fabricboot.NewMockKea()
 	computed, validateErr := mock.Stage(cfg)
-	if validateErr != nil || computed != activeHash {
+	if validateErr != nil || liveJob == nil && computed != activeHash {
 		return nil, apiError(409, "ZTP_KEA_ACTIVE_INVALID", "Active Kea configuration failed validation")
 	}
 	prefix, err := netip.ParsePrefix(cfg.ManagementCIDR)
@@ -115,6 +110,18 @@ func (s *Store) ServeZTP239(ctx context.Context, projectID, batchRef, stageRef, 
 			return nil, err
 		}
 		return nil, apiError(409, "ZTP_IDENTITY_CONFLICT", "Device identity conflicts with SoT")
+	}
+	if liveJob != nil && verdict.SwitchID != "" {
+		bound := false
+		for _, binding := range liveJob.Spec.Bindings {
+			if binding.SwitchID == verdict.SwitchID && binding.IP == sourceIP && strings.EqualFold(binding.MAC, claim.MgmtMAC) {
+				bound = true
+				break
+			}
+		}
+		if !bound {
+			return nil, apiError(409, "ZTP_BOOT_BINDING_MISMATCH", "Device identity and direct management source do not match this verified batch")
+		}
 	}
 	scriptHash := sha256.Sum256([]byte(fabricboot.IsolationScriptV1))
 	if _, err = tx.ExecContext(ctx, `INSERT INTO ztp_device_observations(id,project_id,batch_ref,switch_id,serial_number,source_ip,boot_channel,event_type,offer_hash,evidence_sha256,trace_id,occurred_at) VALUES($1,$2,$3,NULLIF($4,''),$5,$6,'239','data-served',$7,$8,$9,$10)`, RandomID(), projectID, batchRef, verdict.SwitchID, claim.Serial, sourceIP, activeHash, hex.EncodeToString(scriptHash[:]), trace, time.Now().UTC()); err != nil {

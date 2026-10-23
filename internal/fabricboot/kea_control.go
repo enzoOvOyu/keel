@@ -111,9 +111,11 @@ func (k *KeaControl) hash(ctx context.Context) (string, error) {
 }
 
 type KeaApplyResult struct {
-	BeforeHash      string `json:"before_hash"`
-	ActiveHash      string `json:"active_hash"`
-	CandidateSHA256 string `json:"candidate_sha256"`
+	DORA             *DHCPProof `json:"dora,omitempty"`
+	VerificationCode string     `json:"verification_code,omitempty"`
+	BeforeHash       string     `json:"before_hash"`
+	ActiveHash       string     `json:"active_hash"`
+	CandidateSHA256  string     `json:"candidate_sha256"`
 }
 
 // ApplyFullDHCP4 performs hash precheck, Kea config-test, a second drift check,

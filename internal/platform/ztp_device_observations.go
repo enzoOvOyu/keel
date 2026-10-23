@@ -53,7 +53,7 @@ func (s *Store) RecordZTP143Progress(ctx context.Context, certSerial, sourceIP, 
 		return err
 	}
 	defer tx.Rollback()
-	plan, err := activeSZTPPlanTx(ctx, tx, source, requestHost)
+	plan, err := s.activeSZTPPlanTx(ctx, tx, source, requestHost)
 	if err != nil {
 		return err
 	}

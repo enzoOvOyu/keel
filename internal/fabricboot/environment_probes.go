@@ -28,6 +28,7 @@ type ProbeTarget struct {
 	SHA256              string `json:"sha256,omitempty"`
 }
 type ProbeConfig struct {
+	DHCP    *DHCPProbeConfig       `json:"dhcp,omitempty"`
 	Version string                 `json:"version"`
 	Targets map[string]ProbeTarget `json:"targets"`
 }
@@ -37,6 +38,7 @@ type environmentProbe struct {
 }
 type ProbeSuite struct {
 	Fingerprint string
+	dhcp        *DHCPProbeConfig
 	targets     map[string]environmentProbe
 }
 type ProbeResult struct {
@@ -75,6 +77,13 @@ func NewProbeSuite(cfg ProbeConfig) (*ProbeSuite, error) {
 		return nil, errors.New("invalid probe protocol configuration version")
 	}
 	out := &ProbeSuite{targets: map[string]environmentProbe{}}
+	if cfg.DHCP != nil {
+		if e := cfg.DHCP.Validate(); e != nil {
+			return nil, e
+		}
+		copy := *cfg.DHCP
+		out.dhcp = &copy
+	}
 	fingerprints := map[string]any{"config": cfg}
 	for name, target := range cfg.Targets {
 		known := false
@@ -265,4 +274,12 @@ func (s *ProbeSuite) BootOrigin() (string, error) {
 		return "", e
 	}
 	return u.Scheme + "://" + u.Host, nil
+}
+
+func (s *ProbeSuite) LiveBootConfigured() bool {
+	if s == nil {
+		return false
+	}
+	probe, ok := s.targets["kea"]
+	return ok && probe.target.AllowConfigWrite
 }

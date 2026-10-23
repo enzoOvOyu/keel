@@ -1,5 +1,6 @@
 /** Real API/worker/PostgreSQL/browser with a TLS Kea protocol fixture only. */
 import assert from 'node:assert/strict'
+import {execFileSync} from 'node:child_process'
 import {readFile,stat,mkdir,writeFile} from 'node:fs/promises'
 import {pathToFileURL} from 'node:url'
 const file=process.env.KEEL_AUTH_BROWSER_CREDENTIALS_FILE
@@ -40,23 +41,29 @@ try{
  await page.locator('#kea-live-policy').selectOption(media.id)
  async function stage(){const pending=page.waitForResponse(r=>r.url().endsWith('/kea-deployments/stage'));await kea.getByRole('button',{name:'读取并预检 Kea 变更',exact:true}).click();const response=await pending;const body=await response.json();assert.equal(response.status(),201,body.code??'Kea stage');return body}
  async function execute(job){const result=await post(base+'/ztp/kea-deployments/'+job.id+'/execute',undefined,201,job.id);return result}
+ function verifyRoute(expected){try{execFileSync('go',['test','./internal/platform','-run','^TestLive239WorkerRoute$','-count=1'],{env:{...process.env,KEEL_ROUTE_EXPECT:expected},stdio:'pipe'})}catch(e){throw new Error(e.stdout?.toString()??'Route verification failed')}}
  const job=await stage();assert(!JSON.stringify(job).includes('fixture-only-secret'))
  const running=await execute(job);assert.equal(running.mode,'kea');assert.equal(running.snapshot.targets[0].mode,'kea')
  const detail=await poll(async()=>await(await context.request.get(base+'/executions/'+running.id)).json(),d=>d.execution?.state==='success')
- assert.equal(detail.attempts[0].result.output.config_persisted,true);assert.equal(detail.attempts[0].result.output.dora_verified,false);assert.equal(detail.attempts[0].result.output.device_managed,false)
+ assert.equal(detail.attempts[0].result.output.config_persisted,true);assert.equal(detail.attempts[0].result.output.dora_verified,true);assert.equal(detail.attempts[0].result.output.device_managed,false)
  assert(!JSON.stringify(detail).includes('fixture-only-secret'))
  const events=await(await context.request.get(base+'/executions/'+running.id+'/events')).json();assert.equal(events.mode,'kea')
  const replay=await post(base+'/ztp/kea-deployments/'+job.id+'/execute',undefined,201,job.id);assert.equal(replay.id,running.id)
  const generic=await context.request.post(base+'/executions',{headers:{...headers,'Idempotency-Key':crypto.randomUUID()},data:{mode:'sim',flow_version_id:running.flow_version_id,target_ids:[running.snapshot.targets[0].id],parameters:{}}});assert.notEqual(generic.status(),201)
- await kea.getByText('配置已持久化／读回；待 DORA',{exact:true}).waitFor()
+ await kea.getByText('DORA 已验证／引导路由就绪',{exact:true}).waitFor()
+ const verified=await(await context.request.get(base+'/ztp/kea-deployments')).json();const proof=verified.deployments.find(v=>v.id===job.id);assert.equal(proof.state,'boot_ready');assert.equal(proof.dora.address,'192.0.2.250');assert.equal(proof.dora.transcript_sha256.length,64);verifyRoute('ready')
+ const failedDora=await stage();await writeFile(c.fault_file,'bad-dora');const failedRun=await execute(failedDora)
+ await poll(async()=>await(await context.request.get(base+'/executions/'+failedRun.id)).json(),d=>d.execution?.state==='success')
+ const rejectedProof=await(await context.request.get(base+'/ztp/kea-deployments')).json();const rejectedJob=rejectedProof.deployments.find(v=>v.id===failedDora.id);assert.equal(rejectedJob.state,'config_persisted');assert.equal(rejectedJob.verification_code,'dora_failed');assert.equal(rejectedJob.dora,undefined);verifyRoute('not_ready');await writeFile(c.fault_file,'')
  console.log('PASS approved planning/N-S3/media admission, immutable staging and shared Execution/worker receipt')
+ console.log('PASS wire DORA transcript, dedicated canary and foreign-option rejection; persisted configuration alone cannot open a route')
  console.log('PASS config-test/set/write/full readback, queue idempotency, mode separation and no raw configuration secrets in API evidence')
  const unknown=await stage();await writeFile(c.fault_file,'drop-set');const second=await execute(unknown)
  await poll(async()=>await(await context.request.get(base+'/ztp/kea-deployments')).json(),v=>v.deployments?.some(x=>x.id===unknown.id&&x.state==='unknown'))
- await poll(async()=>await(await context.request.get(base+'/executions/'+second.id)).json(),v=>v.execution?.state==='reconciling')
+ await poll(async()=>await(await context.request.get(base+'/executions/'+second.id)).json(),v=>v.execution?.state==='reconciling');verifyRoute('quarantined')
  const third=await stage();const blocked=await execute(third);await wait(2500)
  const after=await(await context.request.get(base+'/executions/'+blocked.id)).json();assert.equal(after.attempts[0].state,'pending')
- const commands=(await readFile(c.command_log,'utf8')).trim().split('\n');assert.equal(commands.filter(v=>v==='config-set').length,2)
+ const commands=(await readFile(c.command_log,'utf8')).trim().split('\n');assert.equal(commands.filter(v=>v==='config-set').length,3)
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:evidence+'/kea-deployments.png',fullPage:true})
  assert.deepEqual(errors,[])
  console.log('PASS ambiguous config-set produces UNKNOWN/reconciling, retains controller resource lock and prevents another write')

@@ -1177,15 +1177,32 @@ export interface components {
             project_id: string;
             execution_id?: string;
             /** @enum {string} */
-            state: "staged" | "queued" | "applying" | "config_persisted" | "blocked" | "unknown";
+            state: "staged" | "queued" | "applying" | "config_persisted" | "boot_ready" | "blocked" | "unknown";
             spec_hash: string;
             before_hash: string;
             candidate_hash: string;
             active_hash?: string;
             failure_code?: string;
+            verification_code?: string;
+            dora?: {
+                address: string;
+                mac: string;
+                server_id: string;
+                option_239_url: string;
+                transcript_sha256: string;
+                lease_seconds: number;
+                /** Format: date-time */
+                verified_at: string;
+            };
             /** Format: date-time */
             created_at: string;
             spec: {
+                canary?: {
+                    switch_id: string;
+                    management_mac: string;
+                    management_ip: string;
+                    hostname: string;
+                };
                 plan_id: string;
                 environment_id: string;
                 probe_hash: string;

@@ -132,6 +132,12 @@ func (s *Service) runKeaClaim(ctx context.Context, c *Claim) error {
 		receipt.Output["active_hash"] = result.ActiveHash
 		receipt.Output["candidate_sha256"] = result.CandidateSHA256
 		receipt.Output["config_persisted"] = true
+		receipt.Output["dora_verified"] = result.DORA != nil
+		receipt.Output["boot_route_ready"] = result.DORA != nil
+		receipt.Output["verification_code"] = result.VerificationCode
+		if result.DORA != nil {
+			receipt.Output["dora_proof"] = result.DORA
+		}
 	}
 	finish, done := context.WithTimeout(context.Background(), 5*time.Second)
 	defer done()

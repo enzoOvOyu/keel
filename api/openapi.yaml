@@ -2418,17 +2418,37 @@ components:
         id: { type: string }
         project_id: { type: string }
         execution_id: { type: string }
-        state: { type: string, enum: [staged, queued, applying, config_persisted, blocked, unknown] }
+        state: { type: string, enum: [staged, queued, applying, config_persisted, boot_ready, blocked, unknown] }
         spec_hash: { type: string }
         before_hash: { type: string }
         candidate_hash: { type: string }
         active_hash: { type: string }
         failure_code: { type: string }
+        verification_code: { type: string }
+        dora:
+          type: object
+          required: [address, mac, server_id, option_239_url, transcript_sha256, lease_seconds, verified_at]
+          properties:
+            address: { type: string }
+            mac: { type: string }
+            server_id: { type: string }
+            option_239_url: { type: string }
+            transcript_sha256: { type: string }
+            lease_seconds: { type: integer, minimum: 1 }
+            verified_at: { type: string, format: date-time }
         created_at: { type: string, format: date-time }
         spec:
           type: object
           required: [plan_id, environment_id, probe_hash, controller_key, options, bindings]
           properties:
+            canary:
+              type: object
+              required: [switch_id, management_mac, management_ip, hostname]
+              properties:
+                switch_id: { type: string }
+                management_mac: { type: string }
+                management_ip: { type: string }
+                hostname: { type: string }
             plan_id: { type: string }
             environment_id: { type: string }
             probe_hash: { type: string }

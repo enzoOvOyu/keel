@@ -44,6 +44,7 @@ try:
  INSERT INTO switches(id,serial_number,hostname,created_at,updated_at) VALUES('{item}','FIXTURE-SW-{index}','fixture-{index}',now(),now());
  INSERT INTO bom_item_revisions(package_id,item_uid,bom_line_no,project_id,row_snapshot,recorded_at) VALUES('{pkg}','{item}',{index},'{project}','{{}}',now());
  INSERT INTO switch_mac_bindings(switch_id,kind,mac,package_id,updated_at) VALUES('{item}','mgmt','02:00:00:00:00:{index:02x}','{pkg}',now());
+ INSERT INTO switch_mac_bindings(switch_id,kind,mac,package_id,updated_at) VALUES('{item}','base','02:00:00:00:01:{index:02x}','{pkg}',now());
  """
  subprocess.run(['docker','exec','-i','keel-auth-test-postgres','psql','-v','ON_ERROR_STOP=1','-U',owner,'-d',database],input=sql,text=True,check=True,capture_output=True)
  api=subprocess.Popen([str(work/'keel-api')],env=env,stdout=(work/'api.log').open('w'),stderr=subprocess.STDOUT)
