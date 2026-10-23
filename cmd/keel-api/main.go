@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -76,24 +75,71 @@ func main() {
 		slog.Error("SZTP listener rejected", "error", err)
 		os.Exit(1)
 	}
-	if sztpSrv == nil {
-		if err := serve(ctx, srv, listener); err != nil {
-			slog.Error("server", "error", err)
-			os.Exit(1)
+	bootSrv, bootListener, err := optionalZTP239Listener(store)
+	if err != nil {
+		_ = listener.Close()
+		if sztpListener != nil {
+			_ = sztpListener.Close()
 		}
-		return
-	}
-	slog.Info("keel SZTP listening", "address", sztpListener.Addr().String())
-	results := make(chan error, 2)
-	go func() { results <- serve(ctx, srv, listener) }()
-	go func() { results <- serve(ctx, sztpSrv, sztpListener) }()
-	first := <-results
-	stop()
-	second := <-results
-	if first != nil || second != nil {
-		slog.Error("server", "api_or_sztp_error", fmt.Sprintf("%v; %v", first, second))
+		slog.Error("ZTP 239 listener rejected", "error", err)
 		os.Exit(1)
 	}
+	servers := []struct {
+		server   *http.Server
+		listener net.Listener
+	}{{srv, listener}}
+	if sztpSrv != nil {
+		slog.Info("keel SZTP listening", "address", sztpListener.Addr().String())
+		servers = append(servers, struct {
+			server   *http.Server
+			listener net.Listener
+		}{sztpSrv, sztpListener})
+	}
+	if bootSrv != nil {
+		slog.Info("keel ZTP 239 listening", "address", bootListener.Addr().String())
+		servers = append(servers, struct {
+			server   *http.Server
+			listener net.Listener
+		}{bootSrv, bootListener})
+	}
+	results := make(chan error, len(servers))
+	for _, entry := range servers {
+		go func(server *http.Server, listener net.Listener) { results <- serve(ctx, server, listener) }(entry.server, entry.listener)
+	}
+	first := <-results
+	stop()
+	for range len(servers) - 1 {
+		if next := <-results; next != nil && first == nil {
+			first = next
+		}
+	}
+	if first != nil {
+		slog.Error("server", "error", first)
+		os.Exit(1)
+	}
+}
+
+func optionalZTP239Listener(store *platform.Store) (*http.Server, net.Listener, error) {
+	addr := os.Getenv("KEEL_ZTP239_LISTEN_ADDR")
+	certFile := os.Getenv("KEEL_ZTP239_TLS_CERT_FILE")
+	keyFile := os.Getenv("KEEL_ZTP239_TLS_KEY_FILE")
+	if addr == "" && certFile == "" && keyFile == "" {
+		return nil, nil, nil
+	}
+	if addr == "" || certFile == "" || keyFile == "" || store == nil {
+		return nil, nil, errors.New("ZTP 239 requires database, listen address and TLS certificate/key")
+	}
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, nil, err
+	}
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return nil, nil, err
+	}
+	config := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
+	srv := &http.Server{Addr: addr, Handler: httpapi.NewZTP239Handler(store), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 16}
+	return srv, tls.NewListener(listener, config), nil
 }
 
 func optionalSZTPListener(store *platform.Store) (*http.Server, net.Listener, error) {

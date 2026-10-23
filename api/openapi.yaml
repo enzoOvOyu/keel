@@ -1233,7 +1233,7 @@ paths:
     get:
       tags: [BOM]
       operationId: fetchZTP239IsolationScript
-      description: Cumulus option 239 boot URL. Requires a direct management-subnet TCP peer, exact committed project/batch/stage/policy URL, CUMULUS-* identity headers and an approved ztp_script media digest. Serves isolation only; never production configuration or readiness PASS.
+      description: Cumulus option 239 boot URL on the dedicated management-network TLS listener only; the application API does not mount this operation. Requires a direct management-subnet TCP peer, exact committed project/batch/stage/policy URL, CUMULUS-* identity headers and an approved ztp_script media digest. Serves isolation only; never production configuration or readiness PASS.
       security: []
       x-permission: management-network-bootstrap
       x-resource-scope: management-source-and-approved-script

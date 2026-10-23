@@ -1,5 +1,10 @@
 # Keel 开发交接
 
+## 2026-10-23 FR-0.3 引导入口隔离增量
+
+- 工作目录 `ubuntu@43.207.20.26:/opt/keel`；分支 `dev/p1-network-bom`。239 设备脚本 GET 从普通认证 API 移到可选专用 TLS listener（`KEEL_ZTP239_LISTEN_ADDR`、`KEEL_ZTP239_TLS_CERT_FILE`、`KEEL_ZTP239_TLS_KEY_FILE` 必须同时配置），普通 API 仅保留登录后的脚本审阅 manifest。设备 listener 只接受管理网直接 TCP 对端，拒绝转发身份头；业务校验沿用 active mock Kea、精确 URL、六个 CUMULUS 头、SoT 和批准介质摘要，响应含 trace 与脚本摘要。P1 3000 镜像仍是 `keel:p1-e7d5f1a`，未部署本代码。
+- 验证：`python3 scripts/check-design.py`、`go test -race ./cmd/keel-api ./internal/httpapi ./internal/platform -count=1`、对应 `go vet` 和本轮文件的 `git diff --check` 通过；未运行真实数据库/设备集成。待办：真实管理网地址部署及设备信任证书验收、DHCP 真实下发与 DORA、设备回报和可管理状态证据；不能把此项记为 FR-0.3 PASS。`AGENTS.md` 有先于本轮存在的未提交修改，保留原样、不包含本轮提交。
+
 ## 2026-10-21 暂停点：FR-0.3 Kea 控制适配器
 
 - 工作目录 `ubuntu@43.207.20.26:/opt/keel`，开发分支 `dev/p1-network-bom`。本阶段新增 `internal/fabricboot/kea_control.go`：仅允许显式 CA 与客户端证书连接 HTTPS Kea 控制端点，禁重定向；完整 Dhcp4 配置依次执行当前 hash 核对、`config-test`、漂移复核、`config-set`、生效 hash 回读。拒绝不完整顶层结构或无可核验返回，不记录完整配置及凭据。测试覆盖成功、漂移、测试拒绝、回读不符、重定向及无效配置。

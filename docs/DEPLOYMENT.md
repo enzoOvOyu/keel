@@ -65,6 +65,10 @@ python3 scripts/configure-development.py --grant
 
 迁移使用事务、advisory lock和checksum；已执行版本不能直接改写SQL。API启动只检查迁移，不自动修复或降级。受限应用账号可操作认证/项目表，但不能修改/删除审计或写迁移历史；管理员保留DDL能力，因此审计触发器不能代替生产归档与权限隔离。
 
+## ZTP 239 开发入口（开发分支）
+
+239 设备脚本已从普通 API 路由移至独立 TLS listener。只有同时配置 `KEEL_ZTP239_LISTEN_ADDR`、`KEEL_ZTP239_TLS_CERT_FILE`、`KEEL_ZTP239_TLS_KEY_FILE` 且 API 连接到已迁移的开发/隔离数据库时才启动。监听器只暴露 `GET /api/v1/boot/ztp`；必须在管理网直连，拒绝 Forwarded/X-Forwarded-For/X-Real-IP，按真实 TCP 对端、active mock Kea 精确 URL、六个 CUMULUS-* 头、SoT 与独立批准的脚本介质校验后返回固定隔离脚本。证书须由目标设备信任，私钥放受保护路径；不能通过普通 API 端口或反向代理访问设备入口。此能力尚未部署到 P1 镜像，也未通过真实交换机验证。
+
 ## SZTP 143 开发入口（开发分支）
 
 143 设备入口使用独立 TLS 监听器，只有同时配置下列四个变量且 API 连接到已迁移的开发/隔离数据库时才启动：`KEEL_SZTP_LISTEN_ADDR`、`KEEL_SZTP_TLS_CERT_FILE`、`KEEL_SZTP_TLS_KEY_FILE`、`KEEL_SZTP_IDEVID_CA_FILE`。CA 文件仅接受 PEM 编码的签发 CA；TLS 强制设备客户端证书，并按该 CA 重新验证 IDevID 链及 subject serialNumber。监听器只暴露 `POST /restconf/operations/ietf-sztp-bootstrap-server:get-bootstrapping-data`，需要 `application/yang-data+json` 输入；无输入时可用空 body。option 143 必须是 `https://host[:port]`。设备必须从 active mock Kea 管理网来源直连，请求 Host 必须与唯一 active URI 对应，且脚本介质已独立批准。收到 `signed-data-preferred` 时返回错误，绝不发送未签名 onboarding。
