@@ -33,20 +33,10 @@ function ProjectScope({ projectId, children }: { projectId: string; children: Re
   const back = <Link className="back-link" to="/projects"><span aria-hidden="true">←</span>{t('allProjects')}</Link>
   if (project.isPending) return <>{back}<div className="empty-state" role="status">{t('loadingProjects')}</div></>
   if (project.isError) return <>{back}<div className="empty-state" role="alert"><h1>{t(project.error instanceof ApiError && project.error.status === 404 ? 'projectNotFound' : 'projectsUnavailable')}</h1><p>{t('projectNotFoundDetail')}</p><button className="secondary-button" onClick={() => void project.refetch()}>{t('retry')}</button></div></>
-  const manage = canManageProject(project.data, session.user.is_admin)
   return <ProjectContext.Provider value={project.data} key={projectId}>{back}
-    <nav className="project-tabs" aria-label={t('projectNavigation')}>
-      <Link to="/p/$projectId" params={{ projectId }} activeOptions={{ exact: true }}>{t('overviewTab')}</Link>
-      {manage && session.permissions.includes('project:members:read') && <Link to="/p/$projectId/members" params={{ projectId }}>{t('membersTitle')}</Link>}
-      {manage && session.permissions.includes('project:audit:read') && <Link to="/p/$projectId/audits" params={{ projectId }}>{t('auditTitle')}</Link>}
-      {session.permissions.includes("execution:read") && <Link to="/p/$projectId/executions" params={{ projectId }}>{t("executionsTab")}</Link>}
-      {session.permissions.includes("model:read") && <Link to="/p/$projectId/models" params={{ projectId }}>{t("modelsTab")}</Link>}
-      {session.permissions.includes("model:read") && <Link to="/p/$projectId/media" params={{ projectId }}>{t("mediaTab")}</Link>}
-      {session.permissions.includes("model:read") && <Link to="/p/$projectId/assets" params={{ projectId }}>{t("bomTab")}</Link>}
-      {session.permissions.includes("model:read") && <Link to="/p/$projectId/ztp" params={{ projectId }}>{t("ztpTab")}</Link>}
-    </nav>{children}
+    {children}
   </ProjectContext.Provider>
 }
 export function ProjectWorkspace({ projectId, children }: { projectId: string; children: ReactNode }) {
-  return <Workspace><ProjectScope projectId={projectId}>{children}</ProjectScope></Workspace>
+  return <Workspace projectId={projectId}><ProjectScope projectId={projectId}>{children}</ProjectScope></Workspace>
 }

@@ -12,7 +12,7 @@
 | 3000 预览 | `keel:df95d0b85d1a25923126b9b95ad40c302bda6cf4`；最近 `/healthz` 实测版本一致 |
 | 运行库 | 最近部署记录为 25 个迁移；本轮文档整理未查询或迁移数据库 |
 | 开发入口 | API 3001；Vite 5173。与 3000 构建镜像分别检查 |
-| 工作状态 | 用户已暂停代码开发；本轮仅优化设计/交接文档，不部署、不迁移 |
+| 工作状态 | 用户已恢复开发；共享工作台已实现，正在从干净提交构建并发布；不执行数据库迁移 |
 
 版本是本次观察，不是永久常量。恢复时检查 `git status -sb`、`git log -1` 和 3000 `/healthz`；不能凭本文件推断后续运行状态。
 
@@ -25,7 +25,7 @@
 | BOM/型号 | 标准包/宽表兼容、原子幂等导入、稳定身份、问题清单、部分型号/工程检查 | 完整商定基线、外部批准证据验真、全规模性能和剩余工程校验未闭环；F-0.1～F-0.4 不记 PASS |
 | ZTP | 身份反查、mock Kea staged/active、DORA 契约、239/143 专用 listener、仿真九步时间线、自动重试和凭据模拟分类 | 完整真实 Kea 作业接入、个性化最小管理配置、真实凭据取用/可达验证、网络环境自检及真机开通未闭环；sim.managed 不投影真实 NP-2 |
 | 后续 FR-0 | N-S5 数据表与 Store 草稿已写入工作树 | 未接 HTTP/UI、未完成评审/测试，不能计 WP-2.14 完成；Golden、无损/健康、规则治理、Readiness 与全链归档仍未闭环 |
-| 前端布局 | 登录页保持 P1 船体龙骨设计；3000 有 BOM/ZTP 页面入口 | 当前工作台仍为横向导航/项目标签；未实现 DS 的 56px 顶栏、240→56px 侧栏、全宽内容及双入口 ProjectContext，需补 WP-1.8 并做 UX 验收 |
+| 前端布局 | 登录页保持 P1 船体龙骨设计；3000 有 BOM/ZTP 页面入口 | 共享 Shell 已实现 56px 顶栏、240→56px 侧栏、全宽内容、双入口 URL 项目切换；隔离真实 API/数据库浏览器检查通过。跨项目运维聚合、完整生命周期和其他 DS 组件仍未完成 |
 
 最近已留存的隔离 PostgreSQL 与 `make check` 结果、BOM/ZTP 增量和边界，详见 [历史记录](history/2026-10-23/HANDOFF.md)。本轮未重跑代码测试；历史通过不能替代后续修改的验证。
 
@@ -45,10 +45,18 @@
 
 3000 已经由用户要求同步到当前开发预览，不能再把它称为未更新的纯 P1 环境。旧镜像 `keel:p1-e7d5f1a` 保留；源码从该基点接续且登录源码未改。部署前备份：`/home/ubuntu/.local/state/keel/backups/pre-fr0-preview-20261023T085854Z.dump`，历史记录为 101K、容器 `pg_restore -l` 可读；目录可读不等于恢复演练通过。
 
-专用 239 TLS/143 mTLS listener 在 Compose 未启用；真实交换机 PoC 未执行。最近 `node scripts/check-browser.mjs` 因缺少 Playwright 未成功，不能声称此次 3000 登录后浏览器交互已验证。`/api/v1` 的 `phase=p1-foundation` 是旧静态标签，`business_ready=false`；镜像版本以 `/healthz` 为准。
+专用 239 TLS/143 mTLS listener 在 Compose 未启用；真实交换机 PoC 未执行。此前旧检查缺少 Playwright；本次已使用现有 Playwright/Chromium 对隔离 3102 的新工作台完成真实浏览器验证，不能据此声称完整 3000 业务验收通过。`/api/v1` 的 `phase=p1-foundation` 是旧静态标签，`business_ready=false`；镜像版本以 `/healthz` 为准。
 
 镜像回滚不会回退数据库。当前 25 迁移与旧 P1 镜像不应假定兼容，恢复步骤见 DEPLOYMENT。真实配置/秘密仍仅在服务器受限目录，路径约定见该文件。
 
 ## 6. 历史与当前证据分开
 
 完整旧 HANDOFF、早期主机/分支/备份记录及旧“下一步”见 [history](history/2026-10-23/README.md)。源码提交、GitHub 推送、CI、运行镜像与硬件验证分别报告；本轮不凭设计更新提升任何业务验收状态。
+
+## 7. 恢复开发：共享工作台交付
+
+文档基线提交 `a918bf9`。本次仅修改共享 UI、导航、令牌和定向浏览器检查；登录页源码未改，N-S5 未跟踪草稿及 AGENTS 用户修改保留。
+
+实际验证：`web` 下 `tsc --noEmit`、`vite build` 通过；`scripts/check-workspace-browser.mjs` 在独立 PostgreSQL/API3102 上通过顶栏/侧栏尺寸、24px内容边距、双入口切换保留工具、多标签隔离、无项目持久化存储、明暗/中英文、1280/1440及基础页390宽、真实退出撤销与无浏览器错误。证据 `/tmp/keel-shell-dpiey32q/{browser.log,workspace-light.png,workspace-dark.png,workspace-mobile.png}`；隔离数据库、进程和临时凭据已清理。
+
+发布从提交的 `git archive` 构建，排除未提交026迁移和草稿；运行库保持25迁移。后续优先补网络角色权限及 WP-1.17 的真实可替换适配器、N-S2/N-S3，随后 N-S5/Golden；不新增手动推进成功的模拟流程。FR-0仍未闭环。

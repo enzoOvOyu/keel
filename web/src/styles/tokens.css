@@ -78,6 +78,12 @@
   --color-rail-5: #6366f1;
   --color-rail-6: #14b8a6;
   --color-rail-7: #f43f5e;
+  --layout-topbar: 56px;
+  --layout-sidebar: 240px;
+  --layout-sidebar-collapsed: 56px;
+  --layout-content-min: 1280px;
+  --layout-row: 36px;
+  --layout-sidebar-icon: 32px;
 }
 :root[data-theme="dark"] {
   --color-primary-50: #faf5ff;
@@ -158,4 +164,10 @@
   --color-rail-5: #a5b4fc;
   --color-rail-6: #2dd4bf;
   --color-rail-7: #fb7185;
+  --layout-topbar: 56px;
+  --layout-sidebar: 240px;
+  --layout-sidebar-collapsed: 56px;
+  --layout-content-min: 1280px;
+  --layout-row: 36px;
+  --layout-sidebar-icon: 32px;
 }
