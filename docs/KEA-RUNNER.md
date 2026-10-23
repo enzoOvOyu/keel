@@ -33,7 +33,7 @@ WP-1.17 当前增量：把 N-S2/N-S3 准备结果接入真实 Kea 控制协议�
 {"version":"fabric-probes/v1","targets":{"kea":{"url":"https://kea.example.invalid/","ca_file":"/run/keel/fabric/ca.pem","certificate_file":"/run/keel/fabric/client.pem","key_file":"/run/keel/fabric/client.key","through_agent":true,"allow_config_write":true,"write_timeout_seconds":15}}}
 ```
 
-上面仅展示Kea项，完整配置仍需boot/collector/repository才能取得四项全绿报告，见[准备模块](ZTP-PREPARATION.md)。API与worker使用相同配置及受限证书挂载；N-S3配置指纹与Worker重验不一致时阻断。配置文件600，证书私钥受限，路径须在各自容器中可读。写请求默认15秒、可配置1～60秒；探针与写请求分开限时，写连接不留空闲连接。默认Compose不挂载这些配置，不启用真实写入；可在独立PoC override中为API/worker同时只读挂载配置并传入该环境变量，秘密不提交Git。
+上面仅展示Kea项，完整配置仍需boot/collector/repository才能取得四项全绿报告，见[准备模块](ZTP-PREPARATION.md)。启用Kea时为worker设置至少130秒停止宽限，以容纳120秒任务上限；非正常终止仍按未知写入隔离。API与worker使用相同配置及受限证书挂载；N-S3配置指纹与Worker重验不一致时阻断。配置文件600，证书私钥受限，路径须在各自容器中可读。写请求默认15秒、可配置1～60秒；探针与写请求分开限时，写连接不留空闲连接。默认Compose不挂载这些配置，不启用真实写入；可在独立PoC override中为API/worker同时只读挂载配置并传入该环境变量，秘密不提交Git。
 
 当前适配器只处理已有顶层`Dhcp4.subnet4`管理网中、带唯一SoT管理MAC的Cumulus 239隔离脚本预留。保留其他子网、全局设置和第三方预留；冲突、外部host数据库、独立附加配置均显式拒绝。完整内容读回采用严格规范化JSON比较，实际Kea默认字段规范化差异需在PoC记录原始脱敏样本并改协议适配器，不能放宽准入。媒体必须与服务端生成的已批准隔离脚本SHA256/大小一致，不承接生产网络配置。
 
