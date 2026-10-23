@@ -1,0 +1,14 @@
+{
+  "version_ref": "management-fixture-v1",
+  "source_ref": "software-contract-fixture:no-hardware-acceptance",
+  "engineering_limits": {
+    "switch_bandwidth_ratio_limits": { "role:leaf": 2 },
+    "management": {
+      "cidr": "192.0.2.0/24",
+      "first_address": "192.0.2.10",
+      "gateway": "192.0.2.1",
+      "batch_prefix": "fixture",
+      "batch_by": "rack"
+    }
+  }
+}

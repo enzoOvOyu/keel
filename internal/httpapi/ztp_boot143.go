@@ -27,6 +27,9 @@ func NewSZTPHandler(store *platform.Store, manufacturerRoots *x509.CertPool) htt
 		panic("SZTP requires store and manufacturer trust roots")
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if serveBootReadiness(store, "sztp143", w, r) {
+			return
+		}
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		if r.URL.Path != sztpRPCPath && r.URL.Path != sztpProgressPath {

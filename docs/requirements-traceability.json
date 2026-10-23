@@ -55,7 +55,14 @@
         "F-0.12"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "BOM/model and ZTP framework are partially implemented. Mock offers, protocol/listener primitives and simulation evidence are distinct from real DHCP/device readiness. N-S5 files are unreviewed worktree drafts, not a delivered API/UI. Golden, health/lossless, rule governance, readiness and final cross-domain evidence remain incomplete."
+      "implementation_notes": "BOM/model and ZTP framework are partially implemented. Mock offers, protocol/listener primitives and simulation evidence are distinct from real DHCP/device readiness. N-S5 files are unreviewed worktree drafts, not a delivered API/UI. Golden, health/lossless, rule governance, readiness and final cross-domain evidence remain incomplete. Approved-rule IPv4 management planning, stable allocation, digest-checked atomic save, N-S3 TLS/protocol probes and persisted expiring batch/channel reports now have API/UI and targeted PostgreSQL/browser evidence. Real Kea/Runner admission, production listener enforcement, persistent DHCP config/DORA and individualized management/credentials remain incomplete.",
+      "evidence_refs": [
+        "internal/platform/ztp_management.go",
+        "internal/platform/ztp_environment.go",
+        "internal/platform/ztp_management_integration_test.go",
+        "scripts/check-ztp-planning-browser.mjs",
+        "docs/ZTP-PREPARATION.md"
+      ]
     },
     {
       "id": "FR-1",
@@ -2177,7 +2184,7 @@
         "H-16"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "BOM identity lookup, durable mock Kea plans/DORA, dedicated 239/143 listener primitives, isolation artifact approval, simulated timeline/retry and credential failure classification exist. The real Kea adapter is not connected to the complete approved Flow; personalized minimal management configuration, actual credential provider/reachability and environment preflight remain incomplete. Keep the existing fixtures; do not extend manual simulation controls as the main deliverable. No real managed/NP-2 or hardware PoC PASS is claimed.",
+      "implementation_notes": "BOM identity lookup, durable mock Kea plans/DORA, dedicated 239/143 listener primitives, isolation artifact approval, simulated timeline/retry and credential failure classification exist. The real Kea adapter is not connected to the complete approved Flow; personalized minimal management configuration, actual credential provider/reachability and environment preflight remain incomplete. Keep the existing fixtures; do not extend manual simulation controls as the main deliverable. No real managed/NP-2 or hardware PoC PASS is claimed. Approved-rule IPv4 management planning, stable allocation, digest-checked atomic save, N-S3 TLS/protocol probes and persisted expiring batch/channel reports now have API/UI and targeted PostgreSQL/browser evidence. Real Kea/Runner admission, production listener enforcement, persistent DHCP config/DORA and individualized management/credentials remain incomplete.",
       "evidence_refs": [
         "internal/platform/bom_switch_identity.go",
         "internal/platform/migrations/015_switch_identity_macs.sql",
@@ -2226,7 +2233,12 @@
         "internal/platform/ztp_credential_sim.go",
         "internal/platform/ztp_sim_run.go",
         "internal/platform/migrations/025_ztp_sim_run_resume.sql",
-        "internal/platform/testdata/ztp_sim_timeline_golden.json"
+        "internal/platform/testdata/ztp_sim_timeline_golden.json",
+        "internal/platform/ztp_management.go",
+        "internal/platform/ztp_environment.go",
+        "internal/platform/ztp_management_integration_test.go",
+        "scripts/check-ztp-planning-browser.mjs",
+        "docs/ZTP-PREPARATION.md"
       ]
     },
     {

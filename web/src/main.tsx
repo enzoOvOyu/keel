@@ -25,3 +25,5 @@ createRoot(mount).render(
     <QueryClientProvider client={queryClient}><RouterProvider router={router} /></QueryClientProvider>
   </StrictMode>,
 )
+
+import './styles/ztp-planning.css'

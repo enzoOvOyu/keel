@@ -62,6 +62,9 @@ func NewZTP239Handler(store *platform.Store) http.Handler {
 		panic("ZTP 239 requires a store")
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if serveBootReadiness(store, "ztp239", w, r) {
+			return
+		}
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		if r.URL.Path != "/api/v1/boot/ztp" {

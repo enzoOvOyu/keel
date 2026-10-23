@@ -9,11 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type NetworkEngineeringLimits struct {
-	SwitchBandwidthRatioLimits map[string]float64 `json:"switch_bandwidth_ratio_limits"`
+	Management                 *fabricboot.ManagementRules `json:"management,omitempty"`
+	SwitchBandwidthRatioLimits map[string]float64          `json:"switch_bandwidth_ratio_limits"`
 }
 
 type NetworkBaselineVersion struct {
@@ -41,6 +43,11 @@ type ApproveNetworkBaselineInput struct {
 }
 
 func validateNetworkEngineeringLimits(limits NetworkEngineeringLimits) error {
+	if limits.Management != nil {
+		if err := fabricboot.ValidateManagementRules(*limits.Management); err != nil {
+			return apiError(400, "ZTP_MANAGEMENT_RULES_INVALID", err.Error())
+		}
+	}
 	if len(limits.SwitchBandwidthRatioLimits) == 0 {
 		return apiError(400, "NETWORK_LIMITS_REQUIRED", "At least one switch bandwidth ratio limit is required")
 	}

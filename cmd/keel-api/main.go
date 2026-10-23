@@ -58,6 +58,11 @@ func main() {
 			slog.Error("database schema rejected", "error", err)
 			os.Exit(1)
 		}
+		store.FabricProbes, err = fabricboot.LoadProbeSuite(os.Getenv("KEEL_FABRIC_PROBES_FILE"))
+		if err != nil {
+			slog.Error("Fabric probe configuration rejected", "error", err)
+			os.Exit(1)
+		}
 		handler = httpapi.NewWithStore(version, dir, store, config)
 	}
 	srv := &http.Server{Addr: addr, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}

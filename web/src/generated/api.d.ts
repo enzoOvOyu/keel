@@ -712,6 +712,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/ztp/environment-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get: operations["getZTPEnvironmentCheck"];
+        put?: never;
+        post: operations["runZTPEnvironmentCheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/management-plan/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewZTPManagementPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/management-plan/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["commitZTPManagementPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/management-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getZTPManagementPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/network-baselines": {
         parameters: {
             query?: never;
@@ -1058,7 +1124,66 @@ export interface components {
             identity_priority?: "sn" | "mgmt" | "base" | "other";
             reasons: string[];
         };
+        ZTPEnvironmentInput: {
+            batch_ref: string;
+            /** @enum {string} */
+            boot_channel: "239" | "143";
+        };
+        ZTPEnvironmentReport: {
+            id: string;
+            plan_id: string;
+            batch_ref: string;
+            /** @enum {string} */
+            boot_channel: "239" | "143";
+            ready: boolean;
+            config_hash: string;
+            /** Format: date-time */
+            checked_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            checks: {
+                /** @enum {string} */
+                service: "kea" | "boot" | "collector" | "repository";
+                /** @enum {string} */
+                state: "ready" | "failed" | "unknown";
+                code: string;
+                duration_ms: number;
+            }[];
+        } | null;
+        ZTPManagementRules: {
+            cidr: string;
+            first_address: string;
+            gateway: string;
+            batch_prefix: string;
+            /** @enum {string} */
+            batch_by: "rack" | "pod";
+        };
+        ZTPManagementPlanInput: {
+            baseline_ref: string;
+            expected_hash?: string;
+        };
+        ZTPManagementAssignment: {
+            switch_id: string;
+            serial_number: string;
+            hostname: string;
+            management_ip: string;
+            gateway: string;
+            batch_ref: string;
+        };
+        ZTPManagementPlan: {
+            id?: string;
+            baseline_ref: string;
+            baseline_id: string;
+            batch_size: number;
+            rules: components["schemas"]["ZTPManagementRules"];
+            assignments: components["schemas"]["ZTPManagementAssignment"][];
+            source_hash: string;
+            content_hash: string;
+            /** Format: date-time */
+            created_at?: string;
+        } | null;
         NetworkEngineeringLimits: {
+            management?: components["schemas"]["ZTPManagementRules"];
             /** @description Keys are serial:<switch SN> or role:<leaf|spine|superspine|mgmt>; explicit values only. */
             switch_bandwidth_ratio_limits: {
                 [key: string]: number;
@@ -3139,6 +3264,250 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    getZTPEnvironmentCheck: {
+        parameters: {
+            query: {
+                batch_ref: string;
+                boot_channel: "239" | "143";
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest report or null; expiry, changed configuration and stale planning invalidate readiness */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPEnvironmentReport"];
+                };
+            };
+        };
+    };
+    runZTPEnvironmentCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZTPEnvironmentInput"];
+            };
+        };
+        responses: {
+            /** @description Persisted protocol connectivity report; unknown and failed block readiness */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPEnvironmentReport"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current saved batch plan required */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    previewZTPManagementPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZTPManagementPlanInput"];
+            };
+        };
+        responses: {
+            /** @description Approved-rule management plan; latest is null when none exists */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPManagementPlan"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Session required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Project not accessible */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing approval */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    commitZTPManagementPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZTPManagementPlanInput"];
+            };
+        };
+        responses: {
+            /** @description Approved-rule management plan; latest is null when none exists */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPManagementPlan"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Session required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Project not accessible */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing approval */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getZTPManagementPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved-rule management plan; latest is null when none exists */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPManagementPlan"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Session required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Project not accessible */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing approval */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     createNetworkEngineeringBaseline: {

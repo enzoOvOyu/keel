@@ -1,3 +1,5 @@
+import { EnvironmentChecks } from './EnvironmentChecks'
+import { ManagementPlanning } from './ManagementPlanning'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -79,6 +81,8 @@ function Board() {
   }, [current?.state, current?.next_retry_at])
   return <main className="page-panel">
     <header><h1>{t('ztpTitle')}</h1><p>{t('ztpBoundary')}</p></header>
+    <ManagementPlanning key={project.id} />
+    <EnvironmentChecks key={`environment-${project.id}`} />
     {scriptManifest.data && <section className="panel"><h2>{t('ztpIsolationManifest')}</h2><p>{t('ztpIsolationApproval')}</p><p>SHA256: <code>{scriptManifest.data.sha256}</code> · {scriptManifest.data.size} bytes</p><details><summary>{t('ztpIsolationReview')}</summary><pre>{scriptManifest.data.script}</pre></details></section>}
     {canManage && <form onSubmit={(event) => void stagePlan(event)} className="panel">
       <h2>{t('ztpKeaTitle')}</h2><p>{t('ztpKeaBoundary')}</p>

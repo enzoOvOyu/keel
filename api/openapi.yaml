@@ -1696,6 +1696,98 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/projects/{id}/ztp/environment-checks:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: runZTPEnvironmentCheck
+      x-permission: fabric:plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZTPEnvironmentInput' }
+      responses:
+        '200':
+          description: Persisted protocol connectivity report; unknown and failed block readiness
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZTPEnvironmentReport' }
+        '403': { description: Permission denied }
+        '409': { description: Current saved batch plan required }
+    get:
+      operationId: getZTPEnvironmentCheck
+      x-permission: fabric:read
+      parameters:
+        - { name: batch_ref, in: query, required: true, schema: { type: string } }
+        - { name: boot_channel, in: query, required: true, schema: { type: string, enum: ['239', '143'] } }
+      responses:
+        '200':
+          description: Latest report or null; expiry, changed configuration and stale planning invalidate readiness
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZTPEnvironmentReport' }
+  /api/v1/projects/{id}/ztp/management-plan/preview:
+    post:
+      operationId: previewZTPManagementPlan
+      x-permission: fabric:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZTPManagementPlanInput' }
+      responses:
+        '200':
+          description: Approved-rule management plan; latest is null when none exists
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZTPManagementPlan' }
+        '400': { description: Invalid input }
+        '401': { description: Session required }
+        '403': { description: Permission denied }
+        '404': { description: Project not accessible }
+        '409': { description: Missing approval, invalid rules, conflicting allocation or stale preview }
+  /api/v1/projects/{id}/ztp/management-plan/commit:
+    post:
+      operationId: commitZTPManagementPlan
+      x-permission: fabric:plan
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZTPManagementPlanInput' }
+      responses:
+        '200':
+          description: Approved-rule management plan; latest is null when none exists
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZTPManagementPlan' }
+        '400': { description: Invalid input }
+        '401': { description: Session required }
+        '403': { description: Permission denied }
+        '404': { description: Project not accessible }
+        '409': { description: Missing approval, invalid rules, conflicting allocation or stale preview }
+  /api/v1/projects/{id}/ztp/management-plan:
+    get:
+      operationId: getZTPManagementPlan
+      x-permission: fabric:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Approved-rule management plan; latest is null when none exists
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZTPManagementPlan' }
+        '400': { description: Invalid input }
+        '401': { description: Session required }
+        '403': { description: Permission denied }
+        '404': { description: Project not accessible }
+        '409': { description: Missing approval, invalid rules, conflicting allocation or stale preview }
   /api/v1/projects/{id}/network-baselines:
     post:
       tags: [BOM]
@@ -2257,11 +2349,80 @@ components:
         reasons:
           type: array
           items: { type: string }
+    ZTPEnvironmentInput:
+      type: object
+      required: [batch_ref, boot_channel]
+      properties:
+        batch_ref: { type: string }
+        boot_channel: { type: string, enum: ['239', '143'] }
+    ZTPEnvironmentReport:
+      type: object
+      nullable: true
+      required: [id, plan_id, batch_ref, boot_channel, ready, checks, config_hash, checked_at, expires_at]
+      properties:
+        id: { type: string }
+        plan_id: { type: string }
+        batch_ref: { type: string }
+        boot_channel: { type: string, enum: ['239', '143'] }
+        ready: { type: boolean }
+        config_hash: { type: string }
+        checked_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        checks:
+          type: array
+          items:
+            type: object
+            required: [service, state, code, duration_ms]
+            properties:
+              service: { type: string, enum: [kea, boot, collector, repository] }
+              state: { type: string, enum: [ready, failed, unknown] }
+              code: { type: string }
+              duration_ms: { type: integer }
+    ZTPManagementRules:
+      type: object
+      required: [cidr, first_address, gateway, batch_prefix, batch_by]
+      properties:
+        cidr: { type: string }
+        first_address: { type: string }
+        gateway: { type: string }
+        batch_prefix: { type: string }
+        batch_by: { type: string, enum: [rack, pod] }
+    ZTPManagementPlanInput:
+      type: object
+      required: [baseline_ref]
+      properties:
+        baseline_ref: { type: string }
+        expected_hash: { type: string, minLength: 64, maxLength: 64 }
+    ZTPManagementAssignment:
+      type: object
+      required: [switch_id, serial_number, hostname, management_ip, gateway, batch_ref]
+      properties:
+        switch_id: { type: string }
+        serial_number: { type: string }
+        hostname: { type: string, maxLength: 63 }
+        management_ip: { type: string }
+        gateway: { type: string }
+        batch_ref: { type: string }
+    ZTPManagementPlan:
+      type: object
+      nullable: true
+      required: [baseline_ref, baseline_id, batch_size, rules, assignments, source_hash, content_hash]
+      properties:
+        id: { type: string }
+        baseline_ref: { type: string }
+        baseline_id: { type: string }
+        batch_size: { type: integer, minimum: 1, maximum: 500 }
+        rules: { $ref: '#/components/schemas/ZTPManagementRules' }
+        assignments: { type: array, items: { $ref: '#/components/schemas/ZTPManagementAssignment' } }
+        source_hash: { type: string }
+        content_hash: { type: string }
+        created_at: { type: string, format: date-time }
     NetworkEngineeringLimits:
       type: object
       additionalProperties: false
       required: [switch_bandwidth_ratio_limits]
       properties:
+        management: { $ref: '#/components/schemas/ZTPManagementRules' }
         switch_bandwidth_ratio_limits:
           type: object
           minProperties: 1

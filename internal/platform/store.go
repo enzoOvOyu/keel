@@ -11,11 +11,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/enzoOvOyu/keel/ent"
+	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"time"
 )
 
 type Store struct {
+	FabricProbes  *fabricboot.ProbeSuite
 	DB            *sql.DB
 	Ent           *ent.Client
 	passwordSlots chan struct{}
