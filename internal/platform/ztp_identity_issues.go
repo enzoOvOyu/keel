@@ -103,7 +103,7 @@ func (s *Store) ResolveZTPIdentityIssue(ctx context.Context, a *AuthSession, pro
 		return nil, err
 	}
 	defer tx.Rollback()
-	if err = requireProjectAdmin(ctx, tx, a, project.ID); err != nil {
+	if err = requireFabricPermission(ctx, tx, a, project.ID, "fabric:plan"); err != nil {
 		return nil, err
 	}
 	var state string

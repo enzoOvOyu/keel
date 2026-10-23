@@ -88,11 +88,11 @@ func (s *Store) DisableUser(ctx context.Context, username string) error {
 	return tx.Commit()
 }
 
-var validRoles = map[string]bool{"Admin": true, "DE": true, "DL": true, "NE": true, "SRE": true, "Viewer": true}
+var validRoles = map[string]bool{"Admin": true, "DE": true, "DL": true, "NE": true, "SRE": true, "Viewer": true, "NDE": true, "NH": true}
 
 func (s *Store) SetMembership(ctx context.Context, username, projectID, role string, revoke bool) error {
 	if !revoke && !validRoles[role] {
-		return errors.New("role must be Admin, DE, DL, NE, SRE, or Viewer")
+		return errors.New("role must be Admin, DE, DL, NE, NDE, NH, SRE, or Viewer")
 	}
 	tx, e := s.DB.BeginTx(ctx, nil)
 	if e != nil {

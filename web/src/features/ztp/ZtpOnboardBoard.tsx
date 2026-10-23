@@ -19,7 +19,7 @@ function Board() {
   const [deactivateReason, setDeactivateReason] = useState(''), [deactivateConfirmed, setDeactivateConfirmed] = useState(false)
   const [issueResolutionReason, setIssueResolutionReason] = useState('')
   const [credentialVerdict, setCredentialVerdict] = useState<'reachable' | 'expired' | 'unreachable'>('reachable')
-  const canManage = canManageProject(project, session.user.is_admin)
+  const canManage = canManageProject(project, session.user.is_admin) || project.role === 'NDE'
   const scriptManifest = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-isolation-script'], queryFn: ({ signal }) => getZTPIsolationScriptManifest(project.id, signal) })
   const list = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-sims'], queryFn: ({ signal }) => listZTPSimSessions(project.id, signal), refetchInterval: 5000 })
   const observations = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-device-observations'], queryFn: ({ signal }) => listZTPDeviceObservations(project.id, signal) })

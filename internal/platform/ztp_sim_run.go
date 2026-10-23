@@ -52,7 +52,7 @@ func (s *Store) RunZTPSimSession(ctx context.Context, a *AuthSession, project *P
 		return nil, err
 	}
 	defer tx.Rollback()
-	if err = requireProjectAdmin(ctx, tx, a, project.ID); err != nil {
+	if err = requireFabricPermission(ctx, tx, a, project.ID, "fabric:plan"); err != nil {
 		return nil, err
 	}
 	session, err := getZTPSessionTx(ctx, tx, project.ID, sessionID, true)

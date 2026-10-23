@@ -81,7 +81,7 @@ func (s *Store) CreateZTPSimSession(ctx context.Context, a *AuthSession, project
 		return nil, err
 	}
 	defer tx.Rollback()
-	if err = requireProjectAdmin(ctx, tx, a, project.ID); err != nil {
+	if err = requireFabricPermission(ctx, tx, a, project.ID, "fabric:plan"); err != nil {
 		return nil, err
 	}
 	retryMax := 3
@@ -250,7 +250,7 @@ func (s *Store) AdvanceZTPSimSession(ctx context.Context, a *AuthSession, projec
 		return nil, err
 	}
 	defer tx.Rollback()
-	if err = requireProjectAdmin(ctx, tx, a, project.ID); err != nil {
+	if err = requireFabricPermission(ctx, tx, a, project.ID, "fabric:plan"); err != nil {
 		return nil, err
 	}
 	out, err := s.advanceZTPSimSessionTx(ctx, tx, project.ID, sessionID, input, a.User.ID, trace)

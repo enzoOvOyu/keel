@@ -53,7 +53,7 @@ func (s *Store) StageZTPMockKeaPlan(ctx context.Context, a *AuthSession, project
 		return nil, err
 	}
 	defer tx.Rollback()
-	if err = requireProjectAdmin(ctx, tx, a, project.ID); err != nil {
+	if err = requireFabricPermission(ctx, tx, a, project.ID, "fabric:plan"); err != nil {
 		return nil, err
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
@@ -82,7 +82,7 @@ func (s *Store) CommitZTPMockKeaPlan(ctx context.Context, a *AuthSession, projec
 		return nil, err
 	}
 	defer tx.Rollback()
-	if err = requireProjectAdmin(ctx, tx, a, project.ID); err != nil {
+	if err = requireFabricPermission(ctx, tx, a, project.ID, "fabric:plan"); err != nil {
 		return nil, err
 	}
 	// Serialize all mock-plan commits before reading active routes. A route
@@ -151,7 +151,7 @@ func (s *Store) DeactivateZTPMockKeaPlan(ctx context.Context, a *AuthSession, pr
 		return nil, err
 	}
 	defer tx.Rollback()
-	if err = requireProjectAdmin(ctx, tx, a, project.ID); err != nil {
+	if err = requireFabricPermission(ctx, tx, a, project.ID, "fabric:plan"); err != nil {
 		return nil, err
 	}
 	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(230923,143)`); err != nil {

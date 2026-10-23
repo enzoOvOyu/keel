@@ -179,6 +179,24 @@ func (s *Store) SessionResponse(ctx context.Context, a *AuthSession) (*SessionRe
 	if reconcileExecution {
 		permissions = append(permissions, "execution:reconcile")
 	}
+	// This union is for navigation only; mutation authorization uses the target
+	// project's current membership inside the transaction.
+	fabric := map[string]bool{}
+	if a.User.IsAdmin {
+		for _, permission := range fabricPermissions("Admin") {
+			fabric[permission] = true
+		}
+	}
+	for _, project := range projects {
+		for _, permission := range fabricPermissions(project.Role) {
+			fabric[permission] = true
+		}
+	}
+	for _, permission := range []string{"fabric:read", "fabric:plan"} {
+		if fabric[permission] {
+			permissions = append(permissions, permission)
+		}
+	}
 	return &SessionResponse{User: a.User, Permissions: permissions, Projects: projects, CSRFToken: a.CSRF, ExpiresAt: a.ExpiresAt}, nil
 }
 func lockKey(ctx context.Context, tx *sql.Tx, key string) error {

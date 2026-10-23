@@ -1326,7 +1326,7 @@ export interface components {
             expires_at: string;
         };
         /** @enum {string} */
-        ProjectRole: "Admin" | "DE" | "DL" | "NE" | "SRE" | "Viewer";
+        ProjectRole: "Admin" | "DE" | "DL" | "NE" | "SRE" | "Viewer" | "NDE" | "NH";
         /**
          * @description FR-17 project lifecycle; this increment only creates planning projects and exposes no transitions.
          * @enum {string}

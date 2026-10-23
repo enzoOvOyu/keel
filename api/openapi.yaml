@@ -1293,7 +1293,7 @@ paths:
       operationId: getZTPIsolationScriptManifest
       description: Reviewable fixed script and digest to register as ztp_script media; approval follows the existing uploader/reviewer split.
       security: [{sessionCookie: []}]
-      x-permission: project:fabric:read
+      x-permission: fabric:read
       x-resource-scope: path-project
       parameters:
       - name: id
@@ -1315,7 +1315,7 @@ paths:
       operationId: stageZTPMockKeaPlan
       description: Validates and persists a simulation-only Kea candidate; active DORA offers stay unchanged.
       security: [{sessionCookie: []}]
-      x-permission: project:fabric:plan
+      x-permission: fabric:plan
       x-resource-scope: path-project-admin
       parameters:
       - name: id
@@ -1342,7 +1342,7 @@ paths:
       operationId: commitZTPMockKeaPlan
       description: Promotes the exact staged mock candidate only when its referenced isolation script media is independently approved and matches the generated digest and size; rejects overlapping management subnets with the same 143 bootstrap URI across active batches; never writes to real Kea.
       security: [{sessionCookie: []}]
-      x-permission: project:fabric:plan
+      x-permission: fabric:plan
       x-resource-scope: path-project-admin
       parameters:
       - name: id
@@ -1371,7 +1371,7 @@ paths:
       operationId: deactivateZTPMockKeaPlan
       description: Deactivates an exact active simulated plan after hash and version checks. Recent 143 or 239 device bootstrap delivery blocks deactivation. Does not change real Kea.
       security: [{sessionCookie: []}]
-      x-permission: project:fabric:plan
+      x-permission: fabric:plan
       x-resource-scope: path-project-admin
       parameters:
       - name: id
@@ -1400,7 +1400,7 @@ paths:
       operationId: simulateZTPDORA
       description: Read-only mock DORA offer selection from the committed management subnet plan. A retired or changed boot artifact yields no_offer, even if the plan remains active for audit.
       security: [{sessionCookie: []}]
-      x-permission: project:fabric:read
+      x-permission: fabric:read
       x-resource-scope: path-project
       parameters:
       - name: id
@@ -1429,7 +1429,7 @@ paths:
       operationId: resolveZTPIdentityIssue
       description: Project administrator records a resolution reason. A later identity conflict reopens the same issue.
       security: [{sessionCookie: []}]
-      x-permission: project:fabric:plan
+      x-permission: fabric:plan
       x-resource-scope: path-project-admin
       parameters:
       - name: id
@@ -1462,7 +1462,7 @@ paths:
       operationId: listZTPCredentialIssues
       description: Lists project-scoped simulated credential reachability failures; no Vault or switch connection is implied.
       security: [{sessionCookie: []}]
-      x-permission: project:fabric:read
+      x-permission: fabric:read
       x-resource-scope: path-project
       parameters:
       - name: id
@@ -1486,7 +1486,7 @@ paths:
       operationId: listZTPIdentityIssues
       description: Lists recent project identity conflicts from simulated and device boot requests; no business config is served on conflict.
       security: [{sessionCookie: []}]
-      x-permission: project:fabric:read
+      x-permission: fabric:read
       x-resource-scope: path-project
       parameters:
       - name: id
@@ -1510,7 +1510,7 @@ paths:
       operationId: listZTPDeviceObservations
       description: Lists the most recent 100 authenticated device bootstrap observations. Progress reports are device claims and never mark a switch managed or NP-2 ready.
       security: [{sessionCookie: []}]
-      x-permission: project:fabric:read
+      x-permission: fabric:read
       x-resource-scope: path-project
       parameters:
       - name: id
@@ -1534,7 +1534,7 @@ paths:
       operationId: listZTPSimSessions
       description: Lists the most recently updated 100 project simulation sessions.
       security: [{sessionCookie: []}]
-      x-permission: project:fabric:read
+      x-permission: fabric:read
       x-resource-scope: path-project
       parameters:
       - name: id
@@ -1557,7 +1557,7 @@ paths:
       operationId: createZTPSimSession
       description: Creates a simulation-only nine-stage timeline. Simulated managed never updates physical switch readiness.
       security: [{sessionCookie: []}]
-      x-permission: project:fabric:plan
+      x-permission: fabric:plan
       x-resource-scope: path-project-admin
       parameters:
       - name: id
@@ -1583,7 +1583,7 @@ paths:
       tags: [BOM]
       operationId: getZTPSimSession
       security: [{sessionCookie: []}]
-      x-permission: project:fabric:read
+      x-permission: fabric:read
       x-resource-scope: path-project
       parameters:
       - name: id
@@ -1609,7 +1609,7 @@ paths:
       operationId: runZTPSimSession
       description: Drives the remaining simulated stages using the same backend gates; a blocked stage enters failure and bounded retry. While failed, the same action can update the saved simulation fixture for the next scheduled retry. This does not connect to hardware.
       security: [{sessionCookie: []}]
-      x-permission: project:fabric:plan
+      x-permission: fabric:plan
       x-resource-scope: path-project-admin
       parameters:
       - name: id
@@ -1641,7 +1641,7 @@ paths:
       tags: [BOM]
       operationId: advanceZTPSimSession
       security: [{sessionCookie: []}]
-      x-permission: project:fabric:plan
+      x-permission: fabric:plan
       x-resource-scope: path-project-admin
       parameters:
       - name: id
@@ -2605,6 +2605,8 @@ components:
       - NE
       - SRE
       - Viewer
+      - NDE
+      - NH
     ProjectState:
       type: string
       enum:

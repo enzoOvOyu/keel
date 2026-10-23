@@ -6,7 +6,7 @@ export type UserAccount = components['schemas']['UserAccount']
 export type Member = components['schemas']['ProjectMember']
 export type Audit = components['schemas']['AuditEntry']
 export type ProjectRole = components['schemas']['ProjectRole']
-export const projectRoles: ProjectRole[] = ['Viewer', 'DE', 'DL', 'NE', 'SRE', 'Admin']
+export const projectRoles: ProjectRole[] = ['Viewer', 'DE', 'DL', 'NE', 'NDE', 'NH', 'SRE', 'Admin']
 const pageQuery = (page: number, filter?: [string, string]) => {
   const params = new URLSearchParams({ page: String(page), page_size: '20' })
   if (filter?.[1]) params.set(...filter)

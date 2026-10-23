@@ -316,7 +316,7 @@ func projectIDOf(project *ProjectSummary) string {
 	return project.ID
 }
 
-// requireProjectMember accepts any of the six project roles; the caller has
+// requireProjectMember accepts any valid project role; the caller has
 // already resolved the project record, so this only re-checks membership.
 func requireProjectMember(ctx context.Context, tx *sql.Tx, a *AuthSession, projectID string) error {
 	if a.User.IsAdmin {
