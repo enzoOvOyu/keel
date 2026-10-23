@@ -662,6 +662,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/ztp/sim-sessions/{sessionId}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Drives the remaining simulated stages using the same backend gates; a blocked stage enters failure and bounded retry. This does not connect to hardware. */
+        post: operations["runZTPSimSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/ztp/sim-sessions/{sessionId}/actions": {
         parameters: {
             query?: never;
@@ -964,6 +981,15 @@ export interface components {
             /** @enum {string} */
             boot_channel: "239" | "143" | "60-43";
             identity: components["schemas"]["ZTPIdentityInput"];
+        };
+        ZTPSimRunInput: {
+            expected_version: number;
+            dora: components["schemas"]["ZTPDORARequest"];
+            /**
+             * @description Operator supplied simulation fixture for a registered switch credential batch.
+             * @enum {string}
+             */
+            credential_verdict?: "reachable" | "expired" | "unreachable";
         };
         ZTPSessionAction: {
             /** @enum {string} */
@@ -3019,6 +3045,38 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    runZTPSimSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+                sessionId: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZTPSimRunInput"];
+            };
+        };
+        responses: {
+            /** @description Simulated terminal state or retryable failure. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPSessionDetail"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     advanceZTPSimSession: {

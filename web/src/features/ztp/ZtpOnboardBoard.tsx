@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ProjectWorkspace, canManageProject, useProject } from '../../components/ProjectWorkspace'
 import { useSession, useExpireOnUnauthorized } from '../../lib/session'
 import { useAction } from '../../lib/management'
-import { actZTPSimSession, createZTPSimSession, getZTPSimSession, getZTPIsolationScriptManifest, listZTPSimSessions, listZTPDeviceObservations, listZTPIdentityIssues, listZTPCredentialIssues, resolveZTPIdentityIssue, stageZTPMockKea, commitZTPMockKea, deactivateZTPMockKea, type ZTPMockKeaPlan, type ZTPAction } from '../../lib/ztp'
+import { actZTPSimSession, runZTPSimSession, createZTPSimSession, getZTPSimSession, getZTPIsolationScriptManifest, listZTPSimSessions, listZTPDeviceObservations, listZTPIdentityIssues, listZTPCredentialIssues, resolveZTPIdentityIssue, stageZTPMockKea, commitZTPMockKea, deactivateZTPMockKea, type ZTPMockKeaPlan, type ZTPAction } from '../../lib/ztp'
 
 const stages = ['powered', 'dhcp', 'booturl', 'identity', 'lookup', 'fetch', 'config', 'restart', 'managed']
 function Board() {
@@ -63,6 +63,14 @@ function Board() {
     client.setQueryData(['private', session.user.id, project.id, 'ztp-sim', result.value.id], result.value)
     setEvidence(''); void list.refetch(); void credentialIssues.refetch()
   }
+  async function runAll() {
+    if (!detail.data) return
+    const current = detail.data
+    const result = await action.run(() => runZTPSimSession(project.id, current.id, { expected_version: current.state_version, dora: { batch_ref: current.batch_ref, stage_ref: 'N-S4', interface: 'eth0', link_ip: linkIP.trim(), vendor_class: vci.trim() }, credential_verdict: credentialVerdict }, session.csrf_token))
+    if (!result.ok) { void detail.refetch(); return }
+    client.setQueryData(['private', session.user.id, project.id, 'ztp-sim', result.value.id], result.value)
+    void list.refetch(); void credentialIssues.refetch()
+  }
   const current = detail.data, canAdvance = current && stages.indexOf(current.state) >= 0 && current.state !== 'managed'
   useEffect(() => {
     if (current?.state !== 'failed' || !current.next_retry_at) return
@@ -105,9 +113,9 @@ function Board() {
       {canManage && <div className="field"><label htmlFor="ztp-issue-resolution">{t('ztpIdentityIssueResolutionReason')}</label><input id="ztp-issue-resolution" maxLength={300} value={issueResolutionReason} onChange={e => setIssueResolutionReason(e.target.value)} /></div>}
       <ol>{issues.data?.map(item => <li key={item.id}><time>{new Date(item.last_seen_at).toLocaleString()}</time> · {item.serial_number || item.identity_key} · {item.batch_ref} · {item.boot_channel} · {item.reasons.join(', ')} · {item.event_count} · {item.state}{item.resolution_reason && <> · {item.resolution_reason}</>}{canManage && item.state === 'open' && <button type="button" disabled={action.busy || !issueResolutionReason.trim()} onClick={() => void resolveIssue(item.id)}>{t('ztpIdentityIssueResolve')}</button>}</li>)}</ol>
     </section>
-    <section className="panel"><h2>模拟凭据问题</h2><p>以下结果由操作员提供的仿真输入产生，不代表 Vault 或交换机的真实可达性。</p><button type="button" className="secondary-button" onClick={() => void credentialIssues.refetch()}>{t('ztpRefresh')}</button>
+    <section className="panel"><h2>{t('ztpCredentialIssues')}</h2><p>{t('ztpCredentialIssuesBoundary')}</p><button type="button" className="secondary-button" onClick={() => void credentialIssues.refetch()}>{t('ztpRefresh')}</button>
       {credentialIssues.isError && <p role="alert">{t('ztpLoadError')}</p>}
-      <ol>{credentialIssues.data?.map(item => <li key={item.id}><time>{new Date(item.occurred_at).toLocaleString()}</time> · {item.credential_batch_ref} · {item.verdict} · attempt {item.attempt} · <button type="button" className="secondary-button" onClick={() => setSelectedId(item.session_id)}>{item.session_id}</button></li>)}</ol>
+      <ol>{credentialIssues.data?.map(item => <li key={item.id}><time>{new Date(item.occurred_at).toLocaleString()}</time> · {item.credential_batch_ref} · {item.verdict} · {t('ztpAttempt')} {item.attempt} · <button type="button" className="secondary-button" onClick={() => setSelectedId(item.session_id)}>{item.session_id}</button></li>)}</ol>
     </section>
     <section className="panel"><h2>{t('ztpDeviceObservations')}</h2><p>{t('ztpDeviceObservationBoundary')}</p><button type="button" className="secondary-button" onClick={() => void observations.refetch()}>{t('ztpRefresh')}</button>
       {observations.isError && <p role="alert">{t('ztpLoadError')}</p>}
@@ -120,7 +128,7 @@ function Board() {
       {current.next_retry_at && <p>{t('ztpRetryAt')}: {new Date(current.next_retry_at).toLocaleString()}</p>}
       {current.failure_phenomenon && <p>{t('ztpPhenomenon')}: {current.failure_phenomenon} · {t('ztpCause')}: {current.failure_cause} · {t('ztpNextAction')}: {current.failure_next_action}</p>}
       {canManage && <div>
-        {canAdvance && <>{current.state === 'restart' && <div className="field"><label htmlFor="ztp-credential-verdict">凭据批次仿真结果</label><select id="ztp-credential-verdict" value={credentialVerdict} onChange={e => setCredentialVerdict(e.target.value as typeof credentialVerdict)}><option value="reachable">可达</option><option value="expired">已过期</option><option value="unreachable">不可达</option></select><small>仅为仿真输入；不连接 Vault 或设备。</small></div>}{current.state === 'powered' ? <div className="field"><label htmlFor="ztp-link-ip">{t('ztpKeaLinkIP')}</label><input id="ztp-link-ip" value={linkIP} onChange={e => setLinkIP(e.target.value)} placeholder="192.0.2.1" /></div> : <div className="field"><label htmlFor="ztp-evidence">{t('ztpEvidence')}</label><input id="ztp-evidence" value={evidence} onChange={e => setEvidence(e.target.value)} /></div>}<button disabled={action.busy || (current.state === 'powered' ? !linkIP.trim() || !vci.trim() : !evidence.trim())} onClick={() => void change('advance')}>{t('ztpAdvance')}</button></>}
+        {canAdvance && <><button type="button" disabled={action.busy || !linkIP.trim() || !vci.trim()} onClick={() => void runAll()}>{t('ztpRunAll')}</button>{current.state === 'restart' && <div className="field"><label htmlFor="ztp-credential-verdict">{t('ztpCredentialVerdict')}</label><select id="ztp-credential-verdict" value={credentialVerdict} onChange={e => setCredentialVerdict(e.target.value as typeof credentialVerdict)}><option value="reachable">{t('ztpCredentialReachable')}</option><option value="expired">{t('ztpCredentialExpired')}</option><option value="unreachable">{t('ztpCredentialUnreachable')}</option></select><small>{t('ztpCredentialBoundary')}</small></div>}{current.state === 'powered' ? <div className="field"><label htmlFor="ztp-link-ip">{t('ztpKeaLinkIP')}</label><input id="ztp-link-ip" value={linkIP} onChange={e => setLinkIP(e.target.value)} placeholder="192.0.2.1" /></div> : <div className="field"><label htmlFor="ztp-evidence">{t('ztpEvidence')}</label><input id="ztp-evidence" value={evidence} onChange={e => setEvidence(e.target.value)} /></div>}<button disabled={action.busy || (current.state === 'powered' ? !linkIP.trim() || !vci.trim() : !evidence.trim())} onClick={() => void change('advance')}>{t('ztpAdvance')}</button></>}
         {canAdvance && <><div className="field"><label htmlFor="ztp-phenomenon">{t('ztpPhenomenon')}</label><input id="ztp-phenomenon" value={phenomenon} onChange={e => setPhenomenon(e.target.value)} /></div><div className="field"><label htmlFor="ztp-cause">{t('ztpCause')}</label><input id="ztp-cause" value={cause} onChange={e => setCause(e.target.value)} /></div><div className="field"><label htmlFor="ztp-next">{t('ztpNextAction')}</label><input id="ztp-next" value={nextAction} onChange={e => setNextAction(e.target.value)} /></div><button className="secondary-button" disabled={action.busy || !phenomenon.trim() || !cause.trim() || !nextAction.trim()} onClick={() => void change('fail')}>{t('ztpFail')}</button></>}
         {current.state === 'failed' && current.next_retry_at && <button disabled={action.busy || clock < new Date(current.next_retry_at).getTime()} onClick={() => void change('retry')}>{t('ztpRetry')}</button>}
       </div>}

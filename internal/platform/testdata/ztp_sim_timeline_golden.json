@@ -1,0 +1,11 @@
+[
+  {"state":"powered","event_code":"sim.powered","evidence_prefix":""},
+  {"state":"dhcp","event_code":"sim.dhcp","evidence_prefix":"mock-kea:"},
+  {"state":"booturl","event_code":"sim.booturl","evidence_prefix":"mock-kea-url:"},
+  {"state":"identity","event_code":"sim.identity","evidence_prefix":"sim-auto:"},
+  {"state":"lookup","event_code":"sim.lookup","evidence_prefix":"sot-lookup:matched:"},
+  {"state":"fetch","event_code":"sim.fetch","evidence_prefix":""},
+  {"state":"config","event_code":"sim.config","evidence_prefix":"sim-auto:"},
+  {"state":"restart","event_code":"sim.restart","evidence_prefix":"sim-auto:"},
+  {"state":"managed","event_code":"sim.managed","evidence_prefix":"mock-credential:cred-switch-1:reachable"}
+]

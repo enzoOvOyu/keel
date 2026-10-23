@@ -28,3 +28,5 @@ export const resolveZTPIdentityIssue = (projectId: string, issueId: string, reas
 
 export type ZTPCredentialIssue = components['schemas']['ZTPCredentialIssue']
 export const listZTPCredentialIssues = (projectId: string, signal?: AbortSignal) => request<ZTPCredentialIssue[]>(`/projects/${encodeURIComponent(projectId)}/ztp/credential-issues`, { signal })
+
+export const runZTPSimSession = (projectId: string, id: string, input: components['schemas']['ZTPSimRunInput'], csrf: string) => request<ZTPDetail>(`${base(projectId)}/${encodeURIComponent(id)}/run`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: JSON.stringify(input) })

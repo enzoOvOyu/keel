@@ -1,3 +1,7 @@
+## 2026-10-23 WP-1.17 自动仿真推进
+
+- 项目管理员可用 `run` 一次推进现有 ZTP 仿真会话的剩余阶段；每步复用已有 DORA/offer、身份反查、批准制品与凭据批次门禁并独立留审计和时间线。可重试的模拟门禁错误会形成 failed 三段式和退避，不把仿真 managed 投影到实体交换机。页面提供快捷按钮；九态 golden JSON 固定模拟时间线契约，隔离 PostgreSQL 验证成功及缺少计划的失败路径。不触及真实 DHCP 或交换机。
+
 ## 2026-10-23 WP-1.17 交换机凭据批次仿真
 
 - migration 024 登记 BOM `credential_batches.csv` 的项目、批次、scope、rotation_policy、vault_path、owner 元数据；不保存口令或私钥。交换机 BOM 中的 `credential_batch_ref` 在 ZTP 仿真从 restart 进入 managed 时读取。已登记的 switch 批次要求操作员显式给出 reachable/expired/unreachable 仿真输入；reachable 在时间线保留 `mock-credential` 引用，expired/unreachable 原子进入 failed、三段式定位、指数退避和项目问题清单；未登记或 scope 不符按 unregistered 失败。页面和项目只读 API 展示问题。此结果仅是模拟输入，不验证 Vault 或真实交换机。

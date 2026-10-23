@@ -125,6 +125,30 @@ func (a *authAPI) registerZTPSimSessions(r *gin.Engine) {
 		}
 		c.JSON(http.StatusCreated, out)
 	})
+	r.POST(base+"/:sessionId/run", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		if !a.writeAllowed(c) {
+			return
+		}
+		var input platform.ZTPSimRunInput
+		if !decodeBody(c, &input) {
+			return
+		}
+		project, err := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		out, err := a.store.RunZTPSimSession(c.Request.Context(), actor, project, c.Param("sessionId"), input, c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, out)
+	})
 	r.GET(base+"/:sessionId", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {

@@ -1603,6 +1603,39 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/projects/{id}/ztp/sim-sessions/{sessionId}/run:
+    post:
+      tags: [BOM]
+      operationId: runZTPSimSession
+      description: Drives the remaining simulated stages using the same backend gates; a blocked stage enters failure and bounded retry. This does not connect to hardware.
+      security: [{sessionCookie: []}]
+      x-permission: project:fabric:plan
+      x-resource-scope: path-project-admin
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZTPSimRunInput' }
+      responses:
+        '200':
+          description: Simulated terminal state or retryable failure.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZTPSessionDetail' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/projects/{id}/ztp/sim-sessions/{sessionId}/actions:
     post:
       tags: [BOM]
@@ -2143,6 +2176,14 @@ components:
         batch_ref: { type: string, minLength: 1, maxLength: 160 }
         boot_channel: { type: string, enum: ['239', '143', '60-43'] }
         identity: { $ref: '#/components/schemas/ZTPIdentityInput' }
+    ZTPSimRunInput:
+      type: object
+      additionalProperties: false
+      required: [expected_version, dora]
+      properties:
+        expected_version: { type: integer, minimum: 1 }
+        dora: { $ref: '#/components/schemas/ZTPDORARequest' }
+        credential_verdict: { type: string, enum: [reachable, expired, unreachable], description: Operator supplied simulation fixture for a registered switch credential batch. }
     ZTPSessionAction:
       type: object
       additionalProperties: false

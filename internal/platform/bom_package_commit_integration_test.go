@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 )
@@ -349,6 +350,43 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if issueErr != nil || len(credentialIssues) != 2 || credentialIssues[0].Verdict != "unreachable" || credentialIssues[1].Verdict != "expired" {
 		t.Fatalf("credential issues: %+v %v", credentialIssues, issueErr)
 	}
+	autoSession, autoErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-1", BootChannel: "239", Identity: ZTPIdentityInput{Serial: "SW-1"}}, "test")
+	if autoErr != nil {
+		t.Fatal(autoErr)
+	}
+	autoSession, autoErr = s.RunZTPSimSession(ctx, actor, project, autoSession.ID, ZTPSimRunInput{ExpectedVersion: autoSession.StateVersion, DORA: dora, CredentialVerdict: "reachable"}, "test")
+	if autoErr != nil || autoSession.State != "managed" || len(autoSession.Events) != 9 {
+		t.Fatalf("automatic ZTP simulation: %+v %v", autoSession, autoErr)
+	}
+	goldenRaw, goldenErr := os.ReadFile("testdata/ztp_sim_timeline_golden.json")
+	if goldenErr != nil {
+		t.Fatal(goldenErr)
+	}
+	var golden []struct {
+		State          string `json:"state"`
+		EventCode      string `json:"event_code"`
+		EvidencePrefix string `json:"evidence_prefix"`
+	}
+	if goldenErr = json.Unmarshal(goldenRaw, &golden); goldenErr != nil {
+		t.Fatal(goldenErr)
+	}
+	if len(autoSession.Events) != len(golden) {
+		t.Fatalf("ZTP golden length: %d", len(autoSession.Events))
+	}
+	for i, want := range golden {
+		got := autoSession.Events[i]
+		if got.ToState != want.State || got.EventCode != want.EventCode || !strings.HasPrefix(got.EvidenceRef, want.EvidencePrefix) {
+			t.Fatalf("ZTP golden stage %d: %+v want %+v", i, got, want)
+		}
+	}
+	blockedSession, autoErr := s.CreateZTPSimSession(ctx, actor, project, ZTPSimSessionInput{BatchRef: "sim-batch-without-plan", BootChannel: "239", Identity: ZTPIdentityInput{Serial: "SW-1"}}, "test")
+	if autoErr != nil {
+		t.Fatal(autoErr)
+	}
+	blockedSession, autoErr = s.RunZTPSimSession(ctx, actor, project, blockedSession.ID, ZTPSimRunInput{ExpectedVersion: blockedSession.StateVersion, DORA: dora, CredentialVerdict: "reachable"}, "test")
+	if autoErr != nil || blockedSession.State != "failed" || blockedSession.NextRetryAt == nil || blockedSession.FailureCause == "" {
+		t.Fatalf("automatic ZTP blocked path: %+v %v", blockedSession, autoErr)
+	}
 	if _, simErr = s.AdvanceZTPSimSession(ctx, actor, project, sim.ID, ZTPSessionAction{Action: "advance", ExpectedVersion: 1, EvidenceRef: "stale"}, "test"); simErr == nil {
 		t.Fatal("stale ZTP state version accepted")
 	}
@@ -432,7 +470,7 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 		t.Fatalf("persisted timeline: %+v %v", loadedSim, simErr)
 	}
 	listedSims, simErr := s.ListZTPSimSessions(ctx, actor, project)
-	if simErr != nil || len(listedSims) != 5 {
+	if simErr != nil || len(listedSims) != 7 {
 		t.Fatalf("simulation board list: %+v %v", listedSims, simErr)
 	}
 
