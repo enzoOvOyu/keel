@@ -1,4 +1,6 @@
 -- A shared target registry keeps control services out of simulated inventory.
+-- Block registrations until backfill and its insert trigger are both installed.
+LOCK TABLE exec_sim_targets IN SHARE ROW EXCLUSIVE MODE;
 CREATE TABLE exec_targets (
  id varchar(32) PRIMARY KEY,
  project_id varchar(32) NOT NULL REFERENCES projects(id),
