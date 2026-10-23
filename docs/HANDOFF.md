@@ -124,3 +124,12 @@ N-S5发布确认：3000当前5c256fd，健康版本一致，031迁移成功。�
 尚未交付的模板/PushJob细项及PoC接入限制已明确列入模块文档；Golden到NP-2投影、全网健康/规则治理/Readiness、ZTP剩余范围与完整FR-0验收仍未完成，不标FR-0闭环。用户目标仍为持续开发至FR-0整体闭环。
 
 部署确认：代码提交 `71049c136628d5583fad3d478865fd7e6b2dabcb` 已推送GitHub；从该提交的干净archive构建镜像，确认未包含026草稿。部署前运行库备份 `/home/ubuntu/.local/state/keel/backups/pre-network-config-20261023T140043Z.dump`，`pg_restore -l` 可读（未执行恢复演练）。新032/033迁移及受限应用角色授权成功，运行库为32个已发布迁移；3000 `/healthz` 返回上述代码版本、API容器healthy，配置页面bundle请求200。`.env` 镜像引用已更新且保持600；生产网络网关未配置/写入未开启。GitHub CI未查询，不声称通过。
+
+
+## 15. 2026-10-23 健康、Readiness、网络证据与日志增量
+
+LL-01～LL-07 类型化指标与安全 AST、精确十进制/窗口/来源校验、最低分健康汇总、NP-1～NP-6 只读门禁、LLDP/线缆查询、14 类日志规则及归一化聚合/分页/JSON CSV 导出已接入。健康页 `/p/{projectId}/health` 共用工作台/Intel 字体、URL 筛选；缺证据 unknown/阻断，协议夹具不能放行生产门禁，服务器 NP-3 仍待真实三方证据。模块协议、边界和未完项见 [NETWORK-HEALTH](NETWORK-HEALTH.md)。不新增数据库迁移，仍 32 个已发布迁移。
+
+本轮有效集成 `/tmp/keel-shell-lw2nw8tb`：真实 API/PostgreSQL/Worker/mTLS 采集协议夹具/浏览器完整链路，通过 Readiness 时效/无数据未知、超 2^53 计数器增量、QoS 不一致、LLDP BOM 端口授权、线缆分页、日志聚合/覆盖缺失/过滤/导出、页面与字体检查。相关 Go 定向测试/vet、TypeScript/构建通过；不代表硬件 PoC 或 FR-0 全体验收。此前中断轮次不记通过。
+
+用户已授权并行开发：规则治理、ZTP 剩余流程、FR-1 作业平台分别推进；共享契约/路由由主线合并。034 预留规则治理、035 预留 FR-1、036 预留 ZTP；各批只有实际提交迁移才可发布。当前原有 AGENTS、026 与 fabric_precheck 草稿保留。本节功能待后续部署确认，不因源码已实现而宣称 3000 已更新。

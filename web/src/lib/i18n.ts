@@ -1,3 +1,4 @@
+import { networkHealthTranslations } from './network-health-i18n'
 import { networkPushTranslations } from './network-push-i18n'
 import { networkTranslations } from './network-i18n'
 import { fabricTranslations } from './fabric-i18n'
@@ -17,6 +18,7 @@ export const resources = {
   zh: { translation: {
     ...managementTranslations.zh,
     ...fabricTranslations.zh,
+    ...networkHealthTranslations.zh,
     ...networkPushTranslations.zh,
     ...networkTranslations.zh,
     ...executionTranslations.zh,
@@ -119,6 +121,7 @@ export const resources = {
   en: { translation: {
     ...managementTranslations.en,
     ...fabricTranslations.en,
+    ...networkHealthTranslations.en,
     ...networkPushTranslations.en,
     ...networkTranslations.en,
     ...executionTranslations.en,

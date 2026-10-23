@@ -1,0 +1,8 @@
+.network-health-page>.panel{padding:var(--space-4);margin-block:var(--space-4)}
+.network-gate-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-4);margin-block:var(--space-4)}
+.network-gate{padding:var(--space-4);border:1px solid var(--color-border);border-radius:var(--radius-sm);overflow-wrap:anywhere}
+.network-gate h2{font-size:var(--font-size-lg);margin-block:0 var(--space-2)}
+.network-gate ul{padding-left:var(--space-4);max-height:160px;overflow:auto}
+.network-health-page pre{white-space:pre-wrap;overflow-wrap:anywhere}
+.network-health-page td{vertical-align:top}
+.network-health-page select{display:block;min-width:180px;margin-top:var(--space-2)}

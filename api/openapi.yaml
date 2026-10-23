@@ -2332,6 +2332,49 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/NetworkPushJob' }
 
+  /api/v1/projects/{id}/fabric/health:
+    get:
+      operationId: getNetworkHealth
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Current project-scoped evidence; unavailable data remains unknown or BLOCKED.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkHealthReport' }
+
+  /api/v1/projects/{id}/fabric/readiness:
+    get:
+      operationId: getNetworkReadiness
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Current project-scoped evidence; unavailable data remains unknown or BLOCKED.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkReadiness' }
+
+  /api/v1/projects/{id}/fabric/devices/{deviceId}/health:
+    get:
+      operationId: getNetworkDeviceHealth
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: deviceId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Current project-scoped evidence; unavailable data remains unknown or BLOCKED.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkDeviceHealth' }
+
+  /api/v1/projects/{id}/fabric/lldp: {"get": {"operationId": "getNetworkLLDP", "security": [{"sessionCookie": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}, {"name": "device_id", "in": "query", "schema": {"type": "string"}, "required": true}, {"name": "port", "in": "query", "schema": {"type": "string"}, "required": true}], "responses": {"200": {"description": "Current project-scoped switch evidence; unknown and fixture sources are explicit.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/NetworkLLDPEvidence"}}}}}}}
+
+  /api/v1/projects/{id}/fabric/cables: {"get": {"operationId": "getNetworkCables", "security": [{"sessionCookie": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}, {"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1}, "required": false}, {"name": "page_size", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 1000}, "required": false}], "responses": {"200": {"description": "Current project-scoped switch evidence; unknown and fixture sources are explicit.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/NetworkCablePage"}}}}}}}
+
+  /api/v1/projects/{id}/fabric/devices/{deviceId}/logs: {"get": {"operationId": "getNetworkLogs", "security": [{"sessionCookie": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}, {"name": "deviceId", "in": "path", "schema": {"type": "string"}, "required": true}, {"name": "hours", "in": "query", "schema": {"type": "integer", "enum": [6, 24, 48, 72], "default": 48}, "required": false}, {"name": "level", "in": "query", "schema": {"type": "string"}, "required": false}, {"name": "keyword", "in": "query", "schema": {"type": "string", "maxLength": 256}, "required": false}, {"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1}, "required": false}, {"name": "page_size", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 1000}, "required": false}, {"name": "format", "in": "query", "schema": {"type": "string", "enum": ["json", "csv"]}, "required": false}], "responses": {"200": {"description": "Current project-scoped switch evidence; unknown and fixture sources are explicit.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/NetworkLogReport"}}, "text/csv": {"schema": {"type": "string"}}}}}}}
+
 components:
 
   securitySchemes:
@@ -2388,6 +2431,115 @@ components:
         maximum: 100
         default: 20
   schemas:
+    NetworkLogEntry: {"type": "object", "required": ["at", "level", "source", "process", "message", "raw", "object_ref"], "properties": {"at": {"type": "string", "format": "date-time"}, "level": {"type": "string", "enum": ["debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"]}, "source": {"type": "string", "enum": ["syslog", "snmp_trap"]}, "process": {"type": "string"}, "message": {"type": "string"}, "raw": {"type": "string"}, "object_ref": {"type": "string"}}}
+    NetworkLogFinding: {"type": "object", "required": ["id", "rule_ref", "category", "severity", "count", "first_at", "last_at", "objects", "samples", "advice"], "properties": {"id": {"type": "string"}, "rule_ref": {"type": "string"}, "category": {"type": "string"}, "severity": {"type": "string"}, "count": {"type": "integer"}, "first_at": {"type": "string", "format": "date-time"}, "last_at": {"type": "string", "format": "date-time"}, "objects": {"type": "array", "items": {"type": "string"}}, "samples": {"type": "array", "items": {"$ref": "#/components/schemas/NetworkLogEntry"}}, "advice": {"type": "string"}}}
+    NetworkLogReport: {"type": "object", "required": ["version", "project_id", "device_id", "source", "evidence_source", "sample_ref", "window_hours", "window_start", "collected_at", "valid_until", "gate", "findings", "entries", "total_entries", "page", "page_size", "warnings"], "properties": {"version": {"type": "string", "enum": ["network-logs/v1"]}, "project_id": {"type": "string"}, "device_id": {"type": "string"}, "source": {"type": "string"}, "evidence_source": {"type": "string"}, "sample_ref": {"type": "string"}, "window_hours": {"type": "integer"}, "window_start": {"type": "string", "format": "date-time"}, "collected_at": {"type": "string", "nullable": true, "format": "date-time"}, "valid_until": {"type": "string", "format": "date-time"}, "gate": {"$ref": "#/components/schemas/NetworkGate"}, "findings": {"type": "array", "items": {"$ref": "#/components/schemas/NetworkLogFinding"}}, "entries": {"type": "array", "items": {"$ref": "#/components/schemas/NetworkLogEntry"}}, "total_entries": {"type": "integer"}, "page": {"type": "integer"}, "page_size": {"type": "integer"}, "warnings": {"type": "array", "items": {"type": "string"}}}}
+    NetworkLLDPEvidence: {"type": "object", "required": ["version", "project_id", "device_id", "port", "gate", "neighbor", "source", "evidence_source", "collected_at", "valid_until", "sample_ref"], "properties": {"version": {"type": "string", "enum": ["network-lldp/v1"]}, "project_id": {"type": "string"}, "device_id": {"type": "string"}, "port": {"type": "string"}, "gate": {"$ref": "#/components/schemas/NetworkGate"}, "neighbor": {"oneOf": [{"$ref": "#/components/schemas/FabricNeighbor"}, {"type": "null"}]}, "source": {"type": "string"}, "evidence_source": {"type": "string"}, "collected_at": {"type": "string", "nullable": true, "format": "date-time"}, "valid_until": {"type": "string", "format": "date-time"}, "sample_ref": {"type": "string"}}}
+    NetworkCableEvidence: {"type": "object", "required": ["cable_id", "endpoint_a_uid", "endpoint_b_uid", "gate", "rule_ref", "source", "evidence_source", "stage", "np3", "collected_at", "valid_until"], "properties": {"cable_id": {"type": "string"}, "endpoint_a_uid": {"type": "string"}, "endpoint_b_uid": {"type": "string"}, "gate": {"$ref": "#/components/schemas/NetworkGate"}, "rule_ref": {"type": "string"}, "source": {"type": "string"}, "evidence_source": {"type": "string"}, "stage": {"type": "string"}, "np3": {"type": "string"}, "collected_at": {"type": "string", "nullable": true, "format": "date-time"}, "valid_until": {"type": "string", "format": "date-time"}}}
+    NetworkCablePage: {"type": "object", "required": ["version", "project_id", "package_id", "page", "page_size", "total", "gate", "items"], "properties": {"version": {"type": "string", "enum": ["network-cables/v1"]}, "project_id": {"type": "string"}, "package_id": {"type": "string"}, "page": {"type": "integer"}, "page_size": {"type": "integer"}, "total": {"type": "integer"}, "gate": {"$ref": "#/components/schemas/NetworkGate"}, "items": {"type": "array", "items": {"$ref": "#/components/schemas/NetworkCableEvidence"}}}}
+    FabricNeighbor: {"type": "object", "required": ["chassis_id", "port_id", "sysname", "sysdesc"], "properties": {"chassis_id": {"type": "string"}, "port_id": {"type": "string"}, "sysname": {"type": "string"}, "sysdesc": {"type": "string"}, "serial": {"type": "string"}}}
+    FabricMetricPoint:
+      type: object
+      required: [key, unit, port, source, at, value]
+      properties:
+        key: { type: string }
+        unit: { type: string }
+        port: { type: string }
+        priority: { type: integer, minimum: 0, maximum: 7 }
+        queue: { type: string }
+        pool: { type: string }
+        source: { type: string }
+        provider: { type: string }
+        at: { type: string, format: date-time }
+        value: { type: number, nullable: true, description: Exact JSON decimal; server retains json.Number for counter arithmetic. }
+
+    NetworkGate:
+      type: object
+      required: [id, state, reasons, evidence_refs]
+      properties:
+        id: { type: string }
+        state: { type: string, enum: [PASS, WARN, FAIL, BLOCKED] }
+        reasons: { type: array, items: { type: string } }
+        evidence_refs: { type: array, items: { type: string } }
+    LosslessHealthRollup:
+      type: object
+      required: [id, score, state, unknown]
+      properties:
+        id: { type: string }
+        score: { type: integer, minimum: 0, maximum: 100 }
+        state: { type: string, enum: [healthy, warning, critical] }
+        unknown: { type: boolean }
+    LosslessFinding:
+      type: object
+      required: [unit, rule_id, applied_rule_ids, state, reason, flags, health_deduction_weight, advice]
+      properties:
+        unit:
+          type: object
+          required: [device, pod, role, port, priority]
+          properties:
+            device: { type: string }
+            pod: { type: string }
+            role: { type: string }
+            port: { type: string }
+            priority: { type: integer, minimum: -1, maximum: 7 }
+            pool: { type: string }
+            queue: { type: string }
+        rule_id: { type: string }
+        applied_rule_ids: { type: array, items: { type: string } }
+        state: { type: string, enum: [normal, info, observe, warning, critical, unknown] }
+        reason: { type: string }
+        value: { type: string }
+        flags: { type: array, items: { type: string } }
+        health_deduction_weight: { type: number }
+        advice: { type: string }
+    LosslessHealth:
+      type: object
+      required: [findings, ports, devices, pods, fabric]
+      properties:
+        findings: { type: array, items: { $ref: '#/components/schemas/LosslessFinding' } }
+        ports: { type: array, items: { $ref: '#/components/schemas/LosslessHealthRollup' } }
+        devices: { type: array, items: { $ref: '#/components/schemas/LosslessHealthRollup' } }
+        pods: { type: array, items: { $ref: '#/components/schemas/LosslessHealthRollup' } }
+        fabric: { $ref: '#/components/schemas/LosslessHealthRollup' }
+    NetworkDeviceHealth:
+      type: object
+      required: [device, protocol, optics, lossless, evidence_source, sample_ref, warnings, finding_counts]
+      properties:
+        device: { $ref: '#/components/schemas/FabricDeviceSummary' }
+        protocol: { $ref: '#/components/schemas/NetworkGate' }
+        optics: { $ref: '#/components/schemas/NetworkGate' }
+        lossless: { $ref: '#/components/schemas/LosslessHealth' }
+        evidence_source: { type: string }
+        sample_ref: { type: string }
+        warnings: { type: array, items: { type: string } }
+        finding_counts: { type: object, additionalProperties: { type: integer } }
+    NetworkHealthReport:
+      type: object
+      required: [version, project_id, package_id, readiness_at, ttl_seconds, valid_until, devices, lossless, ns7, evidence_source]
+      properties:
+        version: { type: string, enum: [network-health/v1] }
+        project_id: { type: string }
+        package_id: { type: string }
+        readiness_at: { type: string, format: date-time }
+        ttl_seconds: { type: integer, enum: [30] }
+        valid_until: { type: string, format: date-time }
+        devices: { type: array, items: { $ref: '#/components/schemas/NetworkDeviceHealth' } }
+        lossless: { $ref: '#/components/schemas/LosslessHealthRollup' }
+        ns7: { $ref: '#/components/schemas/NetworkGate' }
+        evidence_source: { type: string }
+    NetworkReadiness:
+      type: object
+      required: [version, project_id, readiness_at, ttl_seconds, valid_until, g2_admission, gates, evidence_source, health]
+      properties:
+        version: { type: string, enum: [network-readiness/v1] }
+        project_id: { type: string }
+        readiness_at: { type: string, format: date-time }
+        ttl_seconds: { type: integer, enum: [30] }
+        valid_until: { type: string, format: date-time }
+        g2_admission: { type: boolean }
+        gates: { type: array, items: { $ref: '#/components/schemas/NetworkGate' } }
+        evidence_source: { type: string }
+        health: { $ref: '#/components/schemas/NetworkHealthReport' }
 
     NetworkPushInput:
       type: object
@@ -2618,6 +2770,8 @@ components:
       type: object
       required: [version, source, provider, serial, nos, collected_at, capabilities, ports, fdb, arp, bgp_up, ptp_locked]
       properties:
+        logs: { type: array, items: { $ref: '#/components/schemas/NetworkLogEntry' } }
+        log_window_start: { type: string, format: date-time }
         version: { type: string, enum: [fabric-snapshot/v1] }
         source: { type: string, enum: [switch] }
         provider: { type: string }
@@ -2625,6 +2779,12 @@ components:
         nos: { type: string }
         collected_at: { type: string, format: date-time }
         capabilities: { type: object, additionalProperties: { type: boolean } }
+        metric_points:
+          type: array
+          items: { $ref: '#/components/schemas/FabricMetricPoint' }
+        applied_lossless:
+          type: object
+          additionalProperties: { type: object, additionalProperties: true }
         bgp_up: { type: boolean, nullable: true }
         ptp_locked: { type: boolean, nullable: true }
         ports:
@@ -2633,6 +2793,7 @@ components:
             type: object
             required: [name, link_up, lldp_readable, neighbor, speed_mbps, mtu, crc, flaps, optics, metrics]
             properties:
+              optics_applicable: { type: boolean }
               name: { type: string }
               link_up: { type: boolean, nullable: true }
               lldp_readable: { type: boolean }

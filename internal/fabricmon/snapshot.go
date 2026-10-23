@@ -3,8 +3,10 @@
 package fabricmon
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/enzoOvOyu/keel/internal/netbaseline"
 	"math"
 	"strings"
 	"time"
@@ -30,16 +32,17 @@ type Optics struct {
 	Supported    *bool    `json:"supported"`
 }
 type Port struct {
-	Name         string             `json:"name"`
-	LinkUp       *bool              `json:"link_up"`
-	LLDPReadable bool               `json:"lldp_readable"`
-	Neighbor     *Neighbor          `json:"neighbor"`
-	SpeedMbps    *int64             `json:"speed_mbps"`
-	MTU          *int               `json:"mtu"`
-	CRC          *uint64            `json:"crc"`
-	Flaps        *uint64            `json:"flaps"`
-	Optics       *Optics            `json:"optics"`
-	Metrics      map[string]float64 `json:"metrics"`
+	OpticsApplicable *bool              `json:"optics_applicable,omitempty"`
+	Name             string             `json:"name"`
+	LinkUp           *bool              `json:"link_up"`
+	LLDPReadable     bool               `json:"lldp_readable"`
+	Neighbor         *Neighbor          `json:"neighbor"`
+	SpeedMbps        *int64             `json:"speed_mbps"`
+	MTU              *int               `json:"mtu"`
+	CRC              *uint64            `json:"crc"`
+	Flaps            *uint64            `json:"flaps"`
+	Optics           *Optics            `json:"optics"`
+	Metrics          map[string]float64 `json:"metrics"`
 }
 type FDB struct {
 	MAC  string `json:"mac"`
@@ -52,18 +55,22 @@ type ARP struct {
 	Port    string `json:"port"`
 }
 type Snapshot struct {
-	Version      string          `json:"version"`
-	Source       string          `json:"source"`
-	Provider     string          `json:"provider"`
-	Serial       string          `json:"serial"`
-	NOS          string          `json:"nos"`
-	CollectedAt  time.Time       `json:"collected_at"`
-	Capabilities map[string]bool `json:"capabilities"`
-	Ports        []Port          `json:"ports"`
-	FDB          []FDB           `json:"fdb"`
-	ARP          []ARP           `json:"arp"`
-	BGPUp        *bool           `json:"bgp_up"`
-	PTPLocked    *bool           `json:"ptp_locked"`
+	Logs            []LogEntry                `json:"logs,omitempty"`
+	LogWindowStart  *time.Time                `json:"log_window_start,omitempty"`
+	MetricPoints    []MetricPoint             `json:"metric_points,omitempty"`
+	AppliedLossless map[string]map[string]any `json:"applied_lossless,omitempty"`
+	Version         string                    `json:"version"`
+	Source          string                    `json:"source"`
+	Provider        string                    `json:"provider"`
+	Serial          string                    `json:"serial"`
+	NOS             string                    `json:"nos"`
+	CollectedAt     time.Time                 `json:"collected_at"`
+	Capabilities    map[string]bool           `json:"capabilities"`
+	Ports           []Port                    `json:"ports"`
+	FDB             []FDB                     `json:"fdb"`
+	ARP             []ARP                     `json:"arp"`
+	BGPUp           *bool                     `json:"bgp_up"`
+	PTPLocked       *bool                     `json:"ptp_locked"`
 }
 
 func (s Snapshot) Validate(serial string, now time.Time) error {
@@ -79,8 +86,52 @@ func (s Snapshot) Validate(serial string, now time.Time) error {
 	if s.BGPUp != nil && !s.Capabilities["bgp"] || s.PTPLocked != nil && !s.Capabilities["ptp"] {
 		return errors.New("protocol status contradicts collector capability")
 	}
+	if len(s.Logs) > 20000 {
+		return errors.New("log observations exceed limits")
+	}
+	if len(s.Logs) > 0 || s.LogWindowStart != nil {
+		if !s.Capabilities["logs"] || s.LogWindowStart == nil || s.LogWindowStart.After(s.CollectedAt) || s.LogWindowStart.Before(s.CollectedAt.Add(-72*time.Hour)) {
+			return errors.New("log window or capability is invalid")
+		}
+		for _, entry := range s.Logs {
+			if e := entry.Validate(*s.LogWindowStart, s.CollectedAt); e != nil {
+				return e
+			}
+		}
+	}
+	if len(s.MetricPoints) > 100000 || len(s.AppliedLossless) > 8192 {
+		return errors.New("lossless observations exceed limits")
+	}
+	if len(s.MetricPoints) > 0 && !s.Capabilities["lossless_metrics"] {
+		return errors.New("lossless metrics contradict collector capability")
+	}
+	for _, configuration := range s.AppliedLossless {
+		raw, e := json.Marshal(configuration)
+		if e != nil || netbaseline.ValidateConfiguration(raw) != nil {
+			return errors.New("normalized NVUE configuration is invalid or contains secrets")
+		}
+	}
+	if len(s.AppliedLossless) > 0 && !s.Capabilities["nvue"] {
+		return errors.New("NVUE configuration contradicts collector capability")
+	}
+	if len(s.MetricPoints) > 0 {
+		catalog, e := DefaultLosslessCatalog()
+		if e != nil {
+			return e
+		}
+		registry, e := catalog.Registry()
+		if e != nil {
+			return e
+		}
+		if _, e = NewMetricEvaluation(registry, s.MetricPoints, nil, now); e != nil {
+			return e
+		}
+	}
 	seen := map[string]bool{}
 	for _, p := range s.Ports {
+		if p.Optics != nil && p.OpticsApplicable != nil && !*p.OpticsApplicable {
+			return errors.New("optics contradict applicability flag")
+		}
 		if strings.TrimSpace(p.Name) == "" || len(p.Name) > 128 || strings.ContainsAny(p.Name, "\r\n\x00") || seen[p.Name] {
 			return errors.New("invalid or duplicate collector port")
 		}

@@ -1,0 +1,687 @@
+{
+  "version": "lossless-catalog/v1",
+  "metrics": [
+    {
+      "key": "pfc_rx_pause_frames",
+      "unit": "frames",
+      "kind": "counter",
+      "granularity": "port_priority",
+      "sources": [
+        "ethtool"
+      ],
+      "interval_seconds": 60
+    },
+    {
+      "key": "pfc_tx_pause_frames",
+      "unit": "frames",
+      "kind": "counter",
+      "granularity": "port_priority",
+      "sources": [
+        "ethtool"
+      ],
+      "interval_seconds": 60
+    },
+    {
+      "key": "pfc_xoff_duration_ms",
+      "unit": "ms",
+      "kind": "counter",
+      "granularity": "port_priority",
+      "sources": [
+        "events"
+      ],
+      "interval_seconds": 60
+    },
+    {
+      "key": "ecn_marked_packets",
+      "unit": "packets",
+      "kind": "counter",
+      "granularity": "port",
+      "sources": [
+        "ethtool"
+      ],
+      "interval_seconds": 60
+    },
+    {
+      "key": "tx_packets_ecn_enabled_tc",
+      "unit": "packets",
+      "kind": "counter",
+      "granularity": "port",
+      "sources": [
+        "ethtool"
+      ],
+      "interval_seconds": 60
+    },
+    {
+      "key": "roce_cnp_rx",
+      "unit": "packets",
+      "kind": "counter",
+      "granularity": "port",
+      "sources": [
+        "nvue"
+      ],
+      "interval_seconds": 60
+    },
+    {
+      "key": "roce_cnp_tx",
+      "unit": "packets",
+      "kind": "counter",
+      "granularity": "port",
+      "sources": [
+        "nvue"
+      ],
+      "interval_seconds": 60
+    },
+    {
+      "key": "queue_depth_watermark_bytes",
+      "unit": "bytes",
+      "kind": "gauge",
+      "granularity": "port_queue",
+      "sources": [
+        "nvue"
+      ],
+      "interval_seconds": 10
+    },
+    {
+      "key": "buffer_pool_occupancy_bytes",
+      "unit": "bytes",
+      "kind": "gauge",
+      "granularity": "device_pool",
+      "sources": [
+        "nvue"
+      ],
+      "interval_seconds": 10
+    },
+    {
+      "key": "buffer_pool_occupancy_ratio",
+      "unit": "ratio",
+      "kind": "gauge",
+      "granularity": "device_pool",
+      "sources": [
+        "nvue"
+      ],
+      "interval_seconds": 10
+    },
+    {
+      "key": "wjh_drop_events",
+      "unit": "events",
+      "kind": "counter",
+      "granularity": "port_priority",
+      "sources": [
+        "wjh"
+      ],
+      "interval_seconds": 60
+    },
+    {
+      "key": "interface_no_drop_packets",
+      "unit": "packets",
+      "kind": "counter",
+      "granularity": "port_priority",
+      "sources": [
+        "ethtool"
+      ],
+      "interval_seconds": 60
+    },
+    {
+      "key": "ecn_max_threshold_bytes",
+      "unit": "bytes",
+      "kind": "gauge",
+      "granularity": "device_pool",
+      "sources": [
+        "nvue"
+      ],
+      "interval_seconds": 900
+    },
+    {
+      "key": "xoff_buffer_bytes",
+      "unit": "bytes",
+      "kind": "gauge",
+      "granularity": "device_pool",
+      "sources": [
+        "nvue"
+      ],
+      "interval_seconds": 900
+    },
+    {
+      "key": "pool_size_bytes",
+      "unit": "bytes",
+      "kind": "gauge",
+      "granularity": "device_pool",
+      "sources": [
+        "nvue"
+      ],
+      "interval_seconds": 900
+    },
+    {
+      "key": "lossless_ratio_percent",
+      "unit": "percent",
+      "kind": "gauge",
+      "granularity": "device_pool",
+      "sources": [
+        "nvue"
+      ],
+      "interval_seconds": 900
+    }
+  ],
+  "rules": [
+    {
+      "rule_id": "LL-01",
+      "version": 1,
+      "state": "released",
+      "subject_unit": "port_priority",
+      "metric_key": "pfc_window_frames",
+      "expression": {
+        "op": "sum",
+        "args": [
+          {
+            "op": "delta",
+            "key": "pfc_tx_pause_frames"
+          },
+          {
+            "op": "delta",
+            "key": "pfc_rx_pause_frames"
+          }
+        ]
+      },
+      "window_seconds": 60,
+      "comparator": "gte",
+      "hit_threshold": 1,
+      "severity": "critical",
+      "health_deduction_weight": 15,
+      "scope": {},
+      "degrade_to_unknown_when": [
+        "missing_required_source",
+        "window_incomplete",
+        "counter_reset",
+        "source_changed",
+        "rule_disabled"
+      ],
+      "advice": "Review ECN thresholds, approved lossless pool ratio and congestion origin; changes require a new PushJob.",
+      "escalation": {
+        "op": "or",
+        "args": [
+          {
+            "op": "gte",
+            "args": [
+              {
+                "op": "sum",
+                "args": [
+                  {
+                    "op": "delta",
+                    "key": "pfc_tx_pause_frames",
+                    "window_seconds": 60,
+                    "end_offset_seconds": 0
+                  },
+                  {
+                    "op": "delta",
+                    "key": "pfc_rx_pause_frames",
+                    "window_seconds": 60,
+                    "end_offset_seconds": 0
+                  }
+                ]
+              },
+              {
+                "op": "literal",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "op": "and",
+            "args": [
+              {
+                "op": "gte",
+                "args": [
+                  {
+                    "op": "sum",
+                    "args": [
+                      {
+                        "op": "delta",
+                        "key": "pfc_tx_pause_frames",
+                        "window_seconds": 60,
+                        "end_offset_seconds": 0
+                      },
+                      {
+                        "op": "delta",
+                        "key": "pfc_rx_pause_frames",
+                        "window_seconds": 60,
+                        "end_offset_seconds": 0
+                      }
+                    ]
+                  },
+                  {
+                    "op": "literal",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "op": "gte",
+                "args": [
+                  {
+                    "op": "sum",
+                    "args": [
+                      {
+                        "op": "delta",
+                        "key": "pfc_tx_pause_frames",
+                        "window_seconds": 60,
+                        "end_offset_seconds": 60
+                      },
+                      {
+                        "op": "delta",
+                        "key": "pfc_rx_pause_frames",
+                        "window_seconds": 60,
+                        "end_offset_seconds": 60
+                      }
+                    ]
+                  },
+                  {
+                    "op": "literal",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "op": "gte",
+                "args": [
+                  {
+                    "op": "sum",
+                    "args": [
+                      {
+                        "op": "delta",
+                        "key": "pfc_tx_pause_frames",
+                        "window_seconds": 60,
+                        "end_offset_seconds": 120
+                      },
+                      {
+                        "op": "delta",
+                        "key": "pfc_rx_pause_frames",
+                        "window_seconds": 60,
+                        "end_offset_seconds": 120
+                      }
+                    ]
+                  },
+                  {
+                    "op": "literal",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "LL-02",
+      "version": 1,
+      "state": "released",
+      "subject_unit": "port_priority",
+      "metric_key": "pfc_storm",
+      "expression": {
+        "op": "coalesce",
+        "args": [
+          {
+            "op": "gte",
+            "args": [
+              {
+                "op": "delta",
+                "key": "pfc_xoff_duration_ms"
+              },
+              {
+                "op": "literal",
+                "value": 90000
+              }
+            ]
+          },
+          {
+            "op": "and",
+            "args": [
+              {
+                "op": "gte",
+                "args": [
+                  {
+                    "op": "delta",
+                    "key": "pfc_tx_pause_frames",
+                    "window_seconds": 60
+                  },
+                  {
+                    "op": "literal",
+                    "value": 1000
+                  }
+                ]
+              },
+              {
+                "op": "gte",
+                "args": [
+                  {
+                    "op": "delta",
+                    "key": "pfc_tx_pause_frames",
+                    "window_seconds": 60,
+                    "end_offset_seconds": 60
+                  },
+                  {
+                    "op": "literal",
+                    "value": 1000
+                  }
+                ]
+              },
+              {
+                "op": "gte",
+                "args": [
+                  {
+                    "op": "delta",
+                    "key": "pfc_tx_pause_frames",
+                    "window_seconds": 60,
+                    "end_offset_seconds": 120
+                  },
+                  {
+                    "op": "literal",
+                    "value": 1000
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "flags": [
+          "approximation",
+          "degraded"
+        ]
+      },
+      "window_seconds": 300,
+      "comparator": "gte",
+      "hit_threshold": 1,
+      "severity": "critical",
+      "health_deduction_weight": 40,
+      "scope": {},
+      "degrade_to_unknown_when": [
+        "missing_required_source",
+        "window_incomplete",
+        "counter_reset",
+        "source_changed",
+        "rule_disabled"
+      ],
+      "advice": "Locate the pause origin, loops and deadlock detector; isolate only through an approved playbook."
+    },
+    {
+      "rule_id": "LL-03",
+      "version": 1,
+      "state": "released",
+      "subject_unit": "port_priority",
+      "metric_key": "ecn_unmarked_congestion",
+      "expression": {
+        "op": "and",
+        "args": [
+          {
+            "op": "eq",
+            "args": [
+              {
+                "op": "delta",
+                "key": "ecn_marked_packets"
+              },
+              {
+                "op": "literal",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "op": "or",
+            "args": [
+              {
+                "op": "gt",
+                "args": [
+                  {
+                    "op": "max",
+                    "key": "queue_depth_watermark_bytes"
+                  },
+                  {
+                    "op": "literal",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "op": "gte",
+                "args": [
+                  {
+                    "op": "sum",
+                    "args": [
+                      {
+                        "op": "delta",
+                        "key": "pfc_tx_pause_frames"
+                      },
+                      {
+                        "op": "delta",
+                        "key": "pfc_rx_pause_frames"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "literal",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "window_seconds": 3600,
+      "comparator": "gte",
+      "hit_threshold": 1,
+      "severity": "critical",
+      "health_deduction_weight": 20,
+      "scope": {},
+      "degrade_to_unknown_when": [
+        "missing_required_source",
+        "window_incomplete",
+        "counter_reset",
+        "source_changed",
+        "rule_disabled"
+      ],
+      "advice": "Compare approved trust mode, DSCP mapping, enabled traffic classes and hardware ECN counters.",
+      "weak_evidence": {
+        "op": "max",
+        "key": "buffer_pool_occupancy_ratio"
+      }
+    },
+    {
+      "rule_id": "LL-04",
+      "version": 1,
+      "state": "released",
+      "subject_unit": "port_priority",
+      "metric_key": "ecn_marked_ratio",
+      "expression": {
+        "op": "ratio",
+        "args": [
+          {
+            "op": "delta",
+            "key": "ecn_marked_packets"
+          },
+          {
+            "op": "delta",
+            "key": "tx_packets_ecn_enabled_tc"
+          }
+        ]
+      },
+      "window_seconds": 300,
+      "comparator": "gt",
+      "hit_threshold": 0.05,
+      "severity": "warning",
+      "health_deduction_weight": 5,
+      "scope": {},
+      "degrade_to_unknown_when": [
+        "missing_required_source",
+        "window_incomplete",
+        "counter_reset",
+        "source_changed",
+        "rule_disabled"
+      ],
+      "advice": "Review ECN threshold/probability against the approved design; do not change device configuration automatically.",
+      "observe_threshold": 0.02
+    },
+    {
+      "rule_id": "LL-05",
+      "version": 1,
+      "state": "released",
+      "subject_unit": "port_priority",
+      "metric_key": "qos_intent_mismatch",
+      "expression": {
+        "op": "or",
+        "args": [
+          {
+            "op": "set_mismatch",
+            "path_a": "intended.no_drop_priorities",
+            "path_b": "applied.no_drop_priorities"
+          },
+          {
+            "op": "mismatch",
+            "path_a": "intended.dscp_map",
+            "path_b": "applied.dscp_map"
+          },
+          {
+            "op": "mismatch",
+            "path_a": "intended.trust_mode",
+            "path_b": "applied.trust_mode"
+          },
+          {
+            "op": "mismatch",
+            "path_a": "intended.ecn",
+            "path_b": "applied.ecn"
+          },
+          {
+            "op": "mismatch",
+            "path_a": "intended.traffic_pool",
+            "path_b": "applied.traffic_pool"
+          },
+          {
+            "op": "mismatch",
+            "path_a": "intended.roce_profile",
+            "path_b": "applied.roce_profile"
+          },
+          {
+            "op": "mismatch",
+            "path_a": "applied.roce_profile",
+            "path_b": "applied.roce_operational_profile"
+          }
+        ]
+      },
+      "window_seconds": 60,
+      "comparator": "gte",
+      "hit_threshold": 1,
+      "severity": "critical",
+      "health_deduction_weight": 20,
+      "scope": {},
+      "degrade_to_unknown_when": [
+        "missing_required_source",
+        "window_incomplete",
+        "counter_reset",
+        "source_changed",
+        "rule_disabled"
+      ],
+      "advice": "Create a Golden repair plan or request approval for an updated customer intent."
+    },
+    {
+      "rule_id": "LL-06",
+      "version": 1,
+      "state": "released",
+      "subject_unit": "port_priority",
+      "metric_key": "no_drop_queue_drops",
+      "expression": {
+        "op": "coalesce",
+        "args": [
+          {
+            "op": "delta",
+            "key": "wjh_drop_events"
+          },
+          {
+            "op": "delta",
+            "key": "interface_no_drop_packets"
+          }
+        ],
+        "flags": [
+          "degraded"
+        ]
+      },
+      "window_seconds": 60,
+      "comparator": "gte",
+      "hit_threshold": 1,
+      "severity": "critical",
+      "health_deduction_weight": 30,
+      "scope": {},
+      "degrade_to_unknown_when": [
+        "missing_required_source",
+        "window_incomplete",
+        "counter_reset",
+        "source_changed",
+        "rule_disabled"
+      ],
+      "advice": "Locate affected no-drop priority, queue and drop reason; missing both sources remains unknown."
+    },
+    {
+      "rule_id": "LL-07",
+      "version": 1,
+      "state": "released",
+      "subject_unit": "port_priority",
+      "metric_key": "ecn_xoff_occupancy",
+      "expression": {
+        "op": "ratio",
+        "args": [
+          {
+            "op": "latest",
+            "key": "ecn_max_threshold_bytes"
+          },
+          {
+            "op": "coalesce",
+            "args": [
+              {
+                "op": "latest",
+                "key": "xoff_buffer_bytes"
+              },
+              {
+                "op": "product",
+                "args": [
+                  {
+                    "op": "latest",
+                    "key": "pool_size_bytes"
+                  },
+                  {
+                    "op": "ratio",
+                    "args": [
+                      {
+                        "op": "latest",
+                        "key": "lossless_ratio_percent"
+                      },
+                      {
+                        "op": "literal",
+                        "value": 100
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "flags": [
+              "estimated"
+            ]
+          }
+        ]
+      },
+      "window_seconds": 60,
+      "comparator": "gte",
+      "hit_threshold": 0.6,
+      "severity": "warning",
+      "health_deduction_weight": 5,
+      "scope": {},
+      "degrade_to_unknown_when": [
+        "missing_required_source",
+        "window_incomplete",
+        "counter_reset",
+        "source_changed",
+        "rule_disabled"
+      ],
+      "advice": "Review ECN max threshold and the shared traffic-pool allocation; preserve the estimated flag when XOFF is unavailable."
+    }
+  ]
+}

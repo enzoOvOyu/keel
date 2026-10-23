@@ -72,6 +72,7 @@ try:
  import sys
  command=['node','scripts/check-kea-browser.mjs']
  if '--network' in sys.argv:command=['node','scripts/check-network-browser.mjs']
+ if '--health' in sys.argv:command=['node','scripts/check-health-browser.mjs']
  if '--fabric' in sys.argv:command=['node','scripts/check-fabric-browser.mjs']
  if '--sim-regression' in sys.argv:
   command=['python3','scripts/check-execution-integration.py'];env['KEEL_SIM_TEST_TARGETS']='24'

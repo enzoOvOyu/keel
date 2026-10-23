@@ -1,0 +1,114 @@
+[
+  {
+    "rule_id": "LOG-BGP",
+    "version": 1,
+    "pattern": "(?i)bgp.*(down|flap|reset|fail)",
+    "category": "protocol",
+    "severity": "warning",
+    "advice": "Check reciprocal interfaces, LLDP and BGP peer configuration."
+  },
+  {
+    "rule_id": "LOG-OPTIC-POWER",
+    "version": 1,
+    "pattern": "(?i)(optic|optical|rx.power|tx.power).*(low|high|threshold|alarm)",
+    "category": "physical",
+    "severity": "critical",
+    "advice": "Check module DDM and matching link ends before protocol changes."
+  },
+  {
+    "rule_id": "LOG-OPTIC-UNSUPPORTED",
+    "version": 1,
+    "pattern": "(?i)(module|optic|transceiver).*(unsupported|not.supported|unrecognized)",
+    "category": "physical",
+    "severity": "critical",
+    "advice": "Check supported module and NOS compatibility."
+  },
+  {
+    "rule_id": "LOG-LINK",
+    "version": 1,
+    "pattern": "(?i)(link|interface|swp[0-9]+).*(flap|down|lost)",
+    "category": "physical",
+    "severity": "warning",
+    "advice": "Check cabling, optics and reciprocal LLDP."
+  },
+  {
+    "rule_id": "LOG-TEMPERATURE",
+    "version": 1,
+    "pattern": "(?i)(temperature|thermal).*(high|critical|threshold|alarm)",
+    "category": "physical",
+    "severity": "critical",
+    "advice": "Check thermal telemetry and cooling."
+  },
+  {
+    "rule_id": "LOG-POWER",
+    "version": 1,
+    "pattern": "(?i)(power|psu).*(fail|lost|fault)",
+    "category": "physical",
+    "severity": "critical",
+    "advice": "Check power feeds and PSU status."
+  },
+  {
+    "rule_id": "LOG-CONFIG",
+    "version": 1,
+    "pattern": "(?i)(config|commit|nvue).*(fail|error|rollback)",
+    "category": "configuration",
+    "severity": "critical",
+    "advice": "Inspect the PushJob receipt and intended/running diff before retrying."
+  },
+  {
+    "rule_id": "LOG-ZTP",
+    "version": 1,
+    "pattern": "(?i)(ztp|sztp|onie).*(fail|error|timeout)",
+    "category": "bootstrap",
+    "severity": "critical",
+    "advice": "Check approved identity, DHCP/DORA and boot URI evidence."
+  },
+  {
+    "rule_id": "LOG-PTP",
+    "version": 1,
+    "pattern": "(?i)ptp.*(unlock|lost|fail|unsync)",
+    "category": "protocol",
+    "severity": "warning",
+    "advice": "Check clock source, PTP profile and links."
+  },
+  {
+    "rule_id": "LOG-HARDWARE",
+    "version": 1,
+    "pattern": "(?i)(hardware|asic|table|fib).*(fail|full|exhaust)",
+    "category": "hardware",
+    "severity": "critical",
+    "advice": "Check forwarding table capacity and hardware status."
+  },
+  {
+    "rule_id": "LOG-MLAG",
+    "version": 1,
+    "pattern": "(?i)(mlag|clag).*(fail|down|inconsisten|split)",
+    "category": "protocol",
+    "severity": "critical",
+    "advice": "Check peerlink and MLAG consistency."
+  },
+  {
+    "rule_id": "LOG-RESOURCE",
+    "version": 1,
+    "pattern": "(?i)(memory|cpu|disk|resource).*(exhaust|full|high|out.of|fail)",
+    "category": "system",
+    "severity": "warning",
+    "advice": "Inspect system resources and responsible processes."
+  },
+  {
+    "rule_id": "LOG-NTP",
+    "version": 1,
+    "pattern": "(?i)ntp.*(unsync|fail|lost|timeout)",
+    "category": "protocol",
+    "severity": "warning",
+    "advice": "Check NTP reachability and clock source."
+  },
+  {
+    "rule_id": "LOG-ROCE",
+    "version": 1,
+    "pattern": "(?i)(roce|pfc|ecn|buffer).*(storm|deadlock|drop|congest|fail|alarm)",
+    "category": "lossless",
+    "severity": "critical",
+    "advice": "Correlate per-priority PFC, queue, ECN and WJH evidence; avoid guessing priority mappings."
+  }
+]

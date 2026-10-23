@@ -1131,10 +1131,302 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/fabric/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNetworkHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNetworkReadiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/devices/{deviceId}/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNetworkDeviceHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/lldp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNetworkLLDP"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/cables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNetworkCables"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/devices/{deviceId}/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNetworkLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        NetworkLogEntry: {
+            /** Format: date-time */
+            at: string;
+            /** @enum {string} */
+            level: "debug" | "info" | "notice" | "warning" | "error" | "critical" | "alert" | "emergency";
+            /** @enum {string} */
+            source: "syslog" | "snmp_trap";
+            process: string;
+            message: string;
+            raw: string;
+            object_ref: string;
+        };
+        NetworkLogFinding: {
+            id: string;
+            rule_ref: string;
+            category: string;
+            severity: string;
+            count: number;
+            /** Format: date-time */
+            first_at: string;
+            /** Format: date-time */
+            last_at: string;
+            objects: string[];
+            samples: components["schemas"]["NetworkLogEntry"][];
+            advice: string;
+        };
+        NetworkLogReport: {
+            /** @enum {string} */
+            version: "network-logs/v1";
+            project_id: string;
+            device_id: string;
+            source: string;
+            evidence_source: string;
+            sample_ref: string;
+            window_hours: number;
+            /** Format: date-time */
+            window_start: string;
+            /** Format: date-time */
+            collected_at: string | null;
+            /** Format: date-time */
+            valid_until: string;
+            gate: components["schemas"]["NetworkGate"];
+            findings: components["schemas"]["NetworkLogFinding"][];
+            entries: components["schemas"]["NetworkLogEntry"][];
+            total_entries: number;
+            page: number;
+            page_size: number;
+            warnings: string[];
+        };
+        NetworkLLDPEvidence: {
+            /** @enum {string} */
+            version: "network-lldp/v1";
+            project_id: string;
+            device_id: string;
+            port: string;
+            gate: components["schemas"]["NetworkGate"];
+            neighbor: components["schemas"]["FabricNeighbor"] | null;
+            source: string;
+            evidence_source: string;
+            /** Format: date-time */
+            collected_at: string | null;
+            /** Format: date-time */
+            valid_until: string;
+            sample_ref: string;
+        };
+        NetworkCableEvidence: {
+            cable_id: string;
+            endpoint_a_uid: string;
+            endpoint_b_uid: string;
+            gate: components["schemas"]["NetworkGate"];
+            rule_ref: string;
+            source: string;
+            evidence_source: string;
+            stage: string;
+            np3: string;
+            /** Format: date-time */
+            collected_at: string | null;
+            /** Format: date-time */
+            valid_until: string;
+        };
+        NetworkCablePage: {
+            /** @enum {string} */
+            version: "network-cables/v1";
+            project_id: string;
+            package_id: string;
+            page: number;
+            page_size: number;
+            total: number;
+            gate: components["schemas"]["NetworkGate"];
+            items: components["schemas"]["NetworkCableEvidence"][];
+        };
+        FabricNeighbor: {
+            chassis_id: string;
+            port_id: string;
+            sysname: string;
+            sysdesc: string;
+            serial?: string;
+        };
+        FabricMetricPoint: {
+            key: string;
+            unit: string;
+            port: string;
+            priority?: number;
+            queue?: string;
+            pool?: string;
+            source: string;
+            provider?: string;
+            /** Format: date-time */
+            at: string;
+            /** @description Exact JSON decimal; server retains json.Number for counter arithmetic. */
+            value: number | null;
+        };
+        NetworkGate: {
+            id: string;
+            /** @enum {string} */
+            state: "PASS" | "WARN" | "FAIL" | "BLOCKED";
+            reasons: string[];
+            evidence_refs: string[];
+        };
+        LosslessHealthRollup: {
+            id: string;
+            score: number;
+            /** @enum {string} */
+            state: "healthy" | "warning" | "critical";
+            unknown: boolean;
+        };
+        LosslessFinding: {
+            unit: {
+                device: string;
+                pod: string;
+                role: string;
+                port: string;
+                priority: number;
+                pool?: string;
+                queue?: string;
+            };
+            rule_id: string;
+            applied_rule_ids: string[];
+            /** @enum {string} */
+            state: "normal" | "info" | "observe" | "warning" | "critical" | "unknown";
+            reason: string;
+            value?: string;
+            flags: string[];
+            health_deduction_weight: number;
+            advice: string;
+        };
+        LosslessHealth: {
+            findings: components["schemas"]["LosslessFinding"][];
+            ports: components["schemas"]["LosslessHealthRollup"][];
+            devices: components["schemas"]["LosslessHealthRollup"][];
+            pods: components["schemas"]["LosslessHealthRollup"][];
+            fabric: components["schemas"]["LosslessHealthRollup"];
+        };
+        NetworkDeviceHealth: {
+            device: components["schemas"]["FabricDeviceSummary"];
+            protocol: components["schemas"]["NetworkGate"];
+            optics: components["schemas"]["NetworkGate"];
+            lossless: components["schemas"]["LosslessHealth"];
+            evidence_source: string;
+            sample_ref: string;
+            warnings: string[];
+            finding_counts: {
+                [key: string]: number;
+            };
+        };
+        NetworkHealthReport: {
+            /** @enum {string} */
+            version: "network-health/v1";
+            project_id: string;
+            package_id: string;
+            /** Format: date-time */
+            readiness_at: string;
+            /** @enum {integer} */
+            ttl_seconds: 30;
+            /** Format: date-time */
+            valid_until: string;
+            devices: components["schemas"]["NetworkDeviceHealth"][];
+            lossless: components["schemas"]["LosslessHealthRollup"];
+            ns7: components["schemas"]["NetworkGate"];
+            evidence_source: string;
+        };
+        NetworkReadiness: {
+            /** @enum {string} */
+            version: "network-readiness/v1";
+            project_id: string;
+            /** Format: date-time */
+            readiness_at: string;
+            /** @enum {integer} */
+            ttl_seconds: 30;
+            /** Format: date-time */
+            valid_until: string;
+            g2_admission: boolean;
+            gates: components["schemas"]["NetworkGate"][];
+            evidence_source: string;
+            health: components["schemas"]["NetworkHealthReport"];
+        };
         NetworkPushInput: {
             template_id: string;
             baseline_ref: string;
@@ -1341,6 +1633,9 @@ export interface components {
             supported: boolean | null;
         } | null;
         FabricSwitchSnapshot: {
+            logs?: components["schemas"]["NetworkLogEntry"][];
+            /** Format: date-time */
+            log_window_start?: string;
             /** @enum {string} */
             version: "fabric-snapshot/v1";
             /** @enum {string} */
@@ -1353,9 +1648,16 @@ export interface components {
             capabilities: {
                 [key: string]: boolean;
             };
+            metric_points?: components["schemas"]["FabricMetricPoint"][];
+            applied_lossless?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
             bgp_up: boolean | null;
             ptp_locked: boolean | null;
             ports: {
+                optics_applicable?: boolean;
                 name: string;
                 link_up: boolean | null;
                 lldp_readable: boolean;
@@ -4926,6 +5228,154 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NetworkPushJob"];
+                };
+            };
+        };
+    };
+    getNetworkHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current project-scoped evidence; unavailable data remains unknown or BLOCKED. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkHealthReport"];
+                };
+            };
+        };
+    };
+    getNetworkReadiness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current project-scoped evidence; unavailable data remains unknown or BLOCKED. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkReadiness"];
+                };
+            };
+        };
+    };
+    getNetworkDeviceHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                deviceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current project-scoped evidence; unavailable data remains unknown or BLOCKED. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkDeviceHealth"];
+                };
+            };
+        };
+    };
+    getNetworkLLDP: {
+        parameters: {
+            query: {
+                device_id: string;
+                port: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current project-scoped switch evidence; unknown and fixture sources are explicit. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkLLDPEvidence"];
+                };
+            };
+        };
+    };
+    getNetworkCables: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current project-scoped switch evidence; unknown and fixture sources are explicit. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkCablePage"];
+                };
+            };
+        };
+    };
+    getNetworkLogs: {
+        parameters: {
+            query?: {
+                hours?: 6 | 24 | 48 | 72;
+                level?: string;
+                keyword?: string;
+                page?: number;
+                page_size?: number;
+                format?: "json" | "csv";
+            };
+            header?: never;
+            path: {
+                id: string;
+                deviceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current project-scoped switch evidence; unknown and fixture sources are explicit. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkLogReport"];
+                    "text/csv": string;
                 };
             };
         };

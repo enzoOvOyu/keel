@@ -49,6 +49,32 @@ class KeaFixture:
      for index,other in [(2,3),(3,2)]:
       port='swp99' if fixture.fault.read_text()=='fabric-wrong-port' and index==2 else 'swp1'
       devices.append({'version':'fabric-snapshot/v1','source':'switch','provider':'protocol-fixture/v1','serial':'FIXTURE-SW-'+str(index),'nos':'cumulus-fixture','collected_at':now.isoformat(),'capabilities':{'lldp':True,'interfaces':True,'ddm':True,'bgp':True,'ptp':True},'bgp_up':True,'ptp_locked':True,'ports':[{'name':'swp1','link_up':True,'lldp_readable':True,'neighbor':{'serial':'FIXTURE-SW-'+str(other),'chassis_id':'02:00:00:00:01:'+str(other).zfill(2),'port_id':port,'sysname':'fixture-'+str(other),'sysdesc':'fixture'},'speed_mbps':100000,'mtu':9216,'crc':0,'flaps':0,'optics':{'vendor':'fixture','model':'fixture-optic','serial':'OPTIC-'+str(index),'media_type':'optical','rx_dbm':-4,'tx_dbm':-3,'temperature_c':42,'voltage_v':3.3,'bias_ma':5,'supported':True},'metrics':{'pfc_tx_pause_frames':0}}],'fdb':[],'arp':[]})
+     if fixture.fault.read_text().startswith('fabric-lossless'):
+      for device in devices:
+       device['capabilities'].update(lossless_metrics=True,nvue=True)
+       intended={'no_drop_priorities':[6],'dscp_map':{'17':6},'trust_mode':'dscp','ecn':{'enabled_tc':[6],'min_threshold_bytes':20,'max_threshold_bytes':100,'probability':0.05},'traffic_pool':{'lossless_ratio_percent':60},'roce_profile':'lossless','pool':'shared-lossless','queue':'6'}
+       applied={**intended,'roce_operational_profile':'lossless'}
+       if fixture.fault.read_text()=='fabric-lossless-qos':applied['trust_mode']='pcp'
+       device['applied_lossless']={'swp1':applied}
+       points=[]
+       definitions=[('pfc_rx_pause_frames','frames','port_priority','ethtool',60,9007199254740992),('pfc_tx_pause_frames','frames','port_priority','ethtool',60,9007199254740992),('pfc_xoff_duration_ms','ms','port_priority','events',60,0),('ecn_marked_packets','packets','port','ethtool',60,0),('tx_packets_ecn_enabled_tc','packets','port','ethtool',60,1000000),('queue_depth_watermark_bytes','bytes','port_queue','nvue',10,0),('buffer_pool_occupancy_ratio','ratio','device_pool','nvue',10,0),('wjh_drop_events','events','port_priority','wjh',60,0),('interface_no_drop_packets','packets','port_priority','ethtool',60,0),('ecn_max_threshold_bytes','bytes','device_pool','nvue',900,100),('xoff_buffer_bytes','bytes','device_pool','nvue',900,1000),('pool_size_bytes','bytes','device_pool','nvue',900,160000000),('lossless_ratio_percent','percent','device_pool','nvue',900,60)]
+       for key,unit,axis,source,period,value in definitions:
+        for offset in range(-3600,1,period):
+         if fixture.fault.read_text()=='fabric-lossless-gap' and key=='ecn_marked_packets' and -1200<offset<-600:continue
+         v=value
+         if key=='tx_packets_ecn_enabled_tc':v=value+(3600+offset)*100
+         if key=='pfc_tx_pause_frames' and offset==0 and fixture.fault.read_text()=='fabric-lossless-pfc':v+=1
+         point={'key':key,'unit':unit,'source':source,'at':(now+datetime.timedelta(seconds=offset)).isoformat(),'value':v,'port':''}
+         if axis.startswith('port'):point['port']='swp1'
+         if axis=='port_priority':point['priority']=6
+         if axis=='port_queue':point['queue']='6'
+         if axis=='device_pool':point['pool']='shared-lossless'
+         points.append(point)
+       device['metric_points']=points
+       device['capabilities']['logs']=True
+       device['log_window_start']=(now-datetime.timedelta(hours=48)).isoformat()
+       device['logs']=[{'at':(now-datetime.timedelta(minutes=minute)).isoformat(),'level':'error','source':'syslog','process':'bgpd','message':'BGP peer down','raw':'BGP peer down on swp1','object_ref':'swp1'} for minute in [2,1]]+[{'at':now.isoformat(),'level':'error','source':'snmp_trap','process':'asic','message':'unrecognized fault 42','raw':'unrecognized fault 42','object_ref':''}]
+
      if fixture.fault.read_text()=='fabric-foreign-device':devices[0]['serial']='FOREIGN-DEVICE'
      if fixture.fault.read_text()=='fabric-no-data':devices=[]
      self.answer({'version':'fabric-collection/v1','project_id':self.path.split('/')[3],'evidence_source':'protocol_fixture','devices':devices})

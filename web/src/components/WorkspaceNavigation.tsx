@@ -4,13 +4,14 @@ import type { Project, Session } from '../lib/api'
 import { useSession } from '../lib/session'
 import { Icon, type IconName } from './Icon'
 
-type ProjectPage = '/p/$projectId/configuration' | '/p/$projectId/fabric' | '/p/$projectId' | '/p/$projectId/members' | '/p/$projectId/audits' | '/p/$projectId/assets' | '/p/$projectId/ztp' | '/p/$projectId/executions' | '/p/$projectId/models' | '/p/$projectId/media'
+type ProjectPage = '/p/$projectId/health' | '/p/$projectId/configuration' | '/p/$projectId/fabric' | '/p/$projectId' | '/p/$projectId/members' | '/p/$projectId/audits' | '/p/$projectId/assets' | '/p/$projectId/ztp' | '/p/$projectId/executions' | '/p/$projectId/models' | '/p/$projectId/media'
 type Item = { to: ProjectPage; label: string; icon: IconName; permission?: string; admin?: boolean }
 const deployment: Item[] = [
   { to: '/p/$projectId', label: 'overviewTab', icon: 'overview' },
   { to: '/p/$projectId/assets', label: 'bomTab', icon: 'box', permission: 'model:read' },
 ]
 const operations: Item[] = [
+ {to:'/p/$projectId/health',label:'networkHealthTitle',icon:'network',permission:'fabric:read'},
   { to: '/p/$projectId/configuration', label: 'networkConfiguration', icon: 'layers', permission: 'fabric:read' },
   { to: '/p/$projectId/fabric', label: 'fabricTab', icon: 'network', permission: 'fabric:read' },
   { to: '/p/$projectId/ztp', label: 'ztpTab', icon: 'network', permission: 'model:read' },
