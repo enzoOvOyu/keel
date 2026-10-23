@@ -64,4 +64,41 @@ func TestSZTPRequestParsingAndCertificateGate(t *testing.T) {
 	if recorder.Code != http.StatusUnauthorized {
 		t.Fatalf("proxy certificate header bypassed TLS gate: %d", recorder.Code)
 	}
+	progressReq := httptest.NewRequest(http.MethodPost, "https://boot.example.invalid"+sztpProgressPath, strings.NewReader(`{"ietf-sztp-bootstrap-server:input":{"progress-type":"bootstrap-complete"}}`))
+	progressReq.RemoteAddr = req.RemoteAddr
+	progressReq.Header.Set("X-Forwarded-Client-Cert", "spoof")
+	progressReq.Header.Set("Content-Type", "application/yang-data+json")
+	progressRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(progressRecorder, progressReq)
+	if progressRecorder.Code != http.StatusUnauthorized {
+		t.Fatalf("progress report bypassed TLS gate: %d", progressRecorder.Code)
+	}
+}
+
+func TestSZTPProgressJSONValidation(t *testing.T) {
+	valid := []string{
+		`{"ietf-sztp-bootstrap-server:input":{"progress-type":"pre-script-complete","message":"isolation applied"}}`,
+		`{"ietf-sztp-bootstrap-server:input":{"progress-type":"bootstrap-complete","ssh-host-keys":{"ssh-host-key":[{"algorithm":"ssh-ed25519","key-data":"AQID"}]},"trust-anchor-certs":{"trust-anchor-cert":["AQID"]}}}`,
+	}
+	for _, body := range valid {
+		req := httptest.NewRequest(http.MethodPost, sztpProgressPath, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/yang-data+json")
+		result, err := parseSZTPProgress(req)
+		if err != nil || result.Type == "" || len(result.EvidenceSHA256) != 64 {
+			t.Fatalf("valid report rejected: %+v %v", result, err)
+		}
+	}
+	invalid := []string{
+		`{"ietf-sztp-bootstrap-server:input":{"progress-type":"pre-script-complete","ssh-host-keys":{"ssh-host-key":[]}}}`,
+		`{"ietf-sztp-bootstrap-server:input":{"progress-type":"bootstrap-complete","ssh-host-keys":{"ssh-host-key":[{"algorithm":"ssh-ed25519","key-data":"not base64"}]}}}`,
+		`{"ietf-sztp-bootstrap-server:input":{"progress-type":"bootstrap-complete","unknown":true}}`,
+		`{"ietf-sztp-bootstrap-server:input":{"message":"missing type"}}`,
+	}
+	for _, body := range invalid {
+		req := httptest.NewRequest(http.MethodPost, sztpProgressPath, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/yang-data+json")
+		if _, err := parseSZTPProgress(req); err == nil {
+			t.Fatalf("invalid report accepted: %s", body)
+		}
+	}
 }

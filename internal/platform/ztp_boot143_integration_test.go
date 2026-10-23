@@ -3,6 +3,7 @@ package platform
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
@@ -55,6 +56,12 @@ func TestSZTP143ApprovedIsolationAndAmbiguousRoute(t *testing.T) {
 	if err = stage("rack-a"); err != nil {
 		t.Fatal(err)
 	}
+	progress := SZTPProgress{Type: "pre-script-complete", Message: "isolation applied", EvidenceSHA256: strings.Repeat("a", 64)}
+	if err = s.RecordZTP143Progress(ctx, "UNKNOWN-SW-143", "192.0.2.8", "boot.example.invalid", "test", progress); err == nil {
+		t.Fatal("progress accepted before bootstrap data delivery")
+	} else {
+		assertErrorCode(t, err, "SZTP_PROGRESS_NO_BOOTSTRAP")
+	}
 	for _, tc := range []struct {
 		ip, host string
 		signed   bool
@@ -70,6 +77,36 @@ func TestSZTP143ApprovedIsolationAndAmbiguousRoute(t *testing.T) {
 	served, err := call("192.0.2.8", "boot.example.invalid", false)
 	if err != nil || served.IdentityVerdict != "isolated" || served.ProjectID != project.ID || len(served.CMS) == 0 {
 		t.Fatalf("approved isolation onboarding: %+v %v", served, err)
+	}
+	if err = s.RecordZTP143Progress(ctx, "UNKNOWN-SW-143", "198.51.100.8", "boot.example.invalid", "test", progress); err == nil {
+		t.Fatal("outside management source reported progress")
+	}
+	if err = s.RecordZTP143Progress(ctx, "OTHER-SW", "192.0.2.8", "boot.example.invalid", "test", progress); err == nil {
+		t.Fatal("other serial borrowed bootstrap report")
+	}
+	if err = s.RecordZTP143Progress(ctx, "UNKNOWN-SW-143", "192.0.2.8", "boot.example.invalid", "test", SZTPProgress{Type: "made-up", EvidenceSHA256: strings.Repeat("a", 64)}); err == nil {
+		t.Fatal("unknown progress type accepted")
+	}
+	if err = s.RecordZTP143Progress(ctx, "UNKNOWN-SW-143", "192.0.2.8", "boot.example.invalid", "test", progress); err != nil {
+		t.Fatal(err)
+	}
+	observations, err := s.ListZTPDeviceObservations(ctx, uploader, project)
+	if err != nil || len(observations) != 2 || observations[0].EventType != "report" || observations[1].EventType != "data-served" {
+		t.Fatalf("device observations: %+v %v", observations, err)
+	}
+	if _, err = s.DB.ExecContext(ctx, `UPDATE ztp_device_observations SET message='tampered' WHERE id=$1`, observations[0].ID); err == nil {
+		t.Fatal("device observation was mutable")
+	}
+	if err = s.RecordZTP143Progress(ctx, "UNKNOWN-SW-143", "192.0.2.8", "boot.example.invalid", "test", SZTPProgress{Type: "bootstrap-complete", EvidenceSHA256: strings.Repeat("b", 64)}); err != nil {
+		t.Fatal(err)
+	}
+	observations, err = s.ListZTPDeviceObservations(ctx, uploader, project)
+	if err != nil || len(observations) != 3 || observations[0].ProgressType != "bootstrap-complete" {
+		t.Fatalf("completion claim not recorded: %+v %v", observations, err)
+	}
+	var managedCount int
+	if err = s.DB.QueryRowContext(ctx, `SELECT count(*) FROM ztp_sessions WHERE project_id=$1 AND mode='device' AND state='managed'`, project.ID).Scan(&managedCount); err != nil || managedCount != 0 {
+		t.Fatalf("device completion claim projected to managed: %d %v", managedCount, err)
 	}
 	if err = stage("rack-b"); err == nil {
 		t.Fatal("overlapping bootstrap route committed")

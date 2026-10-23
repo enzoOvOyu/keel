@@ -465,7 +465,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Cumulus option 239 boot URL. Requires a direct management-subnet TCP peer, exact committed project/batch/stage/policy URL, CUMULUS-* identity headers and an approved ztp_script media digest. Serves isolation only; never production configuration or readiness PASS. */
+        /** @description Cumulus option 239 boot URL on the dedicated management-network TLS listener only; the application API does not mount this operation. Requires a direct management-subnet TCP peer, exact committed project/batch/stage/policy URL, CUMULUS-* identity headers and an approved ztp_script media digest. Serves isolation only; never production configuration or readiness PASS. */
         get: operations["fetchZTP239IsolationScript"];
         put?: never;
         post?: never;
@@ -518,7 +518,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Promotes the exact staged mock candidate to active; never writes to real Kea. */
+        /** @description Promotes the exact staged mock candidate only when its referenced isolation script media is independently approved and matches the generated digest and size; rejects overlapping management subnets with the same 143 bootstrap URI across active batches; never writes to real Kea. */
         post: operations["commitZTPMockKeaPlan"];
         delete?: never;
         options?: never;
@@ -535,8 +535,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Read-only mock DORA offer selection from the committed management subnet plan. */
+        /** @description Read-only mock DORA offer selection from the committed management subnet plan. A retired or changed boot artifact yields no_offer, even if the plan remains active for audit. */
         post: operations["simulateZTPDORA"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/device-observations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists the most recent 100 authenticated device bootstrap observations. Progress reports are device claims and never mark a switch managed or NP-2 ready. */
+        get: operations["listZTPDeviceObservations"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -814,6 +831,24 @@ export interface components {
             identity_verdict: string;
             /** Format: date-time */
             updated_at: string;
+        };
+        ZTPDeviceObservation: {
+            id: components["schemas"]["EntityID"];
+            batch_ref: string;
+            switch_id?: components["schemas"]["EntityID"];
+            serial_number: string;
+            source_ip: string;
+            /** @enum {string} */
+            boot_channel: "143";
+            /** @enum {string} */
+            event_type: "data-served" | "report";
+            progress_type?: string;
+            message?: string;
+            offer_hash: string;
+            evidence_sha256?: string;
+            trace_id: string;
+            /** Format: date-time */
+            occurred_at: string;
         };
         ZTPSimSessionInput: {
             batch_ref: string;
@@ -2652,6 +2687,31 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    listZTPDeviceObservations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped device observations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPDeviceObservation"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listZTPSimSessions: {

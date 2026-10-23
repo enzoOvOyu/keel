@@ -71,7 +71,7 @@ python3 scripts/configure-development.py --grant
 
 ## SZTP 143 开发入口（开发分支）
 
-143 设备入口使用独立 TLS 监听器，只有同时配置下列四个变量且 API 连接到已迁移的开发/隔离数据库时才启动：`KEEL_SZTP_LISTEN_ADDR`、`KEEL_SZTP_TLS_CERT_FILE`、`KEEL_SZTP_TLS_KEY_FILE`、`KEEL_SZTP_IDEVID_CA_FILE`。CA 文件仅接受 PEM 编码的签发 CA；TLS 强制设备客户端证书，并按该 CA 重新验证 IDevID 链及 subject serialNumber。监听器只暴露 `POST /restconf/operations/ietf-sztp-bootstrap-server:get-bootstrapping-data`，需要 `application/yang-data+json` 输入；无输入时可用空 body。option 143 必须是 `https://host[:port]`。设备必须从 active mock Kea 管理网来源直连，请求 Host 必须与唯一 active URI 对应，且脚本介质已独立批准。收到 `signed-data-preferred` 时返回错误，绝不发送未签名 onboarding。
+143 设备入口使用独立 TLS 监听器，只有同时配置下列四个变量且 API 连接到已迁移的开发/隔离数据库时才启动：`KEEL_SZTP_LISTEN_ADDR`、`KEEL_SZTP_TLS_CERT_FILE`、`KEEL_SZTP_TLS_KEY_FILE`、`KEEL_SZTP_IDEVID_CA_FILE`。CA 文件仅接受 PEM 编码的签发 CA；TLS 强制设备客户端证书，并按该 CA 重新验证 IDevID 链及 subject serialNumber。监听器只暴露 `POST /restconf/operations/ietf-sztp-bootstrap-server:get-bootstrapping-data` 和 `POST /restconf/operations/ietf-sztp-bootstrap-server:report-progress`；前者可用空 body，后者要求 `application/yang-data+json` 的 RFC 8572 输入。报告需匹配 30 分钟内同一证书 SN、TCP 来源和 active offer 的引导数据读取；只保存受限消息和载荷摘要，完成回报不更新 managed 或 NP-2。option 143 必须是 `https://host[:port]`。设备必须从 active mock Kea 管理网来源直连，请求 Host 必须与唯一 active URI 对应，且脚本介质已独立批准。收到 `signed-data-preferred` 时返回错误，绝不发送未签名 onboarding。
 
 这一入口是开发验证能力，尚未部署到 3000 端口 P1 镜像，也不证明设备信任服务器证书、真实 Kea 生效、RESTCONF 全部操作或交换机真机开通。生产使用前需在独立管理网部署、配置受保护的服务器私钥与制造商 CA，并完成目标设备证书链及机型 PoC。不得把开发 mock offer 当作真实 DHCP 证据。
 

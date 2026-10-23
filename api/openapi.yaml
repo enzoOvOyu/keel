@@ -1394,6 +1394,30 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/ztp/device-observations:
+    get:
+      tags: [BOM]
+      operationId: listZTPDeviceObservations
+      description: Lists the most recent 100 authenticated device bootstrap observations. Progress reports are device claims and never mark a switch managed or NP-2 ready.
+      security: [{sessionCookie: []}]
+      x-permission: project:fabric:read
+      x-resource-scope: path-project
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/EntityID' }
+      responses:
+        '200':
+          description: Project-scoped device observations.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ZTPDeviceObservation' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/projects/{id}/ztp/sim-sessions:
     get:
       tags: [BOM]
@@ -1935,6 +1959,24 @@ components:
         attempt: { type: integer }
         identity_verdict: { type: string }
         updated_at: { type: string, format: date-time }
+    ZTPDeviceObservation:
+      type: object
+      additionalProperties: false
+      required: [id, batch_ref, serial_number, source_ip, boot_channel, event_type, offer_hash, trace_id, occurred_at]
+      properties:
+        id: { $ref: '#/components/schemas/EntityID' }
+        batch_ref: { type: string }
+        switch_id: { $ref: '#/components/schemas/EntityID' }
+        serial_number: { type: string }
+        source_ip: { type: string }
+        boot_channel: { type: string, enum: ['143'] }
+        event_type: { type: string, enum: [data-served, report] }
+        progress_type: { type: string }
+        message: { type: string, maxLength: 1000 }
+        offer_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        evidence_sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        trace_id: { type: string }
+        occurred_at: { type: string, format: date-time }
     ZTPSimSessionInput:
       type: object
       additionalProperties: false
