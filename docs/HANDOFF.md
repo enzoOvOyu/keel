@@ -1,3 +1,7 @@
+## 2026-10-23 WP-1.17 239 URL 可达性门禁
+
+- mock Kea 的项目计划在 commit 前拒绝 HTTP 239 URL：部署的 239 设备入口仅提供 HTTPS，不能发布设备无法访问的引导地址。纯 mock 配置校验仍可表达 HTTP(S) 契约，只有当前项目的真实入口约束在提交时执行。隔离 `keel_test_ztpurl_1023` PostgreSQL 库的 mock Kea、239 与 143 集成测试通过且已清理；未验证真实 Kea 或交换机。
+
 ## 2026-10-23 WP-1.17 H-16 执行包
 
 - `poc/ztp-h16/` 已给出环境清单、239/143 与身份/隔离/冲突/PushJob/Golden 的采证步骤、结果模板和证据 SHA256 校验器；校验器只输出 READY_FOR_REVIEW，不自动宣告硬件 PASS。临时合成证据的完整与篡改负例验证通过；目标交换机尚未执行，H-16 维持 NOT_RUN，且现有 PushJob/Golden 缺口会阻止完整 H-16 签署。

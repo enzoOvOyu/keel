@@ -62,8 +62,8 @@ func checkZTPSimArtifactTx(ctx context.Context, tx *sql.Tx, projectID string, cf
 	if err != nil {
 		return "", err
 	}
-	if channel != "143" && bootURL.Path != "/api/v1/boot/ztp" {
-		return "", apiError(409, "ZTP_BOOT_URL_INVALID", "Active Cumulus URL does not reach the boot endpoint")
+	if bootURL.Scheme != "https" || bootURL.Path != "/api/v1/boot/ztp" {
+		return "", apiError(409, "ZTP_BOOT_URL_INVALID", "Active Cumulus URL must reach the HTTPS boot endpoint")
 	}
 	mediaID := bootURL.Query().Get("policy")
 	if !bootMediaID.MatchString(mediaID) {

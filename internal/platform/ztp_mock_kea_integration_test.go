@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -56,8 +57,23 @@ func TestZTPMockKeaDurableStageCommit(t *testing.T) {
 	if _, err = s.TransitionMedia(ctx, reviewer, project, media.ID, "approved", "test"); err != nil {
 		t.Fatal(err)
 	}
+	insecure := cfg
+	insecure.Option239URL = strings.Replace(cfg.Option239URL, "https://", "http://", 1)
+	badPlan, err := s.StageZTPMockKeaPlan(ctx, actor, project, insecure, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.CommitZTPMockKeaPlan(ctx, actor, project, ZTPMockKeaCommitInput{BatchRef: cfg.BatchRef, StageRef: cfg.StageRef, StagedHash: badPlan.StagedHash, ExpectedVersion: badPlan.Version}, "test"); err == nil {
+		t.Fatal("unreachable HTTP 239 URL committed")
+	} else {
+		assertErrorCode(t, err, "ZTP_BOOT_URL_INVALID")
+	}
+	plan, err = s.StageZTPMockKeaPlan(ctx, actor, project, cfg, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
 	active, err := s.CommitZTPMockKeaPlan(ctx, actor, project, ZTPMockKeaCommitInput{BatchRef: cfg.BatchRef, StageRef: cfg.StageRef, StagedHash: plan.StagedHash, ExpectedVersion: plan.Version}, "test")
-	if err != nil || active.ActiveHash != plan.StagedHash || active.StagedHash != "" || active.Version != 2 {
+	if err != nil || active.ActiveHash != plan.StagedHash || active.StagedHash != "" || active.Version != 4 {
 		t.Fatalf("commit: %+v %v", active, err)
 	}
 	// A fresh Store instance must see the committed plan, unlike the pure in-memory fixture.
@@ -78,7 +94,7 @@ func TestZTPMockKeaDurableStageCommit(t *testing.T) {
 	req.Interface = "eth0"
 	cfg.Option239URL = fmt.Sprintf("https://boot.example.invalid/api/v1/boot/ztp?project=%s&batch=rack-a&stage=N-S4&policy=%s&rev=2", project.ID, media.ID)
 	replacement, err := s.StageZTPMockKeaPlan(ctx, actor, project, cfg, "test")
-	if err != nil || replacement.Version != 3 || replacement.ActiveHash != active.ActiveHash {
+	if err != nil || replacement.Version != 5 || replacement.ActiveHash != active.ActiveHash {
 		t.Fatalf("replacement staging: %+v %v", replacement, err)
 	}
 	unchanged, err := reopened.SimulateZTPDORA(ctx, actor, project, req)
@@ -101,7 +117,7 @@ func TestZTPMockKeaDurableStageCommit(t *testing.T) {
 		t.Fatal("stale active version deactivated")
 	}
 	deactivated, err := s.DeactivateZTPMockKeaPlan(ctx, actor, project, ZTPMockKeaDeactivateInput{BatchRef: "rack-a", StageRef: "N-S4", ActiveHash: active.ActiveHash, ExpectedVersion: replacement.Version, Reason: "replace old batch"}, "test")
-	if err != nil || deactivated.ActiveHash != "" || deactivated.StagedHash != replacement.StagedHash || deactivated.Version != 4 {
+	if err != nil || deactivated.ActiveHash != "" || deactivated.StagedHash != replacement.StagedHash || deactivated.Version != 6 {
 		t.Fatalf("deactivate: %+v %v", deactivated, err)
 	}
 	oldOffer, err := reopened.SimulateZTPDORA(ctx, actor, project, req)
