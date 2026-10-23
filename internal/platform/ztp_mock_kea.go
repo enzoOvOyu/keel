@@ -100,6 +100,11 @@ func (s *Store) CommitZTPMockKeaPlan(ctx context.Context, a *AuthSession, projec
 	if validationErr != nil || recomputed != stagedHash {
 		return nil, apiError(409, "ZTP_KEA_STAGE_INVALID", "Staged Kea configuration failed validation")
 	}
+	// A committed simulated offer must never advertise an unapproved or changed
+	// bootstrap artifact. Device fetch rechecks this gate after commit as well.
+	if _, err = approvedZTPSimArtifactTx(ctx, tx, project.ID, &cfg, "239"); err != nil {
+		return nil, err
+	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	out := &ZTPMockKeaPlan{BatchRef: input.BatchRef, StageRef: input.StageRef, ActiveHash: stagedHash, Version: version + 1, UpdatedAt: now}
 	_, err = tx.ExecContext(ctx, `UPDATE ztp_mock_kea_plans SET active_config=staged_config,active_hash=staged_hash,staged_config=NULL,staged_hash=NULL,version=$4,updated_by=$5,updated_at=$6 WHERE project_id=$1 AND batch_ref=$2 AND stage_ref=$3`, project.ID, input.BatchRef, input.StageRef, out.Version, a.User.ID, now)
@@ -168,6 +173,18 @@ func simulateZTPDORATx(ctx context.Context, tx *sql.Tx, projectID string, req fa
 	result, err := mock.DORA(req)
 	if err != nil {
 		return nil, apiError(400, "ZTP_DORA_INVALID", err.Error())
+	}
+	if result.Outcome != "ack" {
+		return &result, nil
+	}
+	// A retired or altered script invalidates an otherwise active mock offer.
+	// Keep the persisted active snapshot for audit, but never simulate an ACK.
+	if _, err = approvedZTPSimArtifactReadTx(ctx, tx, projectID, &cfg, "239"); err != nil {
+		var policy *Error
+		if errors.As(err, &policy) {
+			return &fabricboot.DORAResult{Outcome: "no_offer", Reason: "bootstrap_artifact_unavailable"}, nil
+		}
+		return nil, err
 	}
 	return &result, nil
 }

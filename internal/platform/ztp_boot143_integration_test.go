@@ -27,18 +27,19 @@ func TestSZTP143ApprovedIsolationAndAmbiguousRoute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stage := func(batch string) {
+	stage := func(batch string) error {
 		t.Helper()
 		cfg := fabricboot.DHCPOptions{BatchRef: batch, StageRef: "N-S4", ManagementCIDR: "192.0.2.0/24", Option239URL: fmt.Sprintf("https://boot.example.invalid/api/v1/boot/ztp?project=%s&batch=%s&stage=N-S4&policy=%s", project.ID, batch, media.ID), Option143URIs: []string{"https://boot.example.invalid"}, Option60VCI: "cumulus-linux x86_64", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"}}
 		plan, e := s.StageZTPMockKeaPlan(ctx, uploader, project, cfg, "test")
 		if e != nil {
 			t.Fatal(e)
 		}
-		if _, e = s.CommitZTPMockKeaPlan(ctx, uploader, project, ZTPMockKeaCommitInput{BatchRef: batch, StageRef: "N-S4", StagedHash: plan.StagedHash, ExpectedVersion: plan.Version}, "test"); e != nil {
-			t.Fatal(e)
-		}
+		_, e = s.CommitZTPMockKeaPlan(ctx, uploader, project, ZTPMockKeaCommitInput{BatchRef: batch, StageRef: "N-S4", StagedHash: plan.StagedHash, ExpectedVersion: plan.Version}, "test")
+		return e
 	}
-	stage("rack-a")
+	if err = stage("rack-a"); err == nil {
+		t.Fatal("unapproved script activated in mock Kea")
+	}
 	call := func(ip, host string, signed bool) (*SZTPOnboarding, error) {
 		return s.ServeZTP143(ctx, "UNKNOWN-SW-143", ip, host, "test", signed)
 	}
@@ -49,6 +50,9 @@ func TestSZTP143ApprovedIsolationAndAmbiguousRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err = s.TransitionMedia(ctx, reviewer, project, media.ID, "approved", "test"); err != nil {
+		t.Fatal(err)
+	}
+	if err = stage("rack-a"); err != nil {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
@@ -67,7 +71,9 @@ func TestSZTP143ApprovedIsolationAndAmbiguousRoute(t *testing.T) {
 	if err != nil || served.IdentityVerdict != "isolated" || served.ProjectID != project.ID || len(served.CMS) == 0 {
 		t.Fatalf("approved isolation onboarding: %+v %v", served, err)
 	}
-	stage("rack-b")
+	if err = stage("rack-b"); err != nil {
+		t.Fatal(err)
+	}
 	if _, err = call("192.0.2.8", "boot.example.invalid", false); err == nil {
 		t.Fatal("ambiguous active bootstrap route accepted")
 	}

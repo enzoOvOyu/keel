@@ -50,6 +50,14 @@ func requireSimDHCPHashTx(ctx context.Context, tx *sql.Tx, sessionID string, att
 }
 
 func approvedZTPSimArtifactTx(ctx context.Context, tx *sql.Tx, projectID string, cfg *fabricboot.DHCPOptions, channel string) (string, error) {
+	return checkZTPSimArtifactTx(ctx, tx, projectID, cfg, channel, true)
+}
+
+func approvedZTPSimArtifactReadTx(ctx context.Context, tx *sql.Tx, projectID string, cfg *fabricboot.DHCPOptions, channel string) (string, error) {
+	return checkZTPSimArtifactTx(ctx, tx, projectID, cfg, channel, false)
+}
+
+func checkZTPSimArtifactTx(ctx context.Context, tx *sql.Tx, projectID string, cfg *fabricboot.DHCPOptions, channel string, lock bool) (string, error) {
 	bootURL, err := url.Parse(cfg.Option239URL)
 	if err != nil {
 		return "", err
@@ -63,7 +71,11 @@ func approvedZTPSimArtifactTx(ctx context.Context, tx *sql.Tx, projectID string,
 	}
 	var digest string
 	var size int64
-	err = tx.QueryRowContext(ctx, `SELECT sha256,size FROM media_items WHERE id=$1 AND scope_key IN($2,'global') AND type='ztp_script' AND state='approved' FOR SHARE`, mediaID, "project:"+projectID).Scan(&digest, &size)
+	query := `SELECT sha256,size FROM media_items WHERE id=$1 AND scope_key IN($2,'global') AND type='ztp_script' AND state='approved'`
+	if lock {
+		query += " FOR SHARE"
+	}
+	err = tx.QueryRowContext(ctx, query, mediaID, "project:"+projectID).Scan(&digest, &size)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", apiError(409, "ZTP_SCRIPT_NOT_APPROVED", "Approved isolation script is required")
 	}

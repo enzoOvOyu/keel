@@ -1,5 +1,10 @@
 # Keel 开发交接
 
+## 2026-10-23 FR-0.3 mock Kea 制品门禁
+
+- `ztp_mock_kea_plans` 的 commit 现要求 239 URL 指向设备脚本端点，`policy` 引用项目或全局已批准 `ztp_script`，且摘要/大小与生成的固定隔离脚本一致；失败保留 staged 候选、不生成 active offer。active 计划的 DORA 仿真在返回 ACK 前重新读介质状态，已退役或变更的脚本使结果为 `no_offer/bootstrap_artifact_unavailable`。设备 fetch 仍独立复核，避免审批状态在会话中变化后继续发脚本。真实 Kea 没有接入，本门禁只证明模拟链路。
+- 隔离 `keel_test_ztp_gate_1023c` PostgreSQL 库执行 239/143、mock Kea 与 BOM 身份集成测试通过；最终调整后在 `keel_test_ztp_gate_1023d` 复测 mock Kea 通过，两库均已删除。`python3 scripts/check-design.py`、相关包 `go vet`、`go test -race`、本轮文件 `git diff --check` 通过。测试容器现有 `/tmp/keel-test-db.env` 中密码与容器实际密码不一致，本轮直接读取该一次性测试容器的环境构建测试连接，未打印或写入凭据；未修改旧测试环境文件。
+
 ## 2026-10-23 FR-0.3 引导入口隔离增量
 
 - 工作目录 `ubuntu@43.207.20.26:/opt/keel`；分支 `dev/p1-network-bom`。239 设备脚本 GET 从普通认证 API 移到可选专用 TLS listener（`KEEL_ZTP239_LISTEN_ADDR`、`KEEL_ZTP239_TLS_CERT_FILE`、`KEEL_ZTP239_TLS_KEY_FILE` 必须同时配置），普通 API 仅保留登录后的脚本审阅 manifest。设备 listener 只接受管理网直接 TCP 对端，拒绝转发身份头；业务校验沿用 active mock Kea、精确 URL、六个 CUMULUS 头、SoT 和批准介质摘要，响应含 trace 与脚本摘要。P1 3000 镜像仍是 `keel:p1-e7d5f1a`，未部署本代码。

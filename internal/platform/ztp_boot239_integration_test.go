@@ -33,8 +33,12 @@ func TestZTP239ApprovedIsolationScript(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitZTPMockKeaPlan(ctx, uploader, project, ZTPMockKeaCommitInput{BatchRef: cfg.BatchRef, StageRef: cfg.StageRef, StagedHash: plan.StagedHash, ExpectedVersion: plan.Version}, "test"); err != nil {
-		t.Fatal(err)
+	commit := func() error {
+		_, e := s.CommitZTPMockKeaPlan(ctx, uploader, project, ZTPMockKeaCommitInput{BatchRef: cfg.BatchRef, StageRef: cfg.StageRef, StagedHash: plan.StagedHash, ExpectedVersion: plan.Version}, "test")
+		return e
+	}
+	if err = commit(); err == nil {
+		t.Fatal("unapproved script activated in mock Kea")
 	}
 	claim := ZTP239Claim{Serial: "UNKNOWN-SW-1", BaseMAC: "aa:bb:cc:dd:ee:01", MgmtMAC: "aa:bb:cc:dd:ee:02", ProductName: "SN5610", Version: "5.0.0", Build: "5.0.0"}
 	serve := func(ip, q string) (*ZTP239Script, error) {
@@ -50,6 +54,9 @@ func TestZTP239ApprovedIsolationScript(t *testing.T) {
 		t.Fatal("uploader self-approved script")
 	}
 	if _, err = s.TransitionMedia(ctx, reviewer, project, media.ID, "approved", "test"); err != nil {
+		t.Fatal(err)
+	}
+	if err = commit(); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = serve("198.51.100.5", query); err == nil {

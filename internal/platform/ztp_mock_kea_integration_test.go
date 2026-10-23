@@ -20,7 +20,11 @@ func TestZTPMockKeaDurableStageCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := fabricboot.DHCPOptions{BatchRef: "rack-a", StageRef: "N-S4", ManagementCIDR: "192.0.2.0/24", Option239URL: fmt.Sprintf("https://boot.example.invalid/ztp?project=%s&batch=rack-a&stage=N-S4&policy=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", project.ID), Option143URIs: []string{"https://boot.example.invalid"}, Option60VCI: "cumulus-linux x86_64", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"}}
+	media, err := s.RegisterMedia(ctx, actor, project, RegisterMediaInput{Type: "ztp_script", Name: "Isolation", Version: "isolation-v1", Sha256: fabricboot.IsolationScriptDigest(), Size: int64(len(fabricboot.IsolationScriptV1)), Arch: "noarch", OsScope: "cumulus-linux-5.x", ManifestRef: "generated:isolation-v1"}, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := fabricboot.DHCPOptions{BatchRef: "rack-a", StageRef: "N-S4", ManagementCIDR: "192.0.2.0/24", Option239URL: fmt.Sprintf("https://boot.example.invalid/api/v1/boot/ztp?project=%s&batch=rack-a&stage=N-S4&policy=%s", project.ID, media.ID), Option143URIs: []string{"https://boot.example.invalid"}, Option60VCI: "cumulus-linux x86_64", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"}}
 	req := fabricboot.DORARequest{BatchRef: "rack-a", StageRef: "N-S4", Interface: "eth0", LinkIP: "192.0.2.1", VendorClass: "cumulus-linux x86_64"}
 	first, err := s.SimulateZTPDORA(ctx, actor, project, req)
 	if err != nil || first.Outcome != "no_offer" {
@@ -36,6 +40,21 @@ func TestZTPMockKeaDurableStageCommit(t *testing.T) {
 	}
 	if _, err = s.CommitZTPMockKeaPlan(ctx, actor, project, ZTPMockKeaCommitInput{BatchRef: cfg.BatchRef, StageRef: cfg.StageRef, StagedHash: "wrong", ExpectedVersion: plan.Version}, "test"); err == nil {
 		t.Fatal("wrong hash committed")
+	}
+	if _, err = s.CommitZTPMockKeaPlan(ctx, actor, project, ZTPMockKeaCommitInput{BatchRef: cfg.BatchRef, StageRef: cfg.StageRef, StagedHash: plan.StagedHash, ExpectedVersion: plan.Version}, "test"); err == nil {
+		t.Fatal("unapproved script activated")
+	} else {
+		assertErrorCode(t, err, "ZTP_SCRIPT_NOT_APPROVED")
+	}
+	if _, err = s.TransitionMedia(ctx, actor, project, media.ID, "verified", "test"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.CreateUser(ctx, "ztp-kea-reviewer", "ZTP Kea Reviewer", password, true, false); err != nil {
+		t.Fatal(err)
+	}
+	_, reviewer := testLogin(t, s, "ztp-kea-reviewer", password, "198.51.100.94")
+	if _, err = s.TransitionMedia(ctx, reviewer, project, media.ID, "approved", "test"); err != nil {
+		t.Fatal(err)
 	}
 	active, err := s.CommitZTPMockKeaPlan(ctx, actor, project, ZTPMockKeaCommitInput{BatchRef: cfg.BatchRef, StageRef: cfg.StageRef, StagedHash: plan.StagedHash, ExpectedVersion: plan.Version}, "test")
 	if err != nil || active.ActiveHash != plan.StagedHash || active.StagedHash != "" || active.Version != 2 {
@@ -57,7 +76,7 @@ func TestZTPMockKeaDurableStageCommit(t *testing.T) {
 		t.Fatalf("front panel got bootstrap options: %+v %v", frontPanel, err)
 	}
 	req.Interface = "eth0"
-	cfg.Option239URL = fmt.Sprintf("https://boot.example.invalid/ztp-v2?project=%s&batch=rack-a&stage=N-S4&policy=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", project.ID)
+	cfg.Option239URL = fmt.Sprintf("https://boot.example.invalid/api/v1/boot/ztp?project=%s&batch=rack-a&stage=N-S4&policy=%s&rev=2", project.ID, media.ID)
 	replacement, err := s.StageZTPMockKeaPlan(ctx, actor, project, cfg, "test")
 	if err != nil || replacement.Version != 3 || replacement.ActiveHash != active.ActiveHash {
 		t.Fatalf("replacement staging: %+v %v", replacement, err)
@@ -77,5 +96,12 @@ func TestZTPMockKeaDurableStageCommit(t *testing.T) {
 	crossProject, err := reopened.SimulateZTPDORA(ctx, actor, otherProject, req)
 	if err != nil || crossProject.Outcome != "no_offer" {
 		t.Fatalf("project scope leaked: %+v %v", crossProject, err)
+	}
+	if _, err = s.TransitionMedia(ctx, reviewer, project, media.ID, "retired", "test"); err != nil {
+		t.Fatal(err)
+	}
+	afterRetire, err := reopened.SimulateZTPDORA(ctx, actor, project, req)
+	if err != nil || afterRetire.Outcome != "no_offer" || afterRetire.Reason != "bootstrap_artifact_unavailable" {
+		t.Fatalf("retired script still advertised: %+v %v", afterRetire, err)
 	}
 }
