@@ -80,6 +80,23 @@ class KeaFixture:
        device['log_window_start']=(now-datetime.timedelta(hours=48)).isoformat()
        device['logs']=[{'at':(now-datetime.timedelta(minutes=minute)).isoformat(),'level':'error','source':'syslog','process':'bgpd','message':'BGP peer down','raw':'BGP peer down on swp1','object_ref':'swp1'} for minute in [2,1]]+[{'at':now.isoformat(),'level':'error','source':'snmp_trap','process':'asic','message':'unrecognized fault 42','raw':'unrecognized fault 42','object_ref':''}]
 
+
+     if fixture.fault.read_text().startswith('fabric-diag'):
+      fault=fixture.fault.read_text()
+      for device in devices:
+       device['capabilities'].update(interface_counters=True,physical_link=True,nvue=True)
+       if fault=='fabric-diag-baseline':device['collected_at']=(now-datetime.timedelta(seconds=60)).isoformat()
+       port=device['ports'][0];port.update(counter_epoch='fixture-boot1-reset1',duplex='full',media_class='optical',crc=9007199254740992,flaps=0)
+       device['applied_interfaces']={'swp1':{'speed_mbps':100000,'mtu':9216,'vlans':[],'pfc_priorities':[6],'autoneg':True}}
+       if fault in ['fabric-diag-current','fabric-diag-mismatch','fabric-diag-reset','fabric-diag-source']:port['crc']+=1
+       if fault=='fabric-diag-reset':port['counter_epoch']='fixture-boot2-reset1'
+       if fault=='fabric-diag-source':device['provider']='changed-protocol-fixture/v1'
+       if fault=='fabric-diag-mismatch':
+        if device['serial']=='FIXTURE-SW-2':device['applied_interfaces']['swp1']['mtu']=1500;port['optics']['temperature_c']=90
+        else:port['speed_mbps']=25000;port['duplex']='half';port['media_class']='copper'
+       if device['serial']=='FIXTURE-SW-2':
+        unused={**port,'name':'swp99','neighbor':None,'crc':9999999999999999,'optics':{**port['optics'],'serial':'UNUSED-OPTIC','rx_dbm':100}}
+        device['ports'].append(unused)
      if fixture.fault.read_text()=='fabric-foreign-device':devices[0]['serial']='FOREIGN-DEVICE'
      if fixture.fault.read_text()=='fabric-no-data':devices=[]
      self.answer({'version':'fabric-collection/v1','project_id':self.path.split('/')[3],'evidence_source':'protocol_fixture','devices':devices})

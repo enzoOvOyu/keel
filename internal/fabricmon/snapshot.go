@@ -32,6 +32,9 @@ type Optics struct {
 	Supported    *bool    `json:"supported"`
 }
 type Port struct {
+	CounterEpoch     string             `json:"counter_epoch,omitempty"`
+	Duplex           string             `json:"duplex,omitempty"`
+	MediaClass       string             `json:"media_class,omitempty"`
 	OpticsApplicable *bool              `json:"optics_applicable,omitempty"`
 	Name             string             `json:"name"`
 	LinkUp           *bool              `json:"link_up"`
@@ -55,22 +58,23 @@ type ARP struct {
 	Port    string `json:"port"`
 }
 type Snapshot struct {
-	Logs            []LogEntry                `json:"logs,omitempty"`
-	LogWindowStart  *time.Time                `json:"log_window_start,omitempty"`
-	MetricPoints    []MetricPoint             `json:"metric_points,omitempty"`
-	AppliedLossless map[string]map[string]any `json:"applied_lossless,omitempty"`
-	Version         string                    `json:"version"`
-	Source          string                    `json:"source"`
-	Provider        string                    `json:"provider"`
-	Serial          string                    `json:"serial"`
-	NOS             string                    `json:"nos"`
-	CollectedAt     time.Time                 `json:"collected_at"`
-	Capabilities    map[string]bool           `json:"capabilities"`
-	Ports           []Port                    `json:"ports"`
-	FDB             []FDB                     `json:"fdb"`
-	ARP             []ARP                     `json:"arp"`
-	BGPUp           *bool                     `json:"bgp_up"`
-	PTPLocked       *bool                     `json:"ptp_locked"`
+	AppliedInterfaces map[string]InterfaceConfiguration `json:"applied_interfaces,omitempty"`
+	Logs              []LogEntry                        `json:"logs,omitempty"`
+	LogWindowStart    *time.Time                        `json:"log_window_start,omitempty"`
+	MetricPoints      []MetricPoint                     `json:"metric_points,omitempty"`
+	AppliedLossless   map[string]map[string]any         `json:"applied_lossless,omitempty"`
+	Version           string                            `json:"version"`
+	Source            string                            `json:"source"`
+	Provider          string                            `json:"provider"`
+	Serial            string                            `json:"serial"`
+	NOS               string                            `json:"nos"`
+	CollectedAt       time.Time                         `json:"collected_at"`
+	Capabilities      map[string]bool                   `json:"capabilities"`
+	Ports             []Port                            `json:"ports"`
+	FDB               []FDB                             `json:"fdb"`
+	ARP               []ARP                             `json:"arp"`
+	BGPUp             *bool                             `json:"bgp_up"`
+	PTPLocked         *bool                             `json:"ptp_locked"`
 }
 
 func (s Snapshot) Validate(serial string, now time.Time) error {
@@ -127,8 +131,37 @@ func (s Snapshot) Validate(serial string, now time.Time) error {
 			return e
 		}
 	}
+	if len(s.AppliedInterfaces) > 8192 {
+		return errors.New("interface configuration exceeds limits")
+	}
+	if len(s.AppliedInterfaces) > 0 && !s.Capabilities["nvue"] {
+		return errors.New("applied interface state requires NVUE capability")
+	}
+	for name, c := range s.AppliedInterfaces {
+		if strings.TrimSpace(name) == "" || len(name) > 128 {
+			return errors.New("invalid applied interface port")
+		}
+		if e := c.Validate(); e != nil {
+			return e
+		}
+	}
 	seen := map[string]bool{}
 	for _, p := range s.Ports {
+		if len(p.CounterEpoch) > 128 || strings.ContainsAny(p.CounterEpoch, "\r\n\x00") {
+			return errors.New("invalid interface counter epoch")
+		}
+		if (p.Duplex != "" || p.MediaClass != "") && !s.Capabilities["physical_link"] {
+			return errors.New("physical link facts contradict collector capability")
+		}
+		if p.Duplex != "" && p.Duplex != "full" && p.Duplex != "half" {
+			return errors.New("invalid duplex observation")
+		}
+		switch p.MediaClass {
+		case "", "optical", "copper", "dac", "aoc":
+		default:
+			return errors.New("invalid normalized physical media class")
+		}
+
 		if p.Optics != nil && p.OpticsApplicable != nil && !*p.OpticsApplicable {
 			return errors.New("optics contradict applicability flag")
 		}

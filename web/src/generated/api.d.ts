@@ -1371,6 +1371,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/fabric/devices/{deviceId}/diagnostics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getFabricDiagnostics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/devices/{deviceId}/ddm-trends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getFabricDDMTrends"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/devices/{deviceId}/ddm-trends/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["auditFabricDDMPNGExport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1386,6 +1434,106 @@ export interface components {
             approximation: boolean;
             applied_rule_ids: string[];
             affected_device_ids: string[];
+        };
+        FabricDDMTrends: {
+            /** @enum {string} */
+            version: "fabric-ddm-trends/v1";
+            project_id: string;
+            package_id: string;
+            device_id: string;
+            port: string;
+            /** @enum {integer} */
+            hours: 24 | 48;
+            /** @enum {string} */
+            source: "switch";
+            evidence_source: string;
+            /** Format: date-time */
+            window_start: string;
+            /** Format: date-time */
+            window_end: string;
+            in_use: boolean;
+            sample_interval_seconds: number | null;
+            thresholds: {
+                [key: string]: components["schemas"]["FabricDDMLimit"];
+            };
+            threshold_policy_hash: string;
+            content_hash: string;
+            points: components["schemas"]["FabricDDMPoint"][];
+            warnings: string[];
+            export_ref?: string;
+            raw_point_count: number;
+        };
+        FabricDDMPoint: {
+            /** Format: date-time */
+            at: string;
+            port: string;
+            module_serial: string;
+            provider: string;
+            evidence_ref: string;
+            data: components["schemas"]["FabricOpticsData"] | null;
+            /** @enum {string} */
+            state: "normal" | "warning" | "critical" | "unknown";
+            reasons: string[];
+            continuous_from_previous: boolean;
+        };
+        FabricDDMLimit: {
+            warn_min: number | null;
+            warn_max: number | null;
+            critical_min: number | null;
+            critical_max: number | null;
+        };
+        FabricDiagnosticsReport: {
+            /** @enum {string} */
+            version: "fabric-diagnostics/v1";
+            project_id: string;
+            package_id: string;
+            device_id: string;
+            /** @enum {string} */
+            source: "switch";
+            evidence_source: string;
+            /** @enum {string} */
+            stage: "N-S5";
+            /** @enum {string} */
+            np3: "BLOCKED";
+            gate: components["schemas"]["NetworkGate"];
+            /** Format: date-time */
+            collected_at: string | null;
+            /** Format: date-time */
+            valid_until: string;
+            policy: components["schemas"]["FabricCounterPolicy"];
+            policy_hash: string;
+            intent_hash: string;
+            ports: components["schemas"]["FabricPortDiagnostics"][];
+            evidence_refs: string[];
+        };
+        FabricPortDiagnostics: {
+            port: string;
+            in_use: boolean;
+            checks: components["schemas"]["FabricDiagnosticCheck"][];
+        };
+        FabricDiagnosticCheck: {
+            rule_ref: string;
+            issue_type: string;
+            subtype?: string;
+            /** @enum {string} */
+            state: "normal" | "anomaly" | "unknown" | "not_applicable";
+            reason: string;
+            observed: {
+                [key: string]: string;
+            };
+            threshold_ref?: string;
+        };
+        FabricCounterPolicy: {
+            window_seconds: number | null;
+            crc_growth_max: string | null;
+            flap_growth_max: string | null;
+        };
+        FabricInterfaceConfiguration: {
+            speed_mbps?: number;
+            mtu?: number;
+            vlans?: number[];
+            pfc_priorities?: number[];
+            autoneg?: boolean;
         };
         ZTPManagementScript: {
             switch_id: string;
@@ -2032,6 +2180,9 @@ export interface components {
             supported: boolean | null;
         } | null;
         FabricSwitchSnapshot: {
+            applied_interfaces?: {
+                [key: string]: components["schemas"]["FabricInterfaceConfiguration"];
+            };
             logs?: components["schemas"]["NetworkLogEntry"][];
             /** Format: date-time */
             log_window_start?: string;
@@ -2057,6 +2208,11 @@ export interface components {
             ptp_locked: boolean | null;
             ports: {
                 optics_applicable?: boolean;
+                counter_epoch?: string;
+                /** @enum {string} */
+                duplex?: "full" | "half";
+                /** @enum {string} */
+                media_class?: "optical" | "copper" | "dac" | "aoc";
                 name: string;
                 link_up: boolean | null;
                 lldp_readable: boolean;
@@ -2095,6 +2251,7 @@ export interface components {
             evidence_source: "device" | "protocol_fixture";
             snapshot: components["schemas"]["FabricSwitchSnapshot"];
             optics: {
+                in_use: boolean;
                 port: string;
                 data: components["schemas"]["FabricOpticsData"];
                 /** @enum {string} */
@@ -6025,6 +6182,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ZTPSessionDetail"];
+                };
+            };
+        };
+    };
+    getFabricDiagnostics: {
+        parameters: {
+            query?: {
+                port?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+                deviceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped normalized switch evidence; missing capability/intent/policy remains unknown. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FabricDiagnosticsReport"];
+                };
+            };
+        };
+    };
+    getFabricDDMTrends: {
+        parameters: {
+            query: {
+                port: string;
+                hours?: 24 | 48;
+            };
+            header?: never;
+            path: {
+                id: string;
+                deviceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped normalized switch evidence; missing capability/intent/policy remains unknown. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FabricDDMTrends"];
+                };
+            };
+        };
+    };
+    auditFabricDDMPNGExport: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+                deviceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    port: string;
+                    /** @enum {integer} */
+                    hours: 24 | 48;
+                    content_hash: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Authorized exact-dataset PNG export proof; pixels are rendered by the client with the current theme/Intel font. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FabricDDMTrends"];
                 };
             };
         };

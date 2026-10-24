@@ -1,3 +1,4 @@
+import {fabricDiagnosticTranslations} from './fabric-diagnostics-i18n'
 import {ztpCompletionTranslations} from './ztp-completion-i18n'
 import {networkRuleTranslations} from './network-rules-i18n'
 import {flowWorkbenchTranslations} from './flow-workbench-i18n'
@@ -21,7 +22,7 @@ export const resources = {
   zh: { translation: {
     ...managementTranslations.zh,
     ...fabricTranslations.zh,
-    ...networkHealthTranslations.zh,...networkRuleTranslations.zh,...networkRuleTranslations.zh,
+    ...networkHealthTranslations.zh,...fabricDiagnosticTranslations.zh,...networkRuleTranslations.zh,...networkRuleTranslations.zh,
     ...networkPushTranslations.zh,
     ...networkTranslations.zh,
     ...executionTranslations.zh,
@@ -126,7 +127,7 @@ export const resources = {
   en: { translation: {
     ...managementTranslations.en,
     ...fabricTranslations.en,
-    ...networkHealthTranslations.en,...networkRuleTranslations.en,...networkRuleTranslations.en,
+    ...networkHealthTranslations.en,...fabricDiagnosticTranslations.en,...networkRuleTranslations.en,...networkRuleTranslations.en,
     ...networkPushTranslations.en,
     ...networkTranslations.en,
     ...executionTranslations.en,

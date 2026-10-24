@@ -7,17 +7,18 @@ import os,json,secrets,subprocess,tempfile,time,urllib.parse,urllib.request,sock
 from pathlib import Path
 os.umask(0o077)
 root=Path(__file__).resolve().parents[1];os.chdir(root)
-probe=socket.socket();probe.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);probe.bind(('127.0.0.1',3102));probe.close()
+test_port=3105 if '--diagnostics' in sys.argv else 3102
+probe=socket.socket();probe.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);probe.bind(('127.0.0.1',test_port));probe.close()
 record=json.loads(subprocess.check_output(['docker','inspect','keel-auth-test-postgres']))[0]
 assert record['Config']['Labels'].get('io.keel.test-environment')=='disposable'
 config=dict(value.split('=',1) for value in record['Config']['Env'] if '=' in value)
 owner=config['POSTGRES_USER'];password=config['POSTGRES_PASSWORD']
-database='keel_test_kea_'+str(int(time.time()))
+database='keel_test_kea_'+str(test_port)+'_'+str(int(time.time()))
 work=Path(tempfile.mkdtemp(prefix='keel-shell-'));api=None;worker=None;fixture=None
 print('Kea integration evidence directory: '+str(work),flush=True)
 try:
  subprocess.run(['docker','exec','keel-auth-test-postgres','createdb','-U',owner,database],check=True,capture_output=True)
- env=os.environ.copy();env.update(KEEL_DATABASE_URL='postgresql://'+urllib.parse.quote(owner,safe='')+':'+urllib.parse.quote(password,safe='')+'@127.0.0.1:15433/'+database+'?sslmode=disable',KEEL_ENV='development',KEEL_INSECURE_DEV_COOKIE='true',KEEL_PUBLIC_ORIGINS='http://127.0.0.1:3102,http://localhost:3102',KEEL_LISTEN_ADDR='127.0.0.1:3102',KEEL_STATIC_DIR=str(root/'web/dist'))
+ env=os.environ.copy();env.update(KEEL_DATABASE_URL='postgresql://'+urllib.parse.quote(owner,safe='')+':'+urllib.parse.quote(password,safe='')+'@127.0.0.1:15433/'+database+'?sslmode=disable',KEEL_ENV='development',KEEL_INSECURE_DEV_COOKIE='true',KEEL_PUBLIC_ORIGINS=f'http://127.0.0.1:{test_port},http://localhost:{test_port}',KEEL_LISTEN_ADDR=f'127.0.0.1:{test_port}',KEEL_STATIC_DIR=str(root/'web/dist'))
  import importlib.util
  spec=importlib.util.spec_from_file_location('kea_fixture',root/'scripts/kea-contract-fixture.py')
  module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
@@ -56,18 +57,27 @@ try:
   left,right=sorted([left,right]);sql+=f"INSERT INTO bom_items(item_uid,category,endpoint_a_uid,endpoint_b_uid,source_of_record,first_project_id,created_at,updated_at) VALUES('{uid}','cable','{left}','{right}','design_bom','{project}',now(),now());"
  for row,uid in enumerate([server_id,port_a,port_b,port_c,host_port,cable_a,cable_b],len(switches)+2):
   sql+=f"INSERT INTO bom_item_revisions(package_id,item_uid,bom_line_no,project_id,row_snapshot,recorded_at) VALUES('{pkg}','{uid}',{row},'{project}','{{}}',now());"
+
+ if '--diagnostics' in sys.argv:
+  unused_port=uuid.uuid4().hex
+  sql+=f"INSERT INTO bom_items(item_uid,category,parent_uid,port_index,port_name,source_of_record,first_project_id,created_at,updated_at) VALUES('{unused_port}','port','{switch1}','99','swp99','design_bom','{project}',now(),now());"
+  sql+=f"INSERT INTO bom_item_revisions(package_id,item_uid,bom_line_no,project_id,row_snapshot,recorded_at) SELECT '{pkg}','{unused_port}',max(bom_line_no)+1,'{project}','{{}}',now() FROM bom_item_revisions WHERE package_id='{pkg}';"
+  policy={'fabric.precheck.counter_window_seconds':'60','fabric.precheck.crc_growth_max':'0','fabric.precheck.flap_growth_max':'0','fabric.ddm_interval':'60s','fabric.ddm.rx_dbm.warn_min':'-10','fabric.ddm.rx_dbm.warn_max':'0','fabric.ddm.rx_dbm.critical_min':'-15','fabric.ddm.rx_dbm.critical_max':'2','fabric.ddm.tx_dbm.warn_min':'-10','fabric.ddm.tx_dbm.warn_max':'0','fabric.ddm.tx_dbm.critical_min':'-15','fabric.ddm.tx_dbm.critical_max':'2','fabric.ddm.temperature_c.warn_max':'70','fabric.ddm.temperature_c.critical_max':'80','fabric.ddm.voltage_v.warn_max':'3.6','fabric.ddm.voltage_v.critical_max':'3.8','fabric.ddm.bias_ma.warn_max':'10','fabric.ddm.bias_ma.critical_max':'15'}
+  for key,value in policy.items():
+   param_id=uuid.uuid4().hex
+   sql+=f"INSERT INTO param_keys(id,scope_key,key,value_type,default_value,state,created_by,created_at,updated_at) SELECT '{param_id}','project:{project}','{key}','string','{value}','active',id,now(),now() FROM users WHERE username='shelladmin';"
  result=subprocess.run(['docker','exec','-i','keel-auth-test-postgres','psql','-v','ON_ERROR_STOP=1','-U',owner,'-d',database],input=sql,text=True,capture_output=True)
  if result.returncode:raise RuntimeError(result.stderr.replace(password,'[redacted]'))
  api=subprocess.Popen([str(work/'keel-api')],env=env,stdout=(work/'api.log').open('w'),stderr=subprocess.STDOUT)
  for _ in range(50):
   if api.poll() is not None:raise RuntimeError('Isolated API exited; inspect protected process log')
   try:
-   urllib.request.urlopen('http://127.0.0.1:3102/healthz',timeout=1);break
+   urllib.request.urlopen(f'http://127.0.0.1:{test_port}/healthz',timeout=1);break
   except Exception:time.sleep(.2)
  else:raise RuntimeError('Isolated API did not become ready')
  env.update(KEEL_WORKER_ID='kea-contract-worker',KEEL_WORKER_CONCURRENCY='4',KEEL_WORKER_LEASE='2s')
  worker=subprocess.Popen([str(work/'keel-worker')],env=env,stdout=(work/'worker.log').open('w'),stderr=subprocess.STDOUT)
- credentials=work/'credentials.json';credentials.write_text(json.dumps(dict(base_url='http://127.0.0.1:3102',username='shelladmin',password=pw,management_project_id=project,fault_file=str(fixture.fault),command_log=str(fixture.log))));credentials.chmod(0o600)
+ credentials=work/'credentials.json';credentials.write_text(json.dumps(dict(base_url=f'http://127.0.0.1:{test_port}',username='shelladmin',password=pw,management_project_id=project,fault_file=str(fixture.fault),command_log=str(fixture.log))));credentials.chmod(0o600)
  env.update(KEEL_AUTH_BROWSER_CREDENTIALS_FILE=str(credentials),KEEL_WORKSPACE_EVIDENCE_DIR=str(work))
  import sys
  command=['node','scripts/check-kea-browser.mjs']
@@ -75,6 +85,7 @@ try:
  if '--health' in sys.argv:command=['node','scripts/check-health-browser.mjs']
  if '--rules' in sys.argv:command=['node','scripts/check-network-rules-browser.mjs']
  if '--ztp-completion' in sys.argv:command=['node','scripts/check-ztp-completion-browser.mjs']
+ if '--diagnostics' in sys.argv:command=['node','scripts/check-fabric-diagnostics-browser.mjs']
  if '--fabric' in sys.argv:command=['node','scripts/check-fabric-browser.mjs']
  if '--sim-regression' in sys.argv:
   command=['python3','scripts/check-execution-integration.py'];env['KEEL_SIM_TEST_TARGETS']='24'

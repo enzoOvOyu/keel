@@ -43,6 +43,7 @@ type FabricCollectionReport struct {
 	Findings       []fabricmon.Finding   `json:"findings"`
 }
 type FabricOptic struct {
+	InUse   bool              `json:"in_use"`
 	Port    string            `json:"port"`
 	Data    *fabricmon.Optics `json:"data"`
 	State   string            `json:"state"`
@@ -368,13 +369,46 @@ func (s *Store) FabricDeviceEvidence(ctx context.Context, a *AuthSession, p *Pro
 	if e != nil {
 		return nil, e
 	}
+	pkg, devices, cables, e := fabricInventoryTx(ctx, tx, p.ID)
+	if e != nil {
+		return nil, e
+	}
+	serial := ""
+	for _, d := range devices {
+		if d.ID == id {
+			serial = d.Serial
+			break
+		}
+	}
+	if serial == "" {
+		return nil, ErrNotFound
+	}
+	names, e := modeledFabricPortsTx(ctx, tx, pkg, id)
+	if e != nil {
+		return nil, e
+	}
+	modeled := map[string]bool{}
+	for _, name := range names {
+		modeled[name] = true
+	}
+	used := usedFabricPorts(serial, cables)
 	for _, port := range out.Snapshot.Ports {
+		if !modeled[port.Name] {
+			continue
+		}
 		state, reasons := fabricmon.JudgeOptics(port.Optics, limits)
+		if !used[port.Name] {
+			state = "unknown"
+			reasons = []string{"unused_port_not_evaluated"}
+		} else if !out.Snapshot.Capabilities["ddm"] {
+			state = "unknown"
+			reasons = []string{"ddm_capability_unavailable"}
+		}
 		if out.Stale {
 			state = "unknown"
 			reasons = []string{"evidence_stale"}
 		}
-		out.Optics = append(out.Optics, FabricOptic{Port: port.Name, Data: port.Optics, State: state, Reasons: reasons, Source: "switch", RuleRef: "OPTICS-DDM@1"})
+		out.Optics = append(out.Optics, FabricOptic{InUse: used[port.Name], Port: port.Name, Data: port.Optics, State: state, Reasons: reasons, Source: "switch", RuleRef: "OPTICS-DDM@1"})
 	}
 	if e = appendAudit(ctx, tx, a.User.ID, p.ID, "fabric.device.view", id, trace, map[string]any{"run_id": report.ID}); e != nil {
 		return nil, e
