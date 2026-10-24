@@ -438,3 +438,7 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 真实隔离全套 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py` 最终证据 `/tmp/keel-models-hbollmt1`：PG/race平台11.703s通过，包括新增GPU正向提交及物料/固定型号落库断言、SN/行/已有UID归属、缺少/超额/伪造sub_type/新版本差异、有效格式令牌绕过拒绝、失败无已提交包；原BOM/NIC/MAC/型号不可变性/并发等回归通过。原型号HTTP/扫描导入HTTP、扫描浏览器七组、完整审核/陈旧发布/权限/退役/差异CSV浏览器均通过。GPU新增字段参与草稿去重、审核展示、发布与不可变历史检查；非法GPU规格400，宽表明确拒绝NIC/GPU推断且源行2/版本/期望/实际可见，截图 bom-hardware-difference.png 已视觉复核。第一轮新增夹具保留了optic-v1占位导致model_version_not_found，修正测试映射后最终整轮通过，未改产品门禁。隔离API/自有两库/凭据自动清理，独立fixture不冒充真实GPU硬件验证。
 
 上一代码8dcac8c的GitHub Actions run40110165418已实际查询completed/success。§38推送/候选/3000结果后补；FR-14、WP-1.12和P1仍partial，其他部件规则、面板/角色、显式升级/失效证据和G1按既有依赖继续。
+
+**§38 发布完成**：功能代码 `b138c6370546f29535e8f9823d284f01b0a1dc3f` 已正常推送GitHub，从确切提交的git archive构建镜像，镜像ID `sha256:f5c98ee358cadc9bf6e391930a746e07bfa2ec3dfc3e3d6528ac792cecfb3cb7`。候选3108真实登录、原参数/型号/介质/执行/Flow与全局参数/全局介质七页、只读作用域API、版本SHA、匿名401与控制台检查通过；于 `2026-10-24T23:37:29.280668+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz显示上述完整功能SHA。
+
+未执行迁移，schema仍37条；保留兼容旧8dcac8c镜像，不改数据卷、worker启用范围或其他服务。.env仍600，切换前配置、私有发布状态和截图保留在 `/home/ubuntu/.local/state/keel/releases/20261024T233527Z`。候选容器与临时配置已清理，两份旧草稿仍原样未暂存。GitHub Actions run40143354484当前in_progress，不声明本次CI已通过；上一8dcac8c已success。交接文档后续提交不改变3000所运行的功能SHA；其他部件、面板/角色、显式升级/G1等仍按既有依赖推进，P1不签整体闭环。
