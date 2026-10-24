@@ -315,3 +315,13 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 实际通过本批最终overlay `make check`（全仓vet/race、设计、前端检查及完整构建），日志 `/tmp/keel-release-check.log`；真实隔离PG/MinIO/API/worker/协议fixture/浏览器 `python3 scripts/check-kea-integration.py --network`，证据 `/tmp/keel-shell-b6q7wz5a`，含模板废弃权限/CSRF/跨项目/幂等审计/历史保留及已有任务拒绝、网络下发回归。其他功能证据见§24～30。GitHub SSH认证成功，发布前fetch确认远端仍6aa8479，无新增分叉。
 
 本节记录提交前事实：3000仍旧6aa8479；运行库未迁移。将从明确Git提交的archive构建镜像，避免工作区旧草稿进入构建；原deploy.sh要求完全干净工作区，因此本次使用等价的受控手工发布步骤，保留其默认门禁。先备份并在隔离数据库恢复演练，验证新镜像/待执行038、039、040迁移及受限存储账号，再迁移运行库、切换3000；保留旧镜像。严格schema版本校验使单独切旧镜像不足以回滚，必须保留对应数据库备份与恢复步骤。实际发布结果随后追加；本条不代表已部署、推送、CI或P1闭环。
+
+**本次发布实际完成**：代码提交 `c326068aae6786006a760203dd9daf85b0c6a817` 已正常推送至 `origin/dev/p1-network-bom`；计划提交为 `a4ed09e`。从该提交的 `git archive` 经stdin构建镜像，排除工作区草稿与秘密配置，镜像摘要 `sha256:748b194df3644522824014192d4fa624688ca326cd2dee942c4dfd633342356c`。3000在 `2026-10-24T14:54:13.800224+00:00` 已切换该镜像且健康，`/healthz` 返回完整代码SHA；本节后续文档提交无需重建相同代码镜像。
+
+运行库从34条升级为37条迁移，新增038/039/040，在一个事务中执行成功；重新授权keel_app并保持审计表及迁移表写保护。最终停API后备份 `/home/ubuntu/.local/state/keel/releases/20261024T145038Z/cutover-pre-migration.dump` 格式可读，备份、旧.env和私有发布状态保存在 `/home/ubuntu/.local/state/keel/releases/20261024T145038Z`，权限600/目录700，不进Git。先前同批备份已在带disposable标签的测试PostgreSQL恢复，保留旧镜像实际启动并通过health；新镜像在恢复库迁移并完成登录/五页浏览器验证。回滚需匹配旧schema备份，不能只切镜像；尚未在运行库执行恢复或回滚，也未删除任何数据卷。
+
+已显式初始化运行media私有版本化桶，独立service-account只限该桶对象读写/指定版本读取及必要状态读取，不含删除版本、建桶或IAM管理权限；API不使用root账号。实际账号上传/指定版本字节读回成功，删除同一探针版本明确Access Denied且对象仍可读。第一次负例断言仅识别AccessDenied而未识别工具返回的Access Denied，修正测试文本后再次确认拒绝，不放宽策略。测试探针在 `release-probes/c326068aae6786006a760203dd9daf85b0c6a817/`，不登记为产品介质。mc来自官方 `github.com/minio/mc@RELEASE.2025-08-13T08-35-41Z` 的本机构建，仅用于运维，不加入应用依赖或容器。配置只保存在受保护文件，.env仍600。
+
+切换后真实Chromium使用既有管理员登录，参数目录/型号库/介质库/执行/Flow五页均实际打开，无页面alert及非预期控制台错误；匿名目录API为401，认证provider ready。截图在同一私有发布目录 `smoke-3000-*.png`，参数目录已视觉复核。这是运行镜像的只读冒烟，不替代§24～30的创建/批准/冲突等隔离功能验证。保留原服务范围，未额外启用execution profile worker或真实设备适配。GitHub Actions本代码提交的 `Keel platform checks` run 40104306639 已触发，记录时in_progress，尚不能声称CI通过。
+
+隔离发布检查容器/测试数据库随后清理；本批无新增开发任务，026/fabric_precheck草稿继续原样保留。WP-1.10/1.11/1.12及P1仍partial，后续按计划A4既有输入补消费者/治理等缺口，不因本次发布宣称整阶段闭环。后续以可验收功能块及时提交，在可演示检查点发布3000，避免再积压多个功能块。

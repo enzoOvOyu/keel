@@ -147,7 +147,7 @@ origin 使用服务器已配置的仓库身份。GitHub 操作前检查认证，
 
 介质文件能力使用 `KEEL_MEDIA_ENDPOINT`、`KEEL_MEDIA_ACCESS_KEY`、`KEEL_MEDIA_SECRET_KEY`、`KEEL_MEDIA_BUCKET`（默认 `media`），配置保存在既有600权限文件，不能输出或提交。Compose API已接入相同变量；容器内地址使用存储服务地址，不能误用宿主回环。仅显式development允许HTTP，staging/production必须HTTPS。
 
-由操作员加载独立的桶管理配置后运行 `keel-admin media-init`，创建私有桶并启用版本化；API运行账号使用限定该桶的对象读写/版本读取与版本状态读取权限，不需要创建桶、删除版本或修改策略。不要直接复用MinIO root凭据到API；本次没有修改现有运行配置、账号或桶。
+由操作员加载独立的桶管理配置后运行 `keel-admin media-init`，创建私有桶并启用版本化；API运行账号使用限定该桶的对象读写/版本读取与版本状态读取权限，不需要创建桶、删除版本或修改策略。不要直接复用MinIO root凭据到API；运行环境的账号、桶及配置状态以HANDOFF发布记录为准。
 
 039迁移增加不可变的对象版本绑定；发布前仍按§3备份/迁移/授权，不修改旧迁移或伪造旧介质的文件证据。旧元数据的uploaded状态可以由原登记人附加匹配文件，已verified/approved但缺真实文件的历史记录不得凭manifest继续批准或下载，应登记经过复核的新版本。文件校验/批准/读取全部失败关闭。
 
