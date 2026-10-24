@@ -86,6 +86,9 @@ func (s *Store) ListDeviceModels(ctx context.Context, a *AuthSession, project *P
 		return out, e
 	}
 	scope := s.scopeKeyFor(project)
+	if project == nil && !a.User.IsAdmin {
+		return out, ErrForbidden
+	}
 	tx, e := s.beginControlRead(ctx, a)
 	if e != nil {
 		return out, e
@@ -392,6 +395,9 @@ func (s *Store) ListModelVersions(ctx context.Context, a *AuthSession, project *
 		return out, e
 	}
 	scope := s.scopeKeyFor(project)
+	if project == nil && !a.User.IsAdmin {
+		return out, ErrForbidden
+	}
 	tx, e := s.beginControlRead(ctx, a)
 	if e != nil {
 		return out, e

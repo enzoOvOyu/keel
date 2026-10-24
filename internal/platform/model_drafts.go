@@ -180,6 +180,9 @@ func latestModelPayload(ctx context.Context, tx *sql.Tx, modelID string) (Publis
 	return in, nil
 }
 func (s *Store) ListModelDrafts(ctx context.Context, a *AuthSession, project *ProjectSummary, modelID string) ([]ModelDraftSummary, error) {
+	if project == nil && !a.User.IsAdmin {
+		return nil, ErrForbidden
+	}
 	tx, e := s.beginControlRead(ctx, a)
 	if e != nil {
 		return nil, e

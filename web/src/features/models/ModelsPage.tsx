@@ -3,6 +3,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Workspace } from '../../components/Workspace'
 import { ProjectWorkspace, canManageProject, useProject } from '../../components/ProjectWorkspace'
 import { ActionDialog, ActionError, Pagination, PermissionDenied, SuccessNotice } from '../../components/Management'
 import { useAction } from '../../lib/management'
@@ -18,7 +19,7 @@ function useIdempotencyKey() {
     return ref.current.key
   }
 }
-function CreateModelDialog({ projectId, onClose, onDone }: { projectId: string; onClose: () => void; onDone: () => Promise<void> }) {
+function CreateModelDialog({ projectId, onClose, onDone }: { projectId: string | null; onClose: () => void; onDone: () => Promise<void> }) {
   const { t } = useTranslation(), session = useSession(), action = useAction(), keyFor = useIdempotencyKey()
   const [name, setName] = useState(''), [kind, setKind] = useState<'rack' | 'server' | 'compute-tray' | 'switch' | 'nic' | 'gpu' | 'psu' | 'bmc' | 'optic_module'>('server'), [validation, setValidation] = useState('')
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -37,7 +38,7 @@ function CreateModelDialog({ projectId, onClose, onDone }: { projectId: string; 
     <p className="impact-notice">{t('modelImmutableNotice')}</p>
   </ActionDialog>
 }
-function ImportScanDialog({ projectId, onClose, onDone }: { projectId: string; onClose: () => void; onDone: (message: string) => Promise<void> }) {
+function ImportScanDialog({ projectId, onClose, onDone }: { projectId: string | null; onClose: () => void; onDone: (message: string) => Promise<void> }) {
   const { t } = useTranslation(), session = useSession(), action = useAction(), keyFor = useIdempotencyKey()
   const [manifest, setManifest] = useState(''), [validation, setValidation] = useState('')
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -60,7 +61,7 @@ function ImportScanDialog({ projectId, onClose, onDone }: { projectId: string; o
 }
 type SlotDraft = { slot_no: string; pcie_slot: string; expect_nic_model: string; panel_port: string; default_role: ModelSlot['default_role'] }
 const emptySlot = (): SlotDraft => ({ slot_no: '', pcie_slot: '', expect_nic_model: '', panel_port: '', default_role: 'compute' })
-function PublishVersionDialog({ projectId, model, seed, onClose, onDone }: { projectId: string; model: DeviceModelSummary; seed?: ModelDraft | null; onClose: () => void; onDone: () => Promise<void> }) {
+function PublishVersionDialog({ projectId, model, seed, onClose, onDone }: { projectId: string | null; model: DeviceModelSummary; seed?: ModelDraft | null; onClose: () => void; onDone: () => Promise<void> }) {
   const { t } = useTranslation(), session = useSession(), action = useAction(), keyFor = useIdempotencyKey()
   const seeded = seed ? { spec: JSON.stringify(seed.hw_spec ?? {}, null, 2), slots: seed.slots } : null
   const [hwSpec, setHwSpec] = useState(seeded?.spec ?? '{}'), [capabilityMatrix, setCapabilityMatrix] = useState(JSON.stringify(seed?.capability_matrix ?? {}, null, 2)), [slots, setSlots] = useState<SlotDraft[]>(seeded?.slots?.map((slot) => ({ slot_no: String(slot.slot_no), pcie_slot: slot.pcie_slot, expect_nic_model: slot.expect_nic_model, panel_port: slot.panel_port, default_role: slot.default_role })) ?? (model.kind === 'server' || model.kind === 'compute-tray' ? [emptySlot()] : [])), [validation, setValidation] = useState('')
@@ -126,7 +127,7 @@ function PublishVersionDialog({ projectId, model, seed, onClose, onDone }: { pro
     <p className="impact-notice">{t('modelImmutableNotice')}</p>
   </ActionDialog>
 }
-function RetireModelDialog({ projectId, model, onClose, onDone }: { projectId: string; model: DeviceModelSummary; onClose: () => void; onDone: () => Promise<void> }) {
+function RetireModelDialog({ projectId, model, onClose, onDone }: { projectId: string | null; model: DeviceModelSummary; onClose: () => void; onDone: () => Promise<void> }) {
   const { t } = useTranslation(), session = useSession(), action = useAction()
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -139,7 +140,7 @@ function RetireModelDialog({ projectId, model, onClose, onDone }: { projectId: s
     <p className="impact-notice">{t('modelsRetireImpact')}</p>
   </ActionDialog>
 }
-function ModelVersions({ projectId, model }: { projectId: string; model: DeviceModelSummary }) {
+function ModelVersions({ projectId, model }: { projectId: string | null; model: DeviceModelSummary }) {
   const { t, i18n } = useTranslation(), session = useSession()
   const [page, setPage] = useState(1)
   const versions = useQuery({ queryKey: ['private', session.user.id, 'project', projectId, 'model', model.id, 'versions', page], queryFn: ({ signal }) => listModelVersions(projectId, model.id, page, signal) })
@@ -151,7 +152,7 @@ function ModelVersions({ projectId, model }: { projectId: string; model: DeviceM
     {versions.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : versions.data && <><div className="table-scroll" tabIndex={0} role="region" aria-label={t('modelsVersions')}><table className="data-table"><thead><tr><th scope="col">{t('recordVersion')}</th><th scope="col">{t('modelsContentHash')}</th><th scope="col">{t('modelSlots')}</th><th scope="col">{t('createdAt')}</th></tr></thead><tbody>{versions.data.items.map((version) => <tr key={version.id}><td>v{version.version}</td><td className="mono-value">{version.content_hash.slice(0, 16)}…<details><summary>{t('modelsCompletePayload')}</summary><pre>{JSON.stringify({ hw_spec: version.hw_spec, expected_topology: version.expected_topology, capability_matrix: version.capability_matrix, panel_layout: version.panel_layout, bom_expect: version.bom_expect, default_role_plan: version.default_role_plan, slots: version.slots }, null, 2)}</pre></details></td><td>{version.slots.length}</td><td>{format(version.published_at)}</td></tr>)}</tbody></table>{!versions.data.items.length && <p className="table-loading">{t('noRecords')}</p>}</div><Pagination offset={(page - 1) * versions.data.page_size} limit={versions.data.page_size} total={versions.data.total} busy={versions.isFetching} onChange={(offset) => setPage(offset / versions.data.page_size + 1)} /></>}
   </div>
 }
-function ModelDrafts({ projectId, model, canManage, onPublishDraft }: { projectId: string; model: DeviceModelSummary; canManage: boolean; onPublishDraft: (draft: ModelDraft) => void }) {
+function ModelDrafts({ projectId, model, canManage, onPublishDraft }: { projectId: string | null; model: DeviceModelSummary; canManage: boolean; onPublishDraft: (draft: ModelDraft) => void }) {
   const { t, i18n } = useTranslation(), session = useSession(), client = useQueryClient()
   const drafts = useQuery({ queryKey: ['private', session.user.id, 'project', projectId, 'model', model.id, 'drafts'], queryFn: ({ signal }) => listModelDrafts(projectId, model.id, signal) })
   useExpireOnUnauthorized(drafts.error)
@@ -178,48 +179,52 @@ function ModelDrafts({ projectId, model, canManage, onPublishDraft }: { projectI
     </ActionDialog>}
   </div>
 }
-function ModelsContent() {
-  const project = useProject()
+function ModelsContent({ project }: { project: ReturnType<typeof useProject> | null }) {
+  const projectId = project?.id ?? null, projectName = project?.name
   const { t } = useTranslation(), session = useSession(), client = useQueryClient()
   const [page, setPage] = useState(1), [create, setCreate] = useState(false), [importing, setImporting] = useState(false), [publish, setPublish] = useState<DeviceModelSummary | null>(null), [publishFromDraft, setPublishFromDraft] = useState<{ model: DeviceModelSummary; draft: ModelDraft } | null>(null), [retire, setRetire] = useState<DeviceModelSummary | null>(null), [expanded, setExpanded] = useState<string | null>(null), [success, setSuccess] = useState('')
-  const allowed = session.permissions.includes('model:read')
-  const manage = canManageProject(project, session.user.is_admin) && session.permissions.includes('model:manage')
-  const models = useQuery({ queryKey: ['private', session.user.id, 'project', project.id, 'models', page], queryFn: ({ signal }) => listProjectModels(project.id, page, signal), enabled: allowed })
+  const allowed = (projectId !== null || session.user.is_admin) && session.permissions.includes('model:read')
+  const manage = (project ? canManageProject(project, session.user.is_admin) : session.user.is_admin) && session.permissions.includes('model:manage')
+  const models = useQuery({ queryKey: ['private', session.user.id, 'project', projectId, 'models', page], queryFn: ({ signal }) => listProjectModels(projectId, page, signal), enabled: allowed })
   useExpireOnUnauthorized(models.error)
-  useEffect(() => { document.title = `${t('modelsTitle')} · ${project.name}` }, [t, project.name])
+  const scopeName = projectName ?? t('modelsGlobalTitle')
+  useEffect(() => { document.title = `${t('modelsTitle')} · ${scopeName}` }, [t, scopeName])
   async function done(message: string) {
     setCreate(false); setImporting(false); setPublish(null); setPublishFromDraft(null); setRetire(null); setSuccess(message)
-    await client.invalidateQueries({ queryKey: ['private', session.user.id, 'project', project.id, 'models'] })
-    await client.invalidateQueries({ queryKey: ['private', session.user.id, 'project', project.id, 'model'] })
+    await client.invalidateQueries({ queryKey: projectId === null ? ['private', session.user.id] : ['private', session.user.id, 'project', projectId, 'models'] })
+    await client.invalidateQueries({ queryKey: ['private', session.user.id, 'project', projectId, 'model'] })
   }
   if (!allowed) return <PermissionDenied />
   return <>
-    <div className="page-heading"><div><p className="section-eyebrow">{project.name}</p><h1>{t('modelsTitle')}</h1><p>{t('modelsIntro')}</p></div>
+    <div className="page-heading"><div><p className="section-eyebrow">{scopeName}</p><h1>{t(projectId === null ? 'modelsGlobalTitle' : 'modelsTitle')}</h1><p>{t('modelsIntro')}</p></div>
       {manage && <div className="table-actions"><button className="primary-button" onClick={() => { setSuccess(''); setCreate(true) }}>{t('modelsCreate')}</button><button className="secondary-button" onClick={() => { setSuccess(''); setImporting(true) }}>{t('modelsImport')}</button></div>}</div>
     {success && <SuccessNotice>{success}</SuccessNotice>}
     <section className="management-panel" aria-busy={models.isFetching}>
       <ActionError error={models.error} />
       {models.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : models.data && <>
         <div className="table-scroll" tabIndex={0} role="region" aria-label={t('modelsTitle')}><table className="data-table"><thead><tr><th scope="col">{t('modelName')}</th><th scope="col">{t('modelKind')}</th><th scope="col">{t('status')}</th><th scope="col">{t('recordVersion')}</th><th scope="col">{t('actions')}</th></tr></thead>
-          <tbody>{models.data.items.map((model) => <tr key={model.id}><td><strong>{model.name}</strong><span className="cell-subtitle mono-value">{model.scope_key === 'global' ? t('modelsGlobalScope') : t('modelsProjectScope')}</span></td>
+          <tbody>{models.data.items.map((model) => <tr key={model.id}><td><strong>{model.name}</strong><span className="cell-subtitle mono-value">{model.scope_key === 'global' ? t(projectId === null ? 'modelsGlobalScope' : 'modelsInheritedReadOnly') : t('modelsProjectScope')}</span></td>
             <td>{t('model_kind_' + model.kind)}</td><td><span className={`status-label ${model.state === 'active' ? 'enabled' : 'disabled'}`}>{t('model_state_' + model.state)}</span></td><td>v{model.latest_version}</td>
             <td><div className="table-actions"><button onClick={() => setExpanded(expanded === model.id ? null : model.id)}>{t('modelsVersions')}</button>
-              {manage && model.scope_key === 'project:' + project.id && model.state === 'active' && <button onClick={() => { setSuccess(''); setPublish(model) }}>{t('modelsPublish')}</button>}
-              {manage && model.scope_key === 'project:' + project.id && model.state === 'active' && <button className="danger-text" onClick={() => { setSuccess(''); setRetire(model) }}>{t('modelsRetire')}</button>}</div></td></tr>)}</tbody></table>
+              {manage && model.scope_key === (projectId === null ? 'global' : 'project:' + projectId) && model.state === 'active' && <button onClick={() => { setSuccess(''); setPublish(model) }}>{t('modelsPublish')}</button>}
+              {manage && model.scope_key === (projectId === null ? 'global' : 'project:' + projectId) && model.state === 'active' && <button className="danger-text" onClick={() => { setSuccess(''); setRetire(model) }}>{t('modelsRetire')}</button>}</div></td></tr>)}</tbody></table>
           {!models.data.items.length && <p className="table-loading">{t('noRecords')}</p>}</div>
         <Pagination offset={(page - 1) * models.data.page_size} limit={models.data.page_size} total={models.data.total} busy={models.isFetching} onChange={(offset) => setPage(offset / models.data.page_size + 1)} /></>}
       {expanded && models.data && (() => { const target = models.data.items.find((m) => m.id === expanded); return target ? <>
-        <ModelDrafts canManage={manage && target.scope_key === 'project:' + project.id} projectId={project.id} model={target} onPublishDraft={(draft) => { const owner = models.data!.items.find((m) => m.id === draft.model_id) ?? target; setPublishFromDraft({ model: owner, draft }); setExpanded(null) }} />
-        <ModelVersions projectId={project.id} model={target} />
+        <ModelDrafts canManage={manage && target.scope_key === (projectId === null ? 'global' : 'project:' + projectId)} projectId={projectId} model={target} onPublishDraft={(draft) => { const owner = models.data!.items.find((m) => m.id === draft.model_id) ?? target; setPublishFromDraft({ model: owner, draft }); setExpanded(null) }} />
+        <ModelVersions projectId={projectId} model={target} />
       </> : null })()}
     </section>
-    {create && <CreateModelDialog projectId={project.id} onClose={() => setCreate(false)} onDone={() => done(t('modelCreated'))} />}
-    {importing && <ImportScanDialog projectId={project.id} onClose={() => setImporting(false)} onDone={(message) => done(message)} />}
-    {publish && <PublishVersionDialog projectId={project.id} model={publish} onClose={() => setPublish(null)} onDone={() => done(t('modelsPublished'))} />}
-    {publishFromDraft && <PublishVersionDialog projectId={project.id} model={publishFromDraft.model} seed={publishFromDraft.draft} onClose={() => setPublishFromDraft(null)} onDone={() => done(t('modelsPublished'))} />}
-    {retire && <RetireModelDialog projectId={project.id} model={retire} onClose={() => setRetire(null)} onDone={() => done(t('modelsRetired'))} />}
+    {create && <CreateModelDialog projectId={projectId} onClose={() => setCreate(false)} onDone={() => done(t('modelCreated'))} />}
+    {importing && <ImportScanDialog projectId={projectId} onClose={() => setImporting(false)} onDone={(message) => done(message)} />}
+    {publish && <PublishVersionDialog projectId={projectId} model={publish} onClose={() => setPublish(null)} onDone={() => done(t('modelsPublished'))} />}
+    {publishFromDraft && <PublishVersionDialog projectId={projectId} model={publishFromDraft.model} seed={publishFromDraft.draft} onClose={() => setPublishFromDraft(null)} onDone={() => done(t('modelsPublished'))} />}
+    {retire && <RetireModelDialog projectId={projectId} model={retire} onClose={() => setRetire(null)} onDone={() => done(t('modelsRetired'))} />}
   </>
 }
 export function ModelsPage({ projectId }: { projectId: string }) {
-  return <ProjectWorkspace projectId={projectId}><ModelsContent /></ProjectWorkspace>
+  return <ProjectWorkspace projectId={projectId}><ProjectModelsContent /></ProjectWorkspace>
 }
+
+function ProjectModelsContent() { const project = useProject(); return <ModelsContent key={project.id} project={project} /> }
+export function GlobalModelsPage() { return <Workspace><ModelsContent key="global" project={null} /></Workspace> }

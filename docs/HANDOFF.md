@@ -442,3 +442,15 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 **§38 发布完成**：功能代码 `b138c6370546f29535e8f9823d284f01b0a1dc3f` 已正常推送GitHub，从确切提交的git archive构建镜像，镜像ID `sha256:f5c98ee358cadc9bf6e391930a746e07bfa2ec3dfc3e3d6528ac792cecfb3cb7`。候选3108真实登录、原参数/型号/介质/执行/Flow与全局参数/全局介质七页、只读作用域API、版本SHA、匿名401与控制台检查通过；于 `2026-10-24T23:37:29.280668+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz显示上述完整功能SHA。
 
 未执行迁移，schema仍37条；保留兼容旧8dcac8c镜像，不改数据卷、worker启用范围或其他服务。.env仍600，切换前配置、私有发布状态和截图保留在 `/home/ubuntu/.local/state/keel/releases/20261024T233527Z`。候选容器与临时配置已清理，两份旧草稿仍原样未暂存。GitHub Actions run40143354484当前in_progress，不声明本次CI已通过；上一8dcac8c已success。交接文档后续提交不改变3000所运行的功能SHA；其他部件、面板/角色、显式升级/G1等仍按既有依赖推进，P1不签整体闭环。
+
+## 39. A4 / WP-1.12：全局型号管理与项目只读引用（2026-10-24）
+
+沿用 `/opt/keel`、`dev/p1-network-bom` 的§38，依PRD FR-14.1全局公共/项目私有型号与FR-14.4草稿审核，补齐 `/admin/models` 页面和 `/api/v1/admin/models` 八项管理操作：列表、身份创建、版本列表/发布、退役、草稿导入/列表/废弃。项目与全局共用原模型服务和界面组件、完整规格编辑、发布观察版本条件及事务/审计；不是另建发布流程。平台管理员专属入口及导航，双语，查询/确认按project_id或null全局范围隔离；全局变更失效当前用户私有查询以刷新共享列表。
+
+全局管理作用域固定global。全局入口读写项目型号、项目入口写全局型号，即使平台管理员也拒绝。项目成员仍通过自己的项目读共享已发布版本；项目表内全局行明确只读且隐藏发布/退役/草稿写按钮，不暴露全局草稿。原GET /models保留全局列表，并补显式管理员保护；服务层全局列表、版本、草稿读取亦拒绝非平台管理员。原唯一性、来源草稿保护、独立审核提示、不可变历史、退役禁新引用机制复用。全局新版本/退役不自动迁移设备绑定；无数据库迁移、G1或面板/角色/显式升级实现。
+
+实际通过最终根npm run build（`/tmp/keel-global-model-build.log`，契约/路由生成、UI边界、版本lint、TypeScript、Vite）、`GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json go vet ./internal/platform ./internal/httpapi`（`/tmp/keel-global-model-vet.log`）、设计/Node语法/diff检查。Go继续overlay排除两份旧026/fabric_precheck草稿，未改原文件。无库Go测试只作为编译/单测证据，不当PG证据。
+
+完整真实隔离 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py` 最终证据 `/tmp/keel-models-3xk9czox`：平台PG/race14.842s通过，含新增全局草稿复用/审核发布、只读权限/跨scope拒绝、同名独立身份、项目BOM实际采用全局固定版本并落库、新版本不改旧ProjectAsset、退役历史可读；原BOM/NIC/MAC/GPU/型号发布与并发回归通过。原型号HTTP/扫描HTTP/扫描浏览器七组/完整发布浏览器通过。新增全局Chromium通过UI新建/导入/审核发布/历史/陈旧确认409/退役，项目继承只读、全局/项目API隔离、无全局草稿泄露、Admin/SRE/Viewer管理UI/API拒绝、同名与非法scope、匿名401/CSRF403、双语导航。global-models-history.png已视觉复核。首轮新增Go夹具的Admin用户名与引导管理员规范化后重名，修正夹具后整轮通过，未放宽权限。自有隔离API/两库/凭据清理完毕；fixture不是硬件验收。新增--global-models-only供后续定向复核，本轮最终使用完整套件。
+
+上一b138c63的GitHub Actions run40143354484已查询completed/success。§39提交、候选和3000发布结果后补；FR-14/WP-1.12/P1仍partial，G1、布局/角色、显式升级失效、全部硬件/规模等按各自依赖推进。

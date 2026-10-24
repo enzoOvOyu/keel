@@ -5,13 +5,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Device model library routes. The management scope is platform-level; the
-// project scope nests under /projects/:id. Both resolve the project record
-// before touching model data, so scope checks stay in the platform layer.
+// The legacy list and both management scopes share the same model service.
 func (a *authAPI) registerModels(r *gin.Engine) {
-	// Platform-level: list every model across scopes; admins only.
 	r.GET("/api/v1/models", func(c *gin.Context) {
-		actor, ok := a.authenticated(c)
+		actor, _, ok := a.modelScope(c, false, true)
 		if !ok {
 			return
 		}
@@ -19,15 +16,43 @@ func (a *authAPI) registerModels(r *gin.Engine) {
 		if !ok {
 			return
 		}
-		result, e := a.store.ListDeviceModels(c.Request.Context(), actor, nil, p)
-		if e != nil {
-			a.respondError(c, e)
+		result, err := a.store.ListDeviceModels(c.Request.Context(), actor, nil, p)
+		if err != nil {
+			a.respondError(c, err)
 			return
 		}
 		c.JSON(200, result)
 	})
-	r.GET("/api/v1/projects/:id/models", func(c *gin.Context) {
-		actor, ok := a.authenticated(c)
+	a.registerModelsScope(r, "/api/v1/projects/:id/models", false)
+	a.registerModelsScope(r, "/api/v1/admin/models", true)
+}
+
+func (a *authAPI) modelScope(c *gin.Context, write, global bool) (*platform.AuthSession, *platform.ProjectSummary, bool) {
+	actor, ok := a.authenticated(c)
+	if !ok {
+		return nil, nil, false
+	}
+	if global && !actor.User.IsAdmin {
+		a.respondError(c, platform.ErrForbidden)
+		return nil, nil, false
+	}
+	if write && !a.writeAllowed(c) {
+		return nil, nil, false
+	}
+	if global {
+		return actor, nil, true
+	}
+	project, err := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
+	if err != nil {
+		a.respondError(c, err)
+		return nil, nil, false
+	}
+	return actor, project, true
+}
+
+func (a *authAPI) registerModelsScope(r *gin.Engine, base string, global bool) {
+	r.GET(base, func(c *gin.Context) {
+		actor, project, ok := a.modelScope(c, false, global)
 		if !ok {
 			return
 		}
@@ -35,64 +60,43 @@ func (a *authAPI) registerModels(r *gin.Engine) {
 		if !ok {
 			return
 		}
-		project, e := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
-		if e != nil {
-			a.respondError(c, e)
-			return
-		}
-		result, e := a.store.ListDeviceModels(c.Request.Context(), actor, project, p)
-		if e != nil {
-			a.respondError(c, e)
+		result, err := a.store.ListDeviceModels(c.Request.Context(), actor, project, p)
+		if err != nil {
+			a.respondError(c, err)
 			return
 		}
 		c.JSON(200, result)
 	})
-	r.POST("/api/v1/projects/:id/models", func(c *gin.Context) {
-		actor, ok := a.authenticated(c)
+	r.POST(base, func(c *gin.Context) {
+		actor, project, ok := a.modelScope(c, true, global)
 		if !ok {
-			return
-		}
-		if !a.writeAllowed(c) {
 			return
 		}
 		var input platform.CreateDeviceModelInput
 		if !decodeBody(c, &input) {
 			return
 		}
-		project, e := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
-		if e != nil {
-			a.respondError(c, e)
-			return
-		}
-		result, e := a.store.CreateDeviceModel(c.Request.Context(), actor, project, input, c.GetString("trace_id"))
-		if e != nil {
-			a.respondError(c, e)
+		result, err := a.store.CreateDeviceModel(c.Request.Context(), actor, project, input, c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
 			return
 		}
 		c.JSON(201, result)
 	})
-	r.POST("/api/v1/projects/:id/models/:modelId/retire", func(c *gin.Context) {
-		actor, ok := a.authenticated(c)
+	r.POST(base+"/:modelId/retire", func(c *gin.Context) {
+		actor, project, ok := a.modelScope(c, true, global)
 		if !ok {
 			return
 		}
-		if !a.writeAllowed(c) {
-			return
-		}
-		project, e := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
-		if e != nil {
-			a.respondError(c, e)
-			return
-		}
-		result, e := a.store.RetireDeviceModel(c.Request.Context(), actor, project, c.Param("modelId"), c.GetString("trace_id"))
-		if e != nil {
-			a.respondError(c, e)
+		result, err := a.store.RetireDeviceModel(c.Request.Context(), actor, project, c.Param("modelId"), c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
 			return
 		}
 		c.JSON(200, result)
 	})
-	r.GET("/api/v1/projects/:id/models/:modelId/versions", func(c *gin.Context) {
-		actor, ok := a.authenticated(c)
+	r.GET(base+"/:modelId/versions", func(c *gin.Context) {
+		actor, project, ok := a.modelScope(c, false, global)
 		if !ok {
 			return
 		}
@@ -100,38 +104,25 @@ func (a *authAPI) registerModels(r *gin.Engine) {
 		if !ok {
 			return
 		}
-		project, e := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
-		if e != nil {
-			a.respondError(c, e)
-			return
-		}
-		result, e := a.store.ListModelVersions(c.Request.Context(), actor, project, c.Param("modelId"), p)
-		if e != nil {
-			a.respondError(c, e)
+		result, err := a.store.ListModelVersions(c.Request.Context(), actor, project, c.Param("modelId"), p)
+		if err != nil {
+			a.respondError(c, err)
 			return
 		}
 		c.JSON(200, result)
 	})
-	r.POST("/api/v1/projects/:id/models/:modelId/versions", func(c *gin.Context) {
-		actor, ok := a.authenticated(c)
+	r.POST(base+"/:modelId/versions", func(c *gin.Context) {
+		actor, project, ok := a.modelScope(c, true, global)
 		if !ok {
-			return
-		}
-		if !a.writeAllowed(c) {
 			return
 		}
 		var input platform.PublishModelVersionInput
 		if !decodeExecutionBody(c, &input) {
 			return
 		}
-		project, e := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
-		if e != nil {
-			a.respondError(c, e)
-			return
-		}
-		result, e := a.store.PublishModelVersion(c.Request.Context(), actor, project, c.Param("modelId"), input, c.GetString("trace_id"))
-		if e != nil {
-			a.respondError(c, e)
+		result, err := a.store.PublishModelVersion(c.Request.Context(), actor, project, c.Param("modelId"), input, c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
 			return
 		}
 		c.JSON(201, result)

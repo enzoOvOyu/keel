@@ -2,6 +2,8 @@ export const modelsTranslations = {
   zh: {
     modelsTab: "型号库",
     modelsTitle: "设备型号库",
+    modelsGlobalTitle: "全局型号库",
+    modelsInheritedReadOnly: "全局共享 · 仅可读取",
     modelsIntro: "维护服务器和交换机型号的权威定义：稳定的型号身份与发布后不可变的版本。",
     modelsCreate: "新建型号",
     modelsCreateDetail: "建立稳定的型号身份。同一范围内型号名称唯一。",
@@ -70,6 +72,8 @@ export const modelsTranslations = {
   en: {
     modelsTab: "Models",
     modelsTitle: "Device model library",
+    modelsGlobalTitle: "Global models",
+    modelsInheritedReadOnly: "Global shared · read only",
     modelsIntro: "The authoritative definition of server models: stable identities with immutable published versions.",
     modelsCreate: "New model",
     modelsCreateDetail: "Establish a stable model identity. Names are unique within a scope.",
