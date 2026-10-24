@@ -6,3 +6,7 @@
 .network-health-page pre{white-space:pre-wrap;overflow-wrap:anywhere}
 .network-health-page td{vertical-align:top}
 .network-health-page select{display:block;min-width:180px;margin-top:var(--space-2)}
+
+.network-storm{border:1px solid var(--border-default);border-radius:var(--radius-sm);padding:var(--space-3);margin-block:var(--space-3)}
+.network-storm[data-state="escalated"]{border-color:var(--status-critical)}
+.network-storm ul{display:flex;flex-wrap:wrap;gap:var(--space-3);padding-inline-start:var(--space-5);max-height:240px;overflow:auto}

@@ -2449,6 +2449,19 @@ components:
         maximum: 100
         default: 20
   schemas:
+    FabricStorm:
+      type: object
+      required: [rule_id, policy_version, threshold_ports, affected_ports, state, incomplete, approximation, applied_rule_ids, affected_device_ids]
+      properties:
+        rule_id: { type: string }
+        policy_version: { type: integer }
+        threshold_ports: { type: integer, minimum: 1 }
+        affected_ports: { type: integer, minimum: 0 }
+        state: { type: string, enum: [normal, escalated, unknown] }
+        incomplete: { type: boolean }
+        approximation: { type: boolean }
+        applied_rule_ids: { type: array, items: { type: string } }
+        affected_device_ids: { type: array, items: { type: string } }
     ZTPManagementScript: {"type": "object", "properties": {"switch_id": {"type": "string"}, "serial_number": {"type": "string"}, "credential_batch_ref": {"type": "string"}, "sha256": {"type": "string"}, "size": {"type": "integer"}, "body": {"type": "string"}}, "required": ["switch_id", "serial_number", "credential_batch_ref", "sha256", "size"]}
     ZTPManagementManifest: {"type": "object", "properties": {"version": {"type": "string", "enum": ["ztp-management-manifest/v1"]}, "project_id": {"type": "string"}, "batch_ref": {"type": "string"}, "plan_id": {"type": "string"}, "plan_hash": {"type": "string"}, "renderer": {"type": "string"}, "isolation_sha256": {"type": "string"}, "isolation_size": {"type": "integer"}, "scripts": {"type": "array", "items": {"$ref": "#/components/schemas/ZTPManagementScript"}}}, "required": ["version", "project_id", "batch_ref", "plan_id", "plan_hash", "renderer", "isolation_sha256", "isolation_size", "scripts"]}
     ZTPManagementArtifactPreview: {"type": "object", "properties": {"manifest": {"$ref": "#/components/schemas/ZTPManagementManifest"}, "sha256": {"type": "string"}, "size": {"type": "integer"}, "content": {"type": "string"}, "scripts": {"type": "array", "items": {"$ref": "#/components/schemas/ZTPManagementScript"}}}, "required": ["manifest", "sha256", "size", "content", "scripts"]}
@@ -2563,8 +2576,9 @@ components:
         finding_counts: { type: object, additionalProperties: { type: integer } }
     NetworkHealthReport:
       type: object
-      required: [version, project_id, package_id, readiness_at, ttl_seconds, valid_until, devices, lossless, ns7, evidence_source]
+      required: [fabric_storm, version, project_id, package_id, readiness_at, ttl_seconds, valid_until, devices, lossless, ns7, evidence_source]
       properties:
+        fabric_storm: { $ref: '#/components/schemas/FabricStorm' }
         version: { type: string, enum: [network-health/v1] }
         project_id: { type: string }
         package_id: { type: string }

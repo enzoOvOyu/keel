@@ -227,8 +227,9 @@ func EvaluateLosslessUnit(c *MetricEvaluation, u MetricUnit, rules []LosslessRul
 	}
 	sort.Strings(ids)
 	findings := []LosslessFinding{}
+	evaluatedAt := c.Now
 	for _, id := range ids {
-		f := LosslessFinding{Unit: u, RuleID: id, AppliedRules: []string{}, State: "normal", Flags: []string{}}
+		f := LosslessFinding{EvaluatedAt: &evaluatedAt, Unit: u, RuleID: id, AppliedRules: []string{}, State: "normal", Flags: []string{}}
 		unknown := false
 		for _, r := range groups[id] {
 			f.AppliedRules = append(f.AppliedRules, fmt.Sprintf("%s@%d", r.ID, r.Version))

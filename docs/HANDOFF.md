@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-23。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-24；最新开发事实见末尾增量记录，早期表格为对应批次快照。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 1. 工作区与运行版本
 
@@ -148,3 +148,29 @@ LL-01～LL-07 类型化指标与安全 AST、精确十进制/窗口/来源校验
 这些均是软件框架/设备协议夹具证据，未跑真机 PoC、千台性能或 GitHub CI。当前功能待下述发布记录确认，FR-0/FR-1 均不能标全量完成。原 AGENTS/026/fabric_precheck 草稿保持排除。
 
 用户授权继续并行：`codex/fr1-views` 执行详情、`codex/fabric-diagnostics` T4/T6/DDM、`codex/shadcn-ui` 组件库均在 `/home/ubuntu/keel-worktrees/` 独立工作树；后续前端统一采用 shadcn/ui，适配既有设计令牌/工作台/主题/Intel 字体，不替换 Monaco。先完成本批稳定发布，再按该提交同步下一批工作树。
+
+## 17. 2026-10-24 本地进度同步（换设备继续开发入口）
+
+当前远端主工作目录为 `/opt/keel`，分支 `dev/p1-network-bom`，HEAD `6aa8479`。2026-10-24 将本地主工作树的 PFC 风暴聚合草稿同步至此目录：`api/openapi.yaml`、`docs/NETWORK-HEALTH.md`、`internal/platform/network_health.go`、`internal/fabricmon/storm*`、网络健康页面/翻译/CSS及 `FabricStormSummary.tsx`。这批仍未提交、未构建或部署；3000 预览继续运行 `6aa8479` 镜像，不能据此认为页面或 API 已更新。同步前重叠文件备份为 `/home/ubuntu/.local/state/keel/backups/local-sync-20261024/main-overlap-before-sync.tar`。
+
+本地主机另有三个独立开发分支，已原样同步至远端 Git 工作树，尚未合并主工作目录：
+
+| 进度 | 远端工作树 / 分支 | HEAD 与状态 |
+|---|---|---|
+| 交付证据导出 | `/home/ubuntu/keel-local-sync-20261024/fabric-delivery` / `sync/fabric-delivery-20261024` | `a6b07e8`；WIP，未验证 |
+| 物理诊断与 DDM 趋势 | `/home/ubuntu/keel-local-sync-20261024/fabric-diagnostics` / `sync/fabric-diagnostics-20261024` | `e45081c`；尚未合并 |
+| FR-1 执行视图与事件流 | `/home/ubuntu/keel-local-sync-20261024/fr1-views` / `sync/fr1-views-20261024` | `4805e7f`；WIP，未验证 |
+
+暂停的 FR-1 重跑草稿保存在 `/home/ubuntu/keel-local-sync-20261024/fr1-rerun-draft/`，见其中 `PAUSED.md`；不要直接复制进编译应用。对应完整传输包与校验清单在 `/home/ubuntu/keel-local-transfer-20261024/`。
+
+原有远端工作树 `/home/ubuntu/keel-worktrees/{fabric-delivery,fabric-diagnostics,fr1-views,shadcn-ui}` 保持原状，其中诊断和执行视图有各自未提交改动；不能将同步分支视为已经合并到这些工作树。`/opt/keel` 原有 `AGENTS.md`、`scripts/check-health-browser.mjs`、`web/src/generated/api.d.ts`、026 迁移与 `fabric_precheck.go` 等改动保留。继续开发前先分别运行 `git status -sb` 并比较重叠文件，按需整合，不覆盖未提交成果。本次仅完成文件同步及逐文件一致性核对，没有运行测试、迁移、GitHub 推送或服务部署。
+
+## 18. 2026-10-24 开发工作流与文档核对
+
+用户指定 `/opt/keel/` Git 仓库为唯一开发工作区域；通过 SSH 执行，复用 `codex-keel` tmux 会话保持进程。历史独立工作树仅作待整合资料，后续修改统一在主目录完成。安全默认配置、合理沙箱和审批机制保留。已比较昨晚本地保存版本：PRD、DESIGN-SYSTEM、ARCHITECTURE、IMPLEMENTATION-PLAN、ACCEPTANCE、README、DEVELOPMENT、DEPLOYMENT、需求追踪文件均逐文件 SHA256 一致；远端 AGENTS 为现行开发规范，HANDOFF 包含新增同步记录。当前继续主目录 PFC 风暴聚合草稿，未因同步提升功能验收状态。
+
+## 19. 2026-10-24 LL-02 Fabric 风暴聚合已验证
+
+开发仅在 `/opt/keel`、tmux `codex-keel` 进行。完成同一判定时点的独立端口去重/三口升级、缺证据 unknown、近似与降级标识、版本化规则引用、健康 API/生成类型及页面受影响设备跳转；不重复扣分，不修改设备或放行生产门禁。规则计算器保留自身判定时间，聚合层不覆写历史时间。
+
+实际通过：fabricmon 全包 race 测试、fabricmon/platform/httpapi 三包 vet、前端完整构建（含类型生成/检查）；真实隔离 API/PG/mTLS 夹具/浏览器 `/tmp/keel-shell-ml8ladbs`，包含两设备三端口风暴与正常/空态/项目隔离/日志回归及设备 URL 跳转。首次近似测试误把 fallback 视为完整事件证据，已依据现有 degraded 语义修正断言后定向通过；未放宽产品判据。026 旧草稿经 build overlay 排除，未改动其源文件。无生产迁移或部署，3000 仍为 `6aa8479`。AGENTS 的现有用户修改及 026/fabric_precheck 草稿保留。下一关联增量为已保存物理诊断/DDM趋势的主目录整合。

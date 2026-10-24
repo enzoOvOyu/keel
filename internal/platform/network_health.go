@@ -29,6 +29,7 @@ type NetworkDeviceHealth struct {
 	FindingCounts map[string]int           `json:"finding_counts"`
 }
 type NetworkHealthReport struct {
+	FabricStorm    fabricmon.FabricStorm  `json:"fabric_storm"`
 	Version        string                 `json:"version"`
 	ProjectID      string                 `json:"project_id"`
 	PackageID      string                 `json:"package_id"`
@@ -273,6 +274,11 @@ func networkHealthTx(ctx context.Context, tx *sql.Tx, project string, onlyDevice
 	if e != nil {
 		return nil, e
 	}
+	stormPolicy, e := fabricmon.DefaultStormPolicy()
+	if e != nil {
+		return nil, e
+	}
+	stormFindings := []fabricmon.LosslessFinding{}
 	now := time.Now().UTC()
 	out := &NetworkHealthReport{Version: "network-health/v1", ProjectID: project, PackageID: pkg, ReadinessAt: now, TTLSeconds: 30, ValidUntil: now.Add(30 * time.Second), Devices: []NetworkDeviceHealth{}, NS7: networkGate("N-S7", "PASS", ""), Lossless: fabricmon.HealthRollup{ID: "fabric", Score: 100, State: "healthy", Unknown: len(inventory) == 0}}
 	if collection != nil {
@@ -377,6 +383,9 @@ func networkHealthTx(ctx context.Context, tx *sql.Tx, project string, onlyDevice
 		h.Lossless = fabricmon.RollupLossless(all, units)
 		for _, f := range all {
 			h.FindingCounts[f.State]++
+			if f.RuleID == stormPolicy.RuleID {
+				stormFindings = append(stormFindings, f)
+			}
 		}
 		if !detail {
 			h.Lossless.Findings = []fabricmon.LosslessFinding{}
@@ -387,6 +396,7 @@ func networkHealthTx(ctx context.Context, tx *sql.Tx, project string, onlyDevice
 		mergeNetworkGate(&out.NS7, h.Optics)
 		out.Devices = append(out.Devices, h)
 	}
+	out.FabricStorm = fabricmon.AggregateFabricStorm(stormFindings, stormPolicy)
 	if len(inventory) == 0 {
 		out.NS7 = networkGate("N-S7", "BLOCKED", "network_inventory_empty")
 	}

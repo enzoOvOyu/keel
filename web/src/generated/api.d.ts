@@ -1375,6 +1375,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FabricStorm: {
+            rule_id: string;
+            policy_version: number;
+            threshold_ports: number;
+            affected_ports: number;
+            /** @enum {string} */
+            state: "normal" | "escalated" | "unknown";
+            incomplete: boolean;
+            approximation: boolean;
+            applied_rule_ids: string[];
+            affected_device_ids: string[];
+        };
         ZTPManagementScript: {
             switch_id: string;
             serial_number: string;
@@ -1783,6 +1795,7 @@ export interface components {
             };
         };
         NetworkHealthReport: {
+            fabric_storm: components["schemas"]["FabricStorm"];
             /** @enum {string} */
             version: "network-health/v1";
             project_id: string;

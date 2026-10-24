@@ -64,12 +64,17 @@ class KeaFixture:
          v=value
          if key=='tx_packets_ecn_enabled_tc':v=value+(3600+offset)*100
          if key=='pfc_tx_pause_frames' and offset==0 and fixture.fault.read_text()=='fabric-lossless-pfc':v+=1
+         if key=='pfc_xoff_duration_ms' and offset==0 and fixture.fault.read_text()=='fabric-lossless-storm':v=90000
          point={'key':key,'unit':unit,'source':source,'at':(now+datetime.timedelta(seconds=offset)).isoformat(),'value':v,'port':''}
          if axis.startswith('port'):point['port']='swp1'
          if axis=='port_priority':point['priority']=6
          if axis=='port_queue':point['queue']='6'
          if axis=='device_pool':point['pool']='shared-lossless'
          points.append(point)
+       if device['serial']=='FIXTURE-SW-2':
+        device['applied_lossless']['swp2']=dict(applied)
+        device['ports'].append(dict(device['ports'][0],name='swp2',neighbor=None))
+        points.extend([dict(point,port='swp2') for point in list(points) if point['port']=='swp1'])
        device['metric_points']=points
        device['capabilities']['logs']=True
        device['log_window_start']=(now-datetime.timedelta(hours=48)).isoformat()
