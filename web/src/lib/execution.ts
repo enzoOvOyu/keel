@@ -1,3 +1,4 @@
+import { executionViewSearch } from './execution-views'
 import type { components } from '../generated/execution'
 import { request } from './api'
 
@@ -39,8 +40,8 @@ export const listExecutionEvents = (projectId: string, executionId: string, afte
 
 // The execution identifier travels as a validated search parameter, so a forged
 // or malformed value falls back to the list instead of reaching the API.
-export function executionSearch(search: Record<string, unknown>): { page?: number; execution?: string } {
+export function executionSearch(search: Record<string, unknown>): { page?: number; execution?: string } & ReturnType<typeof executionViewSearch> {
   const page = Number(search.page)
   const execution = typeof search.execution === 'string' && /^[a-f0-9]{32}$/.test(search.execution) ? search.execution : undefined
-  return { ...(Number.isSafeInteger(page) && page > 0 && page <= 1_000_000 ? { page } : {}), ...(execution ? { execution } : {}) }
+  return { ...executionViewSearch(search), ...(Number.isSafeInteger(page) && page > 0 && page <= 1_000_000 ? { page } : {}), ...(execution ? { execution } : {}) }
 }

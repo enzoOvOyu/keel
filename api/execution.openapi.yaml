@@ -1277,6 +1277,433 @@
           }
         }
       }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/overview": {
+      "get": {
+        "operationId": "getExecutionOverview",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project-scoped persisted execution view. Missing evidence never implies success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionOverview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/matrix": {
+      "get": {
+        "operationId": "getExecutionMatrix",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project-scoped persisted execution view. Missing evidence never implies success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionMatrix"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/journal": {
+      "get": {
+        "operationId": "getExecutionJournal",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project-scoped persisted execution view. Missing evidence never implies success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/outputs": {
+      "get": {
+        "operationId": "getExecutionOutputs",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project-scoped persisted execution view. Missing evidence never implies success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionOutputs"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/relations": {
+      "get": {
+        "operationId": "getExecutionRelations",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project-scoped persisted execution view. Missing evidence never implies success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionRelations"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/attempts/{attemptId}": {
+      "get": {
+        "operationId": "getExecutionAttempt",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "attemptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project-scoped persisted execution view. Missing evidence never implies success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionAttemptDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/outputs/{attemptId}/download": {
+      "get": {
+        "operationId": "downloadExecutionOutput",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "attemptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project-scoped persisted execution view. Missing evidence never implies success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/stream": {
+      "get": {
+        "operationId": "streamExecutionView",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Bounded 25-second same-origin SSE. snapshot contains the latest 200 persisted lifecycle events; execution frames carry id=sequence. Last-Event-ID overrides after. Expired, foreign or future cursors emit resync. rotate reconnects with cursor. Current session and project access are rechecked between batches; access_revoked closes the stream. No device stdout is fabricated.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE snapshot/execution/resync/rotate/access_revoked frames. Cancel on tab or project change.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1543,7 +1970,9 @@
             "enum": [
               "sim.read",
               "sim.write",
-              "kea.apply"
+              "kea.apply",
+              "fabric.prepare",
+              "fabric.push"
             ]
           },
           "depends_on": {
@@ -1604,7 +2033,8 @@
             "type": "string",
             "enum": [
               "keel.sim/v1",
-              "keel.kea/v1"
+              "keel.kea/v1",
+              "keel.fabric/v1"
             ]
           },
           "inputs": {
@@ -2807,6 +3237,576 @@
           "source_version_id",
           "expected_version",
           "change_reason"
+        ]
+      },
+      "ExecutionViewTarget": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "project_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "seed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "model_version": {
+            "type": "string",
+            "enum": [
+              "sim-model-v1"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "sim",
+              "kea",
+              "fabric"
+            ]
+          },
+          "resource_key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "name",
+          "seed",
+          "revision",
+          "model_version",
+          "created_at",
+          "mode"
+        ]
+      },
+      "TaskTimeline": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "task_type": {
+            "type": "string"
+          },
+          "first_started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_observed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "required": [
+          "task_id",
+          "task_type",
+          "first_started_at",
+          "last_observed_at",
+          "counts"
+        ]
+      },
+      "ExecutionProgress": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "total_targets": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "complete_targets": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "success_targets": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failed_targets": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unknown_targets": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "total_targets",
+          "complete_targets",
+          "success_targets",
+          "failed_targets",
+          "unknown_targets"
+        ]
+      },
+      "ExecutionOverview": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "const": "execution-overview/v1"
+          },
+          "execution": {
+            "$ref": "#/components/schemas/ExecutionSummary"
+          },
+          "flow_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "flow_name": {
+            "type": "string"
+          },
+          "flow_version": {
+            "type": "integer"
+          },
+          "flow_hash": {
+            "type": "string"
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "progress": {
+            "$ref": "#/components/schemas/ExecutionProgress"
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskTimeline"
+            }
+          },
+          "event_cursor": {
+            "type": "integer"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "version",
+          "execution",
+          "flow_id",
+          "flow_name",
+          "flow_version",
+          "flow_hash",
+          "counts",
+          "progress",
+          "timeline",
+          "event_cursor",
+          "observed_at"
+        ]
+      },
+      "MatrixCell": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "attempt_id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "success",
+              "failed",
+              "cancelled",
+              "unknown",
+              "skipped",
+              "not_scheduled"
+            ]
+          },
+          "attempt_no": {
+            "type": "integer"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "task_id",
+          "attempt_id",
+          "state",
+          "attempt_no",
+          "started_at",
+          "finished_at"
+        ]
+      },
+      "MatrixRow": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/components/schemas/ExecutionViewTarget"
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MatrixCell"
+            }
+          }
+        },
+        "required": [
+          "target",
+          "cells"
+        ]
+      },
+      "ExecutionMatrix": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "const": "execution-matrix/v1"
+          },
+          "project_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "execution_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MatrixRow"
+            }
+          },
+          "event_cursor": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "project_id",
+          "execution_id",
+          "mode",
+          "page",
+          "page_size",
+          "total",
+          "tasks",
+          "items",
+          "event_cursor"
+        ]
+      },
+      "JournalEntry": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "execution_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "aggregate_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "type": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "error"
+            ]
+          }
+        },
+        "required": [
+          "sequence",
+          "id",
+          "execution_id",
+          "aggregate_version",
+          "type",
+          "payload",
+          "created_at",
+          "level"
+        ]
+      },
+      "JournalPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "const": "execution-journal/v1"
+          },
+          "kind": {
+            "const": "lifecycle"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JournalEntry"
+            }
+          },
+          "next_cursor": {
+            "type": "integer"
+          },
+          "oldest_cursor": {
+            "type": "integer"
+          },
+          "resync_required": {
+            "type": "boolean"
+          },
+          "has_more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "version",
+          "kind",
+          "items",
+          "next_cursor",
+          "oldest_cursor",
+          "resync_required",
+          "has_more"
+        ]
+      },
+      "ExecutionOutput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "digest": {
+            "type": "string"
+          },
+          "receipt": {
+            "$ref": "#/components/schemas/ExecutionReceipt"
+          }
+        },
+        "required": [
+          "attempt_id",
+          "task_id",
+          "target_id",
+          "digest",
+          "receipt"
+        ]
+      },
+      "ExecutionOutputs": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "const": "execution-outputs/v1"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExecutionOutput"
+            }
+          },
+          "artifacts_supported": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "version",
+          "mode",
+          "parameters",
+          "page",
+          "page_size",
+          "total",
+          "items",
+          "artifacts_supported"
+        ]
+      },
+      "ExecutionRelations": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "const": "execution-relations/v1"
+          },
+          "project_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "execution_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "flow": {
+            "$ref": "#/components/schemas/FlowVersion"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "target_set_hash": {
+            "type": "string"
+          },
+          "frozen_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "kea_deployment_id": {
+            "type": "string"
+          },
+          "push_job_id": {
+            "type": "string"
+          },
+          "upstream_execution_id": {
+            "type": "string"
+          },
+          "issue_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "version",
+          "project_id",
+          "execution_id",
+          "flow",
+          "parameters",
+          "target_set_hash",
+          "frozen_at",
+          "kea_deployment_id",
+          "push_job_id",
+          "upstream_execution_id",
+          "issue_ids",
+          "warnings"
+        ]
+      },
+      "ExecutionAttemptDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "attempt": {
+            "$ref": "#/components/schemas/ExecutionAttempt"
+          },
+          "target": {
+            "$ref": "#/components/schemas/ExecutionViewTarget"
+          },
+          "task": {
+            "$ref": "#/components/schemas/FlowTask"
+          },
+          "mode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "attempt",
+          "target",
+          "task",
+          "mode"
         ]
       }
     }

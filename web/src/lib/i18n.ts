@@ -1,3 +1,4 @@
+import { executionViewsTranslations } from './execution-views-i18n'
 import { networkDeliveryTranslations } from './network-delivery-i18n'
 import {fabricDiagnosticTranslations} from './fabric-diagnostics-i18n'
 import {ztpCompletionTranslations} from './ztp-completion-i18n'
@@ -27,6 +28,7 @@ export const resources = {
     ...networkHealthTranslations.zh,...fabricDiagnosticTranslations.zh,...networkRuleTranslations.zh,...networkRuleTranslations.zh,
     ...networkPushTranslations.zh,
     ...networkTranslations.zh,
+    ...executionViewsTranslations.zh,
     ...executionTranslations.zh,
     ...flowWorkbenchTranslations.zh,
     ...modelsTranslations.zh,
@@ -133,6 +135,7 @@ export const resources = {
     ...networkHealthTranslations.en,...fabricDiagnosticTranslations.en,...networkRuleTranslations.en,...networkRuleTranslations.en,
     ...networkPushTranslations.en,
     ...networkTranslations.en,
+    ...executionViewsTranslations.en,
     ...executionTranslations.en,
     ...flowWorkbenchTranslations.en,
     ...modelsTranslations.en,

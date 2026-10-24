@@ -99,7 +99,12 @@
         "F-1.13"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Execution simulation, media/parameter/model references and supporting pages have P1 implementation records. The complete Agent/SSH runtime, task catalog, scheduler and all FR-1 acceptance requirements still need verification; this documentation revision does not claim PASS."
+      "implementation_notes": "Execution simulation, media/parameter/model references and supporting pages have P1 implementation records. The complete Agent/SSH runtime, task catalog, scheduler and all FR-1 acceptance requirements still need verification; this documentation revision does not claim PASS. Saved execution views integrated in the main workspace: lazy five-tab overview/Gantt, virtual matrix, attempt detail, resumable lifecycle SSE with current access checks, structured receipt outputs and audit. Real API/PG/worker/browser evidence exists at /tmp/keel-views-n_wiaccz. These are small-scale software evidence; device stdout/artifacts, real transport and full FR-1 remain incomplete.",
+      "evidence_refs": [
+        "docs/FR1-EXECUTION-VIEWS.md",
+        "internal/execution/views.go",
+        "scripts/check-execution-views-browser.mjs"
+      ]
     },
     {
       "id": "FR-2",

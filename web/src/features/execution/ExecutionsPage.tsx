@@ -1,3 +1,4 @@
+import { ExecutionWorkspace } from './ExecutionWorkspace'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -5,10 +6,9 @@ import { useTranslation } from 'react-i18next'
 import { ProjectWorkspace, useProject } from '../../components/ProjectWorkspace'
 import { ActionDialog, ActionError, Pagination, PermissionDenied, SuccessNotice } from '../../components/Management'
 import { useAction } from '../../lib/management'
-import { controlExecution, createExecution, getExecution, listAttempts, listExecutions, listFlows, listSimTargets, registerSimTargets } from '../../lib/execution'
+import { createExecution, listExecutions, listFlows, listSimTargets, registerSimTargets } from '../../lib/execution'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 
-const terminalStates = ['success', 'failed', 'killed']
 const targetPageSize = 100
 
 // One key per distinct payload, so a retry of the same request is idempotent
@@ -84,45 +84,6 @@ function CreateExecutionDialog({ projectId, onClose, onDone }: { projectId: stri
     <p className="impact-notice">{t('simulationNoticeDetail')}</p>
   </ActionDialog>
 }
-function ExecutionPanel({ projectId, executionId, onClose }: { projectId: string; executionId: string; onClose: () => void }) {
-  const { t, i18n } = useTranslation(), session = useSession(), client = useQueryClient()
-  const control = useAction()
-  const [attemptPage, setAttemptPage] = useState(1)
-  const currentProject=useProject()
-  const detail = useQuery({ queryKey: ['private', session.user.id, 'project', projectId, 'execution', executionId],
-    queryFn: ({ signal }) => getExecution(projectId, executionId, signal),
-    refetchInterval: (query) => { const state = query.state.data?.execution.state; return state && !terminalStates.includes(state) ? 3000 : false } })
-  const attempts = useQuery({ queryKey: ['private', session.user.id, 'project', projectId, 'execution', executionId, 'attempts', attemptPage],
-    queryFn: ({ signal }) => listAttempts(projectId, executionId, attemptPage, signal) })
-  useExpireOnUnauthorized(detail.error)
-  const format = (value: string | null) => value ? new Intl.DateTimeFormat(i18n.language === 'en' ? 'en-US' : 'zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : t('executionFinishedNone')
-  async function runControl(action: 'pause' | 'resume' | 'cancel') {
-    const current = detail.data?.execution
-    if (!current) return
-    const result = await control.run(() => controlExecution(projectId, executionId, { action, expected_version: current.state_version }, session.csrf_token))
-    if (result.ok) await client.invalidateQueries({ queryKey: ['private', session.user.id, 'project', projectId, 'execution', executionId] })
-  }
-  if (detail.isPending) return <section className="management-panel" role="status">{t('loadingRecords')}</section>
-  if (detail.isError || !detail.data) return <section className="management-panel"><ActionError error={detail.error ?? new Error('unavailable')} /><button className="secondary-button" onClick={onClose}>{t('backToList')}</button></section>
-  const execution = detail.data.execution
-  const canControl=execution.mode!=='sim'?(session.user.is_admin||['Admin','NDE'].includes(currentProject.role)):session.permissions.includes('execution:control')
-  const active = !terminalStates.includes(execution.state)
-  return <section className="management-panel" aria-busy={detail.isFetching}>
-    <div className="page-heading"><div><p className="section-eyebrow">{t(execution.mode==='fabric'?'networkExecutionNotice':execution.mode==='kea'?'keaControlNotice':'simulationNotice')}</p><h1>{t('executionDetail')}</h1><p>{t(execution.mode==='fabric'?'networkExecutionDetail':execution.mode==='kea'?'keaControlDetail':'noDeviceConnection')}</p></div>
-      <button className="secondary-button" onClick={onClose}>{t('backToList')}</button></div>
-    <dl className="action-target"><dt>{t('executionId')}</dt><dd className="mono-value">{execution.id}</dd><dt>{t('executionState')}</dt><dd>{t('state_' + execution.state)}</dd>
-      <dt>{t('executionTargets')}</dt><dd>{detail.data.attempts_total}</dd><dt>{t('executionConcurrency')}</dt><dd>{execution.concurrency}</dd>
-      <dt>{t('executionStarted')}</dt><dd>{format(execution.started_at)}</dd><dt>{t('executionFinished')}</dt><dd>{format(execution.finished_at)}</dd></dl>
-    <h2>{t('countsTitle')}</h2><div className="table-scroll"><table className="data-table"><tbody>{Object.entries(detail.data.counts).map(([state, value]) => <tr key={state}><th scope="row">{t('attempt_state_' + state)}</th><td>{value}</td></tr>)}</tbody></table></div>
-    {canControl && <div className="management-toolbar"><span className="field-hint">{t('controlHint')}</span>
-      <button className="secondary-button" disabled={!active || control.busy} onClick={() => void runControl('pause')}>{t('pause')}</button>
-      <button className="secondary-button" disabled={!active || control.busy} onClick={() => void runControl('resume')}>{t('resume')}</button>
-      <button className="danger-text" disabled={!active || control.busy} onClick={() => void runControl('cancel')}>{t('cancelExecution')}</button></div>}
-    <ActionError error={control.error} />{control.error?.status === 409 && <p className="field-hint">{t('controlConflict')}</p>}
-    <h2>{t('attemptsTitle')}</h2>
-    {attempts.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : attempts.data && <><div className="table-scroll" tabIndex={0} role="region" aria-label={t('attemptsTitle')}><table className="data-table"><thead><tr><th scope="col">{t('attemptTask')}</th><th scope="col">{t('attemptNo')}</th><th scope="col">{t('attemptState')}</th><th scope="col">{t('attemptTarget')}</th><th scope="col">{t('attemptLease')}</th></tr></thead><tbody>{attempts.data.items.map((attempt) => <tr key={attempt.id}><td><code>{attempt.task_id}</code></td><td>{attempt.attempt_no}</td><td>{t('attempt_state_' + attempt.state)}</td><td className="mono-value">{attempt.target_id}</td><td className="mono-value">{attempt.lease_owner || '—'}</td></tr>)}</tbody></table>{!attempts.data.items.length && <p className="table-loading">{t('noAttempts')}</p>}</div><Pagination offset={(attemptPage - 1) * attempts.data.page_size} limit={attempts.data.page_size} total={attempts.data.total} busy={attempts.isFetching} onChange={(offset) => setAttemptPage(offset / attempts.data.page_size + 1)} /></>}
-  </section>
-}
 function ExecutionsContent() {
   const project = useProject()
   const { t, i18n } = useTranslation(), session = useSession(), client = useQueryClient(), navigate = useNavigate()
@@ -152,7 +113,7 @@ function ExecutionsContent() {
     <p className="impact-notice">{t('executionModesNotice')}</p>
     {success && <SuccessNotice>{success}</SuccessNotice>}
     {canRegister && targets.data && <p className="field-hint">{t('targetsRegistered', { total: targets.data.total })}</p>}
-    {executionId ? <ExecutionPanel projectId={project.id} executionId={executionId} onClose={() => go(page)} /> : <>
+    {executionId ? <ExecutionWorkspace key={executionId} projectId={project.id} executionId={executionId} onClose={() => go(page)} /> : <>
       <section className="management-panel" aria-busy={executions.isFetching}>
         <ActionError error={executions.error} />
         {executions.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : executions.data && <>

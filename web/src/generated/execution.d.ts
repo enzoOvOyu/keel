@@ -225,6 +225,135 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/executions/{executionId}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getExecutionOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/executions/{executionId}/matrix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getExecutionMatrix"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/executions/{executionId}/journal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getExecutionJournal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/executions/{executionId}/outputs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getExecutionOutputs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/executions/{executionId}/relations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getExecutionRelations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/executions/{executionId}/attempts/{attemptId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getExecutionAttempt"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/executions/{executionId}/outputs/{attemptId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["downloadExecutionOutput"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/executions/{executionId}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Bounded 25-second same-origin SSE. snapshot contains the latest 200 persisted lifecycle events; execution frames carry id=sequence. Last-Event-ID overrides after. Expired, foreign or future cursors emit resync. rotate reconnects with cursor. Current session and project access are rechecked between batches; access_revoked closes the stream. No device stdout is fabricated. */
+        get: operations["streamExecutionView"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -251,7 +380,7 @@ export interface components {
         FlowTask: {
             id: string;
             /** @enum {string} */
-            type: "sim.read" | "sim.write" | "kea.apply";
+            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push";
             depends_on?: string[];
             retry: number;
             idempotent: boolean;
@@ -261,7 +390,7 @@ export interface components {
         };
         FlowDefinition: {
             /** @enum {string} */
-            api_version: "keel.sim/v1" | "keel.kea/v1";
+            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1";
             inputs: {
                 [key: string]: components["schemas"]["FlowInput"];
             };
@@ -546,6 +675,154 @@ export interface components {
             source_version_id: string;
             expected_version: number;
             change_reason: string;
+        };
+        ExecutionViewTarget: {
+            id: string;
+            project_id: string;
+            name: string;
+            /** Format: int64 */
+            seed: number;
+            revision: number;
+            /** @enum {string} */
+            model_version: "sim-model-v1";
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            mode: "sim" | "kea" | "fabric";
+            resource_key?: string;
+        };
+        TaskTimeline: {
+            task_id: string;
+            task_type: string;
+            /** Format: date-time */
+            first_started_at: string | null;
+            /** Format: date-time */
+            last_observed_at: string | null;
+            counts: {
+                [key: string]: number;
+            };
+        };
+        ExecutionProgress: {
+            total_targets: number;
+            complete_targets: number;
+            success_targets: number;
+            failed_targets: number;
+            unknown_targets: number;
+        };
+        ExecutionOverview: {
+            /** @constant */
+            version: "execution-overview/v1";
+            execution: components["schemas"]["ExecutionSummary"];
+            flow_id: string;
+            flow_name: string;
+            flow_version: number;
+            flow_hash: string;
+            counts: {
+                [key: string]: number;
+            };
+            progress: components["schemas"]["ExecutionProgress"];
+            timeline: components["schemas"]["TaskTimeline"][];
+            event_cursor: number;
+            /** Format: date-time */
+            observed_at: string;
+        };
+        MatrixCell: {
+            task_id: string;
+            attempt_id: string;
+            /** @enum {string} */
+            state: "pending" | "running" | "success" | "failed" | "cancelled" | "unknown" | "skipped" | "not_scheduled";
+            attempt_no: number;
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: date-time */
+            finished_at: string | null;
+        };
+        MatrixRow: {
+            target: components["schemas"]["ExecutionViewTarget"];
+            cells: components["schemas"]["MatrixCell"][];
+        };
+        ExecutionMatrix: {
+            /** @constant */
+            version: "execution-matrix/v1";
+            project_id: string;
+            execution_id: string;
+            mode: string;
+            page: number;
+            page_size: number;
+            total: number;
+            tasks: string[];
+            items: components["schemas"]["MatrixRow"][];
+            event_cursor: number;
+        };
+        JournalEntry: {
+            /** Format: int64 */
+            sequence: number;
+            id: string;
+            execution_id: string;
+            aggregate_version: number;
+            type: string;
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            level: "info" | "warning" | "error";
+        };
+        JournalPage: {
+            /** @constant */
+            version: "execution-journal/v1";
+            /** @constant */
+            kind: "lifecycle";
+            items: components["schemas"]["JournalEntry"][];
+            next_cursor: number;
+            oldest_cursor: number;
+            resync_required: boolean;
+            has_more: boolean;
+        };
+        ExecutionOutput: {
+            attempt_id: string;
+            task_id: string;
+            target_id: string;
+            digest: string;
+            receipt: components["schemas"]["ExecutionReceipt"];
+        };
+        ExecutionOutputs: {
+            /** @constant */
+            version: "execution-outputs/v1";
+            mode: string;
+            parameters: {
+                [key: string]: unknown;
+            };
+            page: number;
+            page_size: number;
+            total: number;
+            items: components["schemas"]["ExecutionOutput"][];
+            artifacts_supported: boolean;
+        };
+        ExecutionRelations: {
+            /** @constant */
+            version: "execution-relations/v1";
+            project_id: string;
+            execution_id: string;
+            flow: components["schemas"]["FlowVersion"];
+            parameters: {
+                [key: string]: unknown;
+            };
+            target_set_hash: string;
+            /** Format: date-time */
+            frozen_at: string;
+            kea_deployment_id: string;
+            push_job_id: string;
+            upstream_execution_id: string;
+            issue_ids: string[];
+            warnings: string[];
+        };
+        ExecutionAttemptDetail: {
+            attempt: components["schemas"]["ExecutionAttempt"];
+            target: components["schemas"]["ExecutionViewTarget"];
+            task: components["schemas"]["FlowTask"];
+            mode: string;
         };
     };
     responses: {
@@ -1234,6 +1511,206 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FlowVersion"];
+                };
+            };
+        };
+    };
+    getExecutionOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                executionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped persisted execution view. Missing evidence never implies success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionOverview"];
+                };
+            };
+        };
+    };
+    getExecutionMatrix: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                state?: string;
+                q?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+                executionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped persisted execution view. Missing evidence never implies success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionMatrix"];
+                };
+            };
+        };
+    };
+    getExecutionJournal: {
+        parameters: {
+            query?: {
+                after?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                executionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped persisted execution view. Missing evidence never implies success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalPage"];
+                };
+            };
+        };
+    };
+    getExecutionOutputs: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                executionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped persisted execution view. Missing evidence never implies success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionOutputs"];
+                };
+            };
+        };
+    };
+    getExecutionRelations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                executionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped persisted execution view. Missing evidence never implies success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionRelations"];
+                };
+            };
+        };
+    };
+    getExecutionAttempt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                executionId: string;
+                attemptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped persisted execution view. Missing evidence never implies success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionAttemptDetail"];
+                };
+            };
+        };
+    };
+    downloadExecutionOutput: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                executionId: string;
+                attemptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped persisted execution view. Missing evidence never implies success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionOutput"];
+                };
+            };
+        };
+    };
+    streamExecutionView: {
+        parameters: {
+            query?: {
+                after?: number;
+            };
+            header?: {
+                "Last-Event-ID"?: string;
+            };
+            path: {
+                id: string;
+                executionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SSE snapshot/execution/resync/rotate/access_revoked frames. Cancel on tab or project change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
                 };
             };
         };

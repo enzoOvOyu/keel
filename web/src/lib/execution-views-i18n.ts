@@ -1,0 +1,108 @@
+export const executionViewsTranslations = {
+  zh: {
+    executionViewTabs: "执行详情视图",
+    executionViewTab_overview: "概览",
+    executionViewTab_targets: "目标",
+    executionViewTab_logs: "日志",
+    executionViewTab_outputs: "输出",
+    executionViewTab_relations: "关联",
+    executionViewTimeline: "任务时间线",
+    executionViewTimelineHint:
+      "时间条覆盖该任务全部目标与重试的实际执行区间；无开始或完成证据时不推测耗时。",
+    executionViewComplete: "已完成目标",
+    executionViewSuccess: "成功目标",
+    executionViewFailed: "失败目标",
+    executionViewUnknown: "结果未知目标",
+    executionViewSnapshotHint: "首开一致性快照，活动视图按事件刷新",
+    executionViewTargets: "目标状态矩阵",
+    executionViewTargetFilter: "目标名称或 ID",
+    executionViewZoom: "网格缩放",
+    executionViewMatrixCount: "共 {{count}} 个匹配目标",
+    executionViewNotScheduled: "未派发 / 缺少尝试记录",
+    executionViewOutputs: "输出与变量",
+    executionViewArtifactsUnavailable:
+      "当前 Runner 提供结构化回执，尚未产出可下载文件制品。JSON 下载为已持久化回执，逐次记审计。",
+    executionViewFrozenParameters: "冻结的参数快照",
+    executionViewReceipt: "执行回执",
+    executionViewDownloadJSON: "下载 JSON 回执",
+    executionViewStructuredOutput: "结构化输出",
+    executionViewRelations: "执行关联",
+    executionViewTargetHash: "目标集合摘要",
+    executionViewFrozenAt: "冻结时间",
+    executionViewRelationsUnavailable:
+      "上游子作业与工单关联尚未接入；不把缺少关联当作业务校验通过。",
+    executionViewAttemptDetails: "任务尝试详情",
+    executionViewClose: "关闭",
+    executionViewFocusLogs: "查看本次尝试的日志",
+    executionViewNoReceipt: "尚无执行回执；不据此推断成功、失败或已终止。",
+    executionViewLogs: "执行生命周期日志",
+    executionViewLifecycleNotice:
+      "此处展示执行器已持久化的任务和状态事件；设备 stdout/stderr 日志通道尚未接入。",
+    executionViewLogLimit:
+      "界面保留最近 500 条事件；初次进入读取最近 200 条，断线按游标续读，游标过期重新读取快照。",
+    executionViewClearAttempt: "清除尝试筛选",
+    executionViewConnection_idle: "未订阅（任务已结束或当前视图不需要）",
+    executionViewConnection_connecting: "正在连接执行事件流",
+    executionViewConnection_live: "事件流已连接",
+    executionViewConnection_reconnecting: "连接中断，保留已有数据并重连续读",
+    executionViewConnection_denied: "会话或项目权限已变化，事件流已关闭",
+    executionViewResync: "事件游标已过期，正在重新同步快照",
+    executionViewControlVersion:
+      "按当前状态版本 {{version}} 提交控制请求；冲突后刷新，不自动重试。",
+  },
+  en: {
+    executionViewTabs: "Execution views",
+    executionViewTab_overview: "Overview",
+    executionViewTab_targets: "Targets",
+    executionViewTab_logs: "Logs",
+    executionViewTab_outputs: "Outputs",
+    executionViewTab_relations: "Relations",
+    executionViewTimeline: "Task timeline",
+    executionViewTimelineHint:
+      "Bars span observed execution across targets and retries. Missing start or completion evidence is not an estimated duration.",
+    executionViewComplete: "Completed targets",
+    executionViewSuccess: "Successful targets",
+    executionViewFailed: "Failed targets",
+    executionViewUnknown: "Unknown targets",
+    executionViewSnapshotHint:
+      "Consistent initial snapshot, refreshed by active-view events",
+    executionViewTargets: "Target status matrix",
+    executionViewTargetFilter: "Target name or ID",
+    executionViewZoom: "Cell size",
+    executionViewMatrixCount: "{{count}} matching targets",
+    executionViewNotScheduled: "Not dispatched / attempt missing",
+    executionViewOutputs: "Outputs and variables",
+    executionViewArtifactsUnavailable:
+      "This runner provides structured receipts and does not yet produce downloadable file artifacts. JSON downloads contain persisted receipts and are audited.",
+    executionViewFrozenParameters: "Frozen parameter snapshot",
+    executionViewReceipt: "Execution receipt",
+    executionViewDownloadJSON: "Download JSON receipt",
+    executionViewStructuredOutput: "Structured output",
+    executionViewRelations: "Execution relations",
+    executionViewTargetHash: "Target set digest",
+    executionViewFrozenAt: "Frozen at",
+    executionViewRelationsUnavailable:
+      "Upstream subflow and issue links are not implemented. Missing links are not business validation.",
+    executionViewAttemptDetails: "Task attempt details",
+    executionViewClose: "Close",
+    executionViewFocusLogs: "View attempt logs",
+    executionViewNoReceipt:
+      "No execution receipt yet. This does not prove success, failure or termination.",
+    executionViewLogs: "Execution lifecycle logs",
+    executionViewLifecycleNotice:
+      "Persisted execution/task state events. Device stdout/stderr streaming is not connected yet.",
+    executionViewLogLimit:
+      "The interface retains 500 events and opens the latest 200. Reconnect resumes from the cursor; expired cursors reload a snapshot.",
+    executionViewClearAttempt: "Clear attempt filter",
+    executionViewConnection_idle: "Not subscribed (finished or inactive view)",
+    executionViewConnection_connecting: "Connecting to execution events",
+    executionViewConnection_live: "Event stream connected",
+    executionViewConnection_reconnecting:
+      "Disconnected; retaining data and resuming",
+    executionViewConnection_denied:
+      "Session or project access changed; stream closed",
+    executionViewResync: "Event cursor expired; resynchronizing the snapshot",
+    executionViewControlVersion:
+      "Control request uses state version {{version}}. Refresh on conflict; no automatic retry.",
+  },
+};
