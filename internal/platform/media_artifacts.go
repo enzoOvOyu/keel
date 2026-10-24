@@ -208,6 +208,9 @@ func (s *Store) DownloadMedia(ctx context.Context, a *AuthSession, project *Proj
 		return nil, nil, e
 	}
 	defer tx.Rollback()
+	if project == nil && !a.User.IsAdmin {
+		return nil, nil, ErrForbidden
+	}
 	if project != nil {
 		if e = requireProjectMember(ctx, tx, a, project.ID); e != nil {
 			return nil, nil, e

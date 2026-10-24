@@ -144,7 +144,7 @@ try {
  assert.equal((await call('GET',base+'/params')).items.find(v=>v.key==='runtime.shared').id,override.id)
  // Project-only approved files must never become a global version default.
  await page.getByRole('button',{name:'Add parameter',exact:true}).click();await page.locator('#catalog-key').fill('global.driver.version');await page.locator('#catalog-type').selectOption('version')
- await page.getByText('Only approved global media with stored files are listed. Global media registration is unavailable on this page.',{exact:true}).waitFor()
+ assert.equal(await page.locator('.action-dialog a[href="/admin/media"]').count(),1)
  await page.locator('#catalog-default:not([disabled])').waitFor();assert.equal(await page.locator('#catalog-default option[value="approved-1"]').count(),0)
  assert.equal(await page.locator('#catalog-options').count(),0);await page.getByRole('button',{name:'Cancel',exact:true}).click()
  await call('POST','/admin/params/'+override.id+'/retire',{},404)

@@ -2856,6 +2856,257 @@ paths:
       x-platform-admin-required: true
       description: Platform administrators only. Uses the global scope; project administrators are forbidden. Global media metadata
         includes lifecycle state; selectable versions require approved status and an immutable stored artifact.
+  /api/v1/admin/media:
+    get:
+      operationId: globalListProjectMedia
+      tags:
+      - Foundation
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Registered media with lifecycle state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaPage'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-resource-scope: platform-admin
+      x-platform-admin-required: true
+      description: 'Platform administrators only. Scope is fixed to global; project IDs are not accepted. The uploader cannot approve their own artifact. '
+    post:
+      operationId: globalRegisterMedia
+      tags:
+      - Foundation
+      security:
+      - sessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/Origin'
+      - $ref: '#/components/parameters/CSRFToken'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterMediaInput'
+      responses:
+        '201':
+          description: Registered media
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaItemSummary'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      x-resource-scope: platform-admin
+      x-platform-admin-required: true
+      description: 'Platform administrators only. Scope is fixed to global; project IDs are not accepted. The uploader cannot approve their own artifact. '
+  /api/v1/admin/media/upload:
+    post:
+      operationId: globalUploadMediaArtifact
+      tags:
+      - Media
+      security:
+      - sessionCookie: []
+      description: Platform administrators only. Scope is fixed to global; project IDs are not accepted. The uploader cannot approve their own artifact. Upload a private immutable artifact.
+        Multipart metadata JSON must precede the file. SHA256 and size are computed from actual bytes. Admin/SRE only, maximum 1 GiB inline; duplicate versions are rejected.
+      parameters:
+      - $ref: '#/components/parameters/Origin'
+      - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - metadata
+              - file
+              properties:
+                metadata:
+                  type: string
+                  description: RegisterMediaInput JSON; sha256 and size are computed by the server.
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Uploaded artifact and registered immutable media version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaItemSummary'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          description: Inline upload exceeds 1 GiB
+        '503':
+          description: Versioned storage unavailable
+      x-resource-scope: platform-admin
+      x-platform-admin-required: true
+  /api/v1/admin/media/{mediaId}/content:
+    parameters:
+    - name: mediaId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^[a-f0-9]{32}$
+    put:
+      operationId: globalAttachMediaArtifact
+      tags:
+      - Media
+      security:
+      - sessionCookie: []
+      description: Platform administrators only. Scope is fixed to global; project IDs are not accepted. The uploader cannot approve their own artifact. The original uploader attaches
+        the exact registered digest and size to an uploaded item once. Existing bindings cannot be replaced.
+      parameters:
+      - $ref: '#/components/parameters/Origin'
+      - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Immutable object version attached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaItemSummary'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          description: Actual bytes differ from the registered digest or size
+        '503':
+          description: Versioned storage unavailable
+      x-resource-scope: platform-admin
+      x-platform-admin-required: true
+    get:
+      operationId: globalDownloadMediaArtifact
+      tags:
+      - Media
+      security:
+      - sessionCookie: []
+      description: Platform administrators only. Scope is fixed to global; project IDs are not accepted. The uploader cannot approve their own artifact. Authenticated project members read
+        only approved, non-retired media. The complete pinned object is verified before serving bytes; Range and If-Range are supported. Every authorized download is audited. No object-store
+        URL or credentials are exposed.
+      parameters:
+      - name: Range
+        in: header
+        schema:
+          type: string
+      - name: If-Range
+        in: header
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Verified approved bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: Verified byte range
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '416':
+          description: Requested range is not satisfiable
+        '422':
+          description: Stored object integrity verification failed; no bytes served
+        '503':
+          description: Pinned object or storage unavailable
+      x-resource-scope: platform-admin
+      x-platform-admin-required: true
+  /api/v1/admin/media/{mediaId}/transition:
+    post:
+      operationId: globalTransitionMedia
+      tags:
+      - Foundation
+      security:
+      - sessionCookie: []
+      parameters:
+      - name: mediaId
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-f0-9]{32}$
+      - $ref: '#/components/parameters/Origin'
+      - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - state
+              properties:
+                state:
+                  type: string
+                  enum:
+                  - verified
+                  - approved
+                  - retired
+      responses:
+        '200':
+          description: Updated media
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaItemSummary'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      x-resource-scope: platform-admin
+      x-platform-admin-required: true
+      description: 'Platform administrators only. Scope is fixed to global; project IDs are not accepted. The uploader cannot approve their own artifact. '
+
 components:
 
   securitySchemes:

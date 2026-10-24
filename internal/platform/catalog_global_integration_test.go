@@ -3,6 +3,7 @@ package platform
 import (
 	"bytes"
 	"context"
+	"os"
 	"testing"
 )
 
@@ -105,6 +106,22 @@ func TestGlobalCatalogScopeBoundaries(t *testing.T) {
 			}
 		}
 	}
+	globalMedia, err := s.ListMedia(ctx, owner, nil, page)
+	if err != nil || len(globalMedia.Items) != 1 {
+		t.Fatalf("global media: %+v %v", globalMedia, err)
+	}
+	globalID := globalMedia.Items[0].ID
+	if _, _, err = s.DownloadMedia(ctx, localAdmin, nil, globalID, "test"); err == nil {
+		t.Fatal("project admin downloaded from the global administration boundary")
+	} else {
+		assertErrorCode(t, err, "FORBIDDEN")
+	}
+	file, _, err := s.DownloadMedia(ctx, localAdmin, p, globalID, "test")
+	if err != nil {
+		t.Fatal("project member cannot consume approved global artifact", err)
+	}
+	file.Close()
+	os.Remove(file.Name())
 	versionInput := UpsertParamKeyInput{Key: "tool.version", ValueType: "version", SourceMediaType: "tool", DefaultValue: "project-file"}
 	if _, e = s.UpsertParamKey(ctx, owner, nil, versionInput, "test"); e == nil {
 		t.Fatal("project artifact became a global default")

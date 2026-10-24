@@ -13,21 +13,29 @@ import (
 	"time"
 )
 
-func (a *authAPI) mediaProject(c *gin.Context, write bool) (*platform.AuthSession, *platform.ProjectSummary, bool) {
+func (a *authAPI) mediaScope(c *gin.Context, write, global bool) (*platform.AuthSession, *platform.ProjectSummary, bool) {
 	actor, ok := a.authenticated(c)
 	if !ok {
+		return nil, nil, false
+	}
+	if global && !actor.User.IsAdmin {
+		a.respondError(c, platform.ErrForbidden)
 		return nil, nil, false
 	}
 	if write && !a.writeAllowed(c) {
 		return nil, nil, false
 	}
-	project, e := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
-	if e != nil {
-		a.respondError(c, e)
-		return nil, nil, false
+	var project *platform.ProjectSummary
+	if !global {
+		var e error
+		project, e = a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
+		if e != nil {
+			a.respondError(c, e)
+			return nil, nil, false
+		}
 	}
 	if write {
-		if e = a.store.CheckMediaManage(c.Request.Context(), actor, project); e != nil {
+		if e := a.store.CheckMediaManage(c.Request.Context(), actor, project); e != nil {
 			a.respondError(c, e)
 			return nil, nil, false
 		}
@@ -42,10 +50,9 @@ func mediaDeadline(c *gin.Context) context.CancelFunc {
 	_ = control.SetWriteDeadline(time.Now().Add(5 * time.Minute))
 	return cancel
 }
-func (a *authAPI) registerMediaArtifacts(r *gin.Engine) {
-	base := "/api/v1/projects/:id/media"
+func (a *authAPI) registerMediaArtifacts(r *gin.Engine, base string, global bool) {
 	r.POST(base+"/upload", func(c *gin.Context) {
-		actor, project, ok := a.mediaProject(c, true)
+		actor, project, ok := a.mediaScope(c, true, global)
 		if !ok {
 			return
 		}
@@ -93,7 +100,7 @@ func (a *authAPI) registerMediaArtifacts(r *gin.Engine) {
 		c.JSON(201, item)
 	})
 	r.PUT(base+"/:mediaId/content", func(c *gin.Context) {
-		actor, project, ok := a.mediaProject(c, true)
+		actor, project, ok := a.mediaScope(c, true, global)
 		if !ok {
 			return
 		}
@@ -113,7 +120,7 @@ func (a *authAPI) registerMediaArtifacts(r *gin.Engine) {
 		c.JSON(200, item)
 	})
 	r.GET(base+"/:mediaId/content", func(c *gin.Context) {
-		actor, project, ok := a.mediaProject(c, false)
+		actor, project, ok := a.mediaScope(c, false, global)
 		if !ok {
 			return
 		}

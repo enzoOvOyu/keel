@@ -1,3 +1,4 @@
+import { Workspace } from "../../components/Workspace";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,7 +59,7 @@ function RegisterMediaDialog({
   onDone,
 }: {
   upload?: boolean;
-  projectId: string;
+  projectId: string | null;
   onClose: () => void;
   onDone: () => Promise<void>;
 }) {
@@ -130,7 +131,7 @@ function RegisterMediaDialog({
   return (
     <ActionDialog
       title={t(upload ? "mediaUpload" : "mediaCreate")}
-      description={t(upload ? "mediaUploadDetail" : "mediaCreateDetail")}
+      description={t(projectId === null ? "mediaGlobalRegistration" : upload ? "mediaUploadDetail" : "mediaCreateDetail")}
       busy={action.busy}
       confirm={t(action.busy ? "saving" : "mediaCreate")}
       onSubmit={(event) => void submit(event)}
@@ -276,7 +277,7 @@ function AttachMediaDialog({
   onClose,
   onDone,
 }: {
-  projectId: string;
+  projectId: string | null;
   item: MediaItemSummary;
   onClose: () => void;
   onDone: () => Promise<void>;
@@ -325,7 +326,7 @@ function TransitionDialog({
   onClose,
   onDone,
 }: {
-  projectId: string;
+  projectId: string | null;
   item: MediaItemSummary;
   target: string;
   onClose: () => void;
@@ -344,7 +345,7 @@ function TransitionDialog({
   return (
     <ActionDialog
       title={t("mediaNext" + target.charAt(0).toUpperCase() + target.slice(1))}
-      description={t("mediaTransitionDetail")}
+      description={t(projectId === null ? "mediaGlobalTransition" : "mediaTransitionDetail")}
       busy={action.busy}
       confirm={t("confirmChange")}
       danger={target === "retired"}
@@ -372,8 +373,7 @@ function TransitionDialog({
     </ActionDialog>
   );
 }
-function MediaContent() {
-  const project = useProject();
+function MediaContent({ projectId, projectName, projectRole }: { projectId: string | null; projectName: string; projectRole?: string }) {
   const { t, i18n } = useTranslation(),
     session = useSession(),
     client = useQueryClient();
@@ -386,26 +386,26 @@ function MediaContent() {
       target: string;
     } | null>(null),
     [success, setSuccess] = useState("");
-  const allowed = session.permissions.includes("media:read");
+  const allowed = projectId === null ? session.user.is_admin : session.permissions.includes("media:read");
   const manage =
-    (session.user.is_admin || ["Admin", "SRE"].includes(project.role)) &&
-    session.permissions.includes("media:manage");
+    (session.user.is_admin || projectId !== null && ["Admin", "SRE"].includes(projectRole ?? "")) &&
+    (projectId === null || session.permissions.includes("media:manage"));
   const media = useQuery({
     queryKey: [
       "private",
       session.user.id,
-      "project",
-      project.id,
+      projectId === null ? "global" : "project",
+      projectId,
       "media",
       page,
     ],
-    queryFn: ({ signal }) => listMedia(project.id, page, signal),
+    queryFn: ({ signal }) => listMedia(projectId, page, signal),
     enabled: allowed,
   });
   useExpireOnUnauthorized(media.error);
   useEffect(() => {
-    document.title = `${t("mediaTitle")} · ${project.name}`;
-  }, [t, project.name]);
+    document.title = `${t(projectId === null ? "mediaGlobalTitle" : "mediaTitle")} · ${projectName}`;
+  }, [t, projectName, projectId]);
   async function done(message: string) {
     setCreate(false);
     setUpload(false);
@@ -413,7 +413,7 @@ function MediaContent() {
     setTransition(null);
     setSuccess(message);
     await client.invalidateQueries({
-      queryKey: ["private", session.user.id, "project", project.id, "media"],
+      queryKey: projectId === null ? ["private", session.user.id] : ["private", session.user.id, "project", projectId],
     });
   }
   if (!allowed) return <PermissionDenied />;
@@ -425,9 +425,9 @@ function MediaContent() {
     <>
       <div className="page-heading">
         <div>
-          <p className="section-eyebrow">{project.name}</p>
-          <h1>{t("mediaTitle")}</h1>
-          <p>{t("mediaIntro")}</p>
+          <p className="section-eyebrow">{projectName}</p>
+          <h1>{t(projectId === null ? "mediaGlobalTitle" : "mediaTitle")}</h1>
+          <p>{t(projectId === null ? "mediaGlobalIntro" : "mediaIntro")}</p>
         </div>
         {manage && (
           <Button variant="outline" onClick={() => setUpload(true)}>
@@ -460,7 +460,7 @@ function MediaContent() {
                 className="table-scroll"
                 tabIndex={0}
                 role="region"
-                aria-label={t("mediaTitle")}
+                aria-label={t(projectId === null ? "mediaGlobalTitle" : "mediaTitle")}
               >
                 <table className="data-table">
                   <thead>
@@ -478,6 +478,7 @@ function MediaContent() {
                       <tr key={item.id}>
                         <td>
                           <strong>{item.name}</strong>
+                          {item.scope_key === "global" && <span className="cell-subtitle">{t(projectId === null ? "mediaGlobalScope" : "mediaGlobalInherited")}</span>}
                           <span className="cell-subtitle mono-value">
                             {item.version} · {item.sha256.slice(0, 12)}…
                           </span>
@@ -501,7 +502,7 @@ function MediaContent() {
                         <td>{format(item.created_at)}</td>
                         <td>
                           <div className="table-actions">
-                            {manage &&
+                            {manage && item.scope_key === (projectId === null ? "global" : "project:" + projectId) &&
                               nextStates[item.state].map((target) => (
                                 <button
                                   key={target}
@@ -524,7 +525,7 @@ function MediaContent() {
                                   )}
                                 </button>
                               ))}
-                            {manage &&
+                            {manage && item.scope_key === (projectId === null ? "global" : "project:" + projectId) &&
                               item.state === "uploaded" &&
                               !item.artifact_stored &&
                               item.uploaded_by === session.user.id && (
@@ -537,7 +538,7 @@ function MediaContent() {
                               )}
                             {item.state === "approved" &&
                               item.artifact_stored && (
-                                <a href={mediaDownloadURL(project.id, item.id)}>
+                                <a href={mediaDownloadURL(projectId, item.id)}>
                                   {t("mediaDownload")}
                                 </a>
                               )}
@@ -567,14 +568,14 @@ function MediaContent() {
       {upload && (
         <RegisterMediaDialog
           upload
-          projectId={project.id}
+          projectId={projectId}
           onClose={() => setUpload(false)}
           onDone={() => done(t("mediaCreated"))}
         />
       )}
       {attach && (
         <AttachMediaDialog
-          projectId={project.id}
+          projectId={projectId}
           item={attach}
           onClose={() => setAttach(null)}
           onDone={() => done(t("mediaUploaded"))}
@@ -582,14 +583,14 @@ function MediaContent() {
       )}
       {create && (
         <RegisterMediaDialog
-          projectId={project.id}
+          projectId={projectId}
           onClose={() => setCreate(false)}
           onDone={() => done(t("mediaCreated"))}
         />
       )}
       {transition && (
         <TransitionDialog
-          projectId={project.id}
+          projectId={projectId}
           item={transition.item}
           target={transition.target}
           onClose={() => setTransition(null)}
@@ -602,7 +603,10 @@ function MediaContent() {
 export function MediaPage({ projectId }: { projectId: string }) {
   return (
     <ProjectWorkspace projectId={projectId}>
-      <MediaContent />
+      <ProjectMediaContent key={projectId} />
     </ProjectWorkspace>
   );
 }
+
+function ProjectMediaContent() { const project = useProject(); return <MediaContent projectId={project.id} projectName={project.name} projectRole={project.role} />; }
+export function GlobalMediaPage() { return <Workspace><MediaContent projectId={null} projectName="global" /></Workspace>; }

@@ -372,3 +372,18 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 设计引用/diff/Node语法检查通过；上一功能代码7eb6858的GitHub Actions run40106739359已实际查询completed/success。当前3000继续运行健康7eb6858，schema仍37；旧026/fabric_precheck草稿原样保留未暂存。此功能块准备单独提交推送，本次CI结果须另行查询，不能把上一提交CI成功冒充本次成功。后续按A4已具备输入推进剩余目录消费者/治理与型号能力，模板同步和后置派发依赖留所属阶段。
 
 **§34 提交完成**：工具代码 `39fd53d` 已正常推送 `origin/dev/p1-network-bom`，GitHub Actions run40107449159实际查询in_progress，尚不宣称通过。3000实查仍健康7eb6858，本次未重新部署；两份旧草稿为仅有未跟踪修改，原样保留。
+
+
+## 35. 2026-10-24 A4 全局介质管理与目录登记闭环
+
+在 `/opt/keel`、`dev/p1-network-bom`、HEAD基线2be9126接续WP-1.10→1.11。平台管理员新增 `/admin/media` 系统入口，复用原项目介质页面/登记与文件弹窗/服务事务，提供全局登记、实际文件上传/补传、校验、独立审批、完整/Range下载与不可恢复退役；全局目录默认值弹窗链接进入该页。正式契约新增全局同构API六个操作，固定global作用域，不接受body指定scope。上传者不能自行审批，补传只限原登记人且需摘要/大小精确匹配，绑定后不可替换。未新增迁移/存储配置/分发通道。
+
+统一HTTP作用域入口在读取上传正文前鉴权/检查CSRF及管理权限；项目Admin/SRE/Viewer不能进入任何全局管理API或页面。nil项目的直接服务下载也复核平台管理员。既有项目成员继承查看/下载批准全局制品继续有效；项目页面全局行新增只读标识且无管理按钮，跨作用域写仍拒绝，全局API不能读取或修改项目介质。项目变更刷新当前项目介质/目录查询，全局变更刷新当前用户相关缓存，未增加跨会话广播。沿用版本输入lint的原精确登记字段例外，没有扩大排除范围。
+
+实际通过：overlay platform/httpapi race（3.247s/1.118s）及vet，日志 `/tmp/keel-global-media-race.log`；最终根npm run build，日志 `/tmp/keel-global-media-build-final.log`，含正式API类型生成、原UI边界、新版本输入lint/六组反例、TypeScript/Vite。Node/Python语法、设计和diff检查通过。Go继续用 `/tmp/keel-delivery-check/overlay.json` 排除既有026/fabric_precheck草稿，未修改它们。
+
+完整隔离运行 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-media-artifacts-integration.py`，证据 `/tmp/keel-media-qx5n14ol`：实际PG Go的mediaartifact 1.055s/platform 28.149s，通过新全局直接下载权限/继承消费及原介质/目录/BOM/ZTP等选定回归；新全局Go用例对象传输仍为testMediaObjects，不能冒充其自身MinIO传输。真实MinIO版本固定检查和全部原介质HTTP/参数HTTP/介质上传/目录执行准入/项目及全局目录管理浏览器检查通过。新增全局浏览器已走到批准、真实下载/继承与目录选项，但因语言按钮定位写成“切换为英文”而超时，整轮不记全部通过。
+
+修正测试为现有可访问名称Switch to English后，仅定向 `... python3 scripts/check-media-artifacts-integration.py --global-media-only`，最终证据 `/tmp/keel-media-ft_r6qf5`：真实隔离PG/MinIO/API/Chromium通过全局UI上传/校验/独立审批/下载/退役、字节摘要/大小/Range、重复/非法scope/无文件/错摘要/补传原登记人/替换拒绝、全局目录默认值与登记链接、项目继承只读/可下载、Admin/SRE/Viewer越权、全局/项目交叉访问、匿名401/CSRF403、双语及退役后目录拒绝/不可恢复。此定向选项跳过Go和未变旧回归，前述证据单列。批准页截图已视觉复核。两轮隔离服务、自有测试库和临时凭据均清理，失败轮次不冒充最终通过。
+
+上一lint代码39fd53d的GitHub Actions run40107449159已实际查询completed/success。本节提交前3000仍健康7eb6858、schema37条；准备单独提交推送后从确切SHA archive构建、候选冒烟再更新3000，实际结果后补。WP-1.10/1.11/FR-1/P1仍partial：厂商签名/离线依赖闭包、外链摄取/目标缓存和真实规模分发、报告/修订治理、全消费者/完整语义lint与后置模板同步等尚未闭环，继续按所属阶段推进。

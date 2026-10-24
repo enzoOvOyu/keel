@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as AccountSecurityRouteImport } from './routes/account.security'
 import { Route as AdminAuditsRouteImport } from './routes/admin.audits'
+import { Route as AdminMediaRouteImport } from './routes/admin.media'
 import { Route as AdminParamsRouteImport } from './routes/admin.params'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as PProjectIdRouteImport } from './routes/p.$projectId'
@@ -55,6 +56,11 @@ const AccountSecurityRoute = AccountSecurityRouteImport.update({
 const AdminAuditsRoute = AdminAuditsRouteImport.update({
   id: '/admin/audits',
   path: '/admin/audits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminMediaRoute = AdminMediaRouteImport.update({
+  id: '/admin/media',
+  path: '/admin/media',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminParamsRoute = AdminParamsRouteImport.update({
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/projects': typeof ProjectsRoute
   '/account/security': typeof AccountSecurityRoute
   '/admin/audits': typeof AdminAuditsRoute
+  '/admin/media': typeof AdminMediaRoute
   '/admin/params': typeof AdminParamsRoute
   '/admin/users': typeof AdminUsersRoute
   '/p/$projectId': typeof PProjectIdRoute
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/projects': typeof ProjectsRoute
   '/account/security': typeof AccountSecurityRoute
   '/admin/audits': typeof AdminAuditsRoute
+  '/admin/media': typeof AdminMediaRoute
   '/admin/params': typeof AdminParamsRoute
   '/admin/users': typeof AdminUsersRoute
   '/p/$projectId': typeof PProjectIdRoute
@@ -198,6 +206,7 @@ export interface FileRoutesById {
   '/projects': typeof ProjectsRoute
   '/account/security': typeof AccountSecurityRoute
   '/admin/audits': typeof AdminAuditsRoute
+  '/admin/media': typeof AdminMediaRoute
   '/admin/params': typeof AdminParamsRoute
   '/admin/users': typeof AdminUsersRoute
   '/p/$projectId': typeof PProjectIdRoute
@@ -224,6 +233,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/account/security'
     | '/admin/audits'
+    | '/admin/media'
     | '/admin/params'
     | '/admin/users'
     | '/p/$projectId'
@@ -248,6 +258,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/account/security'
     | '/admin/audits'
+    | '/admin/media'
     | '/admin/params'
     | '/admin/users'
     | '/p/$projectId'
@@ -272,6 +283,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/account/security'
     | '/admin/audits'
+    | '/admin/media'
     | '/admin/params'
     | '/admin/users'
     | '/p/$projectId'
@@ -297,6 +309,7 @@ export interface RootRouteChildren {
   ProjectsRoute: typeof ProjectsRoute
   AccountSecurityRoute: typeof AccountSecurityRoute
   AdminAuditsRoute: typeof AdminAuditsRoute
+  AdminMediaRoute: typeof AdminMediaRoute
   AdminParamsRoute: typeof AdminParamsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   PProjectIdRoute: typeof PProjectIdRoute
@@ -351,6 +364,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/audits'
       fullPath: '/admin/audits'
       preLoaderRoute: typeof AdminAuditsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/media': {
+      id: '/admin/media'
+      path: '/admin/media'
+      fullPath: '/admin/media'
+      preLoaderRoute: typeof AdminMediaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/params': {
@@ -481,6 +501,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectsRoute: ProjectsRoute,
   AccountSecurityRoute: AccountSecurityRoute,
   AdminAuditsRoute: AdminAuditsRoute,
+  AdminMediaRoute: AdminMediaRoute,
   AdminParamsRoute: AdminParamsRoute,
   AdminUsersRoute: AdminUsersRoute,
   PProjectIdRoute: PProjectIdRoute,
