@@ -406,3 +406,7 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 同轮真实隔离MinIO/API/worker/Chromium通过原介质HTTP/参数HTTP/介质UI、实际文件/版本绑定与Range、目录依赖/冻结快照/重跑、项目与全局目录管理、全局介质生命周期及权限回归。新增双浏览器项目/全局确认测试通过：上传→已校验和已校验→已审批两种变化，旧退役弹窗均409且保留；取消刷新后新确认200；补传未改状态也拒绝旧确认；非法/零时间400、旧无条件接口兼容、退役不可恢复。media-global-stale.png已视觉复核。隔离服务/自有测试库与临时凭据已清理。新增--media-conflict-only仅用于必要时的定向复核，本轮未使用或重复整轮。
 
 上一功能fa32cbd的GitHub Actions run40108146445已实际查询completed/success。本节提交前3000仍健康fa32cbd、schema37；准备独立提交推送后从确切SHA archive构建并候选验证后更新3000，实际结果后补。WP-1.10/1.11/FR-1/P1仍partial，剩余按依赖推进，不因本轮完善确认流程宣称全阶段闭环。
+
+**§36 发布完成**：代码 `369223df902d46fd872b0fbea5c42c559fe98463` 已正常推送至GitHub，从该SHA的git archive构建镜像，镜像ID `sha256:fa0c7463751d85559ed9b0cf5fd6e48e703b5d0cc99e3efb512489ff544d0399`，未包含旧草稿与秘密配置。候选镜像在回环3108使用既有受限连接通过真实登录、原参数/型号/介质/执行/Flow五页与全局目录/全局介质七页、全局只读API作用域、完整版本SHA、匿名401和控制台检查。随后于 `2026-10-24T15:58:39.149086+00:00` 切换3000且healthy，切换后同套七页/API/版本/控制台检查再次通过，healthz返回完整代码SHA。
+
+无数据库迁移，schema仍37条，保留兼容旧镜像fa32cbd；未重置或恢复运行库，未变更数据卷、worker启用范围或其他服务。.env仍600，切换前.env、私有发布状态与截图在 `/home/ubuntu/.local/state/keel/releases/20261024T155654Z`，不进Git。候选容器与临时候选配置已清理；两份旧026/fabric_precheck草稿原样保留未暂存。GitHub Actions run40109273783记录时in_progress，尚不声称本次CI通过；上一fa32cbd已success。后续文档提交不改变3000对应的上述功能代码SHA。
