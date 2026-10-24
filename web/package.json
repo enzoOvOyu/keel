@@ -10,10 +10,12 @@
     "tokens": "node scripts/generate-tokens.mjs",
     "routes": "tsr generate",
     "dev": "npm run tokens && vite --host 127.0.0.1",
-    "typecheck": "npm run api:generate && npm run tokens && npm run routes && tsc --noEmit",
+    "typecheck": "npm run api:generate && npm run tokens && npm run routes && npm run check:ui && tsc --noEmit",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "api:generate": "openapi-typescript ../api/openapi.yaml -o src/generated/api.d.ts && openapi-typescript ../api/execution.openapi.yaml -o src/generated/execution.d.ts"
+    "api:generate": "openapi-typescript ../api/openapi.yaml -o src/generated/api.d.ts && openapi-typescript ../api/execution.openapi.yaml -o src/generated/execution.d.ts",
+    "ui:add": "shadcn add",
+    "check:ui": "node scripts/check-ui-boundaries.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "5.104.2",
@@ -23,7 +25,12 @@
     "monaco-editor": "0.57.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "react-i18next": "17.0.16"
+    "react-i18next": "17.0.16",
+    "class-variance-authority": "0.7.1",
+    "cn": "0.5.0",
+    "lucide-react": "1.61.0",
+    "radix-ui": "1.8.1",
+    "tw-animate-css": "1.4.0"
   },
   "devDependencies": {
     "@tanstack/router-cli": "1.167.41",
@@ -34,6 +41,9 @@
     "@vitejs/plugin-react": "4.7.0",
     "openapi-typescript": "7.13.0",
     "typescript": "5.9.3",
-    "vite": "6.4.4"
+    "vite": "6.4.4",
+    "@tailwindcss/vite": "4.3.3",
+    "shadcn": "4.22.1",
+    "tailwindcss": "4.3.3"
   }
 }

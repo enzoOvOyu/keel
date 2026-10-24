@@ -1,3 +1,7 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -70,45 +74,45 @@ export default function ExecutionTargets({
     <section>
       <h2>{t("executionViewTargets")}</h2>
       <div className="execution-view-filters">
-        <label>
+        <Label className="ui:grid ui:gap-1.5">
           {t("executionViewTargetFilter")}
-          <input
+          <Input
             value={search.q ?? ""}
             maxLength={128}
             onChange={(e) => onSearch({ q: e.target.value, targetPage: 1 })}
           />
-        </label>
-        <label>
+        </Label>
+        <Label className="ui:grid ui:gap-1.5">
           {t("attemptState")}
-          <select
+          <NativeSelect
             value={search.targetState ?? ""}
             onChange={(e) =>
               onSearch({ targetState: e.target.value, targetPage: 1 })
             }
           >
-            <option value="">{t("fabricFilterAll")}</option>
+            <NativeSelectOption value="">{t("fabricFilterAll")}</NativeSelectOption>
             {Object.keys(symbols)
               .filter((state) => state !== "not_scheduled")
               .map((state) => (
-                <option key={state} value={state}>
+                <NativeSelectOption key={state} value={state}>
                   {t("attempt_state_" + state)}
-                </option>
+                </NativeSelectOption>
               ))}
-          </select>
-        </label>
-        <label>
+          </NativeSelect>
+        </Label>
+        <Label className="ui:grid ui:gap-1.5">
           {t("executionViewZoom")}
-          <select
+          <NativeSelect
             value={size}
             onChange={(e) => onSearch({ cellSize: Number(e.target.value) })}
           >
             {[8, 16, 24, 32].map((n) => (
-              <option key={n} value={n}>
+              <NativeSelectOption key={n} value={n}>
                 {n}px
-              </option>
+              </NativeSelectOption>
             ))}
-          </select>
-        </label>
+          </NativeSelect>
+        </Label>
       </div>
       <ActionError error={matrix.error} />
       {matrix.isPending && <p role="status">{t("loadingRecords")}</p>}
@@ -163,9 +167,11 @@ export default function ExecutionTargets({
                       {item.target.name || item.target.id}
                     </strong>
                     {item.cells.map((cell) => (
-                      <button
+                      <Button
                         type="button"
-                        className="execution-matrix-cell"
+                        variant={null}
+                        size={null}
+                        className="execution-matrix-cell ui:text-[length:var(--matrix-font-size)]"
                         data-state={cell.state}
                         key={cell.task_id}
                         disabled={!cell.attempt_id}
@@ -174,12 +180,12 @@ export default function ExecutionTargets({
                         style={{
                           height: size,
                           width: size,
-                          fontSize: Math.max(8, size - 8),
-                        }}
+                          "--matrix-font-size": `${Math.max(8, size - 8)}px`,
+                        } as import("react").CSSProperties}
                         onClick={() => onSearch({ attempt: cell.attempt_id })}
                       >
                         {symbols[cell.state] ?? "?"}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 );
@@ -188,7 +194,7 @@ export default function ExecutionTargets({
           </div>
           <div className="execution-matrix-legend">
             {Object.entries(symbols).map(([state, symbol]) => (
-              <button
+              <Button variant="outline"
                 className="secondary-button"
                 type="button"
                 key={state}
@@ -205,7 +211,7 @@ export default function ExecutionTargets({
                 {state === "not_scheduled"
                   ? t("executionViewNotScheduled")
                   : t("attempt_state_" + state)}
-              </button>
+              </Button>
             ))}
           </div>
           <Pagination

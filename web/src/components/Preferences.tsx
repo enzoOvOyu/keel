@@ -1,3 +1,6 @@
+import {Button} from '@/components/ui/button'
+import {Separator} from '@/components/ui/separator'
+import {Tooltip,TooltipContent,TooltipTrigger} from '@/components/ui/tooltip'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from './Icon'
@@ -17,8 +20,8 @@ export function Preferences() {
     void i18n.changeLanguage(next)
   }
   return <div className="preferences">
-    <button type="button" className="language-button" onClick={toggleLanguage} aria-label={t('language')}><Icon name="globe" /><span>{i18n.language === 'en' ? '中文' : 'EN'}</span></button>
-    <span className="preference-divider" aria-hidden="true" />
-    <button type="button" className="icon-button" onClick={toggleTheme} aria-label={t(theme === 'dark' ? 'lightTheme' : 'darkTheme')}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></button>
+    <Button type="button" variant="ghost" className="ui:h-[var(--size-control)] ui:px-3 ui:text-muted-foreground" onClick={toggleLanguage} aria-label={t('language')}><Icon name="globe" /><span>{i18n.language === 'en' ? '中文' : 'EN'}</span></Button>
+    <Separator orientation="vertical" className="ui:h-4" />
+    <Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon" className="ui:size-[var(--size-control)] ui:text-muted-foreground" onClick={toggleTheme} aria-label={t(theme === 'dark' ? 'lightTheme' : 'darkTheme')}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></Button></TooltipTrigger><TooltipContent>{t(theme === 'dark' ? 'lightTheme' : 'darkTheme')}</TooltipContent></Tooltip>
   </div>
 }

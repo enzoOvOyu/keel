@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import {useTranslation} from 'react-i18next'
 import type {components} from '../../generated/api'
 
@@ -20,7 +21,7 @@ export function FabricStormSummary({storm, devices, onSelect}: Props) {
     {storm.affected_device_ids.length > 0 && <details>
       <summary>{t('networkStormDevices', {count: storm.affected_device_ids.length})}</summary>
       <ul>{storm.affected_device_ids.map(id => <li key={id}>
-        <button className="fabric-device-link" onClick={() => onSelect(id)}>{labels.get(id) || id}</button>
+        <Button className="fabric-device-link" onClick={() => onSelect(id)}>{labels.get(id) || id}</Button>
       </li>)}</ul>
       <p>{t('fabricRule')}: {storm.applied_rule_ids.join(', ')}</p>
     </details>}

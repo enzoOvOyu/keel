@@ -1,0 +1,18 @@
+import {StrictMode,useState} from 'react'
+import {createRoot} from 'react-dom/client'
+import '@/lib/i18n'
+import '@/styles/tokens.css'
+import '@/styles/app.css'
+import '@/styles/management.css'
+import '@/styles/workspace.css'
+import '@/styles/shadcn.css'
+import {Preferences} from '@/components/Preferences'
+import {ActionDialog} from '@/components/Management'
+import {Button} from '@/components/ui/button'
+import {Input} from '@/components/ui/input'
+import {Label} from '@/components/ui/label'
+import {Card,CardHeader,CardTitle,CardDescription,CardContent} from '@/components/ui/card'
+import {Tabs,TabsList,TabsTrigger,TabsContent} from '@/components/ui/tabs'
+import {TooltipProvider} from '@/components/ui/tooltip'
+function Check(){const[open,setOpen]=useState(false),[busy,setBusy]=useState(false);return <TooltipProvider delayDuration={30}><div className="login-shell"><header className="login-header"><span>Keel</span><div data-testid="preferences"><Preferences/></div></header><main><Card><CardHeader><CardTitle>Shared UI contract</CardTitle><CardDescription>Existing Preferences and ActionDialog with registry primitives.</CardDescription></CardHeader><CardContent><Tabs defaultValue="review"><TabsList aria-label="Contract examples"><TabsTrigger value="review">Review</TabsTrigger><TabsTrigger value="evidence">Evidence</TabsTrigger></TabsList><TabsContent value="review"><Button onClick={()=>setOpen(true)}>Open confirmation</Button></TabsContent><TabsContent value="evidence">Read-only evidence</TabsContent></Tabs></CardContent></Card></main>{open&&<ActionDialog title="Confirm change" description="Review the target before submitting." confirm="Confirm" busy={busy} onClose={()=>setOpen(false)} onSubmit={event=>{event.preventDefault();setBusy(true);window.setTimeout(()=>{setBusy(false);setOpen(false)},800)}}><div className="field"><Label htmlFor="review-note">Review note</Label><Input id="review-note" name="review-note" required defaultValue="Approved target"/></div></ActionDialog>}</div></TooltipProvider>}
+createRoot(document.getElementById('root')!).render(<StrictMode><Check/></StrictMode>)

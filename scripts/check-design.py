@@ -118,7 +118,7 @@ else:
         if not re.search(re.escape(wp)+r'(?![\da-z])',texts['IMPLEMENTATION-PLAN.md']): errors.append(f'trace undefined {wp}')
     for accid in set(re.findall(r'\b(?:F-\d+(?:\.\d+)+|[DUPSHK]-\d+)\b',raw)):
         if not re.search(re.escape(accid)+r'(?![\d.])',texts['ACCEPTANCE.md']): errors.append(f'trace undefined acceptance {accid}')
-    for doc in set(re.findall(r'(?:[A-Za-z0-9_-]+/)*[A-Z][A-Z-]+\.md',raw)):
+    for doc in set(re.findall(r'(?:[A-Za-z0-9_-]+/)*[A-Z][A-Z0-9-]+\.md',raw)):
         if not (root/doc).is_file(): errors.append(f'trace missing document {doc}')
 
 if errors:

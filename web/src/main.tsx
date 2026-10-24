@@ -1,3 +1,4 @@
+import {TooltipProvider} from '@/components/ui/tooltip'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -9,6 +10,7 @@ import './styles/tokens.css'
 import './styles/app.css'
 import './styles/management.css'
 import './styles/workspace.css'
+import './styles/shadcn.css'
 
 const storedTheme = readPreference('keel.theme')
 document.documentElement.dataset.theme = storedTheme === 'dark' || storedTheme === 'light'
@@ -22,7 +24,7 @@ const mount = document.getElementById('root')
 if (!mount) throw new Error('Missing application root')
 createRoot(mount).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}><RouterProvider router={router} /></QueryClientProvider>
+    <QueryClientProvider client={queryClient}><TooltipProvider delayDuration={300}><RouterProvider router={router} /></TooltipProvider></QueryClientProvider>
   </StrictMode>,
 )
 

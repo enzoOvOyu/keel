@@ -1,3 +1,8 @@
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import {
   lazy,
   Suspense,
@@ -160,25 +165,25 @@ function Outputs({
             <pre>{JSON.stringify(data.data.parameters, null, 2)}</pre>
           </details>
           <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>{t("attemptTask")}</th>
-                  <th>{t("attemptTarget")}</th>
-                  <th>{t("attemptState")}</th>
-                  <th>{t("executionViewReceipt")}</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="data-table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("attemptTask")}</TableHead>
+                  <TableHead>{t("attemptTarget")}</TableHead>
+                  <TableHead>{t("attemptState")}</TableHead>
+                  <TableHead>{t("executionViewReceipt")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.data.items.map((item) => (
-                  <tr key={item.attempt_id}>
-                    <td>{item.task_id}</td>
-                    <td>
+                  <TableRow key={item.attempt_id}>
+                    <TableCell>{item.task_id}</TableCell>
+                    <TableCell>
                       <code>{item.target_id}</code>
-                    </td>
-                    <td>{item.receipt.result}</td>
-                    <td>
-                      <button
+                    </TableCell>
+                    <TableCell>{item.receipt.result}</TableCell>
+                    <TableCell>
+                      <Button variant="outline"
                         className="secondary-button"
                         disabled={action.busy}
                         onClick={() =>
@@ -192,7 +197,7 @@ function Outputs({
                         }
                       >
                         {t("executionViewDownloadJSON")}
-                      </button>
+                      </Button>
                       <details>
                         <summary>{t("executionViewStructuredOutput")}</summary>
                         <pre>
@@ -200,11 +205,11 @@ function Outputs({
                         </pre>
                         <code>{item.digest}</code>
                       </details>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           <Pagination
             offset={(page - 1) * 20}
@@ -319,7 +324,7 @@ function AttemptDrawer({
 }) {
   const session = useSession(),
     { t } = useTranslation(),
-    ref = useRef<HTMLDialogElement>(null),
+    prior = useRef(document.activeElement instanceof HTMLElement ? document.activeElement : null),
     query = useQuery({
       queryKey: [
         "private",
@@ -336,34 +341,21 @@ function AttemptDrawer({
       retry: false,
     });
   useExpireOnUnauthorized(query.error);
-  useEffect(() => {
-    const prior =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-    ref.current?.showModal();
-    return () => {
-      ref.current?.close();
-      if (prior?.isConnected) prior.focus();
-    };
-  }, []);
   return (
-    <dialog
-      ref={ref}
-      className="execution-attempt-drawer"
-      aria-labelledby="execution-attempt-heading"
-      onCancel={(e) => {
-        e.preventDefault();
-        onClose();
-      }}
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+    <DialogContent
+      className="execution-attempt-drawer ui:top-0 ui:left-auto ui:right-0 ui:translate-x-0 ui:translate-y-0 ui:w-[min(640px,100vw)] ui:h-dvh ui:max-h-dvh ui:max-w-none ui:sm:max-w-none ui:rounded-none ui:overflow-auto"
+      aria-describedby={undefined}
+      showCloseButton={false}
+      onCloseAutoFocus={event => { event.preventDefault(); if(prior.current?.isConnected) prior.current.focus(); }}
     >
       <div className="execution-view-toolbar">
-        <h2 id="execution-attempt-heading">
+        <DialogTitle id="execution-attempt-heading">
           {t("executionViewAttemptDetails")}
-        </h2>
-        <button type="button" className="secondary-button" onClick={onClose}>
+        </DialogTitle>
+        <Button variant="outline" type="button" className="secondary-button" onClick={onClose}>
           {t("executionViewClose")}
-        </button>
+        </Button>
       </div>
       <ActionError error={query.error} />
       {query.isPending && <p role="status">{t("loadingRecords")}</p>}
@@ -383,9 +375,9 @@ function AttemptDrawer({
             <dt>{t("executionFinished")}</dt>
             <dd>{stamp(query.data.attempt.finished_at)}</dd>
           </dl>
-          <button type="button" className="secondary-button" onClick={onLogs}>
+          <Button variant="outline" type="button" className="secondary-button" onClick={onLogs}>
             {t("executionViewFocusLogs")}
-          </button>
+          </Button>
           <h3>{t("executionViewReceipt")}</h3>
           <pre>
             {query.data.attempt.receipt
@@ -394,7 +386,8 @@ function AttemptDrawer({
           </pre>
         </>
       )}
-    </dialog>
+    </DialogContent>
+    </Dialog>
   );
 }
 export function ExecutionWorkspace({
@@ -544,9 +537,9 @@ export function ExecutionWorkspace({
     return (
       <section className="panel">
         <ActionError error={overview.error} />
-        <button className="secondary-button" onClick={onClose}>
+        <Button variant="outline" className="secondary-button" onClick={onClose}>
           {t("backToList")}
-        </button>
+        </Button>
       </section>
     );
   return (
@@ -561,9 +554,9 @@ export function ExecutionWorkspace({
             · {current.execution.mode}
           </p>
         </div>
-        <button className="secondary-button" onClick={onClose}>
+        <Button variant="outline" className="secondary-button" onClick={onClose}>
           {t("backToList")}
-        </button>
+        </Button>
       </header>
       <p className="impact-notice">
         {t(
@@ -578,16 +571,17 @@ export function ExecutionWorkspace({
         <div className="execution-view-toolbar">
           <p>{t("controlHint")}</p>
           {(["pause", "resume", "cancel"] as const).map((action) => (
-            <button
+            <Button
+              variant="outline"
               className={
-                action === "cancel" ? "danger-text" : "secondary-button"
+                action === "cancel" ? "danger-text ui:text-destructive ui:border-destructive" : "secondary-button"
               }
               key={action}
               disabled={!active || control.busy}
               onClick={() => setConfirm(action)}
             >
               {t(action === "cancel" ? "cancelExecution" : action)}
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -597,7 +591,10 @@ export function ExecutionWorkspace({
         aria-label={t("executionViewTabs")}
       >
         {tabs.map((value) => (
-          <button
+          <Button
+            variant={null}
+            size={null}
+            className="ui:rounded-none"
             id={"execution-tab-" + value}
             aria-controls="execution-view-panel"
             role="tab"
@@ -621,7 +618,7 @@ export function ExecutionWorkspace({
             }}
           >
             {t("executionViewTab_" + value)}
-          </button>
+          </Button>
         ))}
       </div>
       {["connecting", "reconnecting", "denied"].includes(connection) && (
@@ -676,25 +673,25 @@ export function ExecutionWorkspace({
             <h2>{t("executionViewLogs")}</h2>
             <p>{t("executionViewLifecycleNotice")}</p>
             <div className="execution-view-filters">
-              <label>
+              <Label className="ui:grid ui:gap-1.5">
                 {t("networkLogsLevel")}
-                <select
+                <NativeSelect
                   value={search.level ?? ""}
                   onChange={(e) => go({ level: e.target.value })}
                 >
-                  <option value="">{t("fabricFilterAll")}</option>
+                  <NativeSelectOption value="">{t("fabricFilterAll")}</NativeSelectOption>
                   {["info", "warning", "error"].map((level) => (
-                    <option key={level}>{level}</option>
+                    <NativeSelectOption key={level}>{level}</NativeSelectOption>
                   ))}
-                </select>
-              </label>
+                </NativeSelect>
+              </Label>
               {search.logAttempt && (
-                <button
+                <Button variant="outline"
                   className="secondary-button"
                   onClick={() => go({ logAttempt: undefined })}
                 >
                   {t("executionViewClearAttempt")} · {search.logAttempt}
-                </button>
+                </Button>
               )}
               <span>{t("executionViewConnection_" + connection)}</span>
             </div>
@@ -751,7 +748,7 @@ export function ExecutionWorkspace({
             })}
           </p>
           {control.error?.status === 409 && (
-            <button
+            <Button
               type="button"
               className="secondary-button"
               onClick={() =>
@@ -759,7 +756,7 @@ export function ExecutionWorkspace({
               }
             >
               {t("retry")}
-            </button>
+            </Button>
           )}
         </ActionDialog>
       )}

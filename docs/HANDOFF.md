@@ -198,3 +198,12 @@ PFC 聚合提交 `4e89296` 已在远端 Git 保存。在同一 `/opt/keel` 工�
 实际通过：execution/httpapi race、相关Go vet、完整前端契约生成/类型/Vite构建；真实API/隔离PostgreSQL/worker/浏览器 `/tmp/keel-views-n_wiaccz`，覆盖500目标暂停样本的矩阵过滤/分页/虚拟渲染、五Tab懒加载和URL、2目标执行/4条回执、冻结参数与输出导出审计、跨执行/项目拒绝、丢回执unknown不计完成、SSE初开/失效游标重同步及登出撤权关闭。隔离资源已清理。此证据不代表规模性能、真实设备或整个FR-1验收。
 
 无迁移、部署或生产写入；3000仍 `6aa8479`。原AGENTS与026/fabric_precheck草稿保持保留。FR-1重跑独立草稿仍未接入；后续继续核对并整合昨天shadcn组件库保存成果，优先修复已记录的焦点恢复问题，完整前端回归后再计交付。
+
+
+## 23. 2026-10-24 接续昨天共享 shadcn/ui 基础组件已验证
+
+在主目录 `/opt/keel` 接续历史 `3c489c5`，保留已集成的网络交付与执行视图。接线 Tailwind v4 前缀工具类/既有 Keel 令牌、16个自有基础组件、TooltipProvider、Preferences 和共享 ActionDialog；将新增诊断/PFC/DDM/交付/执行页面迁移到组件边界。旧原生控件预算沿用保存版本，不增加预算绕过 AST 检查。NativeSelect 保留系统选择语义，DDM Checkbox 用 Radix；矩阵尺寸、状态色、执行Tab选中态与右侧尝试抽屉保留。详见 SHADCN-UI.md。
+
+实际通过：完整前端生成/组件边界/TypeScript/Vite构建；独立共享UI浏览器 `/tmp/keel-shadcn-2vx9lbso` 验证明暗令牌、Intel字体、背景、键盘焦点约束/恢复、忙碌Escape保护及Tabs。焦点断言等待Radix关闭生命周期，截图等待入场结束，不以历史未验证记录计通过。真实API/隔离PG/worker/协议夹具/浏览器三路回归通过：网络交付 `/tmp/keel-shell-g7_57whs`、物理诊断及DDM指标Checkbox/PNG `/tmp/keel-shell-1e2552ay`、最终执行视图 `/tmp/keel-views-jrx3w19y`（含8/16/24/32px实际矩阵尺寸、右侧抽屉位置、五Tab/回执/SSE撤权）。测试进程/库/临时凭据及独立5178 Vite已清理，证据截图保留。设计检查器修正数字文件名识别后通过v3.0.3引用检查，未修改正式设计或放宽实现状态。
+
+GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新增提交尚未推送。未迁移运行库、未部署或操作生产设备；3000原服务和依赖仍健康。Go测试继续通过既有overlay排除026/fabric_precheck旧草稿，草稿源文件及AGENTS用户修改未纳入提交。旧页面尚未全量迁移，未完成全组件无障碍/规模/真机验收。下一关联事项为昨天独立保存的FR-1重跑草稿：先按其PAUSED说明和当前执行内核比较，补验证后才接入；不要回其他工作树继续开发。FR-0、FR-1及WP-1.1仍partial。

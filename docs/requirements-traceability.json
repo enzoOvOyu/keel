@@ -1188,12 +1188,15 @@
         "E-2"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Go/React skeleton, versioned OpenAPI generation and checks implemented; Agent/sim/proto pipelines remain planned.",
+      "implementation_notes": "Go/React skeleton, versioned OpenAPI generation and checks implemented; Agent/sim/proto pipelines remain planned. Saved shared shadcn/Radix foundation integrated with Keel tokens, frozen legacy-control AST checks and isolated browser evidence; this does not close all UI or runtime acceptance.",
       "evidence_refs": [
         "docs/HANDOFF.md",
         "internal/platform/store_integration_test.go",
         "scripts/check-auth-integration.py",
-        "scripts/check-auth-browser.mjs"
+        "scripts/check-auth-browser.mjs",
+        "docs/SHADCN-UI.md",
+        "scripts/check-shadcn-integration.py",
+        "web/scripts/check-ui-boundaries.mjs"
       ]
     },
     {

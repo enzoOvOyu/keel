@@ -1,4 +1,6 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import {Button} from '@/components/ui/button'
+import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription,DialogFooter} from '@/components/ui/dialog'
+import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../lib/api'
 import { Icon } from './Icon'
@@ -39,21 +41,24 @@ export function ActionDialog({ title, description, children, busy, confirm, dang
   onSubmit: (event: FormEvent<HTMLFormElement>) => void; onClose: () => void
 }) {
   const { t } = useTranslation()
-  const ref = useRef<HTMLDialogElement>(null)
-  const heading = useId(), descriptionId = useId()
-  useEffect(() => {
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    const dialog = ref.current
-    dialog?.showModal()
-    return () => { dialog?.close(); previous?.focus() }
-  }, [])
-  return <dialog ref={ref} className="action-dialog" aria-labelledby={heading} aria-describedby={descriptionId}
-    onCancel={(event) => { event.preventDefault(); if (!busy) onClose() }}>
-    <form onSubmit={onSubmit} aria-busy={busy}>
-      <p className="section-eyebrow">KEEL / {danger ? 'ACCESS CONTROL' : 'WORKSPACE'}</p>
-      <h2 id={heading}>{title}</h2><p id={descriptionId} className="dialog-description">{description}</p>
-      {children}
-      <div className="form-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={busy}>{t('cancel')}</button><button type="submit" className={danger ? 'danger-button' : 'primary-button'} disabled={busy || submitDisabled}>{busy && <Icon name="refresh" className="rotating" />}{confirm}</button></div>
-    </form>
-  </dialog>
+  const previous = useRef(document.activeElement instanceof HTMLElement ? document.activeElement : null)
+  return <Dialog open onOpenChange={open=>{if(!open&&!busy)onClose()}}>
+    <DialogContent className="action-dialog ui:w-[min(560px,calc(100vw-32px))] ui:max-w-none ui:sm:max-w-none ui:max-h-[calc(100svh-48px)] ui:overflow-y-auto ui:p-[var(--space-8)] ui:text-foreground" showCloseButton={false}
+      onEscapeKeyDown={event=>{if(busy)event.preventDefault()}}
+      onInteractOutside={event=>event.preventDefault()}
+      onCloseAutoFocus={event=>{event.preventDefault();previous.current?.focus()}}>
+      <form onSubmit={onSubmit} aria-busy={busy}>
+        <DialogHeader className="ui:gap-2 ui:text-left">
+          <p className="section-eyebrow">KEEL / {danger ? 'ACCESS CONTROL' : 'WORKSPACE'}</p>
+          <DialogTitle className="ui:text-2xl">{title}</DialogTitle>
+          <DialogDescription className="dialog-description">{description}</DialogDescription>
+        </DialogHeader>
+        {children}
+        <DialogFooter className="form-actions ui:flex-row">
+          <Button type="button" variant="outline" className="ui:min-h-11" onClick={onClose} disabled={busy}>{t('cancel')}</Button>
+          <Button type="submit" variant={danger?'outline':'default'} className={danger?'ui:min-h-11 ui:border-destructive ui:text-destructive ui:hover:bg-destructive/10':'ui:min-h-11'} disabled={busy || submitDisabled}>{busy && <Icon name="refresh" className="rotating" />}{confirm}</Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  </Dialog>
 }

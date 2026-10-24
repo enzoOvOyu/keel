@@ -3201,7 +3201,7 @@ export interface components {
         FlowTask: {
             id: string;
             /** @enum {string} */
-            type: "sim.read" | "sim.write" | "kea.apply";
+            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push";
             depends_on?: string[];
             retry: number;
             idempotent: boolean;
@@ -3211,7 +3211,7 @@ export interface components {
         };
         FlowDefinition: {
             /** @enum {string} */
-            api_version: "keel.sim/v1" | "keel.kea/v1";
+            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1";
             inputs: {
                 [key: string]: components["schemas"]["FlowInput"];
             };
