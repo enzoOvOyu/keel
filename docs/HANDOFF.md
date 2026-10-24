@@ -338,3 +338,7 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 最终真实隔离PG/MinIO/API/worker/mTLS设备fixture/Chromium：网络 `/tmp/keel-shell-3d0ir7pr`（`check-kea-integration.py --network`）通过原配置/推送/权限回归、新并发目录默认冻结、退役拒绝创建且无部分任务、真实目录页面退役批次后预览/提交拒绝；诊断 `/tmp/keel-shell-ne60493f`（`--diagnostics`）通过原CRC/DDM/8Tab/导出回归、退役计数/间隔策略拒绝当前消费且其他历史观测不改写。隔离服务、自己的测试库与临时凭据均已清理。失败的只读锁和不合法批次夹具轮次不记最终通过。
 
 此前c326068的GitHub Actions run40104306639现已实际查询为completed/success。本节提交前3000仍c326068；本功能块准备提交后按相同37条schema构建/验证镜像并更新3000，发布实际结果另记。WP-1.11/P1仍partial：全消费者依赖闭包、全局管理、参数历史/报告治理、前端版本字段lint、目标/BOM/型号/OS交叉准入及模板同步/派发重验继续按所属阶段推进。
+
+**§32 发布完成**：代码 `3d387032670b386c5efb838e4b294d6b67e34ddd` 已正常推送GitHub；从该提交archive构建镜像，镜像ID `sha256:8f1710b3021da601dc26eeab94964e4c23436dc1468529aa622157968d24a8cd`。候选镜像先在仅回环映射3108、使用既有受限API连接的容器验证schema/登录/参数目录/型号/介质/执行/Flow页面，随后在 `2026-10-24T15:08:37.287388+00:00` 更新3000并healthy。切换后同一五页、版本SHA、匿名401和控制台检查全部通过，healthz返回完整3d38703。证据与切换前.env受保护备份在 `/home/ubuntu/.local/state/keel/releases/20261024T150724Z`；.env仍600。无数据库迁移，运行schema仍37条，保留兼容旧镜像c326068；未执行数据库恢复或重置、未触碰其他服务/卷。独立候选容器和临时候选配置已清理。
+
+本代码GitHub Actions run40105536743记录时in_progress，尚不能声称通过；上一批c326068为completed/success。本节发布记录提交仅更新文档，3000继续对应上述功能代码SHA。旧草稿原样保留，WP-1.11与P1仍partial。
