@@ -15,6 +15,7 @@ import (
 
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/httpapi"
+	"github.com/enzoOvOyu/keel/internal/mediaartifact"
 	"github.com/enzoOvOyu/keel/internal/platform"
 )
 
@@ -62,6 +63,14 @@ func main() {
 		if err != nil {
 			slog.Error("Fabric probe configuration rejected", "error", err)
 			os.Exit(1)
+		}
+		objects, storageErr := mediaartifact.Load()
+		if storageErr != nil {
+			slog.Error("media storage configuration rejected")
+			os.Exit(1)
+		}
+		if objects != nil {
+			store.MediaObjects = objects
 		}
 		handler = httpapi.NewWithStore(version, dir, store, config)
 	}

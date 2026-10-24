@@ -41,6 +41,8 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 		publish := PublishModelVersionInput{HwSpec: map[string]any{"name": kind}}
 		if kind == "server" {
 			publish.ExpectedTopology = map[string]any{"rail_count": 1}
+			publish.BomExpect = map[string]any{"nic_count": 1}
+			publish.Slots = []ModelSlot{{SlotNo: 1, PcieSlot: "PCIe-1", ExpectNicModel: "test-nic", PanelPort: "1", DefaultRole: "compute"}}
 		}
 		if kind == "nic" {
 			publish.CapabilityMatrix = map[string]any{"ports": map[string]any{"1": map[string]any{"sub_type": "nic-200g"}}}
@@ -90,6 +92,53 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	}
 	if !preview.CanCommit {
 		t.Fatalf("valid package blocked: %+v", preview.Issues)
+	}
+	// A newer model must not change validation of this package's pinned v1.
+	var serverModelID string
+	if err = s.DB.QueryRowContext(ctx, "SELECT model_id FROM device_model_versions WHERE id=$1", modelIDs["server"]).Scan(&serverModelID); err != nil {
+		t.Fatal(err)
+	}
+	newer, err := s.PublishModelVersion(ctx, actor, project, serverModelID, PublishModelVersionInput{BomExpect: map[string]any{"nic_count": 2}, ExpectedTopology: map[string]any{"rail_count": 1}, Slots: []ModelSlot{{SlotNo: 2, PcieSlot: "PCIe-2", ExpectNicModel: "test-nic", PanelPort: "2", DefaultRole: "compute"}}}, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pinned, err := s.PreviewBOMPackage(ctx, actor, project, files)
+	if err != nil || !pinned.CanCommit {
+		t.Fatalf("new version changed pinned BOM: %+v %v", pinned, err)
+	}
+	for _, tc := range []struct{ name, before, after, file, code string }{
+		{"slot", ",1,NIC-1,", ",9,NIC-1,", "server/server_components.csv", "model_nic_slot_invalid"},
+		{"version count", modelIDs["server"], newer.ID, "server/servers.csv", "model_nic_count_mismatch"},
+	} {
+		t.Run("server hardware "+tc.name, func(t *testing.T) {
+			bad := map[string][]byte{}
+			for name, data := range files {
+				bad[name] = append([]byte(nil), data...)
+			}
+			bad[tc.file] = bytes.ReplaceAll(bad[tc.file], []byte(tc.before), []byte(tc.after))
+			rehashBOMFixture(t, bad)
+			checked, checkErr := s.PreviewBOMPackage(ctx, actor, project, bad)
+			if checkErr != nil || checked.CanCommit || checked.PreviewToken != "" {
+				t.Fatalf("hardware mismatch accepted %+v %v", checked, checkErr)
+			}
+			found := false
+			for _, issue := range checked.Issues {
+				if issue.Code == tc.code {
+					found = issue.Severity == "BLOCK" && issue.Expected != "" && issue.Actual != "" && issue.ModelVersionRef != ""
+				}
+			}
+			if !found {
+				t.Fatalf("missing located difference: %+v", checked.Issues)
+			}
+			// Even a syntactically valid preview token cannot bypass commit revalidation.
+			if _, commitErr := s.CommitBOMPackage(ctx, actor, project, bad, bomPreviewToken(actor, project.ID, bad), "test"); commitErr == nil {
+				t.Fatal("commit bypassed hardware precheck")
+			}
+			var writes int
+			if err := s.DB.QueryRowContext(ctx, "SELECT count(*) FROM bom_import_packages WHERE project_id=$1", project.ID).Scan(&writes); err != nil || writes != 0 {
+				t.Fatalf("blocked commit wrote package: %d %v", writes, err)
+			}
+		})
 	}
 	engineering := make(map[string][]byte, len(files))
 	for name, data := range files {
@@ -249,6 +298,7 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if simErr != nil {
 		t.Fatal(simErr)
 	}
+	attachTestIsolationMedia(t, s, actor, project, scriptMedia.ID)
 	if _, simErr = s.TransitionMedia(ctx, actor, project, scriptMedia.ID, "verified", "test"); simErr != nil {
 		t.Fatal(simErr)
 	}

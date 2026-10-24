@@ -22,8 +22,8 @@ export const publishModelVersion = (projectId: string, modelId: string, body: co
 export const retireDeviceModel = (projectId: string, modelId: string, csrf: string) =>
   write<DeviceModelSummary>(`/projects/${encodeURIComponent(projectId)}/models/${encodeURIComponent(modelId)}/retire`, {}, csrf)
 
-export type ModelDraft = { id: string; model_id: string; model_name: string; source_host: string; hw_spec: Record<string, unknown>; expected_topology?: Record<string, unknown>; panel_layout?: Record<string, unknown>; bom_expect?: Record<string, unknown>; default_role_plan?: Record<string, unknown>; slots?: ModelSlot[]; content_hash: string; created_by: string; created_at: string }
-export type ImportScanInput = { source_host: string; model_name?: string; hw_spec: Record<string, unknown>; expected_topology?: Record<string, unknown>; panel_layout?: Record<string, unknown>; bom_expect?: Record<string, unknown>; default_role_plan?: Record<string, unknown>; slots?: ModelSlot[] }
+export type ModelDraft = components['schemas']['ModelDraft']
+export type ImportScanInput = components['schemas']['ImportModelScanInput']
 export const importModelScan = (projectId: string, body: ImportScanInput, csrf: string, key: string) =>
   write<ModelDraft>(`/projects/${encodeURIComponent(projectId)}/models/import`, body, csrf, key)
 export const listModelDrafts = (projectId: string, modelId: string, signal: AbortSignal) =>

@@ -57,11 +57,14 @@ type BOMPackageRow struct {
 }
 
 type BOMPackageIssue struct {
-	Severity  string `json:"severity"`
-	File      string `json:"file"`
-	BOMLineNo int    `json:"bom_line_no,omitempty"`
-	Field     string `json:"field,omitempty"`
-	Code      string `json:"code"`
+	Severity        string `json:"severity"`
+	File            string `json:"file"`
+	BOMLineNo       int    `json:"bom_line_no,omitempty"`
+	Field           string `json:"field,omitempty"`
+	Code            string `json:"code"`
+	Expected        string `json:"expected,omitempty"`
+	Actual          string `json:"actual,omitempty"`
+	ModelVersionRef string `json:"model_version_ref,omitempty"`
 }
 
 var requiredBOMFiles = map[string]struct{ domain, entity string }{

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/enzoOvOyu/keel/internal/mediaartifact"
 	"github.com/enzoOvOyu/keel/internal/platform"
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
@@ -25,9 +26,27 @@ func main() {
 }
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: keel-admin migrate|init-admin|user-create|user-disable|user-unlock|user-password|member-grant|member-revoke [flags]")
+		return errors.New("usage: keel-admin media-init|migrate|init-admin|user-create|user-disable|user-unlock|user-password|member-grant|member-revoke [flags]")
 	}
 	command := args[0]
+	if command == "media-init" {
+		if len(args) != 1 {
+			return errors.New("usage: keel-admin media-init")
+		}
+		objects, e := mediaartifact.Load()
+		if e != nil {
+			return e
+		}
+		if objects == nil {
+			return errors.New("media storage configuration is required")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if e = objects.Initialize(ctx); e != nil {
+			return e
+		}
+		return json.NewEncoder(os.Stdout).Encode(map[string]string{"status": "ok", "operation": "media-init"})
+	}
 	switch command {
 	case "migrate", "init-admin", "user-create", "user-disable", "user-unlock", "user-password", "member-grant", "member-revoke":
 	default:

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Real PostgreSQL parameter-catalog checks: typed keys, media-synced options, retirement."""
+import hashlib
 import http.client
 import http.cookies
 import json
@@ -32,10 +33,10 @@ class Client:
         if method != 'GET':
             headers['Idempotency-Key'] = key or secrets.token_hex(16)
         if body is not None:
-            headers['Content-Type'] = 'application/json'
+            headers['Content-Type'] = 'application/octet-stream' if isinstance(body,bytes) else 'application/json'
         conn = http.client.HTTPConnection(base.hostname, base.port, timeout=60, source_address=(self.ip, 0))
         try:
-            conn.request(method, '/api/v1' + path, body=None if body is None else json.dumps(body), headers=headers)
+            conn.request(method, '/api/v1' + path, body=None if body is None else body if isinstance(body,bytes) else json.dumps(body), headers=headers)
             response = conn.getresponse()
             status = response.status
             raw = response.read()
@@ -68,13 +69,16 @@ admin = Client()
 admin.login(credentials['username'], credentials['password'])
 project = admin.call('POST', '/projects', {'name': '参数目录隔离验收', 'slug': prefix}, code=201)
 path = '/projects/' + project['id']
-digest = 'b' * 64
+payload=b'keel verified parameter fixture'
+digest=hashlib.sha256(payload).hexdigest()
 
 
 def register_media(name, version):
-    return admin.call('POST', path + '/media', {
+    media=admin.call('POST', path + '/media', {
         'type': 'driver', 'name': name, 'version': version, 'sha256': digest,
-        'size': 1024, 'arch': 'amd64', 'manifest_ref': 'minio://media/x.tar.gz'}, code=201)
+        'size': len(payload), 'arch': 'amd64', 'manifest_ref': 'minio://media/x.tar.gz'}, code=201)
+    admin.call('PUT',path+f'/media/{media["id"]}/content',payload)
+    return media
 
 
 def transition(media_id, state, client=None):
@@ -89,7 +93,7 @@ passed('Parameter key validation enforces naming, typing and default-in-options'
 
 # A version key with no approved media yields an empty option list, so any value is rejected.
 key = admin.call('PUT', path + '/params', {'key': 'driver.version', 'value_type': 'version', 'source_media_type': 'driver'}, code=201)
-admin.call('GET', path + '/params/driver.version/check?value=580.82.07', code=422)
+admin.call('GET', path + '/params/driver.version/check?arch=amd64&value=580.82.07', code=422)
 passed('Version options start empty without approved media')
 
 # A separate reviewer approves media; the option list derives on read.
@@ -105,14 +109,14 @@ transition(m1['id'], 'approved', reviewer)
 page = admin.call('GET', path + '/params')
 entry = next(k for k in page['items'] if k['key'] == 'driver.version')
 assert entry['options'] == ['580.82.07'], entry['options']
-admin.call('GET', path + '/params/driver.version/check?value=580.82.07', code=200)
-admin.call('GET', path + '/params/driver.version/check?value=575.51.03', code=422)
+admin.call('GET', path + '/params/driver.version/check?arch=amd64&value=580.82.07', code=200)
+admin.call('GET', path + '/params/driver.version/check?arch=amd64&value=575.51.03', code=422)
 passed('Approved media versions sync into options and gate value checks')
 
 # The reviewer approves the second media; the derived options extend immediately.
 transition(m2['id'], 'verified', reviewer)
 transition(m2['id'], 'approved', reviewer)
-admin.call('GET', path + '/params/driver.version/check?value=575.51.03', code=200)
+admin.call('GET', path + '/params/driver.version/check?arch=amd64&value=575.51.03', code=200)
 page = admin.call('GET', path + '/params')
 entry = next(k for k in page['items'] if k['key'] == 'driver.version')
 assert entry['options'] == ['575.51.03', '580.82.07'], entry['options']
@@ -121,7 +125,7 @@ passed('A second approval extends options without manual edits')
 # Retirement blocks checks and new references; the definition stays readable in history.
 retired = admin.call('POST', path + f'/params/{key["id"]}/retire', {}, code=200)
 assert retired['state'] == 'retired'
-admin.call('GET', path + '/params/driver.version/check?value=580.82.07', code=404)
+admin.call('GET', path + '/params/driver.version/check?arch=amd64&value=580.82.07', code=404)
 resurrect = admin.call('PUT', path + '/params', {'key': 'driver.version', 'value_type': 'version', 'source_media_type': 'driver'}, code=409)
 assert resurrect['code'] == 'PARAM_KEY_RETIRED', resurrect
 admin.call('POST', path + f'/params/{key["id"]}/retire', {}, code=409)

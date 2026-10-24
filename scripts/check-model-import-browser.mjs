@@ -120,7 +120,7 @@ assert(versionRow === 1, `published version still listed after discarding the dr
 pass('Discarding the draft leaves the published version untouched')
 
 // 7. English rendering after the language switch.
-await page.click('.language-button')
+await page.getByRole('button', {name: 'Switch to English', exact: true}).click()
 await page.goto(pageURL)
 await page.click(`tr:has-text("ScanUI-${suffix}") button:has-text("Version history")`)
 await page.waitForSelector('h2:has-text("Review drafts")')

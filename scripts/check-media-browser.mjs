@@ -1,6 +1,6 @@
 /** Browser acceptance for the media library page against an isolated test DB. */
 import assert from 'node:assert/strict'
-import { randomBytes, randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID, createHash } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 
@@ -50,16 +50,21 @@ await admin.waitForSelector('table.data-table')
 
 // Register a driver from the UI dialog with a strict digest.
 await admin.click('button:has-text("登记介质"), button:has-text("Register media")')
-const digest = 'c'.repeat(64)
+const uploadBytes=Buffer.from('keel-ui-file-fixture'),digest=createHash('sha256').update(uploadBytes).digest('hex')
 await admin.fill('#media-name', `ui-driver-${suffix}`)
 await admin.fill('#media-version', '1.0.0')
 await admin.fill('#media-sha', digest)
-await admin.fill('#media-size', '2048')
+await admin.fill('#media-size', String(uploadBytes.length))
 await admin.fill('#media-manifest', `minio://media/ui-driver-${suffix}.tar.gz`)
 await admin.click('.action-dialog button[type=submit]')
 await admin.waitForSelector('.success-notice')
 await admin.waitForSelector(`text=${`ui-driver-${suffix}`}`)
 pass('Media registration dialog registers an item with digest validation')
+await admin.getByRole('button',{name:'上传登记文件',exact:true}).click()
+await admin.locator('#media-attach-file').setInputFiles({name:'fixture.bin',mimeType:'application/octet-stream',buffer:uploadBytes})
+await admin.locator('.action-dialog button[type=submit]').click()
+await admin.getByText('文件已上传。',{exact:true}).waitFor()
+
 
 // Register a reviewer, then approve through the UI from a different browser context.
 const reviewerName = `ui-media-rev-${suffix}`
@@ -110,7 +115,7 @@ assert.equal(actions, 0, 'retired media offers no further transitions')
 pass('Retirement shows the impact notice and removes further actions')
 
 // The page renders in English as well.
-await admin.click('.language-button')
+await admin.getByRole('button',{name:'Switch to English',exact:true}).click()
 await admin.goto(projectURL)
 await admin.waitForSelector('table.data-table')
 const english = await admin.locator('h1:has-text("Media library")').count()

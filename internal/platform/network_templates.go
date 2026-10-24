@@ -381,3 +381,53 @@ func (s *Store) ListNetworkTemplates(ctx context.Context, a *AuthSession, p *Pro
 	}
 	return out, rows.Err()
 }
+
+// DeprecateNetworkTemplate preserves immutable content and all references. Existing
+// PushJob admission independently requires a released template before dispatch.
+type NetworkTemplateDeprecation struct {
+	ExpectedHash string `json:"expected_hash"`
+	Reason       string `json:"reason"`
+}
+
+func (s *Store) DeprecateNetworkTemplate(ctx context.Context, a *AuthSession, p *ProjectSummary, id string, input NetworkTemplateDeprecation, trace string) (*NetworkTemplateVersion, error) {
+	input.Reason = strings.TrimSpace(input.Reason)
+	if !regexp.MustCompile(`^[a-f0-9]{64}$`).MatchString(input.ExpectedHash) || input.Reason == "" || len([]rune(input.Reason)) > 1000 {
+		return nil, apiError(400, "NETWORK_TEMPLATE_DEPRECATION_INVALID", "The reviewed content hash and a reason of 1 through 1000 characters are required")
+	}
+	tx, e := s.beginControl(ctx, a)
+	if e != nil {
+		return nil, e
+	}
+	defer tx.Rollback()
+	role, e := networkRoleTx(ctx, tx, a, p.ID)
+	if e != nil {
+		return nil, e
+	}
+	if role != "Admin" && role != "NH" {
+		return nil, ErrForbidden
+	}
+	template, e := scanNetworkTemplate(tx.QueryRowContext(ctx, "SELECT "+networkTemplateFields+" FROM network_template_versions WHERE id=$1 AND project_id=$2 FOR UPDATE", id, p.ID))
+	if errors.Is(e, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if e != nil {
+		return nil, e
+	}
+	if input.ExpectedHash != template.ContentHash {
+		return nil, apiError(409, "NETWORK_TEMPLATE_FACTS_CHANGED", "The reviewed template hash does not match this version")
+	}
+	if template.State == "deprecated" {
+		return template, tx.Commit()
+	}
+	if template.State != "released" {
+		return nil, apiError(409, "NETWORK_TEMPLATE_NOT_RELEASED", "Only a released template can be deprecated")
+	}
+	if _, e = tx.ExecContext(ctx, "UPDATE network_template_versions SET state='deprecated',updated_at=now() WHERE id=$1", id); e != nil {
+		return nil, e
+	}
+	if e = appendAudit(ctx, tx, a.User.ID, p.ID, "network.template.deprecate", id, trace, map[string]any{"version": template.Version, "content_hash": template.ContentHash, "reason": input.Reason}); e != nil {
+		return nil, e
+	}
+	template.State = "deprecated"
+	return template, tx.Commit()
+}

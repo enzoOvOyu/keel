@@ -116,6 +116,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/media/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Upload a private immutable artifact. Multipart metadata JSON must precede the file. SHA256 and size are computed from actual bytes. Admin/SRE only, maximum 1 GiB inline; duplicate versions are rejected. */
+        post: operations["uploadMediaArtifact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/media/{mediaId}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Authenticated project members read only approved, non-retired media. The complete pinned object is verified before serving bytes; Range and If-Range are supported. Every authorized download is audited. No object-store URL or credentials are exposed. */
+        get: operations["downloadMediaArtifact"];
+        /** @description The original uploader attaches the exact registered digest and size to an uploaded item once. Existing bindings cannot be replaced. */
+        put: operations["attachMediaArtifact"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/media/{mediaId}/transition": {
         parameters: {
             query?: never;
@@ -1051,6 +1089,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/fabric/templates/{templateId}/deprecate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description NH/Admin retires a released version without deleting its immutable content or evidence. Existing admission checks block new preparation and production dispatch using the deprecated version; in-flight operations retain their evidence. */
+        post: operations["deprecateNetworkTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/fabric/push-jobs": {
         parameters: {
             query?: never;
@@ -1515,10 +1570,279 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/params": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listParamKeys"];
+        /** @description Project Admin or platform administrator. Optional create-only or timestamp preconditions reject stale writes with 409. */
+        put: operations["upsertParamKey"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/params/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["validateCatalog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/params/{keyId}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Only the owning scope may retire a parameter. Optional timestamp precondition rejects stale confirmations. */
+        post: operations["retireParamKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/params/{keyName}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["checkParamValue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/models/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["importModelScan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/models/{modelId}/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listModelDrafts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/models/{modelId}/drafts/{draftId}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["discardModelDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ModelDraft: {
+            id: string;
+            model_id: string;
+            model_name: string;
+            source_host: string;
+            content_hash: string;
+            created_by: string;
+            created_at: string;
+            hw_spec: {
+                [key: string]: unknown;
+            };
+            expected_topology: {
+                [key: string]: unknown;
+            };
+            capability_matrix: {
+                [key: string]: unknown;
+            };
+            panel_layout: {
+                [key: string]: unknown;
+            };
+            bom_expect: {
+                [key: string]: unknown;
+            };
+            default_role_plan: {
+                [key: string]: unknown;
+            };
+            slots: components["schemas"]["ModelSlot"][];
+        };
+        ImportModelScanInput: {
+            model_name?: string;
+            source_host: string;
+            hw_spec: {
+                [key: string]: unknown;
+            };
+            expected_topology?: {
+                [key: string]: unknown;
+            };
+            capability_matrix?: {
+                [key: string]: unknown;
+            };
+            panel_layout?: {
+                [key: string]: unknown;
+            };
+            bom_expect?: {
+                [key: string]: unknown;
+            };
+            default_role_plan?: {
+                [key: string]: unknown;
+            };
+            slots?: components["schemas"]["ModelSlot"][];
+        };
+        ModelDraftPage: {
+            items: components["schemas"]["ModelDraft"][];
+        };
+        DiscardModelDraftResult: {
+            discarded: boolean;
+        };
+        /** @description Common requirements AND one complete combination row. Rows have identical keys; values from different rows cannot be mixed. At least one nonempty rule is required. */
+        CompatibilityMatrix: {
+            source: string;
+            version: string;
+            report_ref: string;
+            requires?: {
+                [key: string]: string[];
+            };
+            combinations?: {
+                [key: string]: string;
+            }[];
+        };
+        CatalogDependencies: {
+            compatibility?: components["schemas"]["CompatibilityMatrix"];
+        };
+        CatalogMedia: {
+            id: string;
+            uri: string;
+            version: string;
+            arch: string;
+            hw_scope: string;
+            os_scope: string;
+            sha256: string;
+            object_version: string;
+            deps: components["schemas"]["CatalogDependencies"];
+        };
+        CatalogSelection: {
+            key_id: string;
+            key: string;
+            value: string;
+            /** Format: date-time */
+            updated_at: string;
+            deps: components["schemas"]["CatalogDependencies"];
+            media?: components["schemas"]["CatalogMedia"];
+        };
+        CatalogIssue: {
+            key: string;
+            code: string;
+            message: string;
+            dependency?: string;
+            expected?: string[];
+            matrix?: components["schemas"]["CompatibilityMatrix"];
+        };
+        CatalogValidation: {
+            valid: boolean;
+            issues: components["schemas"]["CatalogIssue"][];
+            selections: components["schemas"]["CatalogSelection"][];
+        };
+        CatalogValues: {
+            values: {
+                [key: string]: string | number | boolean;
+            };
+        };
+        ParamKeySummary: {
+            id: string;
+            scope_key: string;
+            key: string;
+            /** @enum {string} */
+            value_type: "string" | "enum" | "version";
+            default_value: string;
+            source_media_type: string;
+            /** @enum {string} */
+            state: "active" | "retired";
+            created_at: string;
+            updated_at: string;
+            options: string[];
+            deps: components["schemas"]["CatalogDependencies"];
+            media_options: components["schemas"]["CatalogMedia"][];
+        };
+        /** @description create_only and expected_updated_at are mutually exclusive. Omission preserves existing upsert semantics. */
+        UpsertParamKeyInput: {
+            key: string;
+            /** @enum {string} */
+            value_type: "string" | "enum" | "version";
+            options?: string[];
+            default_value?: string;
+            source_media_type?: string;
+            deps?: components["schemas"]["CatalogDependencies"];
+            create_only?: boolean;
+            /** Format: date-time */
+            expected_updated_at?: string;
+        };
+        RetireParamKeyInput: {
+            /** Format: date-time */
+            expected_updated_at?: string;
+        };
+        ParamKeyPage: {
+            items: components["schemas"]["ParamKeySummary"][];
+            page: number;
+            page_size: number;
+            total: number;
+        };
+        CatalogCheck: {
+            key: string;
+            value: string;
+            valid: boolean;
+            selection: components["schemas"]["CatalogSelection"];
+        };
         FabricStorm: {
             rule_id: string;
             policy_version: number;
@@ -2757,6 +3081,9 @@ export interface components {
             bom_line_no?: number;
             field?: string;
             code: string;
+            expected?: string;
+            actual?: string;
+            model_version_ref?: string;
         };
         BOMPackagePreview: {
             manifest: {
@@ -2795,6 +3122,8 @@ export interface components {
             approved_at?: string;
         };
         MediaItemSummary: {
+            /** @description An immutable object version has been attached; approval and fresh integrity checks remain required. */
+            artifact_stored: boolean;
             id: string;
             scope_key: string;
             /** @enum {string} */
@@ -2808,7 +3137,7 @@ export interface components {
             arch: "amd64" | "arm64" | "noarch";
             os_scope: string;
             hw_scope: string;
-            deps: unknown;
+            deps: components["schemas"]["CatalogDependencies"];
             manifest_ref: string;
             /** @enum {string} */
             state: "uploaded" | "verified" | "approved" | "retired";
@@ -2837,9 +3166,7 @@ export interface components {
             arch: "amd64" | "arm64" | "noarch";
             os_scope?: string;
             hw_scope?: string;
-            deps?: {
-                [key: string]: unknown;
-            };
+            deps?: components["schemas"]["CatalogDependencies"];
             manifest_ref?: string;
         };
         DeviceModelSummary: {
@@ -2881,6 +3208,12 @@ export interface components {
             kind: "rack" | "server" | "compute-tray" | "switch" | "nic" | "gpu" | "psu" | "bmc" | "optic_module";
         };
         PublishModelVersionInput: {
+            /**
+             * Format: int64
+             * @description Optional append precondition; the review UI always supplies the observed latest version.
+             */
+            expected_version?: number;
+            source_draft_id?: components["schemas"]["EntityID"];
             hw_spec?: {
                 [key: string]: unknown;
             };
@@ -3245,6 +3578,45 @@ export interface components {
             /** @description Shared controller resource key; present for Kea control targets only. */
             resource_key?: string;
         };
+        RerunSource: {
+            execution_id: string;
+            state_version: number;
+            /** @enum {string} */
+            mode: "failed" | "targets";
+            selection_hash: string;
+            change_reason: string;
+        };
+        "schemas-CompatibilityMatrix": {
+            source: string;
+            version: string;
+            report_ref: string;
+            requires: {
+                [key: string]: string[];
+            };
+        };
+        "schemas-CatalogDependencies": {
+            compatibility?: components["schemas"]["schemas-CompatibilityMatrix"];
+        };
+        "schemas-CatalogMedia": {
+            id: string;
+            uri: string;
+            version: string;
+            arch: string;
+            hw_scope: string;
+            os_scope: string;
+            sha256: string;
+            object_version: string;
+            deps: components["schemas"]["schemas-CatalogDependencies"];
+        };
+        "schemas-CatalogSelection": {
+            key_id: string;
+            key: string;
+            value: string;
+            /** Format: date-time */
+            updated_at: string;
+            deps: components["schemas"]["schemas-CatalogDependencies"];
+            media?: components["schemas"]["schemas-CatalogMedia"];
+        };
         /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
         ExecutionSnapshot: {
             /** @enum {string} */
@@ -3259,6 +3631,8 @@ export interface components {
             admission: string;
             /** Format: date-time */
             frozen_at: string;
+            rerun_source?: components["schemas"]["RerunSource"];
+            catalog?: components["schemas"]["schemas-CatalogSelection"][];
         };
         Execution: {
             id: string;
@@ -3717,6 +4091,168 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    uploadMediaArtifact: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** @description RegisterMediaInput JSON; sha256 and size are computed by the server. */
+                    metadata: string;
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Uploaded artifact and registered immutable media version */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaItemSummary"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            /** @description Inline upload exceeds 1 GiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Versioned storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    downloadMediaArtifact: {
+        parameters: {
+            query?: never;
+            header?: {
+                Range?: string;
+                "If-Range"?: string;
+            };
+            path: {
+                id: string;
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Verified approved bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Verified byte range */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Requested range is not satisfiable */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Stored object integrity verification failed; no bytes served */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Pinned object or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    attachMediaArtifact: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Immutable object version attached */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaItemSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Actual bytes differ from the registered digest or size */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Versioned storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     transitionMedia: {
@@ -5823,6 +6359,43 @@ export interface operations {
             };
         };
     };
+    deprecateNetworkTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    expected_hash: string;
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Deprecated version, also returned for a repeat request without a second transition or audit. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkTemplateVersion"];
+                };
+            };
+            /** @description Wrong content hash or version is not released. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listNetworkPushJobs: {
         parameters: {
             query?: never;
@@ -6771,6 +7344,251 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    listParamKeys: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+                arch?: string;
+                /** @description Management query: DL, project Admin or platform administrator only. Default active-only reads retain project-member authorization. */
+                include_retired?: boolean;
+            };
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped catalog result. Versions require approved stored artifacts; validation is read-only. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParamKeyPage"];
+                };
+            };
+        };
+    };
+    upsertParamKey: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertParamKeyInput"];
+            };
+        };
+        responses: {
+            /** @description Project-scoped catalog result. Versions require approved stored artifacts; validation is read-only. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParamKeySummary"];
+                };
+            };
+            /** @description Definition changed, already exists, or is retired */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    validateCatalog: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogValues"];
+            };
+        };
+        responses: {
+            /** @description Project-scoped catalog result. Versions require approved stored artifacts; validation is read-only. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogValidation"];
+                };
+            };
+        };
+    };
+    retireParamKey: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: components["schemas"]["EntityID"];
+                keyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RetireParamKeyInput"];
+            };
+        };
+        responses: {
+            /** @description Project-scoped catalog result. Versions require approved stored artifacts; validation is read-only. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParamKeySummary"];
+                };
+            };
+            /** @description Definition changed or already retired */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    checkParamValue: {
+        parameters: {
+            query?: {
+                value?: string;
+                arch?: string;
+            };
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+                keyName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped catalog result. Versions require approved stored artifacts; validation is read-only. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogCheck"];
+                };
+            };
+        };
+    };
+    importModelScan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportModelScanInput"];
+            };
+        };
+        responses: {
+            /** @description Project-scoped review draft; never automatically published. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDraft"];
+                };
+            };
+        };
+    };
+    listModelDrafts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+                modelId: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped review draft; never automatically published. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDraftPage"];
+                };
+            };
+        };
+    };
+    discardModelDraft: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: components["schemas"]["EntityID"];
+                modelId: components["schemas"]["EntityID"];
+                draftId: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped review draft; never automatically published. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscardModelDraftResult"];
+                };
             };
         };
     };

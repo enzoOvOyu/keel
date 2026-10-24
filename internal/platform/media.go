@@ -18,23 +18,24 @@ import (
 // the execution channels (WP-1.4/WP-1.5).
 
 type MediaItemSummary struct {
-	ID          string          `json:"id"`
-	ScopeKey    string          `json:"scope_key"`
-	Type        string          `json:"type"`
-	Name        string          `json:"name"`
-	Version     string          `json:"version"`
-	Sha256      string          `json:"sha256"`
-	Size        int64           `json:"size"`
-	Arch        string          `json:"arch"`
-	OsScope     string          `json:"os_scope"`
-	HwScope     string          `json:"hw_scope"`
-	Deps        json.RawMessage `json:"deps"`
-	ManifestRef string          `json:"manifest_ref"`
-	State       string          `json:"state"`
-	UploadedBy  string          `json:"uploaded_by"`
-	ApprovedBy  string          `json:"approved_by"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
+	ArtifactStored bool            `json:"artifact_stored"`
+	ID             string          `json:"id"`
+	ScopeKey       string          `json:"scope_key"`
+	Type           string          `json:"type"`
+	Name           string          `json:"name"`
+	Version        string          `json:"version"`
+	Sha256         string          `json:"sha256"`
+	Size           int64           `json:"size"`
+	Arch           string          `json:"arch"`
+	OsScope        string          `json:"os_scope"`
+	HwScope        string          `json:"hw_scope"`
+	Deps           json.RawMessage `json:"deps"`
+	ManifestRef    string          `json:"manifest_ref"`
+	State          string          `json:"state"`
+	UploadedBy     string          `json:"uploaded_by"`
+	ApprovedBy     string          `json:"approved_by"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
 type RegisterMediaInput struct {
@@ -83,6 +84,9 @@ func validateMediaInput(input RegisterMediaInput) error {
 	if utf8.RuneCountInString(input.OsScope) > 120 || utf8.RuneCountInString(input.HwScope) > 120 || utf8.RuneCountInString(input.ManifestRef) > 200 {
 		return apiError(400, "VALIDATION_ERROR", "Media scope or manifest reference exceeds its limit")
 	}
+	if e := validateCompatibility(input.Deps); e != nil {
+		return e
+	}
 	if input.Deps != nil {
 		encoded, e := json.Marshal(input.Deps)
 		if e != nil || len(encoded) > mediaDepsLimit {
@@ -112,14 +116,14 @@ func (s *Store) ListMedia(ctx context.Context, a *AuthSession, project *ProjectS
 	if e = tx.QueryRowContext(ctx, "SELECT count(*) FROM media_items WHERE "+filter, scope).Scan(&out.Total); e != nil {
 		return out, e
 	}
-	rows, e := tx.QueryContext(ctx, "SELECT id,scope_key,type,name,version,sha256,size,arch,os_scope,hw_scope,deps,manifest_ref,state,uploaded_by,coalesce(approved_by,''),created_at,updated_at FROM media_items WHERE "+filter+" ORDER BY type,name,version DESC LIMIT $2 OFFSET $3", scope, p.PageSize, p.Offset())
+	rows, e := tx.QueryContext(ctx, "SELECT id,scope_key,type,name,version,sha256,size,arch,os_scope,hw_scope,deps,manifest_ref,state,uploaded_by,coalesce(approved_by,''),created_at,updated_at,EXISTS(SELECT 1 FROM media_artifacts ma WHERE ma.media_id=media_items.id) FROM media_items WHERE "+filter+" ORDER BY type,name,version DESC LIMIT $2 OFFSET $3", scope, p.PageSize, p.Offset())
 	if e != nil {
 		return out, e
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var m MediaItemSummary
-		if e = rows.Scan(&m.ID, &m.ScopeKey, &m.Type, &m.Name, &m.Version, &m.Sha256, &m.Size, &m.Arch, &m.OsScope, &m.HwScope, &m.Deps, &m.ManifestRef, &m.State, &m.UploadedBy, &m.ApprovedBy, &m.CreatedAt, &m.UpdatedAt); e != nil {
+		if e = rows.Scan(&m.ID, &m.ScopeKey, &m.Type, &m.Name, &m.Version, &m.Sha256, &m.Size, &m.Arch, &m.OsScope, &m.HwScope, &m.Deps, &m.ManifestRef, &m.State, &m.UploadedBy, &m.ApprovedBy, &m.CreatedAt, &m.UpdatedAt, &m.ArtifactStored); e != nil {
 			return out, e
 		}
 		out.Items = append(out.Items, m)
@@ -128,6 +132,9 @@ func (s *Store) ListMedia(ctx context.Context, a *AuthSession, project *ProjectS
 }
 
 func (s *Store) RegisterMedia(ctx context.Context, a *AuthSession, project *ProjectSummary, input RegisterMediaInput, trace string) (*MediaItemSummary, error) {
+	return s.registerMedia(ctx, a, project, input, trace, nil)
+}
+func (s *Store) registerMedia(ctx context.Context, a *AuthSession, project *ProjectSummary, input RegisterMediaInput, trace string, artifact *stagedMedia) (*MediaItemSummary, error) {
 	if e := validateMediaInput(input); e != nil {
 		return nil, e
 	}
@@ -137,12 +144,8 @@ func (s *Store) RegisterMedia(ctx context.Context, a *AuthSession, project *Proj
 		return nil, e
 	}
 	defer tx.Rollback()
-	if project != nil {
-		if e := requireProjectAdmin(ctx, tx, a, project.ID); e != nil {
-			return nil, e
-		}
-	} else if !a.User.IsAdmin {
-		return nil, ErrForbidden
+	if e = requireMediaManager(ctx, tx, a, project); e != nil {
+		return nil, e
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	m := &MediaItemSummary{ID: RandomID(), ScopeKey: scope, Type: input.Type, Name: strings.TrimSpace(input.Name), Version: strings.TrimSpace(input.Version), Sha256: input.Sha256, Size: input.Size, Arch: input.Arch, OsScope: input.OsScope, HwScope: input.HwScope, Deps: modelSpecJSON(input.Deps), ManifestRef: input.ManifestRef, State: "uploaded", UploadedBy: a.User.ID, CreatedAt: now, UpdatedAt: now}
@@ -158,6 +161,11 @@ func (s *Store) RegisterMedia(ctx context.Context, a *AuthSession, project *Proj
 	if e = appendAudit(ctx, tx, a.User.ID, projectIDOf(project), "media.register", m.ID, trace, map[string]any{"type": m.Type, "name": m.Name, "version": m.Version, "sha256": m.Sha256, "arch": m.Arch}); e != nil {
 		return nil, e
 	}
+	if artifact != nil {
+		if e = s.bindMediaArtifact(ctx, tx, a, m, artifact, trace); e != nil {
+			return nil, e
+		}
+	}
 	if e = tx.Commit(); e != nil {
 		return nil, e
 	}
@@ -165,7 +173,7 @@ func (s *Store) RegisterMedia(ctx context.Context, a *AuthSession, project *Proj
 }
 
 // TransitionMedia advances the one-way lifecycle. Verification checks the
-// recorded digest against the stored artifact manifest; approval is an
+// actual bytes against the registered digest and immutable object version; approval is an
 // explicit reviewer action; retirement is irreversible.
 func (s *Store) TransitionMedia(ctx context.Context, a *AuthSession, project *ProjectSummary, mediaID, target string, trace string) (*MediaItemSummary, error) {
 	if target != "verified" && target != "approved" && target != "retired" {
@@ -177,12 +185,8 @@ func (s *Store) TransitionMedia(ctx context.Context, a *AuthSession, project *Pr
 		return nil, e
 	}
 	defer tx.Rollback()
-	if project != nil {
-		if e := requireProjectAdmin(ctx, tx, a, project.ID); e != nil {
-			return nil, e
-		}
-	} else if !a.User.IsAdmin {
-		return nil, ErrForbidden
+	if e = requireMediaManager(ctx, tx, a, project); e != nil {
+		return nil, e
 	}
 	m, e := mediaForScope(ctx, tx, mediaID, scope)
 	if e != nil {
@@ -192,9 +196,15 @@ func (s *Store) TransitionMedia(ctx context.Context, a *AuthSession, project *Pr
 	if !allowed {
 		return nil, apiError(409, "MEDIA_TRANSITION_INVALID", "Media state "+m.State+" cannot transition to "+target)
 	}
-	// Verification requires a manifest reference so the digest stays checkable.
-	if target == "verified" && m.ManifestRef == "" {
-		return nil, apiError(409, "MEDIA_MANIFEST_MISSING", "Verification requires a stored manifest reference")
+	if m.ScopeKey != scope {
+		return nil, ErrForbidden
+	}
+	if target == "verified" || target == "approved" {
+		actual, err := s.checkedMedia(ctx, tx, m)
+		if err != nil {
+			return nil, err
+		}
+		actual.close()
 	}
 	// The uploader cannot approve their own media; approval is a review gate.
 	if target == "approved" && m.UploadedBy == a.User.ID {
@@ -225,8 +235,8 @@ func mediaForScope(ctx context.Context, tx *sql.Tx, mediaID, scope string) (*Med
 		return nil, apiError(404, "MEDIA_NOT_FOUND", "Media not found")
 	}
 	var m MediaItemSummary
-	e := tx.QueryRowContext(ctx, "SELECT id,scope_key,type,name,version,sha256,size,arch,os_scope,hw_scope,deps,manifest_ref,state,uploaded_by,coalesce(approved_by,''),created_at,updated_at FROM media_items WHERE id=$1", mediaID).
-		Scan(&m.ID, &m.ScopeKey, &m.Type, &m.Name, &m.Version, &m.Sha256, &m.Size, &m.Arch, &m.OsScope, &m.HwScope, &m.Deps, &m.ManifestRef, &m.State, &m.UploadedBy, &m.ApprovedBy, &m.CreatedAt, &m.UpdatedAt)
+	e := tx.QueryRowContext(ctx, "SELECT id,scope_key,type,name,version,sha256,size,arch,os_scope,hw_scope,deps,manifest_ref,state,uploaded_by,coalesce(approved_by,''),created_at,updated_at,EXISTS(SELECT 1 FROM media_artifacts ma WHERE ma.media_id=media_items.id) FROM media_items WHERE id=$1 FOR UPDATE", mediaID).
+		Scan(&m.ID, &m.ScopeKey, &m.Type, &m.Name, &m.Version, &m.Sha256, &m.Size, &m.Arch, &m.OsScope, &m.HwScope, &m.Deps, &m.ManifestRef, &m.State, &m.UploadedBy, &m.ApprovedBy, &m.CreatedAt, &m.UpdatedAt, &m.ArtifactStored)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil, apiError(404, "MEDIA_NOT_FOUND", "Media not found")
 	}

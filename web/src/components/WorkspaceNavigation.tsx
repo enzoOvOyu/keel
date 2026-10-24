@@ -4,8 +4,8 @@ import type { Project, Session } from '../lib/api'
 import { useSession } from '../lib/session'
 import { Icon, type IconName } from './Icon'
 
-type ProjectPage = '/p/$projectId/delivery' | '/p/$projectId/flows' | '/p/$projectId/health' | '/p/$projectId/configuration' | '/p/$projectId/fabric' | '/p/$projectId' | '/p/$projectId/members' | '/p/$projectId/audits' | '/p/$projectId/assets' | '/p/$projectId/ztp' | '/p/$projectId/executions' | '/p/$projectId/models' | '/p/$projectId/media'
-type Item = { to: ProjectPage; label: string; icon: IconName; permission?: string; admin?: boolean }
+type ProjectPage = '/p/$projectId/delivery' | '/p/$projectId/flows' | '/p/$projectId/health' | '/p/$projectId/configuration' | '/p/$projectId/fabric' | '/p/$projectId' | '/p/$projectId/members' | '/p/$projectId/audits' | '/p/$projectId/assets' | '/p/$projectId/ztp' | '/p/$projectId/executions' | '/p/$projectId/models' | '/p/$projectId/media' | '/p/$projectId/params'
+type Item = { to: ProjectPage; label: string; icon: IconName; permission?: string; admin?: boolean; roles?: string[] }
 const deployment: Item[] = [
   { to: '/p/$projectId', label: 'overviewTab', icon: 'overview' },
   { to: '/p/$projectId/assets', label: 'bomTab', icon: 'box', permission: 'model:read' },
@@ -22,11 +22,12 @@ const operations: Item[] = [
   { to: '/p/$projectId/media', label: 'mediaTab', icon: 'archive', permission: 'model:read' },
 ]
 const administration: Item[] = [
+  { to: '/p/$projectId/params', label: 'catalogTitle', icon: 'layers', permission: 'model:read', roles: ['Admin', 'DL'] },
   { to: '/p/$projectId/members', label: 'membersTitle', icon: 'users', permission: 'project:members:read', admin: true },
   { to: '/p/$projectId/audits', label: 'auditTitle', icon: 'audit', permission: 'project:audit:read', admin: true },
 ]
 function allowed(item: Item, project: Project, session: Session) {
-  return (!item.permission || session.permissions.includes(item.permission)) && (!item.admin || session.user.is_admin || project.role === 'Admin')
+  return (!item.permission || session.permissions.includes(item.permission)) && (!item.admin || session.user.is_admin || project.role === 'Admin') && (!item.roles || session.user.is_admin || item.roles.includes(project.role))
 }
 function switchDestination(pathname: string, project: Project, session: Session): ProjectPage {
   const leaf = pathname.replace(/^\/p\/[^/]+/, '/p/$projectId')

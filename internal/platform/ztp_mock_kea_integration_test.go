@@ -47,6 +47,7 @@ func TestZTPMockKeaDurableStageCommit(t *testing.T) {
 	} else {
 		assertErrorCode(t, err, "ZTP_SCRIPT_NOT_APPROVED")
 	}
+	attachTestIsolationMedia(t, s, actor, project, media.ID)
 	if _, err = s.TransitionMedia(ctx, actor, project, media.ID, "verified", "test"); err != nil {
 		t.Fatal(err)
 	}

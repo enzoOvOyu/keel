@@ -1,4 +1,5 @@
 import { request } from './api'
+import type { components } from '../generated/api'
 
 export type BomPortRow = { mac_address: string; port_name: string; rail: number }
 export type BomMachineRow = {
@@ -36,7 +37,7 @@ export const previewBomImport = (projectId: string, body: BomImportInput, csrf: 
 export const commitBomImport = (projectId: string, body: BomImportInput, csrf: string, key: string) =>
   request<BomCommitResult>(`/projects/${encodeURIComponent(projectId)}/bom/commit`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify(body) })
 
-export type BomPackageIssue = { severity: 'BLOCK' | 'WARN' | 'INFO'; file: string; bom_line_no?: number; field?: string; code: string }
+export type BomPackageIssue = components['schemas']['BOMPackageIssue']
 export type BomPackagePreview = {
   manifest: { bom_import_batch_id: string; profile_version_ref: string; row_count: number; content_hash: string }
   issues: BomPackageIssue[]; file_hashes: Record<string, string>; derivations: Record<string, string>; can_commit: boolean; idempotent: boolean; preview_token?: string

@@ -145,6 +145,11 @@ func analyzeBOMPackageTx(ctx context.Context, tx *sql.Tx, project *ProjectSummar
 		return nil, nil, opticErr
 	}
 	pkg.Issues = append(pkg.Issues, opticIssues...)
+	hardwareIssues, hardwareErr := validateServerModelHardware(ctx, tx, project.ID, pkg)
+	if hardwareErr != nil {
+		return nil, nil, hardwareErr
+	}
+	pkg.Issues = append(pkg.Issues, hardwareIssues...)
 	railIssues, railErr := validateServerRailScale(ctx, tx, project.ID, pkg)
 	if railErr != nil {
 		return nil, nil, railErr

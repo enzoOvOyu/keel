@@ -47,6 +47,7 @@ func TestZTP239ApprovedIsolationScript(t *testing.T) {
 	if _, err = serve("192.0.2.8", query); err == nil {
 		t.Fatal("unapproved ZTP script served")
 	}
+	attachTestIsolationMedia(t, s, uploader, project, media.ID)
 	if _, err = s.TransitionMedia(ctx, uploader, project, media.ID, "verified", "test"); err != nil {
 		t.Fatal(err)
 	}

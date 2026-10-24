@@ -1,3 +1,7 @@
+import { catalogManagementTranslations } from './catalog-management-i18n'
+import { modelReviewTranslations } from './model-review-i18n'
+import { catalogTranslations } from './catalog-i18n'
+import {executionRerunTranslations} from './execution-rerun-i18n'
 import { executionViewsTranslations } from './execution-views-i18n'
 import { networkDeliveryTranslations } from './network-delivery-i18n'
 import {fabricDiagnosticTranslations} from './fabric-diagnostics-i18n'
@@ -28,11 +32,11 @@ export const resources = {
     ...networkHealthTranslations.zh,...fabricDiagnosticTranslations.zh,...networkRuleTranslations.zh,...networkRuleTranslations.zh,
     ...networkPushTranslations.zh,
     ...networkTranslations.zh,
-    ...executionViewsTranslations.zh,
+    ...executionViewsTranslations.zh,...executionRerunTranslations.zh,
     ...executionTranslations.zh,
     ...flowWorkbenchTranslations.zh,
-    ...modelsTranslations.zh,
-    ...mediaTranslations.zh,
+    ...modelsTranslations.zh,...modelReviewTranslations.zh,
+    ...mediaTranslations.zh,...catalogTranslations.zh,...catalogManagementTranslations.zh,
     ...bomTranslations.zh,
     ...ztpTranslations.zh,
     ...workspaceTranslations.zh,
@@ -135,11 +139,11 @@ export const resources = {
     ...networkHealthTranslations.en,...fabricDiagnosticTranslations.en,...networkRuleTranslations.en,...networkRuleTranslations.en,
     ...networkPushTranslations.en,
     ...networkTranslations.en,
-    ...executionViewsTranslations.en,
+    ...executionViewsTranslations.en,...executionRerunTranslations.en,
     ...executionTranslations.en,
     ...flowWorkbenchTranslations.en,
-    ...modelsTranslations.en,
-    ...mediaTranslations.en,
+    ...modelsTranslations.en,...modelReviewTranslations.en,
+    ...mediaTranslations.en,...catalogTranslations.en,...catalogManagementTranslations.en,
     ...bomTranslations.en,
     ...ztpTranslations.en,
     ...workspaceTranslations.en,

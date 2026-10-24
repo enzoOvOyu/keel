@@ -444,6 +444,9 @@ func (s *Service) Relations(ctx context.Context, project, id string) (*Execution
 		return nil, e
 	}
 	out := &ExecutionRelations{Version: "execution-relations/v1", ProjectID: project, ExecutionID: id, Flow: x.Snapshot.Flow, Parameters: x.Snapshot.Parameters, TargetSetHash: x.Snapshot.TargetSetHash, FrozenAt: x.Snapshot.FrozenAt, IssueIDs: []string{}, Warnings: []string{"issue_and_subflow_links_not_implemented"}}
+	if x.Snapshot.RerunSource != nil {
+		out.UpstreamExecutionID = x.Snapshot.RerunSource.ExecutionID
+	}
 	if x.Mode == "kea" {
 		e = tx.QueryRowContext(ctx, `SELECT id FROM ztp_kea_deployments WHERE project_id=$1 AND execution_id=$2`, project, id).Scan(&out.KeaDeploymentID)
 	}

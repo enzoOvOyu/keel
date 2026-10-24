@@ -26,6 +26,9 @@ try:
  env['KEEL_FABRIC_PROBES_FILE']=str(fixture.configuration)
  for target in ['api','admin','worker']:
   subprocess.run(['go','build','-o',str(work/('keel-'+target)),'./cmd/keel-'+target],check=True,capture_output=True)
+ subprocess.run(['python3','scripts/test-media-environment.py','start','--directory',str(work)],check=True)
+ env.update(dict(line.split('=',1) for line in (work/'media.env').read_text().splitlines()))
+ subprocess.run([str(work/'keel-admin'),'media-init'],env=env,check=True,capture_output=True)
  subprocess.run([str(work/'keel-admin'),'migrate'],env=env,check=True,capture_output=True)
  pw=secrets.token_urlsafe(28);secret=work/'password';secret.write_text(pw);secret.chmod(0o600)
  subprocess.run([str(work/'keel-admin'),'init-admin','--username','shelladmin','--display-name','Shell Admin','--password-file',str(secret)],env=env,check=True,capture_output=True)
@@ -97,6 +100,7 @@ try:
   print(result.stderr.replace(pw,'[redacted]').replace(password,'[redacted]'),flush=True)
   raise RuntimeError('Isolated Kea/Execution integration failed')
 finally:
+ if (work/'media-container').exists():subprocess.run(['python3','scripts/test-media-environment.py','stop','--directory',str(work)],check=True)
  if worker is not None:
   worker.terminate()
   try:worker.wait(timeout=15)

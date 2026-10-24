@@ -54,7 +54,9 @@ func (a *authAPI) executionProject(c *gin.Context, write bool) (*platform.AuthSe
 		a.respondError(c, e)
 		return nil, nil, false
 	}
-	return actor, execution.New(a.store.DB), true
+	service := execution.New(a.store.DB)
+	service.MediaStore = a.store
+	return actor, service, true
 }
 func (a *authAPI) registerExecution(r *gin.Engine) {
 	base := "/api/v1/projects/:id"
@@ -179,6 +181,8 @@ func (a *authAPI) registerExecution(r *gin.Engine) {
 		if !decodeExecutionBody(c, &in) {
 			return
 		}
+		cancel := mediaDeadline(c)
+		defer cancel()
 		x, e := s.Create(c.Request.Context(), actor, c.Param("id"), in, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
 		if e != nil {
 			a.respondError(c, e)

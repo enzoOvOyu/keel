@@ -1,3 +1,5 @@
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -60,19 +62,32 @@ type SlotDraft = { slot_no: string; pcie_slot: string; expect_nic_model: string;
 const emptySlot = (): SlotDraft => ({ slot_no: '', pcie_slot: '', expect_nic_model: '', panel_port: '', default_role: 'compute' })
 function PublishVersionDialog({ projectId, model, seed, onClose, onDone }: { projectId: string; model: DeviceModelSummary; seed?: ModelDraft | null; onClose: () => void; onDone: () => Promise<void> }) {
   const { t } = useTranslation(), session = useSession(), action = useAction(), keyFor = useIdempotencyKey()
-  const seeded = seed ? { spec: JSON.stringify(seed.hw_spec ?? {}, null, 2), slots: (seed.slots && seed.slots.length ? seed.slots : undefined) } : null
-  const [hwSpec, setHwSpec] = useState(seeded?.spec ?? '{}'), [capabilityMatrix, setCapabilityMatrix] = useState('{}'), [slots, setSlots] = useState<SlotDraft[]>(seeded?.slots?.map((slot) => ({ slot_no: String(slot.slot_no), pcie_slot: slot.pcie_slot, expect_nic_model: slot.expect_nic_model, panel_port: slot.panel_port, default_role: slot.default_role })) ?? (model.kind === 'server' || model.kind === 'compute-tray' ? [emptySlot()] : [])), [validation, setValidation] = useState('')
+  const seeded = seed ? { spec: JSON.stringify(seed.hw_spec ?? {}, null, 2), slots: seed.slots } : null
+  const [hwSpec, setHwSpec] = useState(seeded?.spec ?? '{}'), [capabilityMatrix, setCapabilityMatrix] = useState(JSON.stringify(seed?.capability_matrix ?? {}, null, 2)), [slots, setSlots] = useState<SlotDraft[]>(seeded?.slots?.map((slot) => ({ slot_no: String(slot.slot_no), pcie_slot: slot.pcie_slot, expect_nic_model: slot.expect_nic_model, panel_port: slot.panel_port, default_role: slot.default_role })) ?? (model.kind === 'server' || model.kind === 'compute-tray' ? [emptySlot()] : [])), [validation, setValidation] = useState('')
+  const [extra, setExtra] = useState(() => ({
+    expected_topology: JSON.stringify(seed?.expected_topology ?? {}, null, 2),
+    panel_layout: JSON.stringify(seed?.panel_layout ?? {}, null, 2),
+    bom_expect: JSON.stringify(seed?.bom_expect ?? {}, null, 2),
+    default_role_plan: JSON.stringify(seed?.default_role_plan ?? {}, null, 2),
+  }))
   function update(index: number, patch: Partial<SlotDraft>) {
     setSlots((current) => current.map((slot, i) => i === index ? { ...slot, ...patch } : slot))
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     let parsed: Record<string, unknown>
-    try { parsed = JSON.parse(hwSpec) as Record<string, unknown>; if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('invalid') } catch { setValidation(t('modelSpecInvalid')); return }
+    try { parsed = JSON.parse(hwSpec) as Record<string, unknown>; if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('invalid') } catch { setValidation(t('modelReviewInvalid')); return }
     let capability: Record<string, unknown> = {}
-    if (model.kind === 'switch') {
-      try { capability = JSON.parse(capabilityMatrix) as Record<string, unknown>; if (typeof capability !== 'object' || capability === null || Array.isArray(capability) || !Object.keys(capability).length) throw new Error('invalid') } catch { setValidation(t('modelCapabilityInvalid')); return }
-    }
+    const complete: Record<string, Record<string, unknown>> = {}
+    try {
+      capability = JSON.parse(capabilityMatrix) as Record<string, unknown>
+      if (!capability || Array.isArray(capability) || typeof capability !== 'object' || (model.kind === 'switch' && !Object.keys(capability).length)) throw new Error('invalid')
+      for (const [key, value] of Object.entries(extra)) {
+        const parsed: unknown = JSON.parse(value)
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('invalid')
+        complete[key] = parsed as Record<string, unknown>
+      }
+    } catch { setValidation(t('modelReviewInvalid')); return }
     const cleaned: ModelSlot[] = []
     const seen = new Set<number>()
     for (const slot of slots) {
@@ -83,23 +98,28 @@ function PublishVersionDialog({ projectId, model, seed, onClose, onDone }: { pro
       cleaned.push({ slot_no: no, pcie_slot: slot.pcie_slot.trim(), expect_nic_model: slot.expect_nic_model.trim(), panel_port: slot.panel_port.trim(), default_role: slot.default_role })
     }
     setValidation('')
-    const body = { hw_spec: parsed, capability_matrix: capability, slots: cleaned }
+    const body = { hw_spec: parsed, capability_matrix: capability, ...complete, slots: cleaned, expected_version: model.latest_version, ...(seed ? { source_draft_id: seed.id } : {}) }
     const result = await action.run(() => publishModelVersion(projectId, model.id, body, session.csrf_token, keyFor(JSON.stringify(body))))
     if (result.ok) await onDone()
   }
   return <ActionDialog title={t('modelsPublish')} description={t('modelsPublishDetail')} busy={action.busy} confirm={t(action.busy ? 'saving' : 'modelsPublish')} onSubmit={(event) => void submit(event)} onClose={onClose}>
-    <ActionError error={action.error} />{validation && <p className="field-error" role="alert">{validation}</p>}
+    {action.error && 'code' in action.error && ['MODEL_VERSION_CONFLICT', 'MODEL_DRAFT_NOT_FOUND'].includes(String(action.error.code)) ? <p role="alert" className="field-error">{t(action.error.code === 'MODEL_VERSION_CONFLICT' ? 'modelPublicationConflict' : 'modelDraftGone')}</p> : <ActionError error={action.error} />}{validation && <p className="field-error" role="alert">{validation}</p>}
     <dl className="action-target"><dt>{t('modelName')}</dt><dd>{model.name}</dd><dt>{t('recordVersion')}</dt><dd>v{model.latest_version}</dd>{seed && <><dt>{t('modelsDraftSource')}</dt><dd>{seed.source_host}</dd></>}</dl>
     <div className="field"><label htmlFor="hw-spec">{t('modelHwSpec')}</label><textarea id="hw-spec" value={hwSpec} onChange={(event) => setHwSpec(event.target.value)} rows={4} disabled={action.busy} className="mono-value" /><span className="field-hint">{t('modelHwSpecHint')}</span></div>
-    {model.kind === 'switch' && <div className="field"><label htmlFor="capability-matrix">{t('modelCapabilityMatrix')}</label><textarea id="capability-matrix" value={capabilityMatrix} onChange={(event) => setCapabilityMatrix(event.target.value)} rows={6} disabled={action.busy} className="mono-value" /><span className="field-hint">{t('modelCapabilityHint')}</span></div>}
-    {(model.kind === 'server' || model.kind === 'compute-tray') && <div className="field"><label>{t('modelSlots')}</label>
+    {<div className="field"><label htmlFor="capability-matrix">{t('modelField_capability_matrix')}</label><textarea id="capability-matrix" value={capabilityMatrix} onChange={(event) => setCapabilityMatrix(event.target.value)} rows={6} disabled={action.busy} className="mono-value" /><span className="field-hint">{t('modelCapabilityHint')}</span></div>}
+    {Object.entries(extra).map(([key, value]) => <div className="field" key={key}>
+      <Label htmlFor={key.replaceAll('_', '-')}>{t('modelField_' + key)}</Label>
+      <Textarea id={key.replaceAll('_', '-')} value={value} rows={3} className="mono-value" disabled={action.busy} onChange={event => setExtra(current => ({ ...current, [key]: event.target.value }))} />
+    </div>)}
+    <p className="impact-notice">{t('modelsReviewComplete')}</p>
+    {(model.kind === 'server' || model.kind === 'compute-tray' || slots.length > 0) && <div className="field"><label>{t('modelSlots')}</label>
       {slots.map((slot, index) => <div key={index} className="slot-row">
         <input aria-label={t('modelSlotNo')} type="number" min={1} max={1024} value={slot.slot_no} onChange={(event) => update(index, { slot_no: event.target.value })} disabled={action.busy} />
         <input aria-label={t('modelPcieSlot')} value={slot.pcie_slot} placeholder="PCIe 3" onChange={(event) => update(index, { pcie_slot: event.target.value })} maxLength={64} disabled={action.busy} />
         <input aria-label={t('modelNicModel')} value={slot.expect_nic_model} placeholder="CX7" onChange={(event) => update(index, { expect_nic_model: event.target.value })} maxLength={120} disabled={action.busy} />
         <input aria-label={t('modelPanelPort')} value={slot.panel_port} placeholder="1-2" onChange={(event) => update(index, { panel_port: event.target.value })} maxLength={64} disabled={action.busy} />
         <select aria-label={t('modelRole')} value={slot.default_role} onChange={(event) => update(index, { default_role: event.target.value as ModelSlot['default_role'] })} disabled={action.busy}>{roles.map((role) => <option key={role} value={role}>{t('model_role_' + role)}</option>)}</select>
-        <button type="button" className="danger-text" disabled={action.busy || slots.length === 1} onClick={() => setSlots((current) => current.filter((_, i) => i !== index))}>{t('cancel')}</button>
+        <button type="button" className="danger-text" disabled={action.busy} onClick={() => setSlots((current) => current.filter((_, i) => i !== index))}>{t('modelsRemoveSlot')}</button>
       </div>)}
       <button type="button" className="secondary-button" disabled={action.busy} onClick={() => setSlots((current) => [...current, emptySlot()])}>{t('modelAddSlot')}</button>
     </div>}
@@ -128,10 +148,10 @@ function ModelVersions({ projectId, model }: { projectId: string; model: DeviceM
   return <div className="model-versions">
     <h2>{t('modelsVersions')}</h2>
     <ActionError error={versions.error} />
-    {versions.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : versions.data && <><div className="table-scroll" tabIndex={0} role="region" aria-label={t('modelsVersions')}><table className="data-table"><thead><tr><th scope="col">{t('recordVersion')}</th><th scope="col">{t('modelsContentHash')}</th><th scope="col">{t('modelSlots')}</th><th scope="col">{t('createdAt')}</th></tr></thead><tbody>{versions.data.items.map((version) => <tr key={version.id}><td>v{version.version}</td><td className="mono-value">{version.content_hash.slice(0, 16)}…</td><td>{version.slots.length}</td><td>{format(version.published_at)}</td></tr>)}</tbody></table>{!versions.data.items.length && <p className="table-loading">{t('noRecords')}</p>}</div><Pagination offset={(page - 1) * versions.data.page_size} limit={versions.data.page_size} total={versions.data.total} busy={versions.isFetching} onChange={(offset) => setPage(offset / versions.data.page_size + 1)} /></>}
+    {versions.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : versions.data && <><div className="table-scroll" tabIndex={0} role="region" aria-label={t('modelsVersions')}><table className="data-table"><thead><tr><th scope="col">{t('recordVersion')}</th><th scope="col">{t('modelsContentHash')}</th><th scope="col">{t('modelSlots')}</th><th scope="col">{t('createdAt')}</th></tr></thead><tbody>{versions.data.items.map((version) => <tr key={version.id}><td>v{version.version}</td><td className="mono-value">{version.content_hash.slice(0, 16)}…<details><summary>{t('modelsCompletePayload')}</summary><pre>{JSON.stringify({ hw_spec: version.hw_spec, expected_topology: version.expected_topology, capability_matrix: version.capability_matrix, panel_layout: version.panel_layout, bom_expect: version.bom_expect, default_role_plan: version.default_role_plan, slots: version.slots }, null, 2)}</pre></details></td><td>{version.slots.length}</td><td>{format(version.published_at)}</td></tr>)}</tbody></table>{!versions.data.items.length && <p className="table-loading">{t('noRecords')}</p>}</div><Pagination offset={(page - 1) * versions.data.page_size} limit={versions.data.page_size} total={versions.data.total} busy={versions.isFetching} onChange={(offset) => setPage(offset / versions.data.page_size + 1)} /></>}
   </div>
 }
-function ModelDrafts({ projectId, model, onPublishDraft }: { projectId: string; model: DeviceModelSummary; onPublishDraft: (draft: ModelDraft) => void }) {
+function ModelDrafts({ projectId, model, canManage, onPublishDraft }: { projectId: string; model: DeviceModelSummary; canManage: boolean; onPublishDraft: (draft: ModelDraft) => void }) {
   const { t, i18n } = useTranslation(), session = useSession(), client = useQueryClient()
   const drafts = useQuery({ queryKey: ['private', session.user.id, 'project', projectId, 'model', model.id, 'drafts'], queryFn: ({ signal }) => listModelDrafts(projectId, model.id, signal) })
   useExpireOnUnauthorized(drafts.error)
@@ -149,7 +169,7 @@ function ModelDrafts({ projectId, model, onPublishDraft }: { projectId: string; 
     {drafts.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : drafts.data && <>
       <div className="table-scroll" tabIndex={0} role="region" aria-label={t('modelsDrafts')}><table className="data-table"><thead><tr><th scope="col">{t('modelsDraftSource')}</th><th scope="col">{t('modelsContentHash')}</th><th scope="col">{t('status')}</th><th scope="col">{t('createdAt')}</th><th scope="col">{t('actions')}</th></tr></thead>
         <tbody>{(drafts.data.items ?? []).map((draft) => <tr key={draft.id}><td><strong>{draft.source_host}</strong><span className="cell-subtitle mono-value">{draft.model_name}</span></td><td className="mono-value">{draft.content_hash.slice(0, 16)}…</td><td><span className="status-label">{t('modelsDraftBadge')}</span></td><td>{format(draft.created_at)}</td>
-          <td><div className="table-actions"><button onClick={() => onPublishDraft(draft)}>{t('modelsDraftPublish')}</button><button className="danger-text" onClick={() => setDiscard(draft)}>{t('modelsDraftDiscard')}</button></div></td></tr>)}</tbody></table>
+          <td><div className="table-actions">{canManage && model.state === 'active' && <button onClick={() => onPublishDraft(draft)}>{t('modelsDraftPublish')}</button>}{canManage && <button className="danger-text" onClick={() => setDiscard(draft)}>{t('modelsDraftDiscard')}</button>}</div></td></tr>)}</tbody></table>
         {!(drafts.data.items ?? []).length && <p className="table-loading">{t('modelsDraftEmpty')}</p>}</div>
     </>}
     {discard && <ActionDialog title={t('modelsDraftDiscard')} description={t('modelsDraftDiscardDetail')} busy={action.busy} confirm={t('modelsDraftDiscard')} danger onSubmit={(event) => void confirmDiscard(event)} onClose={() => setDiscard(null)}>
@@ -184,12 +204,12 @@ function ModelsContent() {
           <tbody>{models.data.items.map((model) => <tr key={model.id}><td><strong>{model.name}</strong><span className="cell-subtitle mono-value">{model.scope_key === 'global' ? t('modelsGlobalScope') : t('modelsProjectScope')}</span></td>
             <td>{t('model_kind_' + model.kind)}</td><td><span className={`status-label ${model.state === 'active' ? 'enabled' : 'disabled'}`}>{t('model_state_' + model.state)}</span></td><td>v{model.latest_version}</td>
             <td><div className="table-actions"><button onClick={() => setExpanded(expanded === model.id ? null : model.id)}>{t('modelsVersions')}</button>
-              {manage && model.state === 'active' && <button onClick={() => { setSuccess(''); setPublish(model) }}>{t('modelsPublish')}</button>}
-              {manage && model.state === 'active' && <button className="danger-text" onClick={() => { setSuccess(''); setRetire(model) }}>{t('modelsRetire')}</button>}</div></td></tr>)}</tbody></table>
+              {manage && model.scope_key === 'project:' + project.id && model.state === 'active' && <button onClick={() => { setSuccess(''); setPublish(model) }}>{t('modelsPublish')}</button>}
+              {manage && model.scope_key === 'project:' + project.id && model.state === 'active' && <button className="danger-text" onClick={() => { setSuccess(''); setRetire(model) }}>{t('modelsRetire')}</button>}</div></td></tr>)}</tbody></table>
           {!models.data.items.length && <p className="table-loading">{t('noRecords')}</p>}</div>
         <Pagination offset={(page - 1) * models.data.page_size} limit={models.data.page_size} total={models.data.total} busy={models.isFetching} onChange={(offset) => setPage(offset / models.data.page_size + 1)} /></>}
       {expanded && models.data && (() => { const target = models.data.items.find((m) => m.id === expanded); return target ? <>
-        <ModelDrafts projectId={project.id} model={target} onPublishDraft={(draft) => { const owner = models.data!.items.find((m) => m.id === draft.model_id) ?? target; setPublishFromDraft({ model: owner, draft }); setExpanded(null) }} />
+        <ModelDrafts canManage={manage && target.scope_key === 'project:' + project.id} projectId={project.id} model={target} onPublishDraft={(draft) => { const owner = models.data!.items.find((m) => m.id === draft.model_id) ?? target; setPublishFromDraft({ model: owner, draft }); setExpanded(null) }} />
         <ModelVersions projectId={project.id} model={target} />
       </> : null })()}
     </section>

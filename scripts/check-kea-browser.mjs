@@ -26,6 +26,7 @@ try{
  const reviewerSession=await(await reviewer.request.get('/api/v1/auth/session')).json()
  const manifest=await(await context.request.get(base+'/ztp/isolation-script')).json()
  const media=await post(base+'/media',{type:'ztp_script',name:'Kea fixture isolation',version:'isolation-fixture-v1',sha256:manifest.sha256,size:manifest.size,arch:'noarch',os_scope:manifest.os_scope,manifest_ref:'generated:isolation-v1'},201)
+ const attachment=await context.request.put(base+'/media/'+media.id+'/content',{headers:{...headers,'Content-Type':'application/octet-stream'},data:Buffer.from(manifest.script)});assert.equal(attachment.status(),200)
  await post(base+'/media/'+media.id+'/transition',{state:'verified'})
  const approved=await reviewer.request.post(base+'/media/'+media.id+'/transition',{headers:{Origin:c.base_url,'X-CSRF-Token':reviewerSession.csrf_token},data:{state:'approved'}});assert.equal(approved.status(),200);await reviewer.close()
  await page.goto(`/p/${c.management_project_id}/ztp`)

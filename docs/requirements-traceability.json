@@ -99,11 +99,22 @@
         "F-1.13"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Execution simulation, media/parameter/model references and supporting pages have P1 implementation records. The complete Agent/SSH runtime, task catalog, scheduler and all FR-1 acceptance requirements still need verification; this documentation revision does not claim PASS. Saved execution views integrated in the main workspace: lazy five-tab overview/Gantt, virtual matrix, attempt detail, resumable lifecycle SSE with current access checks, structured receipt outputs and audit. Real API/PG/worker/browser evidence exists at /tmp/keel-views-n_wiaccz. These are small-scale software evidence; device stdout/artifacts, real transport and full FR-1 remain incomplete.",
+      "implementation_notes": "Execution simulation, media/parameter/model references and supporting pages have P1 implementation records. The complete Agent/SSH runtime, task catalog, scheduler and all FR-1 acceptance requirements still need verification; this documentation revision does not claim PASS. Saved execution views integrated in the main workspace: lazy five-tab overview/Gantt, virtual matrix, attempt detail, resumable lifecycle SSE with current access checks, structured receipt outputs and audit. Real API/PG/worker/browser evidence exists at /tmp/keel-views-n_wiaccz. These are small-scale software evidence; device stdout/artifacts, real transport and full FR-1 remain incomplete. Main-workspace FR-1.4 single-target and failed-only rerun now creates a new execution through the existing admission transaction, preserves immutable source lineage, checks preview hash/current authorization and rejects unknown/incomplete targets. Real API/PostgreSQL/worker/browser evidence: /tmp/keel-views-y5o63831. Generic simulation tasks only; full FR-1/P1 remain partial. A4 artifact storage/read increment: real private MinIO version-pinned upload, server-computed SHA256/size, immutable DB binding, actual-byte verification before independent approval and authorized Range download. Real API/PG/MinIO/browser evidence /tmp/keel-media-koxmml78; details and remaining distribution/signature/cache/consumer work in docs/MEDIA-ARTIFACTS.md. Full requirement/P1 remains partial; no runtime migration/deployment. A4 catalog admission now selects approved stored artifacts with explicit architecture and exact provenance-bearing dependency sets; both simulation launch forms share ParamSelect. Execution commit verifies actual pinned bytes and freezes catalog/media identities, while reruns reject changed definitions. Real PG/MinIO/API/worker/browser evidence: /tmp/keel-media-n5z7aoag. Full compatibility governance, target/model matching, templates and all consumers remain partial. A4/WP-1.11 compatibility now supports exact correlated combination rows AND common requires, shared by catalog/media admission and execution creation; cross-row mixtures are rejected. The live form shows full allowed rows and provenance, and snapshots retain original rows. Real PG tests: /tmp/keel-media-p16qpj09/go-integration.log; final isolated MinIO/API/worker/browser: /tmp/keel-media-t3_34zcv. Matrix report approval governance and full consumer/target integration remain incomplete. Project catalog management now provides scoped read/create/edit/default/dependency/retire UI with approved-artifact version defaults, read-only inherited globals, visible retired definitions and per-definition timestamp preconditions. Create-only and stale-write/retire conflicts prevent silent overwrites; existing execution option queries remain active-only. Global admin catalog UI and template synchronization remain incomplete. Management roles follow DS §6: Admin manages and DL reads; other roles retain only existing active option consumption. Real PG concurrency evidence: /tmp/keel-media-hfogrtp_/go-integration.log; final isolated management API/MinIO/browser evidence: /tmp/keel-media-1mp4g9wv.",
       "evidence_refs": [
         "docs/FR1-EXECUTION-VIEWS.md",
         "internal/execution/views.go",
-        "scripts/check-execution-views-browser.mjs"
+        "scripts/check-execution-views-browser.mjs",
+        "internal/execution/rerun.go",
+        "scripts/check-execution-views-integration.py",
+        "docs/MEDIA-ARTIFACTS.md",
+        "scripts/check-media-artifacts-integration.py",
+        "docs/CATALOG-ADMISSION.md",
+        "scripts/check-catalog-browser.mjs",
+        "internal/platform/catalog_admission_test.go",
+        "internal/platform/catalog_admission_integration_test.go",
+        "web/src/features/catalog/CatalogPage.tsx",
+        "internal/platform/catalog_management_integration_test.go",
+        "scripts/check-catalog-management-browser.mjs"
       ]
     },
     {
@@ -426,7 +437,16 @@
         "F-14.5"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Device model/version registry and import drafts, server/switch capability validation have implementation records. Full hardware capability coverage, model-based operations and corresponding PoC acceptance remain incomplete."
+      "implementation_notes": "Device model/version registry and import drafts, server/switch capability validation have implementation records. Full hardware capability coverage, model-based operations and corresponding PoC acceptance remain incomplete. A4 full scan-draft review/publication now preserves hardware/topology/capability/panel/BOM/role/slot payloads and uses UI version/source-draft preconditions. Migration 040 protects immutable published versions/slots and post-publication slot inserts; semantic dedup preserves legacy hashes. Project/global scope and draft-parent checks are enforced, and existing asset version bindings survive publication/retirement. Real PG/API/browser evidence: /tmp/keel-models-nmirxgx7; stable visual follow-up: /tmp/keel-models-uomrow7r. Full gate, panel, target adaptation and explicit-upgrade acceptance remain incomplete. Server entity BOM now checks pinned-version NIC count, declared/missing/duplicate slots and published NIC model names in preview and commit, returning located expected/actual differences; newer versions do not change pinned packages. Unknown model expectations remain WARN. MAC-only legacy imports cannot satisfy declared physical NIC inventory and are blocked. Complete hardware/gate/panel and PoC acceptance remain partial.",
+      "evidence_refs": [
+        "docs/MODEL-PUBLICATION.md",
+        "scripts/check-model-workspace-integration.py",
+        "internal/platform/model_publication_integration_test.go",
+        "internal/platform/bom_server_models.go",
+        "internal/platform/bom_server_models_test.go",
+        "internal/platform/bom_package_commit_integration_test.go",
+        "internal/platform/bom_legacy_package_integration_test.go"
+      ]
     },
     {
       "id": "FR-15",
@@ -1247,11 +1267,13 @@
         "F-1.13"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Simulated execution engine implemented and verified: flows with immutable versions, logical simulation targets, outbox-driven worker, task attempts, run control and reconciliation. Capacity evidence: 2,000 persisted logical targets completed at 100% in 301.6s (seed 42, worker concurrency 8), satisfying the P1 fan-out criterion of 99.5%. Simulation only: no device transport and no hardware acceptance. Hardware channels (SSH, keel-agent, BMC runners) remain planned.",
+      "implementation_notes": "Simulated execution engine implemented and verified: flows with immutable versions, logical simulation targets, outbox-driven worker, task attempts, run control and reconciliation. Capacity evidence: 2,000 persisted logical targets completed at 100% in 301.6s (seed 42, worker concurrency 8), satisfying the P1 fan-out criterion of 99.5%. Simulation only: no device transport and no hardware acceptance. Hardware channels (SSH, keel-agent, BMC runners) remain planned. Main-workspace FR-1.4 single-target and failed-only rerun now creates a new execution through the existing admission transaction, preserves immutable source lineage, checks preview hash/current authorization and rejects unknown/incomplete targets. Real API/PostgreSQL/worker/browser evidence: /tmp/keel-views-y5o63831. Generic simulation tasks only; full FR-1/P1 remain partial.",
       "evidence_refs": [
         "scripts/check-execution-integration.py",
         "scripts/check-integration.sh",
-        "docs/HANDOFF.md"
+        "docs/HANDOFF.md",
+        "internal/execution/rerun.go",
+        "scripts/check-execution-views-integration.py"
       ]
     },
     {
@@ -1391,13 +1413,15 @@
         "F-1.8"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Media registry implemented: MediaItem with one-way lifecycle uploaded->verified->approved->retired, scope uniqueness (scope,type,name,version), sha256/arch/dependency validation, manifest gate before verification, uploader/approver separation rejecting self-approval, irreversible retirement keeping history readable. Verified: uniqueness 409, digest validation, second-reviewer approval, retired rejects transitions, cross-scope invisible. UI added: project Media tab with registration dialog, one-way transition dialogs and retirement impact notices; real-browser checks cover registration, second-reviewer approval, self-approval rejection and retirement (7 groups). F-1.8 admission is implemented: execution parameters gated by the catalog reject unapproved versions. Artifact bytes (MinIO), distribution logs and cache accounting (F-1.7) remain planned.",
+      "implementation_notes": "Media registry implemented: MediaItem with one-way lifecycle uploaded->verified->approved->retired, scope uniqueness (scope,type,name,version), sha256/arch/dependency validation, manifest gate before verification, uploader/approver separation rejecting self-approval, irreversible retirement keeping history readable. Verified: uniqueness 409, digest validation, second-reviewer approval, retired rejects transitions, cross-scope invisible. UI added: project Media tab with registration dialog, one-way transition dialogs and retirement impact notices; real-browser checks cover registration, second-reviewer approval, self-approval rejection and retirement (7 groups). F-1.8 admission is implemented: execution parameters gated by the catalog reject unapproved versions. Artifact bytes (MinIO), distribution logs and cache accounting (F-1.7) remain planned. A4 artifact storage/read increment: real private MinIO version-pinned upload, server-computed SHA256/size, immutable DB binding, actual-byte verification before independent approval and authorized Range download. Real API/PG/MinIO/browser evidence /tmp/keel-media-koxmml78; details and remaining distribution/signature/cache/consumer work in docs/MEDIA-ARTIFACTS.md. Full requirement/P1 remains partial; no runtime migration/deployment.",
       "evidence_refs": [
         "scripts/check-media-integration.py",
         "internal/platform/media.go",
         "docs/HANDOFF.md",
         "web/src/features/media/MediaPage.tsx",
-        "scripts/check-media-browser.mjs"
+        "scripts/check-media-browser.mjs",
+        "docs/MEDIA-ARTIFACTS.md",
+        "scripts/check-media-artifacts-integration.py"
       ]
     },
     {
@@ -1411,11 +1435,16 @@
         "U-4"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Parameter catalog implemented: ParamKey with typed keys (string/enum/version), scope uniqueness, default-in-options validation, retirement blocking checks. Version-typed options derive at read time from approved non-retired media in the same scope, keeping read-only transactions valid. Value checks gate execution parameters against the derived list. Verified: key validation, empty options before approval, approvals extending options with no manual edit, retired keys rejecting resurrection. ParamSelect UI wiring, dependency-matrix interception and template linkage remain planned with WP-3.8/WP-4.5.",
+      "implementation_notes": "Project parameter catalog now derives version choices from approved, non-retired, immutably stored project/global artifacts. Shared transactional admission enforces explicit CPU architecture, exact registered dependency sets with source/version/report metadata, type/retirement/scope and ambiguous-version rejection. Both existing simulation launch forms use shared ParamSelect and live validation. Execution commit reads and hashes the pinned artifact and freezes catalog definitions, dependencies, digest and object version; reruns reject changed catalog/media snapshots. Full correlated compatibility matrices/governance, target/BOM/model matching, template defaults, all consumer/editor/lint coverage and real transport remain incomplete; see CATALOG-ADMISSION and HANDOFF for actual evidence.",
       "evidence_refs": [
         "scripts/check-param-integration.py",
         "internal/platform/params.go",
-        "docs/HANDOFF.md"
+        "docs/HANDOFF.md",
+        "internal/platform/catalog_admission.go",
+        "internal/platform/catalog_admission_integration_test.go",
+        "web/src/components/ParamSelect.tsx",
+        "scripts/check-catalog-browser.mjs",
+        "docs/CATALOG-ADMISSION.md"
       ]
     },
     {
@@ -1432,7 +1461,7 @@
         "F-14.4"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Device model library implemented: stable DeviceModel identities with global/project scopes, immutable DeviceModelVersion publishes with content hashes, slot expectations (PCIe slot, expected NIC model, panel port, default role), retirement blocking new references, and a DeviceModelEditor UI per DESIGN-SYSTEM 4.12d. Verified: scope/name and model/version uniqueness (F-14.2), immutable publishes and retirement keeping history readable (F-14.1). BOM binding validation (F-14.3/14.4), panel preview and role plan overrides remain planned with WP-1.7. Scan import added (FR-14.4): one collected server inventory becomes a draft via POST /projects/{id}/models/import; drafts are idempotent by content_hash, never auto-published, and discarded or published through the existing immutable-version path. Also fixed a latent ListModelVersions slot-scan column mismatch exposed by the first slot-bearing publish.",
+      "implementation_notes": "Stable global/project model identities and immutable version references are implemented; the existing unified BOM importer persists ProjectAsset.model_version_id. A4 now preserves the full hardware/topology/capability/panel/BOM/role/slot payload through scan import, semantic dedup, review and publication. The review UI supplies an observed-version precondition and source draft identity; stale editors and removed/wrong-model drafts are rejected. Migration 040 seals version/slot updates/deletes and late slot appends; project routes cannot mutate global models or disclose unpublished global drafts. Existing hashes remain unchanged while semantic comparison handles legacy empty-object/slot-order hashes. New versions/retirement preserve historical asset bindings. Full G1/model adaptation, graphical panel and role override consumption, explicit migration/invalidation, all-device real scan and scale acceptance remain incomplete; see MODEL-PUBLICATION and HANDOFF for evidence.",
       "evidence_refs": [
         "scripts/check-model-integration.py",
         "internal/platform/device_models.go",
@@ -1440,7 +1469,12 @@
         "docs/HANDOFF.md",
         "internal/platform/model_drafts.go",
         "scripts/check-model-import.py",
-        "scripts/collect-model-inventory.py"
+        "scripts/collect-model-inventory.py",
+        "docs/MODEL-PUBLICATION.md",
+        "internal/platform/model_publication_integration_test.go",
+        "internal/platform/migrations/040_model_publication.sql",
+        "scripts/check-model-workspace-integration.py",
+        "scripts/check-model-publication-browser.mjs"
       ]
     },
     {
@@ -2193,6 +2227,7 @@
         "WP-1.15",
         "WP-1.16",
         "WP-1.4",
+        "WP-1.5",
         "WP-1.6",
         "WP-1.10",
         "WP-1.11"
@@ -2357,7 +2392,8 @@
         "WP-3.15",
         "WP-2.15",
         "WP-2.13",
-        "WP-4.4"
+        "WP-4.4",
+        "WP-4.5"
       ],
       "acceptance": [
         "F-0.12",

@@ -158,4 +158,17 @@ func TestLegacyBOMAtomicBatchIdentity(t *testing.T) {
 	if err = s.DB.QueryRowContext(ctx, `SELECT item_uid FROM bom_items WHERE category='port' AND parent_uid=$1 AND port_index='1'`, nicID).Scan(&adoptedPort); err != nil || adoptedPort != portID {
 		t.Fatalf("standard port did not adopt provisional port: %s %v", adoptedPort, err)
 	}
+	// A MAC-per-row compatibility sheet cannot prove physical NIC count/slots.
+	if _, err = s.PublishModelVersion(ctx, actor, project, model.ID, PublishModelVersionInput{BomExpect: map[string]any{"nic_count": 2}}, "test"); err != nil {
+		t.Fatal(err)
+	}
+	strictBatch := "BOM-BATCH-P1-20261020-99"
+	strict, err := s.PreviewLegacyBOM(ctx, actor, project, strictBatch, data)
+	if err != nil || strict.CanCommit || strict.PreviewToken != "" || !issueFound(&BOMPackage{Issues: strict.Issues}, "legacy_nic_inventory_unverifiable") {
+		t.Fatalf("legacy inferred NIC inventory: %+v %v", strict, err)
+	}
+	if _, err = s.CommitLegacyBOM(ctx, actor, project, strictBatch, data, bomPreviewToken(actor, project.ID, legacyBOMFiles(strictBatch, data)), "test"); err == nil {
+		t.Fatal("legacy commit bypassed NIC inventory")
+	}
+
 }

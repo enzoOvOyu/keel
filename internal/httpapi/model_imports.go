@@ -66,7 +66,7 @@ func (a *authAPI) registerModelImports(r *gin.Engine) {
 			a.respondError(c, e)
 			return
 		}
-		if e := a.store.DeleteModelDraft(c.Request.Context(), actor, project, c.Param("draftId"), c.GetString("trace_id")); e != nil {
+		if e := a.store.DeleteModelDraft(c.Request.Context(), actor, project, c.Param("modelId"), c.Param("draftId"), c.GetString("trace_id")); e != nil {
 			a.respondError(c, e)
 			return
 		}

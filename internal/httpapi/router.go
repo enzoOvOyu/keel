@@ -46,7 +46,7 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 		c.Header("X-Request-ID", hex.EncodeToString(id[:]))
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("Referrer-Policy", "same-origin")
-		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'")
+		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'nonce-"+hex.EncodeToString(id[:])+"'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'")
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			c.Header("Cache-Control", "no-store")
 		}
@@ -83,6 +83,7 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 		auth.registerControl(r)
 		auth.registerExecution(r)
 		auth.registerExecutionViews(r)
+		auth.registerExecutionRerun(r)
 		auth.registerFlowWorkbench(r)
 		auth.registerModels(r)
 		auth.registerModelImports(r)
@@ -129,12 +130,14 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 				return
 			}
 		}
-		if f, err := fs.Open(clean); err == nil {
-			info, statErr := f.Stat()
-			f.Close()
-			if statErr == nil && !info.IsDir() {
-				server.ServeHTTP(c.Writer, c.Request)
-				return
+		if clean != "/" && clean != "/index.html" {
+			if f, err := fs.Open(clean); err == nil {
+				info, statErr := f.Stat()
+				f.Close()
+				if statErr == nil && !info.IsDir() {
+					server.ServeHTTP(c.Writer, c.Request)
+					return
+				}
 			}
 		}
 		if strings.HasPrefix(clean, "/assets/") {
@@ -146,10 +149,16 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 			failure(c, 503, "UI_NOT_BUILT", "Build the web workspace first")
 			return
 		}
-		f.Close()
-		c.Header("Cache-Control", "no-cache")
-		c.Request.URL.Path = "/"
-		server.ServeHTTP(c.Writer, c.Request)
+		defer f.Close()
+		index, err := io.ReadAll(io.LimitReader(f, 2*1024*1024+1))
+		if err != nil || len(index) > 2*1024*1024 {
+			failure(c, 503, "UI_NOT_BUILT", "UI entry is unavailable")
+			return
+		}
+		nonce := c.GetString("trace_id")
+		html := strings.Replace(string(index), "<head>", "<head><meta name=\"keel-style-nonce\" content=\""+nonce+"\">", 1)
+		c.Header("Cache-Control", "no-store")
+		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
 	})
 	return r
 }

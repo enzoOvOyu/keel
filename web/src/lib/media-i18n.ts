@@ -1,10 +1,25 @@
 export const mediaTranslations = {
   zh: {
+    mediaUpload: "上传新介质",
+    mediaUploadDetail:
+      "选择文件并填写版本信息。系统计算实际摘要和大小，文件不可覆盖，批准后方可下载。",
+    mediaFile: "介质文件",
+    mediaFileLimit: "单个文件最多 1 GiB；大规模分发另按容量档验收。",
+    mediaAttach: "上传登记文件",
+    mediaAttachDetail:
+      "文件必须与已登记的 SHA256 和大小完全一致，绑定后不可替换。",
+    mediaUploaded: "文件已上传。",
+    mediaDownload: "下载已批准文件",
+    mediaBytesStored: "文件已存储",
+    mediaBytesMissing: "未上传文件",
+
     mediaTab: "介质库",
     mediaTitle: "介质库",
-    mediaIntro: "所有下发介质的唯一登记来源：登记、校验、审批、退役全程留痕。当前登记元数据；artifact 存储与分发通道属后续阶段。",
+    mediaIntro:
+      "所有下发介质的唯一登记来源：登记、校验、审批、退役全程留痕。上传文件后校验实际摘要，由独立审批人批准后下载。",
     mediaCreate: "登记介质",
-    mediaCreateDetail: "登记介质元数据。类型+名称+版本在项目内唯一；sha256 为必填校验摘要。",
+    mediaCreateDetail:
+      "登记介质元数据。类型+名称+版本在项目内唯一；sha256 为必填校验摘要。",
     mediaType: "类型",
     media_type_driver: "驱动",
     media_type_firmware: "固件",
@@ -22,9 +37,9 @@ export const mediaTranslations = {
     mediaOsScope: "OS 适用范围",
     mediaHwScope: "硬件适用范围",
     mediaDeps: "依赖 (JSON)",
-    mediaDepsHint: "如 {\"kernel\":\"5.15\",\"cuda\":\"13.1\"}",
+    mediaDepsHint: '如 {"kernel":"5.15","cuda":"13.1"}',
     mediaManifest: "manifest 引用",
-    mediaManifestHint: "对象存储中的清单引用，verified 前必填。",
+    mediaManifestHint: "来源清单说明；实际文件上传与摘要校验仍为必需。",
     mediaCreated: "介质已登记。",
     mediaState: "状态",
     media_state_uploaded: "已登记",
@@ -32,24 +47,41 @@ export const mediaTranslations = {
     media_state_approved: "已审批",
     media_state_retired: "已退役",
     mediaTransition: "推进状态",
-    mediaTransitionDetail: "状态单向推进：登记→校验→审批→退役。校验需 manifest；审批不能由登记人本人执行。",
+    mediaTransitionDetail:
+      "状态单向推进：登记→校验→审批→退役。校验需读取实际文件；审批不能由登记人本人执行。",
     mediaNextVerified: "校验",
     mediaNextApproved: "审批",
     mediaNextRetired: "退役",
     mediaRetireImpact: "退役不可逆：既有绑定与历史证据可读，但禁止新引用。",
     mediaSelfApproval: "登记人不能审批自己上传的介质。",
-    mediaManifestMissing: "校验前需要先填写 manifest 引用。",
+    mediaManifestMissing: "校验前需要上传实际文件。",
     mediaTransitionDone: "状态已更新。",
     mediaApprovedBy: "审批人",
     mediaUploadedBy: "登记人",
     mediaExists: "同类型、名称与版本的介质已存在。",
   },
   en: {
+    mediaUpload: "Upload new media",
+    mediaUploadDetail:
+      "Choose a file and enter its version. Digest and size are computed from bytes. Files cannot be replaced and require independent approval before download.",
+    mediaFile: "Media file",
+    mediaFileLimit:
+      "Maximum 1 GiB per file. Distribution capacity is verified separately.",
+    mediaAttach: "Attach registered file",
+    mediaAttachDetail:
+      "Bytes must match the registered SHA256 and size. The binding cannot be replaced.",
+    mediaUploaded: "File uploaded.",
+    mediaDownload: "Download approved file",
+    mediaBytesStored: "File stored",
+    mediaBytesMissing: "File not uploaded",
+
     mediaTab: "Media",
     mediaTitle: "Media library",
-    mediaIntro: "The single registry for everything delivered: registration, verification, approval and retirement are all audited. Metadata today; artifact storage and distribution arrive with the execution channels.",
+    mediaIntro:
+      "The single registry for everything delivered: registration, verification, approval and retirement are all audited. Upload bytes, verify their digest, and download after independent approval.",
     mediaCreate: "Register media",
-    mediaCreateDetail: "Register media metadata. Type, name and version are unique per scope; sha256 is the required digest.",
+    mediaCreateDetail:
+      "Register media metadata. Type, name and version are unique per scope; sha256 is the required digest.",
     mediaType: "Type",
     media_type_driver: "Driver",
     media_type_firmware: "Firmware",
@@ -67,9 +99,10 @@ export const mediaTranslations = {
     mediaOsScope: "OS scope",
     mediaHwScope: "Hardware scope",
     mediaDeps: "Dependencies (JSON)",
-    mediaDepsHint: "For example {\"kernel\":\"5.15\",\"cuda\":\"13.1\"}",
+    mediaDepsHint: 'For example {"kernel":"5.15","cuda":"13.1"}',
     mediaManifest: "Manifest reference",
-    mediaManifestHint: "Object-store manifest reference; required before verification.",
+    mediaManifestHint:
+      "Object-store manifest reference; required before verification.",
     mediaCreated: "Media registered.",
     mediaState: "State",
     media_state_uploaded: "Registered",
@@ -77,11 +110,13 @@ export const mediaTranslations = {
     media_state_approved: "Approved",
     media_state_retired: "Retired",
     mediaTransition: "Advance state",
-    mediaTransitionDetail: "States advance one way: registered -> verified -> approved -> retired. Verification needs a manifest; approval cannot be done by the uploader.",
+    mediaTransitionDetail:
+      "States advance one way: registered -> verified -> approved -> retired. Verification reads actual bytes; approval cannot be done by the uploader.",
     mediaNextVerified: "Verify",
     mediaNextApproved: "Approve",
     mediaNextRetired: "Retire",
-    mediaRetireImpact: "Retirement is irreversible: existing bindings and evidence stay readable, but new references are blocked.",
+    mediaRetireImpact:
+      "Retirement is irreversible: existing bindings and evidence stay readable, but new references are blocked.",
     mediaSelfApproval: "The uploader cannot approve their own media.",
     mediaManifestMissing: "Fill in the manifest reference before verification.",
     mediaTransitionDone: "State updated.",
@@ -89,4 +124,4 @@ export const mediaTranslations = {
     mediaUploadedBy: "Uploaded by",
     mediaExists: "Media with this type, name and version already exists.",
   },
-}
+};

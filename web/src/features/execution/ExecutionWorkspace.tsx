@@ -1,3 +1,4 @@
+import {RerunDialog} from './RerunDialog'
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -278,6 +279,7 @@ function Relations({
             </dd>
             <dt>{t("executionViewFrozenAt")}</dt>
             <dd>{stamp(data.data.frozen_at)}</dd>
+            {data.data.upstream_execution_id && <><dt>{t('rerunUpstream')}</dt><dd><Link to="/p/$projectId/executions" params={{projectId}} search={{execution:data.data.upstream_execution_id,tab:'overview'}}>{data.data.upstream_execution_id}</Link></dd></>}
             {data.data.kea_deployment_id && (
               <>
                 <dt>Kea</dt>
@@ -315,12 +317,14 @@ function AttemptDrawer({
   attempt,
   onClose,
   onLogs,
+  onRerun,
 }: {
   projectId: string;
   executionId: string;
   attempt: string;
   onClose: () => void;
   onLogs: () => void;
+  onRerun?: (targetID:string) => void;
 }) {
   const session = useSession(),
     { t } = useTranslation(),
@@ -378,6 +382,7 @@ function AttemptDrawer({
           <Button variant="outline" type="button" className="secondary-button" onClick={onLogs}>
             {t("executionViewFocusLogs")}
           </Button>
+          {onRerun && <Button variant="outline" onClick={()=>onRerun(query.data!.target.id)}>{t('rerunTarget')}</Button>}
           <h3>{t("executionViewReceipt")}</h3>
           <pre>
             {query.data.attempt.receipt
@@ -410,6 +415,7 @@ export function ExecutionWorkspace({
     },
     tab = search.tab ?? "overview",
     control = useAction();
+  const [rerun,setRerun]=useState<{mode:"failed"|"targets";targetIDs:string[]}|null>(null);
   const [confirm, setConfirm] = useState<"pause" | "resume" | "cancel" | null>(
       null,
     ),
@@ -585,6 +591,8 @@ export function ExecutionWorkspace({
           ))}
         </div>
       )}
+      {canControl && current.execution.mode==='sim' && !active && <Button variant="outline" onClick={()=>setRerun({mode:'failed',targetIDs:[]})}>{t('rerunFailed')}</Button>}
+      {rerun && <RerunDialog projectId={projectId} projectName={project.name} sourceExecutionId={executionId} mode={rerun.mode} targetIDs={rerun.targetIDs} onClose={()=>setRerun(null)} onDone={id=>{setRerun(null);void client.invalidateQueries({queryKey:['private',session.user.id,'project',projectId]});void navigate({to:'/p/$projectId/executions',params:{projectId},search:{execution:id,tab:'overview'}})}}/>}
       <div
         role="tablist"
         className="execution-view-tabs"
@@ -766,6 +774,7 @@ export function ExecutionWorkspace({
           projectId={projectId}
           executionId={executionId}
           attempt={search.attempt}
+          onRerun={canControl && current.execution.mode==='sim' && !active ? targetID=>{go({attempt:undefined});setRerun({mode:'targets',targetIDs:[targetID]})}:undefined}
           onClose={() => go({ attempt: undefined })}
           onLogs={() =>
             go({ attempt: undefined, tab: "logs", logAttempt: search.attempt })

@@ -5,9 +5,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Media library routes. Registry metadata only: artifact bytes and
-// distribution logs stay with the object store and execution channels.
+// Media registry and private version-pinned artifact routes.
 func (a *authAPI) registerMedia(r *gin.Engine) {
+	a.registerMediaArtifacts(r)
 	r.GET("/api/v1/projects/:id/media", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {
@@ -72,6 +72,8 @@ func (a *authAPI) registerMedia(r *gin.Engine) {
 			a.respondError(c, e)
 			return
 		}
+		cancel := mediaDeadline(c)
+		defer cancel()
 		result, e := a.store.TransitionMedia(c.Request.Context(), actor, project, c.Param("mediaId"), input.State, c.GetString("trace_id"))
 		if e != nil {
 			a.respondError(c, e)

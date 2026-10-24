@@ -12,6 +12,7 @@ test_worker_pid=
 cleanup() {
   if [ -n "$test_worker_pid" ]; then kill "$test_worker_pid" 2>/dev/null || true; wait "$test_worker_pid" 2>/dev/null || true; fi
   if [ -n "$test_api_pid" ]; then kill "$test_api_pid" 2>/dev/null || true; wait "$test_api_pid" 2>/dev/null || true; fi
+  python3 scripts/test-media-environment.py stop --directory "$test_work"
   rm -f "$test_work/browser-credentials.json"
   rmdir "$test_lock"
 }

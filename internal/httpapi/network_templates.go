@@ -89,4 +89,26 @@ func (a *authAPI) registerNetworkTemplates(r *gin.Engine) {
 		}
 		c.JSON(200, out)
 	})
+	r.POST(base+"/:templateId/deprecate", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok || !a.writeAllowed(c) {
+			return
+		}
+		var input platform.NetworkTemplateDeprecation
+		if !decodeBody(c, &input) {
+			return
+		}
+		p, e := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		out, e := a.store.DeprecateNetworkTemplate(c.Request.Context(), actor, p, c.Param("templateId"), input, c.GetString("trace_id"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
+
 }

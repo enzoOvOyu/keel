@@ -207,3 +207,111 @@ PFC 聚合提交 `4e89296` 已在远端 Git 保存。在同一 `/opt/keel` 工�
 实际通过：完整前端生成/组件边界/TypeScript/Vite构建；独立共享UI浏览器 `/tmp/keel-shadcn-2vx9lbso` 验证明暗令牌、Intel字体、背景、键盘焦点约束/恢复、忙碌Escape保护及Tabs。焦点断言等待Radix关闭生命周期，截图等待入场结束，不以历史未验证记录计通过。真实API/隔离PG/worker/协议夹具/浏览器三路回归通过：网络交付 `/tmp/keel-shell-g7_57whs`、物理诊断及DDM指标Checkbox/PNG `/tmp/keel-shell-1e2552ay`、最终执行视图 `/tmp/keel-views-jrx3w19y`（含8/16/24/32px实际矩阵尺寸、右侧抽屉位置、五Tab/回执/SSE撤权）。测试进程/库/临时凭据及独立5178 Vite已清理，证据截图保留。设计检查器修正数字文件名识别后通过v3.0.3引用检查，未修改正式设计或放宽实现状态。
 
 GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新增提交尚未推送。未迁移运行库、未部署或操作生产设备；3000原服务和依赖仍健康。Go测试继续通过既有overlay排除026/fabric_precheck旧草稿，草稿源文件及AGENTS用户修改未纳入提交。旧页面尚未全量迁移，未完成全组件无障碍/规模/真机验收。下一关联事项为昨天独立保存的FR-1重跑草稿：先按其PAUSED说明和当前执行内核比较，补验证后才接入；不要回其他工作树继续开发。FR-0、FR-1及WP-1.1仍partial。
+
+
+## 24. 2026-10-24 按新版 A3 接续 FR-1 定向重跑
+
+主目录 `/opt/keel`、分支 `dev/p1-network-bom`，基于 HEAD `1706a17` 接续昨天保存的重跑草稿，未切回历史工作树。任务对应 PRD FR-1.4／实施计划 A3、WP-1.4；未追赶 FR-0 后续阶段依赖。
+
+已接通候选预览、版本/集合摘要确认、单目标及失败目标的新执行、冻结来源快照、幂等/当前权限/参数目录准入、outbox/审计、共享确认弹窗和来源链接；复用原执行器、资源锁及 unknown 核验，不改原执行。Kea/fabric 保留原业务批准入口。模块与边界见 FR1-EXECUTION-VIEWS 最新节。
+
+实际通过：`GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json go test -race ./internal/execution ./internal/httpapi -count=1`、相关包 vet、`npm run build`（契约生成/组件边界/类型/Vite）、`python3 scripts/check-design.py`；最终真实隔离 API/PG/Worker/浏览器 `/tmp/keel-views-y5o63831`，包含重跑正反路径、并发幂等、来源关联及原五Tab/SSE/矩阵回归。新增脚本首轮误读 overview 字段不计通过；修正为 relations 后通过。隔离进程/测试库/临时凭据已清理。非规模或真机证据。
+
+本批尚未提交/推送；未迁移运行库、未部署3000，原服务保持。用户 AGENTS/实施计划及交换文件、026/fabric_precheck旧草稿和此前模板废弃未提交修改均保留，未纳入本批功能。当前完成的是 A3 内一个功能块，WP-1.4、FR-1、P1仍 partial。后续按 A3/A4 的实际输入继续收口；A4 介质真实字节校验/批准制品读取是可独立推进的缺口，不以完整 Agent 或未来 P3/P4 为该项前提。
+
+
+## 25. 2026-10-24 A4 介质文件存储、校验和批准读取已验证
+
+在唯一目录 `/opt/keel`、`dev/p1-network-bom`、HEAD基线`1706a17`接续上一节，完成 A4／WP-1.10 的实际文件功能块。新增私有MinIO SDK适配、显式media-init桶初始化、039不可变版本绑定、服务端计算摘要的上传与原登记人附加、读取真实文件的校验/独立Admin或SRE审批、鉴权下载与Range及审计；页面共用现有工作台与确认弹窗。旧manifest字符串不再构成校验通过证据。原BOM/ZTP测试改为真实提供脚本字节；外部对象传输的Go边界mock与真实MinIO集成分别验证。
+
+真实浏览器同时发现共享Radix弹窗滚动锁样式被严格CSP拦截；按请求生成样式nonce，HTML入口和React/get-nonce接线，保持script-src self且不开放unsafe-inline，nonce HTML不缓存；专项单测和介质弹窗回归通过。不是靠忽略控制台错误放行。
+
+实际通过：前端完整生成/组件边界/TypeScript/Vite；overlay全仓Go vet/race、最终httpapi race/nonce单测；Compose配置、设计检查与diff检查。最终真实隔离PG/MinIO/API/Chromium证据 `/tmp/keel-media-koxmml78`，包含版本固定/缺失与停用版本拒绝、字节篡改/绑定不可变、BOM/ZTP相关准入、介质与参数目录回归、真实上传校验审批/下载、Viewer/Range/CSRF/跨项目/匿名/退役等正反路径。首轮测试tmpfs权限、旧语言定位与CSP失败不计通过。隔离库、MinIO、API和临时凭据均清理；未操作运行桶或设备。
+
+039仅用于隔离测试库；尚未提交/推送、未迁移运行库/部署3000或验证新发布镜像，原服务保持。SDK固定在go.mod/go.sum，get-nonce直接依赖固定在web/package-lock。原AGENTS/实施计划/交换文件、026/fabric_precheck草稿、模板废弃草稿及上一节重跑成果全部保留。Go继续使用既有overlay排除旧草稿，未修改其源码。
+
+范围与运维见 MEDIA-ARTIFACTS、DEPLOYMENT §8。此块完成不代表整个WP-1.10/FR-1/P1闭环：签名/离线依赖闭包、目标缓存和Agent/SSH分发、镜像源/外链、隔离治理/保留清理/容量仍未完成；参数目录及业务消费者对真实制品/架构/兼容矩阵的完整引用准入是后续A4／WP-1.11的收口事项，不追赶P3/P4。
+
+
+## 26. 2026-10-24 A4 参数目录与通用执行的制品引用准入已验证
+
+在唯一主目录 `/opt/keel`、`dev/p1-network-bom`、HEAD基线`1706a17`接续上一节，完成 A4／WP-1.11 的一个完整准入功能块，未开发未来 Agent/P3/P4 前提。目录只列出当前项目/全局已批准、未退役且有真实不可变绑定的制品；共享校验检查 CPU 架构、精确依赖及来源/版本/报告引用、类型、歧义与退役覆盖。修复项目入口能退役全局参数及项目退役后回落全局的问题。
+
+执行列表与 Flow 工作区的运行弹窗共用 ParamSelect/CatalogInputs，版本与受控目录项采用下拉，实时展示缺依赖及矩阵来源；注册链接保留项目。补齐正式参数路由/校验契约与生成类型；Flow输入名采用目录兼容的点分键，任务ID语法不变。执行创建仍在原事务中检查权限/幂等并冻结定义/依赖/介质URI/摘要/固定对象版本；提交实际重读固定对象并校验字节，缺存储/对象或损坏拒绝。重跑复核当前准入，目录定义/制品与源快照变化拒绝，源历史不改写。模块、格式及边界见 CATALOG-ADMISSION.md。
+
+实际通过：`GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json go test -race ./internal/platform ./internal/execution ./internal/httpapi`、相同相关包 vet；`npm run build`（正式类型生成/共享UI边界/TypeScript/Vite）；`python3 scripts/check-design.py` 与 diff检查。Go无测试库时的普通race不冒充PostgreSQL集成证据，旧026/fabric_precheck草稿仍通过既有overlay排除。
+
+最终真实隔离 PG/MinIO/API/worker/Chromium：`GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-media-artifacts-integration.py`，证据 `/tmp/keel-media-n5z7aoag`。包括真实版本读取、历史 approved 无字节排除、字节损坏拒绝、全局/项目覆盖与退役、BOM/ZTP相关Go回归、原介质与参数HTTP/浏览器、独立SRE审批/Range、实际目录下拉/实时依赖、执行冻结摘要/对象版本/矩阵、稳定重跑及目录变化拒绝、重名版本/类型/架构/跨项目/匿名/CSRF拒绝。目录截图已视觉复核。新增测试最初的管理员initial标志、旧非结构化依赖夹具、点分输入键及跨项目404预期问题均已定位修正，失败轮次不计最终通过；未放宽权限或业务断言。
+
+另通过原Flow工作区真实API/PG/worker/浏览器回归 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-flows-integration.py`，证据 `/tmp/keel-flows-vmlhtiz3`，包含共享运行入口、Monaco/版本/diff/回滚、幂等/权限/执行冻结。隔离数据库/MinIO/API/worker/临时凭据已清理，运行服务/数据卷保留。
+
+本批未提交/推送、未迁移运行库/部署3000，未验证新发布镜像或GitHub CI。用户AGENTS/实施计划/交换文件、026/fabric_precheck旧草稿、模板废弃草稿及上一轮未提交成果全部保留。WP-1.11/FR-1/P1仍partial：当前架构取已发布Flow的显式参数，真实目标/BOM/型号/OS匹配、关联组合矩阵与报告审批治理、模板默认值同步、目录管理页面、全业务入口/编辑器/lint及真实分发/派发前重验尚未完成。后续按A4现有输入收口，不能把sim成功提升为真实硬件或完整兼容性验收。
+
+
+## 27. 2026-10-24 A4 型号完整草稿审核与不可变发布已验证
+
+继续唯一主目录 `/opt/keel`、`dev/p1-network-bom`、HEAD基线`1706a17`，接续A4／WP-1.12，修复扫描草稿进入发布页时丢失预期拓扑/面板/BOM期望/角色方案，以及复用草稿返回值缺槽位的问题。导入、复用、审核与发布现在完整承载硬件/拓扑/能力/面板/BOM/角色/槽位；补齐正式草稿API契约/生成类型。发布页逐项核对并保留来源，历史可展开完整规格；扫描不自动发布、不从实测自行生成PASS。
+
+审核页提交所见版本条件及来源草稿ID，服务端在原事务中锁定型号并拒绝陈旧版本、被废弃或错误型号的来源；审计保留基准/来源/最终摘要。既有工具省略条件时保留原追加版本契约，不声称全部旧调用已有审核并发条件或发布幂等重放。新摘要规范化空对象/数组和槽位排序；已有存储摘要不重写，按完整内容识别旧草稿/当前已发布内容，避免伪重复。扫描网络型号保留kind及能力矩阵，同名退役型号不能被复活；项目入口不能改全局型号/废弃其他型号草稿，也不暴露未发布全局草稿。Viewer页面与API均只读。040迁移只在测试库增加草稿能力矩阵及版本/槽位修改删除、发布后追加槽位的数据库拒绝保护。
+
+实际通过：`GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json go test -race ./internal/platform ./internal/httpapi`、对应包vet、`npm run build`（正式契约生成/组件边界/TypeScript/Vite）、设计引用及diff检查。Go仍通过原overlay排除026/fabric_precheck旧草稿，未修改其源码；没有配置测试库的普通race不作为真实数据库证据。
+
+完整真实隔离PG/API/Chromium：`GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py`，最终证据 `/tmp/keel-models-nmirxgx7`，包含真实PG并发版本冲突、版本/槽位UPDATE/DELETE及事后追加拒绝、原绑定在新发布/退役后保持、旧摘要语义去重、全局草稿隔离和BOM相关Go回归；原型号HTTP/扫描HTTP/浏览器7组；完整元数据审核、人工修改发布、陈旧页拒绝、错误/已废弃草稿、switch扫描/类型冲突、退役/Viewer/匿名/CSRF正反路径。
+
+截图首轮捕捉到弹窗入场动画中间态；只改测试等待动画完成/滚动位置，未改产品判据，使用 `... python3 scripts/check-model-workspace-integration.py --publication-only` 定向复核，证据 `/tmp/keel-models-uomrow7r`，新浏览器功能检查及稳定截图再次通过并已视觉复核。初轮按钮同名问题已改为“移除此槽位”，旧语言按钮定位沿用当前可访问名称；端口探针处理已退出服务的TIME_WAIT，不绕过正在监听的服务。所有失败轮次不算最终通过。
+
+隔离API、自己的测试库与临时凭据已清理，数据卷/旧服务保留；3000仍`6aa8479`。未提交/推送、未迁移运行库/部署或验证新发布镜像/GitHub CI。用户AGENTS/实施计划和此前未提交成果、026/fabric_precheck草稿、模板废弃修改全部保留。本次只收口完整型号审核发布，不将sim目标当真实BOM设备。WP-1.12/FR-14/P1仍partial，完整BOM适配与G1门禁、面板图形/角色覆盖、显式升级失效证据与真机/规模尚未完成；详细边界见 MODEL-PUBLICATION.md。
+
+
+## 28. 2026-10-24 A4 型号版本与服务器 BOM 硬件期望校验已验证
+
+在 `/opt/keel`、`dev/p1-network-bom`、HEAD基线`1706a17`接续上一节，推进 WP-1.12／F-14.3 的服务器导入功能块。逐实体 BOM 的预检和提交共用绑定版本校验：物理 NIC 数量、槽位不存在/歧义/重复/缺失，以及 NIC 正式型号名与槽位期望不符均 BLOCK；读取明确 model_ref，不跟随新发布版本。型号发布/扫描禁止非法 nic_count。未声明数量或槽位的旧版本返回对应 unverified WARN，不生成硬件核验通过证据。
+
+兼容宽表每条 MAC 的临时 NIC 无法证明物理 NIC 实况；型号声明硬件期望时明确 BLOCK，要求逐实体 BOM，避免独立兼容路径绕过校验。问题保留原 CSV 行号。API 契约增加可选 model_version_ref/expected/actual，前端使用生成类型，问题表按整行显示明细，CSV 导出保留全部差异；BLOCK 不持久化为已提交包，无本次数据库迁移。字段和边界见 MODEL-PUBLICATION.md。
+
+实际通过：overlay `go test -race ./internal/platform ./internal/httpapi`、对应包 `go vet`；最终 `npm run build`（正式类型生成/组件边界/TypeScript/Vite）；设计检查、Node/Python脚本语法及 diff 检查。普通 race 无测试库的 Skip 不算 PG 验收。Go继续使用 `/tmp/keel-delivery-check/overlay.json` 排除既有026/fabric_precheck草稿，未修改该草稿。
+
+真实隔离 PG/API/Chromium：`GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py`，证据 `/tmp/keel-models-zqqh7kw9`。相关PG Go 9.827s，覆盖版本固定、槽位/数量拒绝、有合法令牌仍提交复核且无部分写入、宽表证据不足拒绝及已有型号/BOM回归；原型号/扫描HTTP与浏览器回归通过。浏览器实际预检确认版本/期望/实际可见、提交禁用、CSV内容完整。截图发现明细挤在问题码列，改用共享 TableRow/TableCell 整行展示后，只定向执行 `--publication-only`，最终证据 `/tmp/keel-models-yjnthyev`，包含新增宽度断言、完整浏览器检查和已视觉复核的截图；前端最终构建通过。较早 `/tmp/keel-models-bzel6efs` 不包含兼容路径修正，不作为最终证据。
+
+隔离API、测试库及临时凭据均已清理；运行3000仍为旧`6aa8479`，未迁移运行库、未提交/推送、未部署或验证新镜像/GitHub CI。保留用户AGENTS/实施计划、之前全部未提交成果及旧草稿。此块不开发采集器/G1/P2依赖；WP-1.12/FR-14/P1仍partial，GPU/其他部件与MAC前缀规则、面板/角色覆盖、显式升级失效证据和真实硬件/规模验收仍未闭环。后续继续按A4已有输入收口目录治理/消费者与型号编辑能力，不因FR-0跨期而强行实现后置依赖。
+
+
+## 29. 2026-10-24 A4 参数目录关联兼容组合已验证
+
+在 `/opt/keel`、`dev/p1-network-bom`、HEAD基线`1706a17`继续 WP-1.11／FR-1.9，补齐既有逐键允许值不能表达关联组合的问题。`compatibility.combinations` 支持精确完整行，公共 `requires` 与任一完整行同时满足；不能投影成独立允许值再跨行混搭。参数目录和批准介质共享登记/准入校验，要求来源、版本、报告引用；限定行/列/值/文档大小并拒绝重复行、列不一致、空行及非法类型。不匹配仍按原事务拒绝执行创建；依赖自身的目录/介质规则继续检查，行匹配不豁免退役/缺失/不可选值。
+
+正式OpenAPI、生成类型、CatalogInputs同步；错误显示完整允许组合表和来源/版本/报告，提交禁用。成功快照保留原矩阵行及固定制品；重跑仍复核当前目录，历史不重写。不新增兼容性结论、硬件探测或报告审批工作流。格式和边界见 CATALOG-ADMISSION.md。
+
+实际通过：`GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json go test -race ./internal/platform ./internal/execution ./internal/httpapi`、相同包vet、最终 `npm run build`（正式契约生成/共享组件边界/TypeScript/Vite）、Node/Python语法、设计引用及diff检查。Go仍沿用既有overlay排除026/fabric_precheck旧草稿，未修改该草稿。
+
+真实PG/MinIO测试和原介质/参数HTTP/介质浏览器回归证据 `/tmp/keel-media-p16qpj09`，其中 go-integration.log 的 platform 21.008s，新增参数级组合和公共依赖AND、跨行拒绝、底层选项不得绕过等用例通过。此轮目录浏览器因前端首次类型构建失败、仍读取旧构建而超时，整轮不记为成功。正式Schema调整后保持至少一类规则的约束并正常生成类型，最终前端完整构建通过；未放宽产品校验或测试断言。
+
+完成构建后只定向运行 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-media-artifacts-integration.py --catalog-only`，最终证据 `/tmp/keel-media-t3_34zcv`：真实隔离PG/MinIO/API/worker/Chromium通过。两条完整组合均准入、跨行混搭拒绝、非法创建未新增Execution、批准制品矩阵进入冻结快照、页面整行组合/来源/提交禁用与恢复、重跑及目录变化拒绝、歧义/退役/类型/跨项目/匿名/CSRF和历史快照回归均通过。已视觉复核 catalog-correlated-rejected.png。`--catalog-only`不运行Go/其他介质回归，真实PG Go证据使用上面独立记录，不混同为本轮重跑。
+
+隔离API/worker/MinIO、自己的测试库和临时凭据均清理；未迁移运行库、未提交/推送、未部署3000或验证新镜像/GitHub CI，原3000仍旧`6aa8479`。保留用户AGENTS/实施计划和此前全部未提交成果/旧草稿。本块无新数据库迁移，不需要P2/P3/P4依赖；WP-1.11/FR-1/P1仍partial。目录管理页面、矩阵报告治理、真实目标/BOM/型号/OS交叉准入、模板默认值及全业务消费者/lint仍待按计划推进。
+
+
+## 30. 2026-10-24 A4 项目参数目录管理已验证
+
+在 `/opt/keel`、`dev/p1-network-bom`、HEAD基线`1706a17`继续 WP-1.11／FR-1.9，完成项目参数目录管理功能块。新增 `/p/{projectId}/params` 及工作台入口，复用共享 Shell/ProjectWorkspace/表单/表格/确认弹窗。页面查看有效/退役定义、作用域、可选值、目录默认值及兼容依赖，支持项目参数新增/编辑/退役；所有默认值下拉，版本选项来自批准且有实际文件的介质，未批准版本不入列，不提供手工版本列表。不可用默认值阻断保存，服务端保存仍重验。
+
+按 DESIGN-SYSTEM §6：项目Admin或平台管理员管理，DL只读；其他角色不能进入管理页或查询include_retired=true。普通执行消费者的有效目录读取保留原项目成员授权。项目页面不允许修改继承全局定义；项目退役墓碑不回落全局。管理列表是当前有效/退役定义，不冒充完整修订历史。目录默认值不冒充已套用项目模板。
+
+正式OpenAPI/生成类型增加 include_retired、create_only、expected_updated_at 及退役条件。新增页面使用create-only或所见时间条件；同一作用域/键写入串行化，现有行加锁。两个编辑者的陈旧写入仅一个成功，陈旧退役确认同样409，表单保留内容并要求取消/刷新核对；省略条件的旧调用仍保留upsert/retire语义，但共用锁。修正更新结果CreatedAt误返回当前时间的问题，更新时间严格递增；失败事务不新增成功审计。退役定义不可恢复，历史执行快照不改写。本块无数据库迁移。
+
+实际通过：overlay相关 platform/execution/httpapi race及vet；权限收紧后 platform/httpapi race和vet再次通过；最终 npm run build（正式类型生成/共享组件边界/TypeScript/Vite）与最终契约类型重新生成；Node/Python语法、设计及diff检查。Go仍使用 `/tmp/keel-delivery-check/overlay.json` 排除既有026/fabric_precheck草稿，没有修改旧草稿或把无测试库的普通race作为PG证据。
+
+真实PG/MinIO/原有API及介质/目录浏览器回归来自 `/tmp/keel-media-hfogrtp_`，其中platform真实PG 25.534s，包含新增并发编辑一成功一409、陈旧退役拒绝、CreatedAt保留、退役后禁恢复、有效列表与退役管理列表/全局墓碑、失败审计不落库等。此轮新管理页测试因参数键与details合并文本导致定位超时，整轮不计成功。参数键独立文本后，后续 `/tmp/keel-media-rkgqazf_` 走通业务但发现HTML pattern在浏览器v语义下报错；修正转义并收紧DS管理权限，失败轮次不算最终通过，未忽略控制台错误。
+
+最终定向运行 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-media-artifacts-integration.py --management-only`，证据 `/tmp/keel-media-1mp4g9wv`。真实隔离PG/MinIO/API/Chromium通过：新增/依赖JSON校验与查看、目录默认值、编辑冲突保留表单、批准实际制品版本下拉/排除未批准、陈旧退役拒绝与新确认成功、退役可见但不进入执行选项、create-only拒绝覆盖、DL只读及Viewer管理页/API拒绝且有效消费接口仍可读、跨项目/匿名/CSRF、两个项目标签页及英文界面。catalog-management.png已视觉复核。该定向选项跳过Go和未变介质回归，PG并发Go证据使用上面独立记录。
+
+隔离API/worker/MinIO、自己的测试库和临时凭据均清理；运行3000仍旧`6aa8479`。未提交/推送、未迁移运行库、未部署或验证新镜像/GitHub CI，保留用户AGENTS/实施计划和此前全部未提交成果。WP-1.11/FR-1/P1仍partial：全局目录管理UI、参数修订历史/矩阵报告治理、模板默认值套用同步、真实目标/BOM/型号/OS交叉准入及全业务消费者/lint仍未闭环；后续按A4已有输入继续，不追赶P2/P3/P4依赖。详细契约与边界见 CATALOG-ADMISSION.md。
+
+
+## 31. 2026-10-24 本批提交与3000发布收口
+
+用户要求明确提交与3000发布时间后，停止扩展A4，收口§24～30成果及既有模板废弃修改。用户AGENTS/实施计划修改已单独保存为a4ed09e；026/fabric_precheck两份未完成草稿继续保留，不纳入提交或发布。
+
+实际通过本批最终overlay `make check`（全仓vet/race、设计、前端检查及完整构建），日志 `/tmp/keel-release-check.log`；真实隔离PG/MinIO/API/worker/协议fixture/浏览器 `python3 scripts/check-kea-integration.py --network`，证据 `/tmp/keel-shell-b6q7wz5a`，含模板废弃权限/CSRF/跨项目/幂等审计/历史保留及已有任务拒绝、网络下发回归。其他功能证据见§24～30。GitHub SSH认证成功，发布前fetch确认远端仍6aa8479，无新增分叉。
+
+本节记录提交前事实：3000仍旧6aa8479；运行库未迁移。将从明确Git提交的archive构建镜像，避免工作区旧草稿进入构建；原deploy.sh要求完全干净工作区，因此本次使用等价的受控手工发布步骤，保留其默认门禁。先备份并在隔离数据库恢复演练，验证新镜像/待执行038、039、040迁移及受限存储账号，再迁移运行库、切换3000；保留旧镜像。严格schema版本校验使单独切旧镜像不足以回滚，必须保留对应数据库备份与恢复步骤。实际发布结果随后追加；本条不代表已部署、推送、CI或P1闭环。

@@ -6,7 +6,7 @@ import json,os,secrets,socket,subprocess,tempfile,time,urllib.parse,urllib.reque
 from pathlib import Path
 os.umask(0o077)
 root=Path(__file__).resolve().parents[1];os.chdir(root)
-probe=socket.socket();probe.bind(('127.0.0.1',3104));probe.close()
+probe=socket.socket();probe.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);probe.bind(('127.0.0.1',3104));probe.close()
 record=json.loads(subprocess.check_output(['docker','inspect','keel-auth-test-postgres']))[0]
 assert record['Config']['Labels'].get('io.keel.test-environment')=='disposable'
 config=dict(value.split('=',1) for value in record['Config']['Env'] if '=' in value)

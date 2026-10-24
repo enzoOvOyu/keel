@@ -1704,6 +1704,185 @@
           }
         }
       }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/rerun/preview": {
+      "post": {
+        "operationId": "previewExecutionRerun",
+        "tags": [
+          "Simulation execution"
+        ],
+        "x-permission": "execution:create",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "200": {
+            "description": "Current authorized preview; no dispatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RerunCandidates"
+                }
+              }
+            }
+          }
+        },
+        "description": "Rerun only settled generic simulation workflows using the original immutable flow revision and parameters. Unknown, active and incomplete targets are excluded. Owned Kea/fabric workflows retain domain approval. Commit revalidates preview hash, source version, current catalog and target revisions; source execution is unchanged.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RerunPreviewInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/rerun": {
+      "post": {
+        "operationId": "rerunExecution",
+        "tags": [
+          "Simulation execution"
+        ],
+        "x-permission": "execution:create",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "201": {
+            "description": "New execution with immutable source lineage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Execution"
+                }
+              }
+            }
+          }
+        },
+        "description": "Rerun only settled generic simulation workflows using the original immutable flow revision and parameters. Unknown, active and incomplete targets are excluded. Owned Kea/fabric workflows retain domain approval. Commit revalidates preview hash, source version, current catalog and target revisions; source execution is unchanged.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RerunInput"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2042,7 +2221,10 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/FlowInput"
             },
-            "maxProperties": 32
+            "maxProperties": 32,
+            "propertyNames": {
+              "pattern": "^[a-z0-9][a-z0-9._-]{0,118}$"
+            }
           },
           "tasks": {
             "type": "array",
@@ -2354,6 +2536,15 @@
           "frozen_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "rerun_source": {
+            "$ref": "#/components/schemas/RerunSource"
+          },
+          "catalog": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogSelection"
+            }
           }
         },
         "required": [
@@ -3807,6 +3998,336 @@
           "target",
           "task",
           "mode"
+        ]
+      },
+      "RerunSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "execution_id": {
+            "type": "string"
+          },
+          "state_version": {
+            "type": "integer"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "failed",
+              "targets"
+            ]
+          },
+          "selection_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "change_reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "execution_id",
+          "state_version",
+          "mode",
+          "selection_hash",
+          "change_reason"
+        ]
+      },
+      "RerunPreviewInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "failed",
+              "targets"
+            ]
+          },
+          "target_ids": {
+            "type": "array",
+            "maxItems": 2000,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "RerunInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "failed",
+              "targets"
+            ]
+          },
+          "target_ids": {
+            "type": "array",
+            "maxItems": 2000,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "selection_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "change_reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "mode",
+          "expected_version",
+          "selection_hash",
+          "change_reason"
+        ]
+      },
+      "RerunCandidates": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "execution-rerun-candidates/v1"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "source_execution_id": {
+            "type": "string"
+          },
+          "source_version": {
+            "type": "integer"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "failed",
+              "targets"
+            ]
+          },
+          "flow_version_id": {
+            "type": "string"
+          },
+          "flow_hash": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "maxProperties": 32,
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "description": "Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB."
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "states": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "states"
+              ]
+            }
+          },
+          "excluded": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "target_id": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "target_id",
+                "reason"
+              ]
+            }
+          },
+          "selection_hash": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "project_id",
+          "source_execution_id",
+          "source_version",
+          "mode",
+          "flow_version_id",
+          "flow_hash",
+          "parameters",
+          "targets",
+          "excluded",
+          "selection_hash"
+        ]
+      },
+      "CompatibilityMatrix": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "report_ref": {
+            "type": "string"
+          },
+          "requires": {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 32,
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": [
+          "source",
+          "version",
+          "report_ref",
+          "requires"
+        ]
+      },
+      "CatalogDependencies": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "compatibility": {
+            "$ref": "#/components/schemas/CompatibilityMatrix"
+          }
+        }
+      },
+      "CatalogMedia": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uri": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "arch": {
+            "type": "string"
+          },
+          "hw_scope": {
+            "type": "string"
+          },
+          "os_scope": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "object_version": {
+            "type": "string"
+          },
+          "deps": {
+            "$ref": "#/components/schemas/CatalogDependencies"
+          }
+        },
+        "required": [
+          "id",
+          "uri",
+          "version",
+          "arch",
+          "hw_scope",
+          "os_scope",
+          "sha256",
+          "object_version",
+          "deps"
+        ]
+      },
+      "CatalogSelection": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "key_id": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deps": {
+            "$ref": "#/components/schemas/CatalogDependencies"
+          },
+          "media": {
+            "$ref": "#/components/schemas/CatalogMedia"
+          }
+        },
+        "required": [
+          "key_id",
+          "key",
+          "value",
+          "updated_at",
+          "deps"
         ]
       }
     }

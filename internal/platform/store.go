@@ -13,10 +13,17 @@ import (
 	"github.com/enzoOvOyu/keel/ent"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"io"
 	"time"
 )
 
+type MediaObjectStore interface {
+	Put(context.Context, string, io.Reader, int64) (string, error)
+	Open(context.Context, string, string) (io.ReadCloser, error)
+}
+
 type Store struct {
+	MediaObjects  MediaObjectStore
 	FabricProbes  *fabricboot.ProbeSuite
 	DB            *sql.DB
 	Ent           *ent.Client

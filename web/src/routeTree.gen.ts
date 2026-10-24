@@ -27,6 +27,7 @@ import { Route as PProjectIdHealthRouteImport } from './routes/p_.$projectId.hea
 import { Route as PProjectIdMediaRouteImport } from './routes/p_.$projectId.media'
 import { Route as PProjectIdMembersRouteImport } from './routes/p_.$projectId.members'
 import { Route as PProjectIdModelsRouteImport } from './routes/p_.$projectId.models'
+import { Route as PProjectIdParamsRouteImport } from './routes/p_.$projectId.params'
 import { Route as PProjectIdRulesRouteImport } from './routes/p_.$projectId.rules'
 import { Route as PProjectIdZtpRouteImport } from './routes/p_.$projectId.ztp'
 
@@ -120,6 +121,11 @@ const PProjectIdModelsRoute = PProjectIdModelsRouteImport.update({
   path: '/p/$projectId/models',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PProjectIdParamsRoute = PProjectIdParamsRouteImport.update({
+  id: '/p_/$projectId/params',
+  path: '/p/$projectId/params',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PProjectIdRulesRoute = PProjectIdRulesRouteImport.update({
   id: '/p_/$projectId/rules',
   path: '/p/$projectId/rules',
@@ -150,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/p/$projectId/media': typeof PProjectIdMediaRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
   '/p/$projectId/models': typeof PProjectIdModelsRoute
+  '/p/$projectId/params': typeof PProjectIdParamsRoute
   '/p/$projectId/rules': typeof PProjectIdRulesRoute
   '/p/$projectId/ztp': typeof PProjectIdZtpRoute
 }
@@ -172,6 +179,7 @@ export interface FileRoutesByTo {
   '/p/$projectId/media': typeof PProjectIdMediaRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
   '/p/$projectId/models': typeof PProjectIdModelsRoute
+  '/p/$projectId/params': typeof PProjectIdParamsRoute
   '/p/$projectId/rules': typeof PProjectIdRulesRoute
   '/p/$projectId/ztp': typeof PProjectIdZtpRoute
 }
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   '/p_/$projectId/media': typeof PProjectIdMediaRoute
   '/p_/$projectId/members': typeof PProjectIdMembersRoute
   '/p_/$projectId/models': typeof PProjectIdModelsRoute
+  '/p_/$projectId/params': typeof PProjectIdParamsRoute
   '/p_/$projectId/rules': typeof PProjectIdRulesRoute
   '/p_/$projectId/ztp': typeof PProjectIdZtpRoute
 }
@@ -219,6 +228,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/media'
     | '/p/$projectId/members'
     | '/p/$projectId/models'
+    | '/p/$projectId/params'
     | '/p/$projectId/rules'
     | '/p/$projectId/ztp'
   fileRoutesByTo: FileRoutesByTo
@@ -241,6 +251,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/media'
     | '/p/$projectId/members'
     | '/p/$projectId/models'
+    | '/p/$projectId/params'
     | '/p/$projectId/rules'
     | '/p/$projectId/ztp'
   id:
@@ -263,6 +274,7 @@ export interface FileRouteTypes {
     | '/p_/$projectId/media'
     | '/p_/$projectId/members'
     | '/p_/$projectId/models'
+    | '/p_/$projectId/params'
     | '/p_/$projectId/rules'
     | '/p_/$projectId/ztp'
   fileRoutesById: FileRoutesById
@@ -286,6 +298,7 @@ export interface RootRouteChildren {
   PProjectIdMediaRoute: typeof PProjectIdMediaRoute
   PProjectIdMembersRoute: typeof PProjectIdMembersRoute
   PProjectIdModelsRoute: typeof PProjectIdModelsRoute
+  PProjectIdParamsRoute: typeof PProjectIdParamsRoute
   PProjectIdRulesRoute: typeof PProjectIdRulesRoute
   PProjectIdZtpRoute: typeof PProjectIdZtpRoute
 }
@@ -418,6 +431,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectIdModelsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p_/$projectId/params': {
+      id: '/p_/$projectId/params'
+      path: '/p/$projectId/params'
+      fullPath: '/p/$projectId/params'
+      preLoaderRoute: typeof PProjectIdParamsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p_/$projectId/rules': {
       id: '/p_/$projectId/rules'
       path: '/p/$projectId/rules'
@@ -454,6 +474,7 @@ const rootRouteChildren: RootRouteChildren = {
   PProjectIdMediaRoute: PProjectIdMediaRoute,
   PProjectIdMembersRoute: PProjectIdMembersRoute,
   PProjectIdModelsRoute: PProjectIdModelsRoute,
+  PProjectIdParamsRoute: PProjectIdParamsRoute,
   PProjectIdRulesRoute: PProjectIdRulesRoute,
   PProjectIdZtpRoute: PProjectIdZtpRoute,
 }

@@ -74,6 +74,8 @@ docker compose exec -T postgres pg_restore -l < "$backup_file"
 python3 scripts/configure-development.py --grant
 ```
 
+040 型号发布迁移增加草稿能力矩阵，并禁止修改/删除已发布版本或槽位、向历史版本追加槽位；修正规格须在同一发布事务创建新版本，不能通过直接改历史行升级设备。当前是否已迁移仍以 HANDOFF 为准。
+
 迁移使用事务、advisory lock 与 checksum。应用角色不能改/删审计或写迁移历史；数据库管理员的权限仍需生产归档与恢复制度约束。
 
 ## 4. 管理员与项目成员
@@ -140,3 +142,15 @@ curl --fail http://127.0.0.1:3000/api/v1/auth/providers
 回滚选择已保留且与数据库兼容的镜像，再按部署配置切换 API。**镜像回滚不会回退数据库**；版本不兼容时按备份恢复方案处理，不能跳过 schema 校验或删除卷。
 
 origin 使用服务器已配置的仓库身份。GitHub 操作前检查认证，推送前 fetch/比较远端，正常 push，不强推。Git bundle 只包含提交历史，不包含数据库、秘密文件或卷。提交、推送、CI、部署和 PoC 各自记录，不相互代替。
+
+## 8. 私有版本化介质存储
+
+介质文件能力使用 `KEEL_MEDIA_ENDPOINT`、`KEEL_MEDIA_ACCESS_KEY`、`KEEL_MEDIA_SECRET_KEY`、`KEEL_MEDIA_BUCKET`（默认 `media`），配置保存在既有600权限文件，不能输出或提交。Compose API已接入相同变量；容器内地址使用存储服务地址，不能误用宿主回环。仅显式development允许HTTP，staging/production必须HTTPS。
+
+由操作员加载独立的桶管理配置后运行 `keel-admin media-init`，创建私有桶并启用版本化；API运行账号使用限定该桶的对象读写/版本读取与版本状态读取权限，不需要创建桶、删除版本或修改策略。不要直接复用MinIO root凭据到API；本次没有修改现有运行配置、账号或桶。
+
+039迁移增加不可变的对象版本绑定；发布前仍按§3备份/迁移/授权，不修改旧迁移或伪造旧介质的文件证据。旧元数据的uploaded状态可以由原登记人附加匹配文件，已verified/approved但缺真实文件的历史记录不得凭manifest继续批准或下载，应登记经过复核的新版本。文件校验/批准/读取全部失败关闭。
+
+API inline上传上限1 GiB，使用600权限临时文件和5分钟请求期限；tmpfs/磁盘容量及代理body/超时需按部署资源设置。下载先校验整个固定版本，再提供Range，不据此承诺分发吞吐。实际能力与未完成项见 [MEDIA-ARTIFACTS](MEDIA-ARTIFACTS.md)。
+
+独立软件集成：`GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-media-artifacts-integration.py`；该overlay仅用于当前既有026草稿的隔离，正式干净代码不需要。脚本使用带disposable标签的测试PostgreSQL及新建的临时MinIO，不连接运行库/桶，完成后清理自己的服务、数据库与凭据。未验证发布镜像、规模或真机不能记PASS。

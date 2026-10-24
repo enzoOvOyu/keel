@@ -9,6 +9,7 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5/pgconn"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -57,6 +58,8 @@ type CreateDeviceModelInput struct {
 }
 
 type PublishModelVersionInput struct {
+	ExpectedVersion  *int64         `json:"expected_version,omitempty"`
+	SourceDraftID    string         `json:"source_draft_id,omitempty"`
 	HwSpec           map[string]any `json:"hw_spec"`
 	ExpectedTopology map[string]any `json:"expected_topology"`
 	CapabilityMatrix map[string]any `json:"capability_matrix"`
@@ -170,7 +173,7 @@ func (s *Store) RetireDeviceModel(ctx context.Context, a *AuthSession, project *
 	} else if !a.User.IsAdmin {
 		return nil, ErrForbidden
 	}
-	m, e := modelForScope(ctx, tx, modelID, scope)
+	m, e := modelForWrite(ctx, tx, modelID, scope)
 	if e != nil {
 		return nil, e
 	}
@@ -198,6 +201,7 @@ func (s *Store) PublishModelVersion(ctx context.Context, a *AuthSession, project
 	if e := validateModelPayload(input); e != nil {
 		return nil, e
 	}
+	input = normalizedModelPayload(input)
 	tx, e := s.beginControl(ctx, a)
 	if e != nil {
 		return nil, e
@@ -210,7 +214,7 @@ func (s *Store) PublishModelVersion(ctx context.Context, a *AuthSession, project
 	} else if !a.User.IsAdmin {
 		return nil, ErrForbidden
 	}
-	m, e := modelForScope(ctx, tx, modelID, scope)
+	m, e := modelForWrite(ctx, tx, modelID, scope)
 	if e != nil {
 		return nil, e
 	}
@@ -223,6 +227,21 @@ func (s *Store) PublishModelVersion(ctx context.Context, a *AuthSession, project
 	var next int64
 	if e = tx.QueryRowContext(ctx, "SELECT coalesce(max(version),0)+1 FROM device_model_versions WHERE model_id=$1", modelID).Scan(&next); e != nil {
 		return nil, e
+	}
+	if input.ExpectedVersion != nil && *input.ExpectedVersion != next-1 {
+		return nil, apiError(409, "MODEL_VERSION_CONFLICT", "The model changed; reload and review the latest published version")
+	}
+	if input.SourceDraftID != "" {
+		if input.ExpectedVersion == nil || !modelIDPattern.MatchString(input.SourceDraftID) {
+			return nil, apiError(400, "VALIDATION_ERROR", "Draft publication requires source_draft_id and expected_version")
+		}
+		var draftID string
+		if e = tx.QueryRowContext(ctx, "SELECT id FROM device_model_drafts WHERE id=$1 AND model_id=$2 FOR SHARE", input.SourceDraftID, modelID).Scan(&draftID); e != nil {
+			if errors.Is(e, sql.ErrNoRows) {
+				return nil, apiError(404, "MODEL_DRAFT_NOT_FOUND", "Source draft no longer exists for this model")
+			}
+			return nil, e
+		}
 	}
 	hash, e := modelContentHash(input)
 	if e != nil {
@@ -243,7 +262,7 @@ func (s *Store) PublishModelVersion(ctx context.Context, a *AuthSession, project
 			return nil, e
 		}
 	}
-	if e = appendAudit(ctx, tx, a.User.ID, projectIDOf(project), "model.version.publish", v.ID, trace, map[string]any{"model_id": modelID, "version": next, "content_hash": hash}); e != nil {
+	if e = appendAudit(ctx, tx, a.User.ID, projectIDOf(project), "model.version.publish", v.ID, trace, map[string]any{"model_id": modelID, "version": next, "content_hash": hash, "base_version": next - 1, "source_draft_id": input.SourceDraftID}); e != nil {
 		return nil, e
 	}
 	if e = tx.Commit(); e != nil {
@@ -253,7 +272,14 @@ func (s *Store) PublishModelVersion(ctx context.Context, a *AuthSession, project
 }
 
 func validateModelPayload(input PublishModelVersionInput) error {
-	total := 0
+	if input.ExpectedVersion != nil && *input.ExpectedVersion < 0 {
+		return apiError(400, "VALIDATION_ERROR", "expected_version cannot be negative")
+	}
+	slotsJSON, e := json.Marshal(input.Slots)
+	if e != nil {
+		return apiError(400, "VALIDATION_ERROR", "Invalid slots")
+	}
+	total := len(slotsJSON)
 	for name, value := range map[string]map[string]any{"hw_spec": input.HwSpec, "expected_topology": input.ExpectedTopology, "capability_matrix": input.CapabilityMatrix, "panel_layout": input.PanelLayout, "bom_expect": input.BomExpect, "default_role_plan": input.DefaultRolePlan} {
 		if value == nil {
 			continue
@@ -267,6 +293,13 @@ func validateModelPayload(input PublishModelVersionInput) error {
 	if total > modelJSONLimit {
 		return apiError(400, "PAYLOAD_TOO_LARGE", "Model specification exceeds 512 KiB")
 	}
+	if value, ok := input.BomExpect["nic_count"]; ok {
+		raw, err := json.Marshal(value)
+		var count int
+		if err != nil || string(raw) == "null" || json.Unmarshal(raw, &count) != nil || count < 0 {
+			return apiError(400, "VALIDATION_ERROR", "bom_expect.nic_count must be a nonnegative integer")
+		}
+	}
 	seen := map[int]bool{}
 	for _, slot := range input.Slots {
 		if slot.SlotNo < 1 || slot.SlotNo > 1024 {
@@ -276,8 +309,12 @@ func validateModelPayload(input PublishModelVersionInput) error {
 			return apiError(400, "VALIDATION_ERROR", "Duplicate slot numbers are not allowed")
 		}
 		seen[slot.SlotNo] = true
-		for text, field := range map[string]string{slot.PcieSlot: "pcie_slot", slot.ExpectNicModel: "expect_nic_model", slot.PanelPort: "panel_port"} {
-			if utf8.RuneCountInString(strings.TrimSpace(text)) < 1 || utf8.RuneCountInString(text) > 120 {
+		for field, text := range map[string]string{"pcie_slot": slot.PcieSlot, "expect_nic_model": slot.ExpectNicModel, "panel_port": slot.PanelPort} {
+			limit := 120
+			if field == "pcie_slot" || field == "panel_port" {
+				limit = 64
+			}
+			if utf8.RuneCountInString(strings.TrimSpace(text)) < 1 || utf8.RuneCountInString(text) > limit {
 				return apiError(400, "VALIDATION_ERROR", "Slot "+field+" must be 1-120 characters")
 			}
 		}
@@ -289,6 +326,7 @@ func validateModelPayload(input PublishModelVersionInput) error {
 }
 
 func modelContentHash(input PublishModelVersionInput) (string, error) {
+	input = normalizedModelPayload(input)
 	payload := map[string]any{"hw_spec": input.HwSpec, "expected_topology": input.ExpectedTopology, "capability_matrix": input.CapabilityMatrix, "panel_layout": input.PanelLayout, "bom_expect": input.BomExpect, "default_role_plan": input.DefaultRolePlan, "slots": input.Slots}
 	encoded, e := json.Marshal(payload)
 	if e != nil {
@@ -420,4 +458,31 @@ func modelForScope(ctx context.Context, tx *sql.Tx, modelID, scope string) (*Dev
 		return nil, apiError(404, "MODEL_NOT_FOUND", "Model not found")
 	}
 	return &m, nil
+}
+
+// Model payload identity treats omitted JSON objects/slots as empty and ignores
+// slot display order. Existing stored hashes remain historical identities.
+func normalizedModelPayload(in PublishModelVersionInput) PublishModelVersionInput {
+	fields := []*map[string]any{&in.HwSpec, &in.ExpectedTopology, &in.CapabilityMatrix, &in.PanelLayout, &in.BomExpect, &in.DefaultRolePlan}
+	for _, field := range fields {
+		if *field == nil {
+			*field = map[string]any{}
+		}
+	}
+	in.Slots = append([]ModelSlot{}, in.Slots...)
+	sort.Slice(in.Slots, func(i, j int) bool { return in.Slots[i].SlotNo < in.Slots[j].SlotNo })
+	return in
+}
+func modelForWrite(ctx context.Context, tx *sql.Tx, id, scope string) (*DeviceModelSummary, error) {
+	m, e := modelForScope(ctx, tx, id, scope)
+	if e != nil {
+		return nil, e
+	}
+	if m.ScopeKey != scope {
+		return nil, apiError(404, "MODEL_NOT_FOUND", "Model not found")
+	}
+	if e = tx.QueryRowContext(ctx, "SELECT state FROM device_models WHERE id=$1 AND scope_key=$2 FOR UPDATE", id, scope).Scan(&m.State); e != nil {
+		return nil, e
+	}
+	return m, nil
 }

@@ -266,7 +266,7 @@ paths:
     get:
       operationId: listProjectMedia
       tags: [Foundation]
-      x-permission: model:read
+      x-permission: media:read
       x-scope: project
       security: [{ sessionCookie: [] }]
       parameters:
@@ -287,7 +287,7 @@ paths:
     post:
       operationId: registerMedia
       tags: [Foundation]
-      x-permission: model:manage
+      x-permission: media:manage
       x-scope: project
       security: [{ sessionCookie: [] }]
       parameters:
@@ -314,11 +314,113 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/projects/{id}/media/upload:
+    post:
+      operationId: uploadMediaArtifact
+      tags: [Media]
+      x-permission: media:manage
+      x-scope: project
+      security: [{sessionCookie: []}]
+      description: Upload a private immutable artifact. Multipart metadata JSON must precede the file. SHA256 and size are computed from actual bytes. Admin/SRE only, maximum 1 GiB inline; duplicate versions are rejected.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, pattern: '^[a-f0-9]{32}$'}
+        - $ref: '#/components/parameters/Origin'
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [metadata, file]
+              properties:
+                metadata: {type: string, description: RegisterMediaInput JSON; sha256 and size are computed by the server.}
+                file: {type: string, format: binary}
+      responses:
+        '201':
+          description: Uploaded artifact and registered immutable media version
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MediaItemSummary'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {description: Inline upload exceeds 1 GiB}
+        '503': {description: Versioned storage unavailable}
+  /api/v1/projects/{id}/media/{mediaId}/content:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[a-f0-9]{32}$'}
+      - name: mediaId
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[a-f0-9]{32}$'}
+    put:
+      operationId: attachMediaArtifact
+      tags: [Media]
+      x-permission: media:manage
+      x-scope: project
+      security: [{sessionCookie: []}]
+      description: The original uploader attaches the exact registered digest and size to an uploaded item once. Existing bindings cannot be replaced.
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: {type: string, format: binary}
+      responses:
+        '200':
+          description: Immutable object version attached
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MediaItemSummary'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {description: Actual bytes differ from the registered digest or size}
+        '503': {description: Versioned storage unavailable}
+    get:
+      operationId: downloadMediaArtifact
+      tags: [Media]
+      x-permission: media:read
+      x-scope: project
+      security: [{sessionCookie: []}]
+      description: Authenticated project members read only approved, non-retired media. The complete pinned object is verified before serving bytes; Range and If-Range are supported. Every authorized download is audited. No object-store URL or credentials are exposed.
+      parameters:
+        - name: Range
+          in: header
+          schema: {type: string}
+        - name: If-Range
+          in: header
+          schema: {type: string}
+      responses:
+        '200':
+          description: Verified approved bytes
+          content:
+            application/octet-stream:
+              schema: {type: string, format: binary}
+        '206': {description: Verified byte range}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '416': {description: Requested range is not satisfiable}
+        '422': {description: Stored object integrity verification failed; no bytes served}
+        '503': {description: Pinned object or storage unavailable}
   /api/v1/projects/{id}/media/{mediaId}/transition:
     post:
       operationId: transitionMedia
       tags: [Foundation]
-      x-permission: model:manage
+      x-permission: media:manage
       x-scope: project
       security: [{ sessionCookie: [] }]
       parameters:
@@ -2226,6 +2328,33 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/NetworkTemplateVersion' }
 
+  /api/v1/projects/{id}/fabric/templates/{templateId}/deprecate:
+    post:
+      operationId: deprecateNetworkTemplate
+      description: NH/Admin retires a released version without deleting its immutable content or evidence. Existing admission checks block new preparation and production dispatch using the deprecated version; in-flight operations retain their evidence.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: templateId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_hash, reason]
+              properties:
+                expected_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+                reason: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        '200':
+          description: Deprecated version, also returned for a repeat request without a second transition or audit.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkTemplateVersion' }
+        '409':
+          description: Wrong content hash or version is not released.
+
   /api/v1/projects/{id}/fabric/push-jobs:
     get:
       operationId: listNetworkPushJobs
@@ -2606,6 +2735,13 @@ paths:
           description: Archive not found in this project
         '409':
           description: Archive integrity check failed
+  /api/v1/projects/{id}/params: {"get": {"operationId": "listParamKeys", "security": [{"sessionCookie": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"$ref": "#/components/schemas/EntityID"}}, {"$ref": "#/components/parameters/Page"}, {"$ref": "#/components/parameters/PageSize"}, {"name": "arch", "in": "query", "schema": {"type": "string"}}, {"name": "include_retired", "in": "query", "schema": {"type": "boolean", "default": false}, "description": "Management query: DL, project Admin or platform administrator only. Default active-only reads retain project-member authorization."}], "responses": {"200": {"description": "Project-scoped catalog result. Versions require approved stored artifacts; validation is read-only.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ParamKeyPage"}}}}}, "x-resource-scope": "path-project", "x-permission": "project:read"}, "put": {"operationId": "upsertParamKey", "security": [{"sessionCookie": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"$ref": "#/components/schemas/EntityID"}}, {"$ref": "#/components/parameters/Origin"}, {"$ref": "#/components/parameters/CSRFToken"}], "responses": {"201": {"description": "Project-scoped catalog result. Versions require approved stored artifacts; validation is read-only.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ParamKeySummary"}}}}, "409": {"description": "Definition changed, already exists, or is retired"}}, "x-resource-scope": "path-project", "x-permission": "project:read", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UpsertParamKeyInput"}}}}, "description": "Project Admin or platform administrator. Optional create-only or timestamp preconditions reject stale writes with 409.", "x-project-roles": ["Admin"]}}
+  /api/v1/projects/{id}/params/validate: {"post": {"operationId": "validateCatalog", "security": [{"sessionCookie": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"$ref": "#/components/schemas/EntityID"}}, {"$ref": "#/components/parameters/Origin"}, {"$ref": "#/components/parameters/CSRFToken"}], "responses": {"200": {"description": "Project-scoped catalog result. Versions require approved stored artifacts; validation is read-only.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CatalogValidation"}}}}}, "x-resource-scope": "path-project", "x-permission": "project:read", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CatalogValues"}}}}}}
+  /api/v1/projects/{id}/params/{keyId}/retire: {"post": {"operationId": "retireParamKey", "security": [{"sessionCookie": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"$ref": "#/components/schemas/EntityID"}}, {"name": "keyId", "in": "path", "required": true, "schema": {"type": "string"}}, {"$ref": "#/components/parameters/Origin"}, {"$ref": "#/components/parameters/CSRFToken"}], "responses": {"200": {"description": "Project-scoped catalog result. Versions require approved stored artifacts; validation is read-only.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ParamKeySummary"}}}}, "409": {"description": "Definition changed or already retired"}}, "x-resource-scope": "path-project", "x-permission": "project:read", "description": "Only the owning scope may retire a parameter. Optional timestamp precondition rejects stale confirmations.", "requestBody": {"required": false, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/RetireParamKeyInput"}}}}, "x-project-roles": ["Admin"]}}
+  /api/v1/projects/{id}/params/{keyName}/check: {"get": {"operationId": "checkParamValue", "security": [{"sessionCookie": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"$ref": "#/components/schemas/EntityID"}}, {"name": "keyName", "in": "path", "required": true, "schema": {"type": "string"}}, {"name": "value", "in": "query", "schema": {"type": "string"}}, {"name": "arch", "in": "query", "schema": {"type": "string"}}], "responses": {"200": {"description": "Project-scoped catalog result. Versions require approved stored artifacts; validation is read-only.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CatalogCheck"}}}}}, "x-resource-scope": "path-project", "x-permission": "project:read"}}
+  /api/v1/projects/{id}/models/import: {"post": {"operationId": "importModelScan", "security": [{"sessionCookie": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"$ref": "#/components/schemas/EntityID"}}, {"$ref": "#/components/parameters/Origin"}, {"$ref": "#/components/parameters/CSRFToken"}], "x-permission": "model:manage", "x-resource-scope": "path-project", "responses": {"201": {"description": "Project-scoped review draft; never automatically published.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ModelDraft"}}}}}, "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ImportModelScanInput"}}}}}}
+  /api/v1/projects/{id}/models/{modelId}/drafts: {"get": {"operationId": "listModelDrafts", "security": [{"sessionCookie": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"$ref": "#/components/schemas/EntityID"}}, {"name": "modelId", "in": "path", "required": true, "schema": {"$ref": "#/components/schemas/EntityID"}}], "x-permission": "model:read", "x-resource-scope": "path-project", "responses": {"200": {"description": "Project-scoped review draft; never automatically published.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ModelDraftPage"}}}}}}}
+  /api/v1/projects/{id}/models/{modelId}/drafts/{draftId}/discard: {"post": {"operationId": "discardModelDraft", "security": [{"sessionCookie": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"$ref": "#/components/schemas/EntityID"}}, {"name": "modelId", "in": "path", "required": true, "schema": {"$ref": "#/components/schemas/EntityID"}}, {"name": "draftId", "in": "path", "required": true, "schema": {"$ref": "#/components/schemas/EntityID"}}, {"$ref": "#/components/parameters/Origin"}, {"$ref": "#/components/parameters/CSRFToken"}], "x-permission": "model:manage", "x-resource-scope": "path-project", "responses": {"200": {"description": "Project-scoped review draft; never automatically published.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/DiscardModelDraftResult"}}}}}}}
 components:
 
   securitySchemes:
@@ -2662,6 +2798,51 @@ components:
         maximum: 100
         default: 20
   schemas:
+    ModelDraft: {"type": "object", "additionalProperties": false, "required": ["id", "model_id", "model_name", "source_host", "content_hash", "created_by", "created_at", "hw_spec", "expected_topology", "capability_matrix", "panel_layout", "bom_expect", "default_role_plan", "slots"], "properties": {"id": {"type": "string"}, "model_id": {"type": "string"}, "model_name": {"type": "string"}, "source_host": {"type": "string"}, "content_hash": {"type": "string"}, "created_by": {"type": "string"}, "created_at": {"type": "string"}, "hw_spec": {"type": "object", "additionalProperties": true}, "expected_topology": {"type": "object", "additionalProperties": true}, "capability_matrix": {"type": "object", "additionalProperties": true}, "panel_layout": {"type": "object", "additionalProperties": true}, "bom_expect": {"type": "object", "additionalProperties": true}, "default_role_plan": {"type": "object", "additionalProperties": true}, "slots": {"type": "array", "items": {"$ref": "#/components/schemas/ModelSlot"}}}}
+    ImportModelScanInput: {"type": "object", "additionalProperties": false, "required": ["source_host", "hw_spec"], "properties": {"model_name": {"type": "string"}, "source_host": {"type": "string"}, "hw_spec": {"type": "object", "additionalProperties": true}, "expected_topology": {"type": "object", "additionalProperties": true}, "capability_matrix": {"type": "object", "additionalProperties": true}, "panel_layout": {"type": "object", "additionalProperties": true}, "bom_expect": {"type": "object", "additionalProperties": true}, "default_role_plan": {"type": "object", "additionalProperties": true}, "slots": {"type": "array", "items": {"$ref": "#/components/schemas/ModelSlot"}}}}
+    ModelDraftPage: {"type": "object", "additionalProperties": false, "required": ["items"], "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/ModelDraft"}}}}
+    DiscardModelDraftResult: {"type": "object", "additionalProperties": false, "required": ["discarded"], "properties": {"discarded": {"type": "boolean"}}}
+    CompatibilityMatrix:
+      type: object
+      additionalProperties: false
+      required: [source, version, report_ref]
+      minProperties: 4
+      description: Common requirements AND one complete combination row. Rows have identical keys; values from different rows cannot be mixed. At least one nonempty rule is required.
+      properties:
+        source: { type: string, minLength: 1, maxLength: 1024 }
+        version: { type: string, minLength: 1, maxLength: 120 }
+        report_ref: { type: string, minLength: 1, maxLength: 1024 }
+        requires:
+          type: object
+          minProperties: 1
+          maxProperties: 32
+          additionalProperties:
+            type: array
+            minItems: 1
+            maxItems: 256
+            uniqueItems: true
+            items: { type: string, minLength: 1, maxLength: 120 }
+        combinations:
+          type: array
+          minItems: 1
+          maxItems: 128
+          uniqueItems: true
+          items:
+            type: object
+            minProperties: 1
+            maxProperties: 32
+            additionalProperties: { type: string, minLength: 1, maxLength: 120 }
+    CatalogDependencies: {"type": "object", "additionalProperties": false, "properties": {"compatibility": {"$ref": "#/components/schemas/CompatibilityMatrix"}}}
+    CatalogMedia: {"type": "object", "additionalProperties": false, "properties": {"id": {"type": "string"}, "uri": {"type": "string"}, "version": {"type": "string"}, "arch": {"type": "string"}, "hw_scope": {"type": "string"}, "os_scope": {"type": "string"}, "sha256": {"type": "string"}, "object_version": {"type": "string"}, "deps": {"$ref": "#/components/schemas/CatalogDependencies"}}, "required": ["id", "uri", "version", "arch", "hw_scope", "os_scope", "sha256", "object_version", "deps"]}
+    CatalogSelection: {"type": "object", "additionalProperties": false, "properties": {"key_id": {"type": "string"}, "key": {"type": "string"}, "value": {"type": "string"}, "updated_at": {"type": "string", "format": "date-time"}, "deps": {"$ref": "#/components/schemas/CatalogDependencies"}, "media": {"$ref": "#/components/schemas/CatalogMedia"}}, "required": ["key_id", "key", "value", "updated_at", "deps"]}
+    CatalogIssue: {"type": "object", "additionalProperties": false, "properties": {"key": {"type": "string"}, "code": {"type": "string"}, "message": {"type": "string"}, "dependency": {"type": "string"}, "expected": {"type": "array", "items": {"type": "string"}}, "matrix": {"$ref": "#/components/schemas/CompatibilityMatrix"}}, "required": ["key", "code", "message"]}
+    CatalogValidation: {"type": "object", "additionalProperties": false, "properties": {"valid": {"type": "boolean"}, "issues": {"type": "array", "items": {"$ref": "#/components/schemas/CatalogIssue"}}, "selections": {"type": "array", "items": {"$ref": "#/components/schemas/CatalogSelection"}}}, "required": ["valid", "issues", "selections"]}
+    CatalogValues: {"type": "object", "additionalProperties": false, "properties": {"values": {"type": "object", "maxProperties": 256, "additionalProperties": {"oneOf": [{"type": "string"}, {"type": "number"}, {"type": "boolean"}]}}}, "required": ["values"]}
+    ParamKeySummary: {"type": "object", "additionalProperties": false, "properties": {"id": {"type": "string"}, "scope_key": {"type": "string"}, "key": {"type": "string"}, "value_type": {"type": "string", "enum": ["string", "enum", "version"]}, "default_value": {"type": "string"}, "source_media_type": {"type": "string"}, "state": {"type": "string", "enum": ["active", "retired"]}, "created_at": {"type": "string"}, "updated_at": {"type": "string"}, "options": {"type": "array", "items": {"type": "string"}}, "deps": {"$ref": "#/components/schemas/CatalogDependencies"}, "media_options": {"type": "array", "items": {"$ref": "#/components/schemas/CatalogMedia"}}}, "required": ["id", "scope_key", "key", "value_type", "default_value", "source_media_type", "state", "created_at", "updated_at", "options", "deps", "media_options"]}
+    UpsertParamKeyInput: {"type": "object", "additionalProperties": false, "properties": {"key": {"type": "string"}, "value_type": {"type": "string", "enum": ["string", "enum", "version"]}, "options": {"type": "array", "items": {"type": "string"}}, "default_value": {"type": "string"}, "source_media_type": {"type": "string"}, "deps": {"$ref": "#/components/schemas/CatalogDependencies"}, "create_only": {"type": "boolean"}, "expected_updated_at": {"type": "string", "format": "date-time"}}, "required": ["key", "value_type"], "description": "create_only and expected_updated_at are mutually exclusive. Omission preserves existing upsert semantics."}
+    RetireParamKeyInput: {"type":"object","additionalProperties":false,"properties":{"expected_updated_at":{"type":"string","format":"date-time"}}}
+    ParamKeyPage: {"type": "object", "additionalProperties": false, "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/ParamKeySummary"}}, "page": {"type": "integer"}, "page_size": {"type": "integer"}, "total": {"type": "integer"}}, "required": ["items", "page", "page_size", "total"]}
+    CatalogCheck: {"type": "object", "additionalProperties": false, "properties": {"key": {"type": "string"}, "value": {"type": "string"}, "valid": {"type": "boolean"}, "selection": {"$ref": "#/components/schemas/CatalogSelection"}}, "required": ["key", "value", "valid", "selection"]}
     FabricStorm:
       type: object
       required: [rule_id, policy_version, threshold_ports, affected_ports, state, incomplete, approximation, applied_rule_ids, affected_device_ids]
@@ -3627,6 +3808,9 @@ components:
         bom_line_no: { type: integer }
         field: { type: string }
         code: { type: string }
+        expected: { type: string }
+        actual: { type: string }
+        model_version_ref: { type: string }
     BOMPackagePreview:
       type: object
       additionalProperties: false
@@ -3661,8 +3845,9 @@ components:
     MediaItemSummary:
       type: object
       additionalProperties: false
-      required: [id, scope_key, type, name, version, sha256, size, arch, os_scope, hw_scope, deps, manifest_ref, state, uploaded_by, approved_by, created_at, updated_at]
+      required: [id, scope_key, type, name, version, sha256, size, arch, os_scope, hw_scope, deps, manifest_ref, state, uploaded_by, approved_by, created_at, updated_at, artifact_stored]
       properties:
+        artifact_stored: {type: boolean, description: An immutable object version has been attached; approval and fresh integrity checks remain required.}
         id: { type: string, pattern: '^[a-f0-9]{32}$' }
         scope_key: { type: string }
         type: { type: string, enum: [driver, firmware, os, nccl, tool, config, ztp_script] }
@@ -3673,7 +3858,7 @@ components:
         arch: { type: string, enum: [amd64, arm64, noarch] }
         os_scope: { type: string, maxLength: 120 }
         hw_scope: { type: string, maxLength: 120 }
-        deps: {}
+        deps: { $ref: '#/components/schemas/CatalogDependencies' }
         manifest_ref: { type: string, maxLength: 200 }
         state: { type: string, enum: [uploaded, verified, approved, retired] }
         uploaded_by: { type: string }
@@ -3702,7 +3887,7 @@ components:
         arch: { type: string, enum: [amd64, arm64, noarch] }
         os_scope: { type: string, maxLength: 120 }
         hw_scope: { type: string, maxLength: 120 }
-        deps: { type: object, additionalProperties: true }
+        deps: { $ref: '#/components/schemas/CatalogDependencies' }
         manifest_ref: { type: string, maxLength: 200 }
     DeviceModelSummary:
       type: object
@@ -3747,6 +3932,8 @@ components:
       type: object
       additionalProperties: false
       properties:
+        expected_version: { type: integer, format: int64, minimum: 0, description: Optional append precondition; the review UI always supplies the observed latest version. }
+        source_draft_id: { $ref: '#/components/schemas/EntityID' }
         hw_spec: { type: object, additionalProperties: true }
         expected_topology: { type: object, additionalProperties: true }
         capability_matrix: { type: object, additionalProperties: true }

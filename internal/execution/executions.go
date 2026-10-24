@@ -3,7 +3,6 @@ package execution
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"github.com/enzoOvOyu/keel/internal/platform"
 	"time"
@@ -24,7 +23,38 @@ func scanExecution(r scanner) (Execution, error) {
 	return x, e
 }
 func (s *Service) Create(ctx context.Context, a *Actor, projectID string, in CreateInput, key, trace string) (*Execution, error) {
-	rawInput := in
+	return s.create(ctx, a, projectID, in, key, trace, nil)
+}
+
+func (s *Service) create(ctx context.Context, a *Actor, projectID string, in CreateInput, key, trace string, origin *rerunOrigin) (*Execution, error) {
+	var rawInput any = in
+	scope := "execution.create:" + projectID
+	if origin != nil {
+		rawInput = origin
+		scope = "execution.rerun:" + projectID + ":" + origin.SourceID
+	}
+	tx, e := s.DB.BeginTx(ctx, nil)
+	if e != nil {
+		return nil, e
+	}
+	defer tx.Rollback()
+	if e = authorize(ctx, tx, a, projectID, "Admin", "DE", "DL", "SRE"); e != nil {
+		return nil, e
+	}
+	idem, prior, e := idempotency(ctx, tx, a, scope, key, rawInput)
+	if e != nil {
+		return nil, e
+	}
+	if prior != nil {
+		x, e := decode[Execution](prior)
+		return &x, e
+	}
+	if origin != nil {
+		in, e = prepareRerunTx(ctx, tx, projectID, origin)
+		if e != nil {
+			return nil, e
+		}
+	}
 	if in.Mode != "sim" || len(in.TargetIDs) < 1 || len(in.TargetIDs) > 2000 {
 		return nil, invalid("mode=sim and 1..2000 registered target IDs are required")
 	}
@@ -41,22 +71,6 @@ func (s *Service) Create(ctx context.Context, a *Actor, projectID string, in Cre
 	if in.Concurrency < 1 || in.Concurrency > 256 || in.CircuitBreakerPercent < 1 || in.CircuitBreakerPercent > 100 {
 		return nil, invalid("invalid concurrency or circuit breaker percentage")
 	}
-	tx, e := s.DB.BeginTx(ctx, nil)
-	if e != nil {
-		return nil, e
-	}
-	defer tx.Rollback()
-	if e = authorize(ctx, tx, a, projectID, "Admin", "DE", "DL", "SRE"); e != nil {
-		return nil, e
-	}
-	idem, prior, e := idempotency(ctx, tx, a, "execution.create:"+projectID, key, rawInput)
-	if e != nil {
-		return nil, e
-	}
-	if prior != nil {
-		x, e := decode[Execution](prior)
-		return &x, e
-	}
 	flow, e := scanFlow(tx.QueryRowContext(ctx, "SELECT "+flowColumns+" FROM exec_flow_versions v JOIN exec_flows f ON f.id=v.flow_id WHERE v.id=$1 AND v.project_id=$2", in.FlowVersionID, projectID))
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil, failure(404, "NOT_FOUND", "Flow version not found")
@@ -71,40 +85,22 @@ func (s *Service) Create(ctx context.Context, a *Actor, projectID string, in Cre
 	if e != nil {
 		return nil, e
 	}
-	// Registered catalog keys gate their values against approved media, so an
-	// execution cannot carry an unapproved version (F-1.8). Unregistered keys
-	// remain free parameters owned by the Flow definition itself.
-	for key, value := range params {
-		text, ok := value.(string)
-		if !ok {
-			continue
-		}
-		var optionsRaw []byte
-		var valueType string
-		err := tx.QueryRowContext(ctx, `SELECT value_type, coalesce((SELECT jsonb_agg(m.version ORDER BY m.version) FROM media_items m
-					WHERE m.scope_key=k.scope_key AND m.type=k.source_media_type AND m.state='approved'), k.options)
-				FROM param_keys k WHERE (k.scope_key='global' OR k.scope_key=$1) AND k.key=$2 AND k.state='active'
-				ORDER BY k.scope_key DESC LIMIT 1`, "project:"+projectID, key).Scan(&valueType, &optionsRaw)
-		if errors.Is(err, sql.ErrNoRows) {
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-		var options []string
-		if e := json.Unmarshal(optionsRaw, &options); e != nil {
-			return nil, e
-		}
-		allowed := false
-		for _, option := range options {
-			if option == text {
-				allowed = true
-				break
+	catalog, e := platform.ValidateCatalogTx(ctx, tx, projectID, params)
+	if e != nil {
+		return nil, e
+	}
+	if !catalog.Valid {
+		i := catalog.Issues[0]
+		return nil, failure(422, i.Code, i.Message)
+	}
+	if s.MediaStore == nil {
+		for _, selection := range catalog.Selections {
+			if selection.Media != nil {
+				return nil, failure(503, "MEDIA_STORAGE_UNAVAILABLE", "Media storage is not configured")
 			}
 		}
-		if !allowed {
-			return nil, failure(422, "PARAM_VALUE_REJECTED", "Parameter "+key+" value is not in the approved option list")
-		}
+	} else if e = s.MediaStore.VerifyCatalogArtifactsTx(ctx, tx, catalog.Selections); e != nil {
+		return nil, e
 	}
 	rows, e := tx.QueryContext(ctx, "SELECT id,project_id,name,seed,revision,model_version,created_at FROM exec_sim_targets WHERE project_id=$1 AND id IN(SELECT jsonb_array_elements_text($2::jsonb)) ORDER BY id FOR SHARE", projectID, jsonBytes(ids))
 	if e != nil {
@@ -130,7 +126,32 @@ func (s *Service) Create(ctx context.Context, a *Actor, projectID string, in Cre
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	x := &Execution{ID: platform.RandomID(), ProjectID: projectID, FlowVersionID: flow.ID, Mode: "sim", State: "created", StateVersion: 1, DesiredState: "running", Parameters: params, TargetSetHash: hash(jsonBytes(ids)), Concurrency: in.Concurrency, CircuitBreakerPercent: in.CircuitBreakerPercent, CreatedBy: a.User.ID, CreatedAt: now}
-	x.Snapshot = Snapshot{Mode: "sim", Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "simulation only; not hardware gate evidence", FrozenAt: now}
+	x.Snapshot = Snapshot{Catalog: catalog.Selections, Mode: "sim", Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "simulation only; not hardware gate evidence", FrozenAt: now}
+	if origin != nil {
+		// Preserve source target identities/revisions rather than silently changing the rerun.
+		source, err := scanExecution(tx.QueryRowContext(ctx, "SELECT "+executionColumns+" FROM exec_executions WHERE id=$1 AND project_id=$2", origin.SourceID, projectID))
+		if err != nil {
+			return nil, err
+		}
+		frozen := map[string]Target{}
+		for _, target := range source.Snapshot.Targets {
+			frozen[target.ID] = target
+		}
+		for i, target := range targets {
+			previous, ok := frozen[target.ID]
+			if !ok || hash(jsonBytes(previous)) != hash(jsonBytes(target)) {
+				return nil, conflict("source target revision changed; create a reviewed execution instead")
+			}
+			targets[i] = previous
+		}
+		if hash(jsonBytes(catalog.Selections)) != hash(jsonBytes(source.Snapshot.Catalog)) && (len(catalog.Selections) > 0 || len(source.Snapshot.Catalog) > 0) {
+			return nil, conflict("catalog definition or approved media changed; create a reviewed execution instead")
+		}
+		if flow.ContentHash != source.Snapshot.Flow.ContentHash || hash(jsonBytes(params)) != hash(jsonBytes(source.Snapshot.Parameters)) {
+			return nil, conflict("source flow or parameters changed")
+		}
+		x.Snapshot.RerunSource = &RerunSource{ExecutionID: origin.SourceID, StateVersion: origin.Request.ExpectedVersion, Mode: origin.Request.Mode, SelectionHash: origin.Request.SelectionHash, ChangeReason: origin.Request.ChangeReason}
+	}
 	_, e = tx.ExecContext(ctx, "INSERT INTO exec_executions(id,project_id,flow_version_id,parameters,snapshot,target_set_hash,concurrency,circuit_breaker_percent,created_by,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)", x.ID, projectID, flow.ID, jsonBytes(params), jsonBytes(x.Snapshot), x.TargetSetHash, x.Concurrency, x.CircuitBreakerPercent, a.User.ID, now)
 	if e != nil {
 		return nil, e
@@ -159,6 +180,14 @@ func (s *Service) Create(ctx context.Context, a *Actor, projectID string, in Cre
 	}
 	if e = audit(ctx, tx, a.User.ID, projectID, "execution.create", x.ID, trace, map[string]any{"mode": "sim", "flow_version": flow.ID, "target_hash": x.TargetSetHash, "target_count": len(targets)}); e != nil {
 		return nil, e
+	}
+	if origin != nil {
+		if e = event(ctx, tx, x.ID, "execution.rerun", x.Snapshot.RerunSource); e != nil {
+			return nil, e
+		}
+		if e = audit(ctx, tx, a.User.ID, projectID, "execution.rerun", x.ID, trace, x.Snapshot.RerunSource); e != nil {
+			return nil, e
+		}
 	}
 	if e = remember(ctx, tx, idem, rawInput, x); e != nil {
 		return nil, e

@@ -1,3 +1,5 @@
+import { CatalogInputs } from './CatalogInputs'
+import { validateCatalog, type CatalogValues } from '../../lib/catalog'
 import { ExecutionWorkspace } from './ExecutionWorkspace'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
@@ -56,28 +58,40 @@ function RegisterTargetsDialog({ projectId, onClose, onDone }: {
 }
 function CreateExecutionDialog({ projectId, onClose, onDone }: { projectId: string; onClose: () => void; onDone: () => Promise<void> }) {
   const { t } = useTranslation(), session = useSession(), action = useAction(), keyFor = useIdempotencyKey()
-  const [flowVersionId, setFlowVersionId] = useState(''), [profile, setProfile] = useState('smoke')
+  const [flowVersionId, setFlowVersionId] = useState(''), [parameters, setParameters] = useState<CatalogValues>({}), [catalogReady, setCatalogReady] = useState(false)
   const [total, setTotal] = useState('50'), [concurrency, setConcurrency] = useState('16'), [breaker, setBreaker] = useState('5'), [validation, setValidation] = useState('')
   const flows = useQuery({ queryKey: ['private', session.user.id, 'project', projectId, 'flows'], queryFn: ({ signal }) => listFlows(projectId, 1, signal) })
   useExpireOnUnauthorized(flows.error)
+  const selectedFlow = flows.data?.items.find(flow => flow.id === flowVersionId)
+  useEffect(() => {
+    setCatalogReady(false)
+    const defaults: CatalogValues = {}
+    for (const [key, spec] of Object.entries(selectedFlow?.definition.inputs ?? {})) {
+      if (spec.default !== undefined) defaults[key] = spec.default
+    }
+    setParameters(defaults)
+  }, [selectedFlow])
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const count = Number(total), lanes = Number(concurrency), percent = Number(breaker)
     if (!flowVersionId) { setValidation(t('noFlows')); return }
+    if (!catalogReady) { setValidation(t('catalogMissing')); return }
     if (!Number.isSafeInteger(count) || count < 1 || count > 2000) { setValidation(t('targetCountHint')); return }
     if (!Number.isSafeInteger(lanes) || lanes < 1 || lanes > 64) { setValidation(t('invalidFields')); return }
     if (!Number.isSafeInteger(percent) || percent < 0 || percent > 100) { setValidation(t('invalidFields')); return }
     setValidation('')
+    const admission = await action.run(() => validateCatalog(projectId, parameters, session.csrf_token))
+    if (!admission.ok || !admission.value.valid) { setValidation(t('catalogMissing')); return }
     const targetIds = await collectTargets(projectId, count)
     if (!targetIds.length) { setValidation(t('noFlows')); return }
-    const body = { mode: 'sim' as const, flow_version_id: flowVersionId, target_ids: targetIds, parameters: { profile }, concurrency: lanes, circuit_breaker_percent: percent }
+    const body = { mode: 'sim' as const, flow_version_id: flowVersionId, target_ids: targetIds, parameters, concurrency: lanes, circuit_breaker_percent: percent }
     const result = await action.run(() => createExecution(projectId, body, session.csrf_token, keyFor(JSON.stringify(body))))
     if (result.ok) await onDone()
   }
-  return <ActionDialog title={t('newExecution')} description={t('newExecutionDetail')} busy={action.busy} confirm={t(action.busy ? 'starting' : 'startExecution')} onSubmit={(event) => void submit(event)} onClose={onClose}>
+  return <ActionDialog submitDisabled={!catalogReady} title={t('newExecution')} description={t('newExecutionDetail')} busy={action.busy} confirm={t(action.busy ? 'starting' : 'startExecution')} onSubmit={(event) => void submit(event)} onClose={onClose}>
     <ActionError error={action.error} />{validation && <p className="field-error" role="alert">{validation}</p>}
     <div className="field"><label htmlFor="execution-flow">{t('selectFlow')}</label><select id="execution-flow" value={flowVersionId} onChange={(event) => setFlowVersionId(event.target.value)} required disabled={action.busy}>{!flowVersionId && <option value="">—</option>}{flows.data?.items.filter(flow=>flow.definition.api_version==='keel.sim/v1').map((flow) => <option key={flow.id} value={flow.id}>{flow.name} · v{flow.version}</option>)}</select>{!flows.data?.items.length && <span className="field-hint">{t('noFlows')}</span>}</div>
-    <div className="field"><label htmlFor="execution-profile">{t('parameterProfile')}</label><input id="execution-profile" value={profile} onChange={(event) => setProfile(event.target.value)} maxLength={64} required disabled={action.busy} /><span className="field-hint">{t('parameterProfileHint')}</span></div>
+    {selectedFlow && <CatalogInputs projectId={projectId} flow={selectedFlow} values={parameters} disabled={action.busy} onChange={setParameters} onReady={setCatalogReady} />}
     <div className="field"><label htmlFor="execution-total">{t('targetCount')}</label><input id="execution-total" type="number" min={1} max={2000} value={total} onChange={(event) => setTotal(event.target.value)} required disabled={action.busy} /></div>
     <div className="field"><label htmlFor="execution-concurrency">{t('concurrency')}</label><input id="execution-concurrency" type="number" min={1} max={64} value={concurrency} onChange={(event) => setConcurrency(event.target.value)} required disabled={action.busy} /></div>
     <div className="field"><label htmlFor="execution-breaker">{t('circuitBreaker')}</label><input id="execution-breaker" type="number" min={0} max={100} value={breaker} onChange={(event) => setBreaker(event.target.value)} required disabled={action.busy} /></div>

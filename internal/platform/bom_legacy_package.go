@@ -99,6 +99,19 @@ func analyzeLegacyBOMTx(ctx context.Context, tx *sql.Tx, project *ProjectSummary
 			pkg.Rows["server/server_ports.csv"] = append(pkg.Rows["server/server_ports.csv"], BOMPackageRow{File: "legacy/wide.csv", Line: line, Values: v})
 		}
 	}
+	hardwareIssues, hardwareErr := validateServerModelHardware(ctx, tx, project.ID, pkg)
+	if hardwareErr != nil {
+		return nil, nil, nil, hardwareErr
+	}
+	for i := range hardwareIssues {
+		for _, row := range pkg.Rows["server/servers.csv"] {
+			if row.Line == hardwareIssues[i].BOMLineNo {
+				hardwareIssues[i].BOMLineNo = folded.ServerLines[row.Values["sn"]]
+				break
+			}
+		}
+	}
+	out.Issues = append(out.Issues, hardwareIssues...)
 	if !out.Idempotent && modelVersionsComplete(folded, modelVersions) {
 		_, err = buildBOMMaterials(ctx, tx, project.ID, pkg)
 		if err != nil {

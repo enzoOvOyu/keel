@@ -46,3 +46,7 @@ Monaco 当前提供 YAML 语法高亮、真实服务端严格校验与双版本�
 2026-10-23：定向 Go 测试 `go test ./internal/execution -run TestFlowWorkbench -count=1` 通过；前端生成契约、TypeScript 与 Vite 构建通过。最终真实 API/Worker/PostgreSQL/浏览器证据目录 `/tmp/keel-flows-bkvytiei`：严格校验、v1/v2/diff、回滚生成 v3、同请求幂等、陈旧版本与错误复用拒绝、原版本保留、Kea owned 流禁止通用修改/回滚、Viewer 只读、跨项目404、统一 worker 冻结版本/目标/参数并完成；浏览器真实 Monaco 编辑/发布 v4、DiffEditor、URL Tab、Intel 字体、显式目标运行均通过，无页面错误。隔离库/3104进程/临时凭据已清理。
 
 前两次中断仅为 Playwright 对 Monaco 原生 EditContext 隐藏辅助 textbox 和本地化按钮标签的错误选择器；已改为渲染视图与作用域 submit 按钮，未放宽产品权限或业务断言。视觉复核后另补 Tab 样式与强制双栏 diff；最终组合前端构建由主代理再执行。原图本机副本 `/private/tmp/keel-flow-revisions.png`，最终通过图位于上述证据目录。代码尚未由本子任务提交/推送/部署；由主代理合并发布，不能将此记录当作3000运行版本证据。
+
+## A4 参数目录接线
+
+2026-10-24：Flow 工作区运行弹窗与执行列表共用 CatalogInputs/ParamSelect，版本类参数不再提供自由文本入口。实时检查和创建事务均消费同一目录/批准制品元数据；提交时实际核对固定对象字节并冻结定义/依赖/摘要/对象版本。详见 [CATALOG-ADMISSION](CATALOG-ADMISSION.md)。完整兼容矩阵治理、模板和真实目标准入仍未闭环。实际验证以 HANDOFF 最新记录为准。

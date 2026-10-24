@@ -80,3 +80,16 @@ func TestFlowWorkbenchRejectsAliasesAndAcceptsUnfilledInputSchema(t *testing.T) 
 		t.Fatal("execution may not omit the required input")
 	}
 }
+
+func TestFlowWorkbenchCatalogInputNames(t *testing.T) {
+	source := strings.Replace(workbenchYAML, "profile:", "driver.version:", 1)
+	out, e := ValidateFlow(FlowValidationInput{YAMLSource: source})
+	if e != nil || out.Parameters["driver.version"] != "smoke" {
+		t.Fatalf("catalog key was not preserved: %+v %v", out, e)
+	}
+	for _, source := range []string{strings.Replace(workbenchYAML, "profile:", "driver/version:", 1), strings.Replace(workbenchYAML, "id: read", "id: task.read", 1)} {
+		if _, e = ValidateFlow(FlowValidationInput{YAMLSource: source}); e == nil {
+			t.Fatal("unsafe input or changed task identifier admitted")
+		}
+	}
+}

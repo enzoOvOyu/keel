@@ -67,3 +67,17 @@ SSE 每条连接在25秒内轮换，低于现有 API 的30秒写超时；游标�
 从主目录 `3b0385c` 接续已保存 `4805e7f`；比较历史工作树后确认后端仅格式化差异，采用已保存的完整前端成果。所有修改统一在 `/opt/keel`，保留昨天独立工作树和未接入重跑草稿。既有Flow/网络接口与新交付导出导航并存，无数据库迁移。
 
 实际通过：execution/httpapi race、相关Go vet、前端契约生成/TypeScript/Vite构建。最终真实API/PostgreSQL/worker/浏览器证据 `/tmp/keel-views-n_wiaccz`，覆盖500目标暂停样本的概览/服务端过滤/虚拟矩阵、五Tab懒加载/URL/尝试详情、2目标真实worker运行与4条回执、冻结变量/输出审计、跨执行/项目隔离、丢回执unknown保持未完成、SSE初始快照/游标失效重同步/登出撤权关闭。仅连通性样本，非2000/10000吞吐验收；无真实Agent/SSH/stdout或文件制品。隔离进程/库/临时凭据已清理，未部署3000。
+
+
+## 主目录接续：FR-1.4 定向重跑（2026-10-24）
+
+按最新 IMPLEMENTATION-PLAN 步骤 A3／WP-1.4 接续已保存的独立草稿，在 `/opt/keel` 完成事务、正式契约、生成类型和共享组件页面接线；上文暂停记录描述的是当时事实。
+
+- `POST /projects/{id}/executions/{executionId}/rerun/preview` 返回失败目标或显式所选目标的候选集合、排除原因、来源版本及集合摘要；只读候选计算，不创建执行。
+- `POST .../rerun` 必须提交预览摘要、来源状态版本、原因及幂等键。复用 Create 的当前会话/项目/角色、参数目录准入、目标登记与执行创建事务；复核来源目标版本、Flow 摘要和冻结参数。新执行复用原 FlowVersion 与输入，记录 `snapshot.rerun_source`、outbox 与审计；原执行/尝试不改写。同请求并发仅创建一个新执行，错误复用键拒绝。
+- 只接受已经终态的通用 `sim` Flow；unknown、活动尝试、缺任务证据或成功/失败缺 Runner 回执的目标不能重跑。显式选择有排除项时整次拒绝，失败模式只取已明确失败且证据完整的目标。Kea/fabric 和未支持的 NCCL 等任务不能通过通用重跑绕过业务准入。
+- 页面沿用 shadcn/ui 和 ActionDialog。执行详情提供“仅重跑失败目标”，目标尝试抽屉提供“重跑此目标”；预览确切集合、参数和排除项，原因必填，提交成功跳转新执行；关联 Tab 可回到来源执行。
+
+实际验证：相关 execution/httpapi Go race、vet、前端契约生成/组件边界/TypeScript/Vite、设计引用检查通过。真实 API/隔离 PostgreSQL/Worker/浏览器证据 `/tmp/keel-views-y5o63831`：单目标与失败集合、来源不变、并发幂等/错误复用、陈旧版本/摘要、空集合/活动来源/外目标/跨项目/Viewer/unknown 拒绝、两个 UI 入口及来源链接；既有五 Tab、500目标暂停渲染样本、2目标实际运行、回执导出和 SSE 撤权回归通过。首轮新增脚本误从 overview 摘要读取 snapshot，修正为正式 relations 接口后通过；首轮不计通过。
+
+无迁移、部署或真机操作。通用能力仍限已实现的模拟任务；Agent/SSH、真实文件分发、rolling/分组与 NCCL GroupAttempt、完整 FR-1 和 P1 退出条件仍未完成。Go 检查沿用既有 overlay 排除原026/fabric_precheck草稿，未修改这些文件。

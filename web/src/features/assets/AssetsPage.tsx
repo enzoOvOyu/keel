@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { TableCell, TableRow } from '../../components/ui/table'
 import { ProjectWorkspace, canManageProject, useProject } from '../../components/ProjectWorkspace'
 import { ActionDialog, ActionError, Pagination, PermissionDenied, SuccessNotice } from '../../components/Management'
 import { useAction } from '../../lib/management'
@@ -30,7 +31,7 @@ function BomImportDialog({ projectId, onClose, onDone }: { projectId: string; on
       <p className="impact-notice">{t('bomLegacySummary', { batch: preview.bom_import_batch_id, machines: preview.machines, ports: preview.ports })}</p>
       {preview.idempotent && <p className="impact-notice">{t('bomPackageAlreadyCommitted')}</p>}
       <div className="table-scroll" tabIndex={0} role="region" aria-label={t('bomPackageIssues')}><table className="data-table"><thead><tr><th scope="col">{t('bomIssueSeverity')}</th><th scope="col">{t('bomIssueFile')}</th><th scope="col">{t('bomIssueLine')}</th><th scope="col">{t('bomIssueField')}</th><th scope="col">{t('bomIssueCode')}</th></tr></thead>
-        <tbody>{preview.issues.map((issue, index) => <tr key={index}><td>{issue.severity}</td><td className="mono-value">{issue.file}</td><td>{issue.bom_line_no || '—'}</td><td className="mono-value">{issue.field || '—'}</td><td className="mono-value">{issue.code}</td></tr>)}</tbody></table>
+        <tbody>{preview.issues.map((issue, index) => <Fragment key={index}><tr><td>{issue.severity}</td><td className="mono-value">{issue.file}</td><td>{issue.bom_line_no || '—'}</td><td className="mono-value">{issue.field || '—'}</td><td className="mono-value">{issue.code}</td></tr>{issue.model_version_ref && <TableRow><TableCell colSpan={5} className="ui:whitespace-normal ui:break-words">{t('bomModelDifference', { model: issue.model_version_ref, expected: issue.expected ?? '—', actual: issue.actual ?? '—' })}</TableCell></TableRow>}</Fragment>)}</tbody></table>
         {!preview.issues.length && <p className="table-loading">{t('bomPackageNoIssues')}</p>}</div>
       <div className="table-actions"><button type="button" className="secondary-button" disabled={action.busy || !preview.issues.length} onClick={() => downloadBomIssues(preview.bom_import_batch_id, preview.issues)}>{t('bomExportIssues')}</button>
         <button type="button" className="primary-button" disabled={action.busy || !preview.can_commit} onClick={() => void runCommit()}>{t('bomCommit')}</button></div>
@@ -40,8 +41,8 @@ function BomImportDialog({ projectId, onClose, onDone }: { projectId: string; on
 
 function downloadBomIssues(batch: string, issues: BomPackageIssue[]) {
   const cell = (value: string) => `"${value.replaceAll('"', '""')}"`
-  const rows = [['severity', 'file', 'bom_line_no', 'field', 'code'].join(','), ...issues.map((issue) =>
-    [issue.severity, issue.file, String(issue.bom_line_no ?? ''), issue.field ?? '', issue.code].map(cell).join(','))]
+  const rows = [['severity', 'file', 'bom_line_no', 'field', 'code', 'model_version_ref', 'expected', 'actual'].join(','), ...issues.map((issue) =>
+    [issue.severity, issue.file, String(issue.bom_line_no ?? ''), issue.field ?? '', issue.code, issue.model_version_ref ?? '', issue.expected ?? '', issue.actual ?? ''].map(cell).join(','))]
   const blob = new Blob(['\uFEFF', rows.join('\r\n'), '\r\n'], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -72,7 +73,7 @@ function BomPackageDialog({ projectId, onClose, onDone }: { projectId: string; o
       {preview.idempotent && <p className="impact-notice">{t('bomPackageAlreadyCommitted')}</p>}
       {preview.derivations?.['port.sub_type'] && <p className="impact-notice">{t('bomPortSubtypeSource')}</p>}
       <div className="table-scroll" tabIndex={0} role="region" aria-label={t('bomPackageIssues')}><table className="data-table"><thead><tr><th scope="col">{t('bomIssueSeverity')}</th><th scope="col">{t('bomIssueFile')}</th><th scope="col">{t('bomIssueLine')}</th><th scope="col">{t('bomIssueField')}</th><th scope="col">{t('bomIssueCode')}</th></tr></thead>
-        <tbody>{preview.issues.map((issue, index) => <tr key={index}><td>{issue.severity}</td><td className="mono-value">{issue.file}</td><td>{issue.bom_line_no || '—'}</td><td className="mono-value">{issue.field || '—'}</td><td className="mono-value">{issue.code}</td></tr>)}</tbody></table>
+        <tbody>{preview.issues.map((issue, index) => <Fragment key={index}><tr><td>{issue.severity}</td><td className="mono-value">{issue.file}</td><td>{issue.bom_line_no || '—'}</td><td className="mono-value">{issue.field || '—'}</td><td className="mono-value">{issue.code}</td></tr>{issue.model_version_ref && <TableRow><TableCell colSpan={5} className="ui:whitespace-normal ui:break-words">{t('bomModelDifference', { model: issue.model_version_ref, expected: issue.expected ?? '—', actual: issue.actual ?? '—' })}</TableCell></TableRow>}</Fragment>)}</tbody></table>
         {!preview.issues.length && <p className="table-loading">{t('bomPackageNoIssues')}</p>}</div>
       <div className="table-actions"><button type="button" className="secondary-button" disabled={action.busy || !preview.issues.length} onClick={() => downloadBomIssues(preview.manifest.bom_import_batch_id, preview.issues)}>{t('bomExportIssues')}</button>
       <button type="button" className="primary-button" disabled={action.busy || !preview.can_commit} onClick={() => void runCommit()}>{t('bomCommit')}</button></div>

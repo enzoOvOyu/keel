@@ -1,3 +1,4 @@
+import {setNonce} from 'get-nonce'
 import {TooltipProvider} from '@/components/ui/tooltip'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -11,6 +12,9 @@ import './styles/app.css'
 import './styles/management.css'
 import './styles/workspace.css'
 import './styles/shadcn.css'
+
+const styleNonce=document.querySelector<HTMLMetaElement>('meta[name="keel-style-nonce"]')?.content
+if(styleNonce)setNonce(styleNonce)
 
 const storedTheme = readPreference('keel.theme')
 document.documentElement.dataset.theme = storedTheme === 'dark' || storedTheme === 'light'

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Real PostgreSQL media-library checks: lifecycle, uniqueness, approval gate, scope isolation."""
+import hashlib
 import http.client
 import http.cookies
 import json
@@ -32,10 +33,10 @@ class Client:
         if method != 'GET':
             headers['Idempotency-Key'] = key or secrets.token_hex(16)
         if body is not None:
-            headers['Content-Type'] = 'application/json'
+            headers['Content-Type'] = 'application/octet-stream' if isinstance(body,bytes) else 'application/json'
         conn = http.client.HTTPConnection(base.hostname, base.port, timeout=60, source_address=(self.ip, 0))
         try:
-            conn.request(method, '/api/v1' + path, body=None if body is None else json.dumps(body), headers=headers)
+            conn.request(method, '/api/v1' + path, body=None if body is None else body if isinstance(body,bytes) else json.dumps(body), headers=headers)
             response = conn.getresponse()
             status = response.status
             raw = response.read()
@@ -68,14 +69,15 @@ admin = Client()
 admin.login(credentials['username'], credentials['password'])
 project = admin.call('POST', '/projects', {'name': '介质库隔离验收', 'slug': prefix}, code=201)
 path = '/projects/' + project['id']
-digest = 'a' * 64
+payload=b'keel verified driver fixture'
+digest=hashlib.sha256(payload).hexdigest()
 
 
 def register(name='nvidia-driver', version='580.82.07', manifest='minio://media/driver-580.tar.gz', code=201):
     return admin.call('POST', path + '/media', {
         'type': 'driver', 'name': name, 'version': version, 'sha256': digest,
-        'size': 409600, 'arch': 'amd64', 'os_scope': 'ubuntu22.04',
-        'deps': {'kernel': '5.15', 'cuda': '13.1'}, 'manifest_ref': manifest}, code=code)
+        'size': len(payload), 'arch': 'amd64', 'os_scope': 'ubuntu22.04',
+        'deps': {'compatibility': {'source': 'media-test-fixture', 'version': 'fixture-1', 'report_ref': 'report:fixture-1', 'requires': {'os.kernel': ['5.15'], 'cuda.version': ['13.1']}}}, 'manifest_ref': manifest}, code=code)
 
 
 # F-1.6: registration with unique (scope, type, name, version); strict validation.
@@ -87,12 +89,14 @@ passed('Media registration uniqueness and digest validation')
 
 # Lifecycle: uploaded -> verified needs a manifest; approval requires a different reviewer.
 admin.call('POST', path + f'/media/{media["id"]}/transition', {'state': 'approved'}, code=409)
+admin.call('POST', path + f'/media/{media["id"]}/transition', {'state': 'verified'}, code=409)
+admin.call('PUT', path + f'/media/{media["id"]}/content',payload)
 admin.call('POST', path + f'/media/{media["id"]}/transition', {'state': 'verified'}, code=200)
 admin.call('POST', path + f'/media/{media["id"]}/transition', {'state': 'verified'}, code=409)
 # Self-approval is a review violation: the uploader cannot approve.
 self_approve = admin.call('POST', path + f'/media/{media["id"]}/transition', {'state': 'approved'}, code=409)
 assert self_approve['code'] == 'MEDIA_SELF_APPROVAL', self_approve
-passed('Verification requires a manifest and blocks self-approval')
+passed('Verification requires actual bytes and blocks self-approval')
 
 # A second reviewer approves; then retirement is irreversible.
 pwd = secrets.token_urlsafe(24)

@@ -21,6 +21,7 @@ import (
 )
 
 type Service struct {
+	MediaStore   *platform.Store
 	DB           *sql.DB
 	KeaStore     *platform.Store
 	NetworkStore *platform.Store
@@ -100,14 +101,23 @@ type CreateInput struct {
 	CircuitBreakerPercent int            `json:"circuit_breaker_percent"`
 	Mode                  string         `json:"mode"`
 }
+type RerunSource struct {
+	ExecutionID   string `json:"execution_id"`
+	StateVersion  int64  `json:"state_version"`
+	Mode          string `json:"mode"`
+	SelectionHash string `json:"selection_hash"`
+	ChangeReason  string `json:"change_reason"`
+}
 type Snapshot struct {
-	Mode          string         `json:"mode"`
-	Flow          FlowVersion    `json:"flow"`
-	Targets       []SimTarget    `json:"targets"`
-	Parameters    map[string]any `json:"parameters"`
-	TargetSetHash string         `json:"target_set_hash"`
-	Admission     string         `json:"admission"`
-	FrozenAt      time.Time      `json:"frozen_at"`
+	Catalog       []platform.CatalogSelection `json:"catalog,omitempty"`
+	RerunSource   *RerunSource                `json:"rerun_source,omitempty"`
+	Mode          string                      `json:"mode"`
+	Flow          FlowVersion                 `json:"flow"`
+	Targets       []SimTarget                 `json:"targets"`
+	Parameters    map[string]any              `json:"parameters"`
+	TargetSetHash string                      `json:"target_set_hash"`
+	Admission     string                      `json:"admission"`
+	FrozenAt      time.Time                   `json:"frozen_at"`
 }
 type Execution struct {
 	ID                    string         `json:"id"`
@@ -205,6 +215,7 @@ type Event struct {
 }
 
 var identifier = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
+var inputIdentifier = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,118}$`)
 var opaqueID = regexp.MustCompile(`^[a-f0-9]{32}$`)
 
 func failure(status int, code, message string) error {
@@ -255,7 +266,7 @@ func (d Definition) Validate() error {
 		return invalid("require 1..32 tasks and at most 32 inputs")
 	}
 	for k, in := range d.Inputs {
-		if !identifier.MatchString(k) || len(k) > 64 {
+		if !inputIdentifier.MatchString(k) {
 			return invalid("invalid input key")
 		}
 		if in.Type != "string" && in.Type != "number" && in.Type != "boolean" && in.Type != "enum" {
