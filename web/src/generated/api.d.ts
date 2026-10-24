@@ -1842,9 +1842,7 @@ export interface components {
             panel_layout: {
                 [key: string]: unknown;
             };
-            bom_expect: {
-                [key: string]: unknown;
-            };
+            bom_expect: components["schemas"]["ModelBOMExpectation"];
             default_role_plan: {
                 [key: string]: unknown;
             };
@@ -1865,9 +1863,7 @@ export interface components {
             panel_layout?: {
                 [key: string]: unknown;
             };
-            bom_expect?: {
-                [key: string]: unknown;
-            };
+            bom_expect?: components["schemas"]["ModelBOMExpectation"];
             default_role_plan?: {
                 [key: string]: unknown;
             };
@@ -3341,6 +3337,13 @@ export interface components {
             /** @enum {string} */
             kind: "rack" | "server" | "compute-tray" | "switch" | "nic" | "gpu" | "psu" | "bmc" | "optic_module";
         };
+        ModelBOMExpectation: {
+            nic_count?: number;
+            /** @description Optional server permanent-MAC OUI allowlist; case-insensitive, duplicates rejected case-insensitively. Omission supplies no rule. Imported observations never supply expectations automatically. */
+            mac_prefixes?: string[];
+        } & {
+            [key: string]: unknown;
+        };
         PublishModelVersionInput: {
             /**
              * Format: int64
@@ -3360,9 +3363,7 @@ export interface components {
             panel_layout?: {
                 [key: string]: unknown;
             };
-            bom_expect?: {
-                [key: string]: unknown;
-            };
+            bom_expect?: components["schemas"]["ModelBOMExpectation"];
             default_role_plan?: {
                 [key: string]: unknown;
             };

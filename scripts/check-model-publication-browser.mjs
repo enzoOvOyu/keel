@@ -98,6 +98,37 @@ try {
  await page.screenshot({ path: process.env.KEEL_WORKSPACE_EVIDENCE_DIR + '/bom-hardware-difference.png', fullPage: true })
  await page.getByRole('dialog').getByRole('button', { name: '取消', exact: true }).click()
  console.log('PASS real legacy BOM precheck refuses MAC-derived NIC inventory; UI shows version/expected/actual, disables commit and exports the full difference CSV')
+
+ // A separate specification checks MAC identity without claiming physical inventory.
+ const macModel = await call('POST', base, { name: 'MAC-rule-' + suffix, kind: 'server' }, 201)
+ const macPath = base + '/' + macModel.id
+ for (const value of [null, [], ['aa:bb'], ['aa:bb:cc', 'AA:BB:CC']]) {
+  await call('POST', macPath + '/versions', { bom_expect: { mac_prefixes: value } }, 400)
+  await call('POST', base + '/import', { model_name: 'Invalid-' + suffix, source_host: 'fixture', hw_spec: { kind: 'server' }, bom_expect: { mac_prefixes: value } }, 400)
+ }
+ const macVersion = await call('POST', macPath + '/versions', { bom_expect: { mac_prefixes: ['00:11:22'] } }, 201)
+ await page.getByRole('button', { name: '宽表 BOM 兼容导入', exact: true }).click()
+ await page.locator('#bom-legacy-batch').fill(`BOM-BATCH-${project.slug}-20261024-2`)
+ await page.locator('#bom-legacy-file').setInputFiles({ name: 'mac.csv', mimeType: 'text/csv', buffer: Buffer.from(`SN,hostname,model_name,MAC,port_name,rail\nUI-MAC-1,ui-mac-1,MAC-rule-${suffix},aa:bb:cc:33:44:55,p1,0\n`) })
+ const macResponse = page.waitForResponse(r => r.request().method() === 'POST' && r.url().includes('/bom/legacy/preview'))
+ await page.getByRole('dialog').getByRole('button', { name: '预检', exact: true }).click()
+ const macPreview = await (await macResponse).json()
+ assert.equal(macPreview.can_commit, false); assert(!macPreview.preview_token)
+ const macIssues = macPreview.issues.filter(i => i.code === 'model_mac_prefix_mismatch')
+ assert(macIssues.length >= 1)
+ for (const issue of macIssues) {
+  assert.equal(issue.model_version_ref, macVersion.id); assert.equal(issue.bom_line_no, 2)
+  assert.equal(issue.expected, '00:11:22'); assert.equal(issue.actual, 'aa:bb:cc:33:44:55')
+ }
+ await page.getByText('model_mac_prefix_mismatch', { exact: false }).first().waitFor()
+ assert(await page.getByRole('button', { name: '确认导入', exact: true }).isDisabled())
+ const macDownload = page.waitForEvent('download')
+ await page.getByRole('button', { name: '导出问题 CSV', exact: true }).click()
+ const macCSV = await readFile(await (await macDownload).path(), 'utf8')
+ for (const text of [macVersion.id, '00:11:22', 'aa:bb:cc:33:44:55']) assert(macCSV.includes(text))
+ await page.screenshot({ path: process.env.KEEL_WORKSPACE_EVIDENCE_DIR + '/bom-mac-prefix-difference.png', fullPage: true })
+ await page.getByRole('dialog').getByRole('button', { name: '取消', exact: true }).click()
+ console.log('PASS MAC-prefix publish/import validation and real wide-BOM mismatch blocking with source line, immutable model version, disabled commit and exported CSV')
  await call('POST', modelPath + '/retire', {})
  const retired = await call('POST', base + '/import', scan, 409); assert.equal(retired.code, 'MODEL_RETIRED')
  assert.equal((await call('GET', modelPath + '/versions')).items.length, 2)

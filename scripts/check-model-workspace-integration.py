@@ -23,7 +23,7 @@ try:
  env=os.environ.copy();env.update(KEEL_DATABASE_URL=dsn+database+'?sslmode=disable',KEEL_TEST_DATABASE_URL=dsn+unit_database+'?sslmode=disable',KEEL_ENV='development',KEEL_INSECURE_DEV_COOKIE='true',KEEL_PUBLIC_ORIGINS='http://127.0.0.1:3102',KEEL_LISTEN_ADDR='127.0.0.1:3102',KEEL_STATIC_DIR=str(root/'web/dist'))
  for target in ['api','admin']:checked(['go','build','-o',str(work/('keel-'+target)),'./cmd/keel-'+target],env)
  if not args.publication_only:
-  output=checked(['go','test','-race','./internal/platform','-run','TestModelPayloadCanonicalHash|TestModelPublicationPreservesAndSeals|TestServerModelHardware|TestModelNICCount|TestBOMPackage|TestLegacyBOMAtomic|TestSwitchModel','-count=1'],env);(work/'go-integration.log').write_text(output);print(output,flush=True)
+  output=checked(['go','test','-race','./internal/platform','-run','TestModelPayloadCanonicalHash|TestModelPublicationPreservesAndSeals|TestServerModelHardware|TestModelNICCount|TestModelMACPrefix|TestBOMPackage|TestLegacyBOMAtomic|TestSwitchModel','-count=1'],env);(work/'go-integration.log').write_text(output);print(output,flush=True)
  checked([str(work/'keel-admin'),'migrate'],env)
  pw=secrets.token_urlsafe(28);secret=work/'password';secret.write_text(pw)
  checked([str(work/'keel-admin'),'init-admin','--username','modeladmin','--display-name','Model Admin','--password-file',str(secret)],env)

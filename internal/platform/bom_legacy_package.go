@@ -113,7 +113,8 @@ func analyzeLegacyBOMTx(ctx context.Context, tx *sql.Tx, project *ProjectSummary
 	}
 	out.Issues = append(out.Issues, hardwareIssues...)
 	if !out.Idempotent && modelVersionsComplete(folded, modelVersions) {
-		_, err = buildBOMMaterials(ctx, tx, project.ID, pkg)
+		materials, buildErr := buildBOMMaterials(ctx, tx, project.ID, pkg)
+		err = buildErr
 		if err != nil {
 			var build *BOMBuildError
 			if errors.As(err, &build) {
@@ -130,6 +131,12 @@ func analyzeLegacyBOMTx(ctx context.Context, tx *sql.Tx, project *ProjectSummary
 			} else {
 				return nil, nil, nil, err
 			}
+		} else {
+			macIssues, macErr := validateBOMMACPrefixes(ctx, tx, materials)
+			if macErr != nil {
+				return nil, nil, nil, macErr
+			}
+			out.Issues = append(out.Issues, macIssues...)
 		}
 	}
 	hostnames := map[string]string{}

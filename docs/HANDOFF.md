@@ -410,3 +410,15 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 **§36 发布完成**：代码 `369223df902d46fd872b0fbea5c42c559fe98463` 已正常推送至GitHub，从该SHA的git archive构建镜像，镜像ID `sha256:fa0c7463751d85559ed9b0cf5fd6e48e703b5d0cc99e3efb512489ff544d0399`，未包含旧草稿与秘密配置。候选镜像在回环3108使用既有受限连接通过真实登录、原参数/型号/介质/执行/Flow五页与全局目录/全局介质七页、全局只读API作用域、完整版本SHA、匿名401和控制台检查。随后于 `2026-10-24T15:58:39.149086+00:00` 切换3000且healthy，切换后同套七页/API/版本/控制台检查再次通过，healthz返回完整代码SHA。
 
 无数据库迁移，schema仍37条，保留兼容旧镜像fa32cbd；未重置或恢复运行库，未变更数据卷、worker启用范围或其他服务。.env仍600，切换前.env、私有发布状态与截图在 `/home/ubuntu/.local/state/keel/releases/20261024T155654Z`，不进Git。候选容器与临时候选配置已清理；两份旧026/fabric_precheck草稿原样保留未暂存。GitHub Actions run40109273783记录时in_progress，尚不声称本次CI通过；上一fa32cbd已success。后续文档提交不改变3000对应的上述功能代码SHA。
+
+## 37. A4 / WP-1.12：固定型号版本的 BOM MAC 前缀校验（2026-10-24）
+
+工作目录 `/opt/keel`，分支 `dev/p1-network-bom`；沿用§36已发布版本，不扩展后置Agent/G1/P3/P4依赖。新增可选 `bom_expect.mac_prefixes` 三字节 OUI 白名单，1–256项，大小写兼容、重复项大小写无关拒绝，空/null/通配符/不完整项400。发布与扫描草稿共用验证；OpenAPI及生成类型同步，不从导入观测反推独立规格。
+
+逐实体包和宽表预检/提交复核复用物料写入解析的machineUID，把NIC汇总和服务器端口的永久MAC按固定服务器型号版本校验；交换机不套用服务器规则，原MAC逐口/汇总交叉检查保留。差异BLOCK携带文件/行/mac/版本/期望/实际，拒发提交令牌，提交仍重新校验。宽表保留CSV源行并继续禁止MAC推断物理NIC库存。无规则兼容旧版本；声明规则但无MAC只给未核验WARN，不冒充PASS；没有数据库迁移或历史绑定修改。
+
+实际完成根 `npm run build`（日志 `/tmp/keel-model-mac-build.log`），补齐扫描输入正式契约后执行 `npm run check`；新增前缀校验Go用例通过。完整真实隔离测试命令 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py` 最终证据 `/tmp/keel-models-rteho1xx`：平台PG/race回归9.872s通过，含新版本不改变旧包、不同前缀版本BLOCK、SN/行/已有机器UID归属、同时改NIC汇总与逐口MAC仍BLOCK，以及有效格式令牌不能绕过提交；原型号HTTP/扫描导入HTTP、原扫描浏览器七组、完整发布/并发/权限浏览器均通过。新增真实宽表MAC差异预检、源行2、版本/期望/实际、禁用确认及CSV导出通过，截图 bom-mac-prefix-difference.png 已视觉复核。测试自动清理自有API/两测试库和临时凭据，不触碰运行库。前两轮失败来自新增夹具碰到既有rail与NIC汇总约束，修正夹具后最终整轮通过；未放宽产品门禁。
+
+继续用既有Go overlay排除两份旧fabric_precheck/026草稿，原文件原样未暂存；本轮硬件使用独立fixture，不声明真实设备验收。上一轮369223d的GitHub Actions run40109273783已查询completed/success。本节发布结果、vet及最终检查在完成后补记。FR-14/WP-1.12/P1仍partial；GPU/其他部件、面板/角色、显式升级失效和G1等按依赖后续推进。
+
+§37提交前检查补记：`npm run check` 与 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json go vet ./internal/platform ./internal/httpapi` 均实际退出0，日志分别 `/tmp/keel-model-mac-types.log`、`/tmp/keel-model-mac-vet.log`；设计、Node语法及diff检查通过，GitHub SSH认证成功。

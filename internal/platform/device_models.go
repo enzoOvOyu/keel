@@ -300,6 +300,15 @@ func validateModelPayload(input PublishModelVersionInput) error {
 			return apiError(400, "VALIDATION_ERROR", "bom_expect.nic_count must be a nonnegative integer")
 		}
 	}
+	if value, ok := input.BomExpect["mac_prefixes"]; ok {
+		raw, err := json.Marshal(map[string]any{"mac_prefixes": value})
+		if err != nil {
+			return apiError(400, "VALIDATION_ERROR", "Invalid bom_expect.mac_prefixes")
+		}
+		if _, err := modelMACPrefixes(raw); err != nil {
+			return apiError(400, "VALIDATION_ERROR", "Invalid bom_expect.mac_prefixes: "+err.Error())
+		}
+	}
 	seen := map[int]bool{}
 	for _, slot := range input.Slots {
 		if slot.SlotNo < 1 || slot.SlotNo > 1024 {

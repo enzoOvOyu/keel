@@ -41,7 +41,7 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 		publish := PublishModelVersionInput{HwSpec: map[string]any{"name": kind}}
 		if kind == "server" {
 			publish.ExpectedTopology = map[string]any{"rail_count": 1}
-			publish.BomExpect = map[string]any{"nic_count": 1}
+			publish.BomExpect = map[string]any{"nic_count": 1, "mac_prefixes": []string{"AA:BB:CC"}}
 			publish.Slots = []ModelSlot{{SlotNo: 1, PcieSlot: "PCIe-1", ExpectNicModel: "test-nic", PanelPort: "1", DefaultRole: "compute"}}
 		}
 		if kind == "nic" {
@@ -102,13 +102,61 @@ func TestBOMPackageCommitAtomicIdentityAndIdempotency(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	newPrefix, err := s.PublishModelVersion(ctx, actor, project, serverModelID, PublishModelVersionInput{BomExpect: map[string]any{"mac_prefixes": []string{"00:11:22"}}}, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	prefixOnly, err := s.PublishModelVersion(ctx, actor, project, serverModelID, PublishModelVersionInput{BomExpect: map[string]any{"mac_prefixes": []string{"aa:bb:cc"}}}, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
 	pinned, err := s.PreviewBOMPackage(ctx, actor, project, files)
 	if err != nil || !pinned.CanCommit {
 		t.Fatalf("new version changed pinned BOM: %+v %v", pinned, err)
 	}
+	for _, parent := range []string{"NIC-1", "2", legacyMachineID} {
+		alias := map[string][]byte{}
+		for name, data := range files {
+			alias[name] = append([]byte(nil), data...)
+		}
+		alias["server/servers.csv"] = bytes.ReplaceAll(alias["server/servers.csv"], []byte(modelIDs["server"]), []byte(prefixOnly.ID))
+		alias["server/server_components.csv"] = bytes.ReplaceAll(alias["server/server_components.csv"], []byte(",SN-1,nic,"), []byte(","+legacyMachineID+",nic,"))
+		alias["server/server_ports.csv"] = bytes.ReplaceAll(alias["server/server_ports.csv"], []byte(",NIC-1,1,"), []byte(","+parent+",1,"))
+		if parent == legacyMachineID {
+			// Direct server ports do not belong to the separate NIC inventory row.
+			alias["server/server_components.csv"] = bytes.ReplaceAll(alias["server/server_components.csv"], []byte("aa:bb:cc:dd:ee:01"), nil)
+		}
+		rehashBOMFixture(t, alias)
+		checked, checkErr := s.PreviewBOMPackage(ctx, actor, project, alias)
+		if checkErr != nil || !checked.CanCommit {
+			t.Fatalf("valid resolved MAC identity %s: %+v %v", parent, checked, checkErr)
+		}
+		// Change both the component summary and authoritative port facts so the
+		// independent MAC cross-check remains satisfied. The model must still block.
+		for _, name := range []string{"server/server_components.csv", "server/server_ports.csv"} {
+			alias[name] = bytes.ReplaceAll(alias[name], []byte("aa:bb:cc:dd:ee:01"), []byte("00:11:22:dd:ee:01"))
+		}
+		rehashBOMFixture(t, alias)
+		checked, checkErr = s.PreviewBOMPackage(ctx, actor, project, alias)
+		found := false
+		if checked != nil {
+			for _, issue := range checked.Issues {
+				if issue.Code == "model_mac_prefix_mismatch" && issue.ModelVersionRef == prefixOnly.ID {
+					found = true
+				}
+			}
+		}
+		if checkErr != nil || !found || checked.CanCommit || checked.PreviewToken != "" {
+			t.Fatalf("MAC rule bypass via parent %s: %+v %v", parent, checked, checkErr)
+		}
+		if _, err := s.CommitBOMPackage(ctx, actor, project, alias, bomPreviewToken(actor, project.ID, alias), "test"); err == nil {
+			t.Fatal("MAC mismatch committed with forged token")
+		}
+	}
 	for _, tc := range []struct{ name, before, after, file, code string }{
 		{"slot", ",1,NIC-1,", ",9,NIC-1,", "server/server_components.csv", "model_nic_slot_invalid"},
 		{"version count", modelIDs["server"], newer.ID, "server/servers.csv", "model_nic_count_mismatch"},
+		{"version prefix", modelIDs["server"], newPrefix.ID, "server/servers.csv", "model_mac_prefix_mismatch"},
 	} {
 		t.Run("server hardware "+tc.name, func(t *testing.T) {
 			bad := map[string][]byte{}

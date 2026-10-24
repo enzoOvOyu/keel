@@ -179,13 +179,20 @@ func analyzeBOMPackageTx(ctx context.Context, tx *sql.Tx, project *ProjectSummar
 		}
 	}
 	if !hasBlock && !out.Idempotent {
-		if _, planErr := buildBOMMaterials(ctx, tx, project.ID, pkg); planErr != nil {
+		materials, planErr := buildBOMMaterials(ctx, tx, project.ID, pkg)
+		if planErr != nil {
 			var buildErr *BOMBuildError
 			if errors.As(planErr, &buildErr) {
 				pkg.Issues = append(pkg.Issues, buildErr.Issue)
 			} else {
 				return nil, nil, planErr
 			}
+		} else {
+			macIssues, err := validateBOMMACPrefixes(ctx, tx, materials)
+			if err != nil {
+				return nil, nil, err
+			}
+			pkg.Issues = append(pkg.Issues, macIssues...)
 		}
 	}
 	out.Issues = pkg.Issues

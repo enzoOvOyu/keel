@@ -65,3 +65,16 @@ func TestModelNICCountValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestModelMACPrefixValidation(t *testing.T) {
+	for _, value := range []any{nil, []string{}, "aa:bb:cc", []string{"aa:bb"}, []string{"aa:bb:cc:*"}, []string{"aa:bb:cc", "AA:BB:CC"}, []any{1}, []string{" aa:bb:cc"}} {
+		if err := validateModelPayload(PublishModelVersionInput{BomExpect: map[string]any{"mac_prefixes": value}}); err == nil {
+			t.Fatalf("invalid prefix rule accepted: %#v", value)
+		}
+	}
+	for _, value := range []any{[]string{"AA:BB:CC"}, []string{"aa:bb:cc", "00:11:22"}} {
+		if err := validateModelPayload(PublishModelVersionInput{BomExpect: map[string]any{"mac_prefixes": value}}); err != nil {
+			t.Fatalf("valid prefix rule rejected: %#v %v", value, err)
+		}
+	}
+}
