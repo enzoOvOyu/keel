@@ -50,15 +50,13 @@ func (a *authAPI) registerMediaScope(r *gin.Engine, base string, global bool) {
 		if !ok {
 			return
 		}
-		var input struct {
-			State string `json:"state"`
-		}
+		var input platform.MediaTransitionInput
 		if !decodeBody(c, &input) {
 			return
 		}
 		cancel := mediaDeadline(c)
 		defer cancel()
-		result, e := a.store.TransitionMedia(c.Request.Context(), actor, project, c.Param("mediaId"), input.State, c.GetString("trace_id"))
+		result, e := a.store.TransitionMediaChecked(c.Request.Context(), actor, project, c.Param("mediaId"), input, c.GetString("trace_id"))
 		if e != nil {
 			a.respondError(c, e)
 			return

@@ -439,11 +439,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: false
-              required: [state]
-              properties:
-                state: { type: string, enum: [verified, approved, retired] }
+              $ref: '#/components/schemas/MediaTransitionInput'
       responses:
         '200':
           description: Updated media
@@ -3077,17 +3073,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: false
-              required:
-              - state
-              properties:
-                state:
-                  type: string
-                  enum:
-                  - verified
-                  - approved
-                  - retired
+              $ref: '#/components/schemas/MediaTransitionInput'
       responses:
         '200':
           description: Updated media
@@ -3163,6 +3149,17 @@ components:
         maximum: 100
         default: 20
   schemas:
+    MediaTransitionInput:
+      type: object
+      additionalProperties: false
+      required: [state]
+      description: One-way lifecycle transition. Interactive clients send the observed updated_at; mismatch returns 409 MEDIA_CONFLICT without changing state or adding a success audit. Omission preserves legacy callers.
+      properties:
+        state: {type: string, enum: [verified, approved, retired]}
+        expected_updated_at:
+          type: string
+          format: date-time
+          description: Non-zero timestamp observed before confirmation. Artifact attachment and lifecycle transitions advance this version; successful responses return the persisted timestamp.
     ModelDraft: {"type": "object", "additionalProperties": false, "required": ["id", "model_id", "model_name", "source_host", "content_hash", "created_by", "created_at", "hw_spec", "expected_topology", "capability_matrix", "panel_layout", "bom_expect", "default_role_plan", "slots"], "properties": {"id": {"type": "string"}, "model_id": {"type": "string"}, "model_name": {"type": "string"}, "source_host": {"type": "string"}, "content_hash": {"type": "string"}, "created_by": {"type": "string"}, "created_at": {"type": "string"}, "hw_spec": {"type": "object", "additionalProperties": true}, "expected_topology": {"type": "object", "additionalProperties": true}, "capability_matrix": {"type": "object", "additionalProperties": true}, "panel_layout": {"type": "object", "additionalProperties": true}, "bom_expect": {"type": "object", "additionalProperties": true}, "default_role_plan": {"type": "object", "additionalProperties": true}, "slots": {"type": "array", "items": {"$ref": "#/components/schemas/ModelSlot"}}}}
     ImportModelScanInput: {"type": "object", "additionalProperties": false, "required": ["source_host", "hw_spec"], "properties": {"model_name": {"type": "string"}, "source_host": {"type": "string"}, "hw_spec": {"type": "object", "additionalProperties": true}, "expected_topology": {"type": "object", "additionalProperties": true}, "capability_matrix": {"type": "object", "additionalProperties": true}, "panel_layout": {"type": "object", "additionalProperties": true}, "bom_expect": {"type": "object", "additionalProperties": true}, "default_role_plan": {"type": "object", "additionalProperties": true}, "slots": {"type": "array", "items": {"$ref": "#/components/schemas/ModelSlot"}}}}
     ModelDraftPage: {"type": "object", "additionalProperties": false, "required": ["items"], "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/ModelDraft"}}}}

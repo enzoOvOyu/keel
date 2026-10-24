@@ -127,6 +127,11 @@ func (s *Store) bindMediaArtifact(ctx context.Context, tx *sql.Tx, a *AuthSessio
 	if _, e = tx.ExecContext(ctx, "INSERT INTO media_artifacts(media_id,object_key,object_version,sha256,size,uploaded_by,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)", m.ID, key, version, staged.sha256, staged.size, a.User.ID, time.Now().UTC()); e != nil {
 		return e
 	}
+	updatedAt := nextMediaUpdate(m.UpdatedAt)
+	if _, e = tx.ExecContext(ctx, "UPDATE media_items SET updated_at=$2 WHERE id=$1", m.ID, updatedAt); e != nil {
+		return e
+	}
+	m.UpdatedAt = updatedAt
 	m.ArtifactStored = true
 	return appendAudit(ctx, tx, a.User.ID, projectIDFromScope(m.ScopeKey), "media.upload", m.ID, trace, map[string]any{"sha256": staged.sha256, "size": staged.size, "object_version": version})
 }

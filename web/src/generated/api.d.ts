@@ -1812,6 +1812,16 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description One-way lifecycle transition. Interactive clients send the observed updated_at; mismatch returns 409 MEDIA_CONFLICT without changing state or adding a success audit. Omission preserves legacy callers. */
+        MediaTransitionInput: {
+            /** @enum {string} */
+            state: "verified" | "approved" | "retired";
+            /**
+             * Format: date-time
+             * @description Non-zero timestamp observed before confirmation. Artifact attachment and lifecycle transitions advance this version; successful responses return the persisted timestamp.
+             */
+            expected_updated_at?: string;
+        };
         ModelDraft: {
             id: string;
             model_id: string;
@@ -4396,10 +4406,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** @enum {string} */
-                    state: "verified" | "approved" | "retired";
-                };
+                "application/json": components["schemas"]["MediaTransitionInput"];
             };
         };
         responses: {
@@ -8076,10 +8083,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** @enum {string} */
-                    state: "verified" | "approved" | "retired";
-                };
+                "application/json": components["schemas"]["MediaTransitionInput"];
             };
         };
         responses: {

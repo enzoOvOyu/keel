@@ -2,8 +2,8 @@
 """Real PostgreSQL + disposable MinIO + API + browser media verification."""
 import argparse,json,os,secrets,socket,subprocess,tempfile,time,urllib.parse,urllib.request,uuid
 from pathlib import Path
-parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--catalog-only',action='store_true',help='Run only the catalog API/worker/browser check in a fresh isolated environment; skip Go and unchanged media checks');parser.add_argument('--management-only',action='store_true',help='Run only the catalog management browser check in a fresh isolated environment');parser.add_argument('--global-media-only',action='store_true',help='Run only global media API/browser checks in a fresh isolated environment');args=parser.parse_args()
-if sum([args.catalog_only,args.management_only,args.global_media_only])>1:parser.error('Choose one focused check')
+parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--catalog-only',action='store_true',help='Run only the catalog API/worker/browser check in a fresh isolated environment; skip Go and unchanged media checks');parser.add_argument('--management-only',action='store_true',help='Run only the catalog management browser check in a fresh isolated environment');parser.add_argument('--global-media-only',action='store_true',help='Run only global media API/browser checks in a fresh isolated environment');parser.add_argument('--media-conflict-only',action='store_true',help='Run only media confirmation concurrency browser checks');args=parser.parse_args()
+if sum([args.catalog_only,args.management_only,args.global_media_only,args.media_conflict_only])>1:parser.error('Choose one focused check')
 os.umask(0o077);root=Path(__file__).resolve().parents[1];os.chdir(root)
 probe=socket.socket();probe.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);probe.bind(('127.0.0.1',3102));probe.close()
 record=json.loads(subprocess.check_output(['docker','inspect','keel-auth-test-postgres']))[0]
@@ -26,8 +26,8 @@ try:
  env.update(KEEL_DATABASE_URL=dsn+database+'?sslmode=disable',KEEL_TEST_DATABASE_URL=dsn+unit_database+'?sslmode=disable')
  for target in ['api','admin','worker']:checked(['go','build','-o',str(work/('keel-'+target)),'./cmd/keel-'+target],env)
  checked([str(work/'keel-admin'),'media-init'],env)
- if not (args.catalog_only or args.management_only or args.global_media_only):
-  result=checked(['go','test','-race','./internal/mediaartifact','./internal/platform','-run','TestRejectUnsafeMediaConfiguration|TestRealMinIOVersionPinning|TestMediaArtifactsLifecycleAndIntegrity|TestCatalogArtifactAdmission|TestCatalogCorrelatedCombinations|TestCatalogManagement|TestGlobalCatalogScopeBoundaries|TestCompatibility|TestZTP239ApprovedIsolationScript|TestSZTP143|TestZTPMockKeaDurableStageCommit|TestBOMPackage','-count=1'],env)
+ if not (args.catalog_only or args.management_only or args.global_media_only or args.media_conflict_only):
+  result=checked(['go','test','-race','./internal/mediaartifact','./internal/platform','-run','TestRejectUnsafeMediaConfiguration|TestRealMinIOVersionPinning|TestMediaArtifactsLifecycleAndIntegrity|TestMediaConditionalTransitions|TestCatalogArtifactAdmission|TestCatalogCorrelatedCombinations|TestCatalogManagement|TestGlobalCatalogScopeBoundaries|TestCompatibility|TestZTP239ApprovedIsolationScript|TestSZTP143|TestZTPMockKeaDurableStageCommit|TestBOMPackage','-count=1'],env)
   (work/'go-integration.log').write_text(result);print(result,flush=True)
  checked([str(work/'keel-admin'),'migrate'],env)
  pw=secrets.token_urlsafe(28);secret=work/'password';secret.write_text(pw)
@@ -41,8 +41,8 @@ try:
  worker=subprocess.Popen([str(work/'keel-worker')],env=env,stdout=(work/'worker.log').open('w'),stderr=subprocess.STDOUT)
  credentials=work/'credentials.json';credentials.write_text(json.dumps(dict(base_url='http://127.0.0.1:3102',username='mediaadmin',password=pw)))
  env.update(KEEL_AUTH_BROWSER_CREDENTIALS_FILE=str(credentials),KEEL_WORKSPACE_EVIDENCE_DIR=str(work))
- checks=[(['python3','scripts/check-media-integration.py'],'legacy-media'),(['python3','scripts/check-param-integration.py'],'parameter-regression'),(['node','scripts/check-media-browser.mjs'],'legacy-browser'),(['node','scripts/check-media-artifacts-browser.mjs'],'artifact-browser'),(['node','scripts/check-catalog-browser.mjs'],'catalog-browser'),(['node','scripts/check-catalog-management-browser.mjs'],'catalog-management-browser'),(['node','scripts/check-global-media-browser.mjs'],'global-media-browser')]
- for command,name in ([check for check in checks if check[1] == 'global-media-browser'] if args.global_media_only else [check for check in checks if check[1] == 'catalog-management-browser'] if args.management_only else [check for check in checks if check[1].startswith('catalog-')] if args.catalog_only else checks):
+ checks=[(['python3','scripts/check-media-integration.py'],'legacy-media'),(['python3','scripts/check-param-integration.py'],'parameter-regression'),(['node','scripts/check-media-browser.mjs'],'legacy-browser'),(['node','scripts/check-media-artifacts-browser.mjs'],'artifact-browser'),(['node','scripts/check-catalog-browser.mjs'],'catalog-browser'),(['node','scripts/check-catalog-management-browser.mjs'],'catalog-management-browser'),(['node','scripts/check-global-media-browser.mjs'],'global-media-browser'),(['node','scripts/check-media-conflict-browser.mjs'],'media-conflict-browser')]
+ for command,name in ([check for check in checks if check[1] == 'media-conflict-browser'] if args.media_conflict_only else [check for check in checks if check[1] == 'global-media-browser'] if args.global_media_only else [check for check in checks if check[1] == 'catalog-management-browser'] if args.management_only else [check for check in checks if check[1].startswith('catalog-')] if args.catalog_only else checks):
   result=checked(command,env);(work/(name+'.log')).write_text(result);print(result,flush=True)
 finally:
  if worker is not None:

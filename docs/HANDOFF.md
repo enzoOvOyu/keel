@@ -391,3 +391,18 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 **§35 发布完成**：代码 `fa32cbd4b6ad40d37f2ea1dc126f0c4d872d7697` 已正常推送至GitHub，从该SHA的git archive构建镜像，镜像ID `sha256:a864227552821a47f53198610b1fdae0a2d51a0e5173655c6e18c161cc4d6dfc`，未包含既有旧草稿和秘密配置。候选镜像先在回环3108使用现有受限连接验证：真实登录、原参数/型号/介质/执行/Flow五页、全局目录和全局介质页及只读API作用域、完整SHA、匿名401和控制台均通过。随后于 `2026-10-24T15:43:40.995576+00:00` 切换3000且healthy，切换后同一七页/全局API/版本/控制台检查再次通过，healthz返回完整功能代码SHA。
 
 本次无数据库迁移，schema仍37条；保留兼容旧镜像7eb6858，未重置/恢复运行库、未变更数据卷/worker启用范围/其他服务。切换前.env、私有发布状态和七页截图在 `/home/ubuntu/.local/state/keel/releases/20261024T154157Z`，.env仍600。独立候选容器和临时配置已清理；旧026/fabric_precheck草稿原样保留，是仅有的未跟踪文件。GitHub Actions run40108146445记录时in_progress，尚不能宣称本次CI通过；上批39fd53d已success。后续文档提交不改变3000对应的上述功能SHA。
+
+
+## 36. 2026-10-24 A4 介质状态的陈旧确认保护
+
+在 `/opt/keel`、`dev/p1-network-bom`、HEAD基线f70e94d接续WP-1.10和DS §8 MediaLibrary陈旧状态要求。项目/全局状态变更共用MediaTransitionInput，新增可选expected_updated_at；交互弹窗总是提交所见版本。已有行锁内先验证管理权限及作用域，再比较版本；陈旧确认返回409 MEDIA_CONFLICT，不自动用新版本重试，不变更状态/更新时间、不添加成功审计。弹窗保留所见目标并显示明确冲突，取消时刷新当前用户查询，再按当前状态确认。旧调用省略条件仍保持原单向生命周期/独立审批/退役不可恢复。
+
+文件补传和状态推进都严格递增微秒级updated_at，补传即便仍uploaded也使旧确认失效。修正TransitionMedia成功响应未更新UpdatedAt的问题，现在返回与持久化完全一致的时间，可直接作为下一次条件。CreatedAt、不可变摘要/对象版本和历史快照不改写；无数据库迁移。不提供修订浏览器、报告审批治理或后置真实分发等额外功能。
+
+实际通过overlay platform/httpapi race（1.867s/1.065s）和vet，日志 `/tmp/keel-media-conflict-race.log`；根npm run build（正式生成类型/UI边界/版本lint六组反例/TypeScript/Vite），日志 `/tmp/keel-media-conflict-build.log`；Node/Python语法、设计和diff检查。Go继续使用 `/tmp/keel-delivery-check/overlay.json` 排除原026/fabric_precheck草稿，未改草稿，无库Skip不作为PG证据。
+
+实际完整运行 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-media-artifacts-integration.py`，证据 `/tmp/keel-media-vcyhfccs`，全部通过。真实隔离PG Go：mediaartifact 1.056s、platform 26.430s，含新增项目/全局双请求一成功一MEDIA_CONFLICT、补传失效、陈旧批准/退役拒绝、独立审批、返回时间与库一致、创建时间/摘要保留和失败无成功审计；该新Go用例对象传输是testMediaObjects，不冒充其自身真实MinIO传输。
+
+同轮真实隔离MinIO/API/worker/Chromium通过原介质HTTP/参数HTTP/介质UI、实际文件/版本绑定与Range、目录依赖/冻结快照/重跑、项目与全局目录管理、全局介质生命周期及权限回归。新增双浏览器项目/全局确认测试通过：上传→已校验和已校验→已审批两种变化，旧退役弹窗均409且保留；取消刷新后新确认200；补传未改状态也拒绝旧确认；非法/零时间400、旧无条件接口兼容、退役不可恢复。media-global-stale.png已视觉复核。隔离服务/自有测试库与临时凭据已清理。新增--media-conflict-only仅用于必要时的定向复核，本轮未使用或重复整轮。
+
+上一功能fa32cbd的GitHub Actions run40108146445已实际查询completed/success。本节提交前3000仍健康fa32cbd、schema37；准备独立提交推送后从确切SHA archive构建并候选验证后更新3000，实际结果后补。WP-1.10/1.11/FR-1/P1仍partial，剩余按依赖推进，不因本轮完善确认流程宣称全阶段闭环。

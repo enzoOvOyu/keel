@@ -25,6 +25,7 @@ import {
   attachMedia,
   mediaDownloadURL,
   type MediaItemSummary,
+  type MediaTransitionTarget,
 } from "../../lib/media";
 import { useExpireOnUnauthorized, useSession } from "../../lib/session";
 
@@ -37,7 +38,7 @@ const types = [
   "config",
   "ztp_script",
 ] as const;
-const nextStates: Record<string, string[]> = {
+const nextStates: Record<string, MediaTransitionTarget[]> = {
   uploaded: ["verified", "retired"],
   verified: ["approved", "retired"],
   approved: ["retired"],
@@ -328,7 +329,7 @@ function TransitionDialog({
 }: {
   projectId: string | null;
   item: MediaItemSummary;
-  target: string;
+  target: MediaTransitionTarget;
   onClose: () => void;
   onDone: () => Promise<void>;
 }) {
@@ -338,7 +339,7 @@ function TransitionDialog({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const result = await action.run(() =>
-      transitionMedia(projectId, item.id, target, session.csrf_token),
+      transitionMedia(projectId, item, target, session.csrf_token),
     );
     if (result.ok) await onDone();
   }
@@ -352,7 +353,7 @@ function TransitionDialog({
       onSubmit={(event) => void submit(event)}
       onClose={onClose}
     >
-      <ActionError error={action.error} />
+      {action.error?.code === "MEDIA_CONFLICT" ? <p role="alert" className="field-error">{t("mediaConflict")}</p> : <ActionError error={action.error} />}
       <dl className="action-target">
         <dt>{t("mediaName")}</dt>
         <dd>
@@ -383,7 +384,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
     [create, setCreate] = useState(false),
     [transition, setTransition] = useState<{
       item: MediaItemSummary;
-      target: string;
+      target: MediaTransitionTarget;
     } | null>(null),
     [success, setSuccess] = useState("");
   const allowed = projectId === null ? session.user.is_admin : session.permissions.includes("media:read");
@@ -593,7 +594,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
           projectId={projectId}
           item={transition.item}
           target={transition.target}
-          onClose={() => setTransition(null)}
+          onClose={() => { setTransition(null); void client.invalidateQueries({ queryKey: ["private", session.user.id] }); }}
           onDone={() => done(t("mediaTransitionDone"))}
         />
       )}

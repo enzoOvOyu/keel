@@ -71,18 +71,16 @@ export const registerMedia = (
     csrf,
     key,
   );
+export type MediaTransitionTarget = components["schemas"]["MediaTransitionInput"]["state"];
 export const transitionMedia = (
   projectId: string | null,
-  mediaId: string,
-  state: string,
+  item: MediaItemSummary,
+  state: MediaTransitionTarget,
   csrf: string,
-) =>
-  write<MediaItemSummary>(
-    `${mediaBase(projectId)}/${encodeURIComponent(mediaId)}/transition`,
-    "POST",
-    { state },
-    csrf,
-  );
+) => request<MediaItemSummary>(
+  `${mediaBase(projectId)}/${encodeURIComponent(item.id)}/transition`,
+  { method: "POST", headers: { "X-CSRF-Token": csrf }, body: JSON.stringify({ state, expected_updated_at: item.updated_at } satisfies components["schemas"]["MediaTransitionInput"]) },
+);
 
 export const ingestMedia = (
   projectId: string | null,

@@ -175,10 +175,25 @@ func (s *Store) registerMedia(ctx context.Context, a *AuthSession, project *Proj
 	return m, nil
 }
 
-// TransitionMedia advances the one-way lifecycle. Verification checks the
-// actual bytes against the registered digest and immutable object version; approval is an
-// explicit reviewer action; retirement is irreversible.
+// MediaTransitionInput binds an optional confirmation to the observed registry revision.
+// Verification and approval still check pinned bytes and the one-way lifecycle.
+type MediaTransitionInput struct {
+	State             string     `json:"state"`
+	ExpectedUpdatedAt *time.Time `json:"expected_updated_at,omitempty"`
+}
+
+// Legacy callers retain the original one-way transition contract. Interactive
+// clients send the version they actually reviewed to avoid stale confirmations.
 func (s *Store) TransitionMedia(ctx context.Context, a *AuthSession, project *ProjectSummary, mediaID, target string, trace string) (*MediaItemSummary, error) {
+	return s.TransitionMediaChecked(ctx, a, project, mediaID, MediaTransitionInput{State: target}, trace)
+}
+
+func (s *Store) TransitionMediaChecked(ctx context.Context, a *AuthSession, project *ProjectSummary, mediaID string, input MediaTransitionInput, trace string) (*MediaItemSummary, error) {
+	target := input.State
+	if input.ExpectedUpdatedAt != nil && input.ExpectedUpdatedAt.IsZero() {
+		return nil, apiError(400, "VALIDATION_ERROR", "expected_updated_at must be a non-zero timestamp")
+	}
+
 	if target != "verified" && target != "approved" && target != "retired" {
 		return nil, apiError(400, "VALIDATION_ERROR", "Target state must be verified, approved or retired")
 	}
@@ -195,12 +210,15 @@ func (s *Store) TransitionMedia(ctx context.Context, a *AuthSession, project *Pr
 	if e != nil {
 		return nil, e
 	}
+	if m.ScopeKey != scope {
+		return nil, ErrForbidden
+	}
+	if input.ExpectedUpdatedAt != nil && !input.ExpectedUpdatedAt.Equal(m.UpdatedAt) {
+		return nil, apiError(409, "MEDIA_CONFLICT", "Media changed since review; refresh and confirm its current state")
+	}
 	allowed := mediaTransitions[m.State][target]
 	if !allowed {
 		return nil, apiError(409, "MEDIA_TRANSITION_INVALID", "Media state "+m.State+" cannot transition to "+target)
-	}
-	if m.ScopeKey != scope {
-		return nil, ErrForbidden
 	}
 	if target == "verified" || target == "approved" {
 		actual, err := s.checkedMedia(ctx, tx, m)
@@ -219,7 +237,8 @@ func (s *Store) TransitionMedia(ctx context.Context, a *AuthSession, project *Pr
 	} else if m.State != "approved" {
 		approver = ""
 	}
-	if _, e = tx.ExecContext(ctx, "UPDATE media_items SET state=$2, approved_by=CASE WHEN $3='' THEN NULL ELSE $3 END, updated_at=$4 WHERE id=$1", mediaID, target, approver, time.Now().UTC()); e != nil {
+	updatedAt := nextMediaUpdate(m.UpdatedAt)
+	if _, e = tx.ExecContext(ctx, "UPDATE media_items SET state=$2, approved_by=CASE WHEN $3='' THEN NULL ELSE $3 END, updated_at=$4 WHERE id=$1", mediaID, target, approver, updatedAt); e != nil {
 		return nil, e
 	}
 	if e = appendAudit(ctx, tx, a.User.ID, projectIDOf(project), "media."+target, mediaID, trace, map[string]any{"before_state": m.State, "after_state": target}); e != nil {
@@ -230,6 +249,7 @@ func (s *Store) TransitionMedia(ctx context.Context, a *AuthSession, project *Pr
 	}
 	m.State = target
 	m.ApprovedBy = approver
+	m.UpdatedAt = updatedAt
 	return m, nil
 }
 
@@ -250,4 +270,13 @@ func mediaForScope(ctx context.Context, tx *sql.Tx, mediaID, scope string) (*Med
 		return nil, apiError(404, "MEDIA_NOT_FOUND", "Media not found")
 	}
 	return &m, nil
+}
+
+// PostgreSQL timestamptz persists microseconds; return precisely the stored value.
+func nextMediaUpdate(previous time.Time) time.Time {
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	if !now.After(previous) {
+		return previous.Add(time.Microsecond)
+	}
+	return now
 }

@@ -1,5 +1,6 @@
 export const mediaTranslations = {
   zh: {
+    mediaConflict: "介质已变化，本次确认未生效。请取消并刷新列表，核对当前状态后重新确认。",
     mediaGlobalScope: "全局", mediaGlobalInherited: "全局 · 只读", mediaGlobalTitle: "全局介质库", mediaGlobalIntro: "全局制品可供项目参数目录继承。仅平台管理员可管理，上传者不得自行审批；退役会阻断后续引用。", mediaGlobalRegistration: "登记到全局作用域。批准后可供所有项目引用；文件与元数据仍需校验和独立审批。", mediaGlobalTransition: "变更全局介质状态；批准后可供所有项目引用，退役将阻断新引用。",
     mediaUpload: "上传新介质",
     mediaUploadDetail:
@@ -62,6 +63,7 @@ export const mediaTranslations = {
     mediaExists: "同类型、名称与版本的介质已存在。",
   },
   en: {
+    mediaConflict: "Media changed; this confirmation was not applied. Cancel to refresh the list, review its current state, then confirm again.",
     mediaGlobalScope: "Global", mediaGlobalInherited: "Global · read-only", mediaGlobalTitle: "Global media library", mediaGlobalIntro: "Projects can inherit global artifacts through the catalog. Platform administrators manage them; uploaders cannot approve their own artifacts. Retirement blocks new references.", mediaGlobalRegistration: "Register in the global scope. Approved artifacts can be referenced by every project; file verification and independent approval are required.", mediaGlobalTransition: "Change a global artifact state. Approval permits project references; retirement blocks new references.",
     mediaUpload: "Upload new media",
     mediaUploadDetail:
