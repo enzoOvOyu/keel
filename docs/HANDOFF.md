@@ -454,3 +454,7 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 完整真实隔离 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py` 最终证据 `/tmp/keel-models-3xk9czox`：平台PG/race14.842s通过，含新增全局草稿复用/审核发布、只读权限/跨scope拒绝、同名独立身份、项目BOM实际采用全局固定版本并落库、新版本不改旧ProjectAsset、退役历史可读；原BOM/NIC/MAC/GPU/型号发布与并发回归通过。原型号HTTP/扫描HTTP/扫描浏览器七组/完整发布浏览器通过。新增全局Chromium通过UI新建/导入/审核发布/历史/陈旧确认409/退役，项目继承只读、全局/项目API隔离、无全局草稿泄露、Admin/SRE/Viewer管理UI/API拒绝、同名与非法scope、匿名401/CSRF403、双语导航。global-models-history.png已视觉复核。首轮新增Go夹具的Admin用户名与引导管理员规范化后重名，修正夹具后整轮通过，未放宽权限。自有隔离API/两库/凭据清理完毕；fixture不是硬件验收。新增--global-models-only供后续定向复核，本轮最终使用完整套件。
 
 上一b138c63的GitHub Actions run40143354484已查询completed/success。§39提交、候选和3000发布结果后补；FR-14/WP-1.12/P1仍partial，G1、布局/角色、显式升级失效、全部硬件/规模等按各自依赖推进。
+
+**§39 发布完成**：功能代码 `4b76052cfe7d4c76b25e4b145dd2bb998ee59b6d` 已正常推送GitHub，按确切SHA的git archive构建镜像，镜像ID `sha256:12815dc4a31dc83b792f04bb34233a2e14ca2eed8da2999aaf02ebcc5d1d7d27`，不含旧草稿/秘密配置。候选3108使用既有受限连接通过真实登录、原参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读全局作用域API、完整版本SHA、匿名401与控制台检查；于 `2026-10-24T23:51:52.242716+00:00` 更新3000并healthy，切换后同套检查再次通过。系统导航“全局型号库”可访问，healthz返回完整功能SHA。
+
+无数据库迁移，schema仍37条，保留兼容旧b138c63镜像；不改数据卷、worker启用范围和其他服务。.env保持600，切换前配置/私有发布状态/截图在 `/home/ubuntu/.local/state/keel/releases/20261024T234951Z`；候选容器与临时候选配置已清理。两份原026/fabric_precheck草稿仍原样未暂存。GitHub Actions run40144306188当前in_progress，不声明本次CI已通过；上一b138c63已success。交接文档后续提交不改变3000运行功能SHA，WP-1.12/P1仍partial。
