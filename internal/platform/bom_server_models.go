@@ -14,14 +14,15 @@ func validateServerModelHardware(ctx context.Context, tx *sql.Tx, projectID stri
 	issues := []BOMPackageIssue{}
 	components := map[string][]BOMPackageRow{}
 	for _, row := range pkg.Rows["server/server_components.csv"] {
-		if row.Values["category"] == "nic" {
+		if row.Values["category"] == "nic" || row.Values["category"] == "gpu" {
 			components[row.Values["parent_sn"]] = append(components[row.Values["parent_sn"]], row)
 		}
 	}
 	type expectation struct {
-		raw   json.RawMessage
-		slots []ModelSlot
-		found bool
+		raw      json.RawMessage
+		hardware json.RawMessage
+		slots    []ModelSlot
+		found    bool
 	}
 	cache := map[string]expectation{}
 	names := map[string]string{}
@@ -29,7 +30,7 @@ func validateServerModelHardware(ctx context.Context, tx *sql.Tx, projectID stri
 		ref := server.Values["model_ref"]
 		fact, cached := cache[ref]
 		if !cached {
-			err := tx.QueryRowContext(ctx, `SELECT v.bom_expect FROM device_model_versions v JOIN device_models m ON m.id=v.model_id WHERE v.id=$1 AND m.kind='server' AND (m.scope_key='global' OR m.scope_key=$2)`, ref, "project:"+projectID).Scan(&fact.raw)
+			err := tx.QueryRowContext(ctx, `SELECT v.bom_expect,v.hw_spec FROM device_model_versions v JOIN device_models m ON m.id=v.model_id WHERE v.id=$1 AND m.kind='server' AND (m.scope_key='global' OR m.scope_key=$2)`, ref, "project:"+projectID).Scan(&fact.raw, &fact.hardware)
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return nil, err
 			}
@@ -58,9 +59,9 @@ func validateServerModelHardware(ctx context.Context, tx *sql.Tx, projectID stri
 		if !fact.found {
 			continue
 		} // Existing model validation reports inadmissible references.
-		nics := append([]BOMPackageRow{}, components[server.Values["sn"]]...)
+		hardware := append([]BOMPackageRow{}, components[server.Values["sn"]]...)
 		if line := strconv.Itoa(server.Line); line != server.Values["sn"] {
-			nics = append(nics, components[line]...)
+			hardware = append(hardware, components[line]...)
 		}
 		// The existing resolver also accepts an already registered machine UID.
 		var uid string
@@ -69,20 +70,29 @@ func validateServerModelHardware(ctx context.Context, tx *sql.Tx, projectID stri
 			return nil, err
 		}
 		if uid != "" && uid != server.Values["sn"] && uid != strconv.Itoa(server.Line) {
-			nics = append(nics, components[uid]...)
+			hardware = append(hardware, components[uid]...)
 		}
-		for _, nic := range nics {
-			modelRef := nic.Values["model_ref"]
+		nics, gpus := []BOMPackageRow{}, []BOMPackageRow{}
+		for _, component := range hardware {
+			if component.Values["category"] == "nic" {
+				nics = append(nics, component)
+			} else {
+				gpus = append(gpus, component)
+			}
+		}
+		for _, component := range hardware {
+			modelRef := component.Values["model_ref"]
 			if _, ok := names[modelRef]; ok {
 				continue
 			}
 			var name string
-			err = tx.QueryRowContext(ctx, `SELECT m.name FROM device_model_versions v JOIN device_models m ON m.id=v.model_id WHERE v.id=$1 AND m.kind='nic' AND (m.scope_key='global' OR m.scope_key=$2)`, modelRef, "project:"+projectID).Scan(&name)
+			err = tx.QueryRowContext(ctx, `SELECT m.name FROM device_model_versions v JOIN device_models m ON m.id=v.model_id WHERE v.id=$1 AND m.kind=$3 AND (m.scope_key='global' OR m.scope_key=$2)`, modelRef, "project:"+projectID, component.Values["category"]).Scan(&name)
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return nil, err
 			}
 			names[modelRef] = name
 		}
+		issues = append(issues, compareServerGPUHardware(server, gpus, fact.hardware, names)...)
 		issues = append(issues, compareServerModelHardware(server, nics, fact.raw, fact.slots, names)...)
 	}
 	return issues, nil

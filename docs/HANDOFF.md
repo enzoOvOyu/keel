@@ -426,3 +426,15 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 **§37 发布完成**：功能代码 `8dcac8cab6b3a32465805e465fb0e9d37340f08d` 已正常推送GitHub，按确切SHA的git archive构建镜像，镜像ID `sha256:4926a439c515906ddce934ccb6f543207841221ebad268cced19677864b05360`。候选回环3108通过真实登录、原参数/型号/介质/执行/Flow与全局目录/全局介质七页、只读API作用域、匿名401、版本SHA及浏览器控制台检查；随后 `2026-10-24T16:10:54.735340+00:00` 更新3000并healthy，同套检查在3000再次通过，healthz返回上述完整代码SHA。
 
 运行库仍37条迁移记录，无迁移、库重置或卷修改；worker启用范围和其他服务保持原状，保留兼容旧369223d镜像。.env权限600，切换前配置、私有发布状态及截图保留在 `/home/ubuntu/.local/state/keel/releases/20261024T160902Z`；候选容器和临时配置已清理。两份旧草稿仍原样未暂存。GitHub Actions run40110165418当前in_progress，本轮不声明CI通过；前轮369223d已completed/success。后续交接文档提交不改变3000所运行的功能SHA。
+
+## 38. A4 / WP-1.12：GPU 硬件期望与 BOM 校验（2026-10-24）
+
+继续 `/opt/keel`、`dev/p1-network-bom` 的§37，不改旧fabric_precheck/026草稿。依据PRD FR-14.1/14.3、ARCH独立期望与固定型号版本、ACCEPTANCE F-14.1/14.3，沿用已存在的 `hw_spec.gpu_count` / `hw_spec.gpu`，分别表示非负物理GPU数和正式GPU型号名称。发布/扫描草稿共用校验；拒绝null/字符串数值/负数/小数/空白或非法型号类型。OpenAPI和生成类型同步，保留其他规格字段。
+
+服务器BOM使用绑定版本hw_spec，将SN/行号/已有机器UID归属的GPU部件与NIC分开比较。缺少或多出GPU返回model_gpu_count_mismatch，正式GPU型号身份不符返回model_gpu_type_mismatch，不相信sub_type。问题保留源文件/行、版本、期望与实际，预检不给令牌、提交事务重新校验。宽表MAC不能证明GPU库存，即便期望数量0也返回legacy_gpu_inventory_unverifiable要求逐实体清单，原CSV源行不丢失。旧版本省略规格仍兼容；只有型号但无GPU库存返回明确未核验WARN。新型号版本不自动改变旧包或ProjectAsset；不实现真实采集、G1、面板/角色迁移或显式升级，无数据库迁移。
+
+实际验证：新增GPU解析/差异单测通过，根npm run build退出0，日志 `/tmp/keel-gpu-build.log`（含契约生成/UI边界/版本lint/TypeScript/Vite）；`GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json go vet ./internal/platform ./internal/httpapi`退出0，日志 `/tmp/keel-gpu-vet.log`。设计/Node语法/diff检查通过。Go继续使用既有overlay排除未纳入交付的两份旧草稿。
+
+真实隔离全套 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py` 最终证据 `/tmp/keel-models-hbollmt1`：PG/race平台11.703s通过，包括新增GPU正向提交及物料/固定型号落库断言、SN/行/已有UID归属、缺少/超额/伪造sub_type/新版本差异、有效格式令牌绕过拒绝、失败无已提交包；原BOM/NIC/MAC/型号不可变性/并发等回归通过。原型号HTTP/扫描导入HTTP、扫描浏览器七组、完整审核/陈旧发布/权限/退役/差异CSV浏览器均通过。GPU新增字段参与草稿去重、审核展示、发布与不可变历史检查；非法GPU规格400，宽表明确拒绝NIC/GPU推断且源行2/版本/期望/实际可见，截图 bom-hardware-difference.png 已视觉复核。第一轮新增夹具保留了optic-v1占位导致model_version_not_found，修正测试映射后最终整轮通过，未改产品门禁。隔离API/自有两库/凭据自动清理，独立fixture不冒充真实GPU硬件验证。
+
+上一代码8dcac8c的GitHub Actions run40110165418已实际查询completed/success。§38推送/候选/3000结果后补；FR-14、WP-1.12和P1仍partial，其他部件规则、面板/角色、显式升级/失效证据和G1按既有依赖继续。

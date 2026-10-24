@@ -293,6 +293,13 @@ func validateModelPayload(input PublishModelVersionInput) error {
 	if total > modelJSONLimit {
 		return apiError(400, "PAYLOAD_TOO_LARGE", "Model specification exceeds 512 KiB")
 	}
+	hardware, err := json.Marshal(input.HwSpec)
+	if err != nil {
+		return apiError(400, "VALIDATION_ERROR", "Invalid hw_spec")
+	}
+	if _, _, err := modelGPUExpectation(hardware); err != nil {
+		return apiError(400, "VALIDATION_ERROR", err.Error())
+	}
 	if value, ok := input.BomExpect["nic_count"]; ok {
 		raw, err := json.Marshal(value)
 		var count int

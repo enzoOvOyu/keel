@@ -1830,9 +1830,7 @@ export interface components {
             content_hash: string;
             created_by: string;
             created_at: string;
-            hw_spec: {
-                [key: string]: unknown;
-            };
+            hw_spec: components["schemas"]["ModelHardwareSpecification"];
             expected_topology: {
                 [key: string]: unknown;
             };
@@ -1851,9 +1849,7 @@ export interface components {
         ImportModelScanInput: {
             model_name?: string;
             source_host: string;
-            hw_spec: {
-                [key: string]: unknown;
-            };
+            hw_spec: components["schemas"]["ModelHardwareSpecification"];
             expected_topology?: {
                 [key: string]: unknown;
             };
@@ -3337,6 +3333,14 @@ export interface components {
             /** @enum {string} */
             kind: "rack" | "server" | "compute-tray" | "switch" | "nic" | "gpu" | "psu" | "bmc" | "optic_module";
         };
+        ModelHardwareSpecification: {
+            /** @description Physical GPU component count; omission supplies no count rule. */
+            gpu_count?: number;
+            /** @description Exact published GPU model name; no surrounding whitespace. Compared with the GPU component model identity */
+            gpu?: string;
+        } & {
+            [key: string]: unknown;
+        };
         ModelBOMExpectation: {
             nic_count?: number;
             /** @description Optional server permanent-MAC OUI allowlist; case-insensitive, duplicates rejected case-insensitively. Omission supplies no rule. Imported observations never supply expectations automatically. */
@@ -3351,9 +3355,7 @@ export interface components {
              */
             expected_version?: number;
             source_draft_id?: components["schemas"]["EntityID"];
-            hw_spec?: {
-                [key: string]: unknown;
-            };
+            hw_spec?: components["schemas"]["ModelHardwareSpecification"];
             expected_topology?: {
                 [key: string]: unknown;
             };

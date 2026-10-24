@@ -3160,8 +3160,8 @@ components:
           type: string
           format: date-time
           description: Non-zero timestamp observed before confirmation. Artifact attachment and lifecycle transitions advance this version; successful responses return the persisted timestamp.
-    ModelDraft: {"type": "object", "additionalProperties": false, "required": ["id", "model_id", "model_name", "source_host", "content_hash", "created_by", "created_at", "hw_spec", "expected_topology", "capability_matrix", "panel_layout", "bom_expect", "default_role_plan", "slots"], "properties": {"id": {"type": "string"}, "model_id": {"type": "string"}, "model_name": {"type": "string"}, "source_host": {"type": "string"}, "content_hash": {"type": "string"}, "created_by": {"type": "string"}, "created_at": {"type": "string"}, "hw_spec": {"type": "object", "additionalProperties": true}, "expected_topology": {"type": "object", "additionalProperties": true}, "capability_matrix": {"type": "object", "additionalProperties": true}, "panel_layout": {"type": "object", "additionalProperties": true}, "bom_expect": {"$ref": "#/components/schemas/ModelBOMExpectation"}, "default_role_plan": {"type": "object", "additionalProperties": true}, "slots": {"type": "array", "items": {"$ref": "#/components/schemas/ModelSlot"}}}}
-    ImportModelScanInput: {"type": "object", "additionalProperties": false, "required": ["source_host", "hw_spec"], "properties": {"model_name": {"type": "string"}, "source_host": {"type": "string"}, "hw_spec": {"type": "object", "additionalProperties": true}, "expected_topology": {"type": "object", "additionalProperties": true}, "capability_matrix": {"type": "object", "additionalProperties": true}, "panel_layout": {"type": "object", "additionalProperties": true}, "bom_expect": {"$ref": "#/components/schemas/ModelBOMExpectation"}, "default_role_plan": {"type": "object", "additionalProperties": true}, "slots": {"type": "array", "items": {"$ref": "#/components/schemas/ModelSlot"}}}}
+    ModelDraft: {"type": "object", "additionalProperties": false, "required": ["id", "model_id", "model_name", "source_host", "content_hash", "created_by", "created_at", "hw_spec", "expected_topology", "capability_matrix", "panel_layout", "bom_expect", "default_role_plan", "slots"], "properties": {"id": {"type": "string"}, "model_id": {"type": "string"}, "model_name": {"type": "string"}, "source_host": {"type": "string"}, "content_hash": {"type": "string"}, "created_by": {"type": "string"}, "created_at": {"type": "string"}, "hw_spec": {"$ref": "#/components/schemas/ModelHardwareSpecification"}, "expected_topology": {"type": "object", "additionalProperties": true}, "capability_matrix": {"type": "object", "additionalProperties": true}, "panel_layout": {"type": "object", "additionalProperties": true}, "bom_expect": {"$ref": "#/components/schemas/ModelBOMExpectation"}, "default_role_plan": {"type": "object", "additionalProperties": true}, "slots": {"type": "array", "items": {"$ref": "#/components/schemas/ModelSlot"}}}}
+    ImportModelScanInput: {"type": "object", "additionalProperties": false, "required": ["source_host", "hw_spec"], "properties": {"model_name": {"type": "string"}, "source_host": {"type": "string"}, "hw_spec": {"$ref": "#/components/schemas/ModelHardwareSpecification"}, "expected_topology": {"type": "object", "additionalProperties": true}, "capability_matrix": {"type": "object", "additionalProperties": true}, "panel_layout": {"type": "object", "additionalProperties": true}, "bom_expect": {"$ref": "#/components/schemas/ModelBOMExpectation"}, "default_role_plan": {"type": "object", "additionalProperties": true}, "slots": {"type": "array", "items": {"$ref": "#/components/schemas/ModelSlot"}}}}
     ModelDraftPage: {"type": "object", "additionalProperties": false, "required": ["items"], "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/ModelDraft"}}}}
     DiscardModelDraftResult: {"type": "object", "additionalProperties": false, "required": ["discarded"], "properties": {"discarded": {"type": "boolean"}}}
     CompatibilityMatrix:
@@ -4290,6 +4290,12 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 120 }
         kind: { type: string, enum: [rack, server, compute-tray, switch, nic, gpu, psu, bmc, optic_module] }
+    ModelHardwareSpecification:
+      type: object
+      additionalProperties: true
+      properties:
+        gpu_count: { type: integer, minimum: 0, description: Physical GPU component count; omission supplies no count rule. }
+        gpu: { type: string, minLength: 1, maxLength: 120, description: Exact published GPU model name; no surrounding whitespace. Compared with the GPU component model identity, never its user-supplied sub_type. }
     ModelBOMExpectation:
       type: object
       additionalProperties: true
@@ -4308,7 +4314,7 @@ components:
       properties:
         expected_version: { type: integer, format: int64, minimum: 0, description: Optional append precondition; the review UI always supplies the observed latest version. }
         source_draft_id: { $ref: '#/components/schemas/EntityID' }
-        hw_spec: { type: object, additionalProperties: true }
+        hw_spec: { $ref: '#/components/schemas/ModelHardwareSpecification' }
         expected_topology: { type: object, additionalProperties: true }
         capability_matrix: { type: object, additionalProperties: true }
         panel_layout: { type: object, additionalProperties: true }

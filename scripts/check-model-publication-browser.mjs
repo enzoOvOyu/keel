@@ -20,11 +20,14 @@ try {
  }
  const suffix = crypto.randomUUID().slice(0, 8), project = await call('POST', '/projects', { name: 'Complete model review', slug: 'model-review-' + suffix }, 201), base = '/projects/' + project.id + '/models'
  const payload = {
-  hw_spec: { model: 'Reviewed-' + suffix, kind: 'server', cpu_arch: 'amd64' },
+  hw_spec: { model: 'Reviewed-' + suffix, kind: 'server', cpu_arch: 'amd64', gpu_count: 2, gpu: 'Independent-GPU-fixture' },
   expected_topology: { source: 'independent-fixture', numa: ['fixture-a'] },
   capability_matrix: { diagnostics: ['fixture-tool'] }, panel_layout: { source: 'fixture-layout', ports: ['p1', 'p2'] },
   bom_expect: { nic_count: 2 }, default_role_plan: { management: 'slot-2' },
   slots: [1, 2].map(n => ({ slot_no: n, pcie_slot: 'PCIe-' + n, expect_nic_model: 'fixture-nic', panel_port: 'p' + n, default_role: n === 1 ? 'compute' : 'management' }))
+ }
+ for (const invalid of [{ gpu_count: -1 }, { gpu_count: 1.5 }, { gpu_count: null }, { gpu_count: '2' }, { gpu: '' }, { gpu: null }, { gpu: ' invalid ' }, { gpu: ['fixture'] }]) {
+  await call('POST', base + '/import', { source_host: 'invalid-gpu', hw_spec: { model: 'Invalid-GPU-' + suffix, kind: 'server', ...invalid } }, 400)
  }
  const scan = { source_host: 'fixture-node-' + suffix, ...payload }, draft = await call('POST', base + '/import', scan, 201)
  assert.equal(draft.slots.length, 2); assert.deepEqual(draft.capability_matrix, payload.capability_matrix)
@@ -44,6 +47,7 @@ try {
  }
  await openReview()
  // Another editor publishes while this review is open; the stale form cannot append.
+ await call('POST', modelPath + '/versions', { ...payload, hw_spec: { ...payload.hw_spec, gpu_count: '2' }, expected_version: 0 }, 400)
  const v1 = await call('POST', modelPath + '/versions', { ...payload, expected_version: 0 }, 201)
  let response = page.waitForResponse(r => r.request().method() === 'POST' && r.url().endsWith(modelPath + '/versions'))
  await page.locator('.action-dialog button[type=submit]').click(); assert.equal((await response).status(), 409)
@@ -87,8 +91,11 @@ try {
  assert.equal(hardware.can_commit, false)
  const difference = hardware.issues.find(i => i.code === 'legacy_nic_inventory_unverifiable')
  assert.equal(difference.model_version_ref, v2.id); assert.equal(difference.bom_line_no, 2)
+ const gpuDifference = hardware.issues.find(i => i.code === 'legacy_gpu_inventory_unverifiable')
+ assert.equal(gpuDifference.model_version_ref, v2.id); assert.equal(gpuDifference.bom_line_no, 2)
+ assert(gpuDifference.expected.includes('physical GPU inventory')); assert(gpuDifference.actual.includes('MAC rows'))
  await page.getByText('legacy_nic_inventory_unverifiable', { exact: false }).waitFor()
- const differenceCell = page.locator('td[colspan="5"]').filter({ hasText: `型号 ${v2.id}` })
+ const differenceCell = page.locator('td[colspan="5"]').filter({ hasText: `型号 ${v2.id}` }).first()
  await differenceCell.waitFor(); assert((await differenceCell.boundingBox()).width > 400, 'difference must span the issue table instead of squeezing into the code column')
  assert(await page.getByRole('button', { name: '确认导入', exact: true }).isDisabled())
  const downloadPromise = page.waitForEvent('download')
@@ -97,7 +104,7 @@ try {
  assert(exported.includes('model_version_ref,expected,actual')); assert(exported.includes(v2.id)); assert(exported.includes(difference.expected)); assert(exported.includes(difference.actual))
  await page.screenshot({ path: process.env.KEEL_WORKSPACE_EVIDENCE_DIR + '/bom-hardware-difference.png', fullPage: true })
  await page.getByRole('dialog').getByRole('button', { name: '取消', exact: true }).click()
- console.log('PASS real legacy BOM precheck refuses MAC-derived NIC inventory; UI shows version/expected/actual, disables commit and exports the full difference CSV')
+ console.log('PASS real legacy BOM precheck refuses MAC-derived NIC/GPU inventory; UI shows version/expected/actual, disables commit and exports the full difference CSV')
 
  // A separate specification checks MAC identity without claiming physical inventory.
  const macModel = await call('POST', base, { name: 'MAC-rule-' + suffix, kind: 'server' }, 201)
