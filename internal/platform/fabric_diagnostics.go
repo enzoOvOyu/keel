@@ -33,16 +33,11 @@ type FabricDiagnosticsReport struct {
 
 func fabricCounterPolicyTx(ctx context.Context, tx *sql.Tx, project string) (fabricmon.CounterPolicy, error) {
 	out := fabricmon.CounterPolicy{}
-	rows, e := tx.QueryContext(ctx, `SELECT key,default_value FROM param_keys WHERE state='active' AND key IN('fabric.precheck.counter_window_seconds','fabric.precheck.crc_growth_max','fabric.precheck.flap_growth_max') AND scope_key IN('global',$1) ORDER BY CASE WHEN scope_key='global' THEN 0 ELSE 1 END,key`, "project:"+project)
+	values, e := catalogDefaultsTx(ctx, tx, project, "fabric.precheck.counter_window_seconds", "fabric.precheck.crc_growth_max", "fabric.precheck.flap_growth_max")
 	if e != nil {
 		return out, e
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var key, raw string
-		if e = rows.Scan(&key, &raw); e != nil {
-			return out, e
-		}
+	for key, raw := range values {
 		value, e := strconv.ParseUint(raw, 10, 64)
 		if e != nil {
 			return out, apiError(409, "FABRIC_DIAGNOSTIC_POLICY_INVALID", "Counter thresholds must be unsigned catalog values")
@@ -60,7 +55,7 @@ func fabricCounterPolicyTx(ctx context.Context, tx *sql.Tx, project string) (fab
 			out.FlapMax = &value
 		}
 	}
-	return out, rows.Err()
+	return out, nil
 }
 func modeledFabricPortsTx(ctx context.Context, tx *sql.Tx, pkg, device string) ([]string, error) {
 	rows, e := tx.QueryContext(ctx, `SELECT coalesce(nullif(b.port_name,''),b.port_index,'') FROM bom_item_revisions r JOIN bom_items b ON b.item_uid=r.item_uid WHERE r.package_id=$1 AND b.category='port' AND b.parent_uid=$2 AND b.status<>'retired' ORDER BY b.port_index,b.item_uid`, pkg, device)

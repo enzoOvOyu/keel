@@ -44,12 +44,11 @@ func managementPlanTx(ctx context.Context, tx *sql.Tx, projectID, ref string) (*
 		return nil, apiError(409, "ZTP_MANAGEMENT_RULES_REQUIRED", "Approved baseline has no management address and batch rules")
 	}
 	out.Rules = *limits.Management
-	var configured string
-	err = tx.QueryRowContext(ctx, `SELECT default_value FROM param_keys WHERE key='fabric.batch_size' AND state='active' AND scope_key IN ($1,'global') ORDER BY CASE WHEN scope_key=$1 THEN 0 ELSE 1 END LIMIT 1`, "project:"+projectID).Scan(&configured)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	values, err := catalogDefaultsTx(ctx, tx, projectID, "fabric.batch_size")
+	if err != nil {
 		return nil, err
 	}
-	if err == nil {
+	if configured, ok := values["fabric.batch_size"]; ok {
 		out.BatchSize, err = strconv.Atoi(configured)
 		if err != nil || out.BatchSize < 1 || out.BatchSize > 500 {
 			return nil, apiError(409, "ZTP_BATCH_SIZE_INVALID", "fabric.batch_size must be 1 through 500")

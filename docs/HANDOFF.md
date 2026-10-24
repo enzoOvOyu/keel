@@ -325,3 +325,16 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 切换后真实Chromium使用既有管理员登录，参数目录/型号库/介质库/执行/Flow五页均实际打开，无页面alert及非预期控制台错误；匿名目录API为401，认证provider ready。截图在同一私有发布目录 `smoke-3000-*.png`，参数目录已视觉复核。这是运行镜像的只读冒烟，不替代§24～30的创建/批准/冲突等隔离功能验证。保留原服务范围，未额外启用execution profile worker或真实设备适配。GitHub Actions本代码提交的 `Keel platform checks` run 40104306639 已触发，记录时in_progress，尚不能声称CI通过。
 
 隔离发布检查容器/测试数据库随后清理；本批无新增开发任务，026/fabric_precheck草稿继续原样保留。WP-1.10/1.11/1.12及P1仍partial，后续按计划A4既有输入补消费者/治理等缺口，不因本次发布宣称整阶段闭环。后续以可验收功能块及时提交，在可演示检查点发布3000，避免再积压多个功能块。
+
+
+## 32. 2026-10-24 A4 既有网络消费者遵守参数作用域与退役
+
+从 `/opt/keel`、`dev/p1-network-bom`、HEAD `793f34d` 接续已发布的c326068，按WP-1.11／FR-1.9补齐一个已有消费链路功能块，不扩展P2/P3/P4。新增共享当前目录默认值解析，接入ZTP批次/重试、网络canary/并发、DDM阈值/间隔、预检计数与健康/规则预演权重。先选择完整项目定义再解释值；被覆盖的全局定义不参与解析。退役返回409 PARAM_KEY_RETIRED，不回退全局或内置默认；只有未登记时保留原PRD默认/unknown。项目权重不再逐项混入同名全局对象，实时健康与规则预演共用同一来源。原数值范围、审批、历史计划/任务冻结值及观测不改写；不宣称退役会自动取消所有在途任务。无新迁移或API结构变更，无前端产品代码变更，不新增项目模板等后置依赖。
+
+实际通过：overlay相关platform/httpapi最终race `/tmp/keel-catalog-consumer-final-race.log`（1.989s/1.068s）及vet、Node检查、设计和diff检查。既有026/fabric_precheck两份旧草稿未修改，继续由 `/tmp/keel-delivery-check/overlay.json` 排除。普通race无库的Skip不作为PG证据。
+
+真实隔离PG/MinIO Go证据 `/tmp/keel-catalog-consumers-pfy_eosl/go-integration.log`：新默认值消费者测试、管理并发/退役、239/143、管理制品/设备投影、mock Kea、持久重试分别PASS。该轮管理计划测试因新增夹具把已存在批次上限设为1而按业务规则正确BLOCK，整轮不记成功；改用合法100上限，仅定向复跑失败的 `TestZTPManagementPlanTransactions`，最终 `/tmp/keel-catalog-ztp-04sjaf4p/go-integration.log` PASS（4.034s），验证项目覆盖无效全局、退役后预览/陈旧方案提交均拒绝、旧计划保留。较早FOR SHARE方案与repeatable-read只读预览不兼容，已移除；新查询也在明确ReadOnly的PG事务测试通过，不通过放宽预览事务解决。
+
+最终真实隔离PG/MinIO/API/worker/mTLS设备fixture/Chromium：网络 `/tmp/keel-shell-3d0ir7pr`（`check-kea-integration.py --network`）通过原配置/推送/权限回归、新并发目录默认冻结、退役拒绝创建且无部分任务、真实目录页面退役批次后预览/提交拒绝；诊断 `/tmp/keel-shell-ne60493f`（`--diagnostics`）通过原CRC/DDM/8Tab/导出回归、退役计数/间隔策略拒绝当前消费且其他历史观测不改写。隔离服务、自己的测试库与临时凭据均已清理。失败的只读锁和不合法批次夹具轮次不记最终通过。
+
+此前c326068的GitHub Actions run40104306639现已实际查询为completed/success。本节提交前3000仍c326068；本功能块准备提交后按相同37条schema构建/验证镜像并更新3000，发布实际结果另记。WP-1.11/P1仍partial：全消费者依赖闭包、全局管理、参数历史/报告治理、前端版本字段lint、目标/BOM/型号/OS交叉准入及模板同步/派发重验继续按所属阶段推进。

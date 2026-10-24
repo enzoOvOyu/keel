@@ -51,17 +51,12 @@ type FabricDDMTrends struct {
 }
 
 func fabricDDMIntervalTx(ctx context.Context, tx *sql.Tx, project string) (*float64, error) {
-	rows, e := tx.QueryContext(ctx, `SELECT default_value FROM param_keys WHERE state='active' AND key='fabric.ddm_interval' AND scope_key IN('global',$1) ORDER BY CASE WHEN scope_key='global' THEN 0 ELSE 1 END`, "project:"+project)
+	values, e := catalogDefaultsTx(ctx, tx, project, "fabric.ddm_interval")
 	if e != nil {
 		return nil, e
 	}
-	defer rows.Close()
 	var interval *float64
-	for rows.Next() {
-		var raw string
-		if e = rows.Scan(&raw); e != nil {
-			return nil, e
-		}
+	if raw, ok := values["fabric.ddm_interval"]; ok {
 		duration, e := time.ParseDuration(raw)
 		if e != nil {
 			seconds, parse := strconv.ParseFloat(raw, 64)
@@ -76,7 +71,7 @@ func fabricDDMIntervalTx(ctx context.Context, tx *sql.Tx, project string) (*floa
 		seconds := duration.Seconds()
 		interval = &seconds
 	}
-	return interval, rows.Err()
+	return interval, nil
 }
 func (s *Store) FabricDDMTrends(ctx context.Context, a *AuthSession, p *ProjectSummary, id, port string, hours int, exportHash, trace string) (*FabricDDMTrends, error) {
 	if hours != 24 && hours != 48 || port == "" || len(port) > 128 {

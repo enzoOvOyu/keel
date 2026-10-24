@@ -296,17 +296,12 @@ func (s *Store) LatestFabricCollection(ctx context.Context, a *AuthSession, p *P
 	return out, tx.Commit()
 }
 func fabricDDMLimitsTx(ctx context.Context, tx *sql.Tx, project string) (map[string]fabricmon.Range, error) {
-	rows, e := tx.QueryContext(ctx, `SELECT key,default_value FROM param_keys WHERE state='active' AND key LIKE 'fabric.ddm.%' AND scope_key IN($1,'global') ORDER BY CASE WHEN scope_key='global' THEN 0 ELSE 1 END,key`, "project:"+project)
+	values, e := catalogDefaultsMatchingTx(ctx, tx, project, nil, "fabric.ddm.")
 	if e != nil {
 		return nil, e
 	}
-	defer rows.Close()
 	out := map[string]fabricmon.Range{}
-	for rows.Next() {
-		var key, raw string
-		if e = rows.Scan(&key, &raw); e != nil {
-			return nil, e
-		}
+	for key, raw := range values {
 		parts := strings.Split(strings.TrimPrefix(key, "fabric.ddm."), ".")
 		if len(parts) != 2 {
 			continue
@@ -335,7 +330,7 @@ func fabricDDMLimitsTx(ctx context.Context, tx *sql.Tx, project string) (map[str
 			return nil, apiError(409, "FABRIC_DDM_LIMIT_INVALID", "DDM threshold ordering is invalid")
 		}
 	}
-	return out, rows.Err()
+	return out, nil
 }
 func (s *Store) FabricDeviceEvidence(ctx context.Context, a *AuthSession, p *ProjectSummary, id, trace string) (*FabricDeviceEvidence, error) {
 	tx, e := s.beginControl(ctx, a)

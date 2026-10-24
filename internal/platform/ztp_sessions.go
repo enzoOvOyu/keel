@@ -85,12 +85,11 @@ func (s *Store) CreateZTPSimSession(ctx context.Context, a *AuthSession, project
 		return nil, err
 	}
 	retryMax := 3
-	var configured string
-	cfgErr := tx.QueryRowContext(ctx, `SELECT default_value FROM param_keys WHERE key='fabric.ztp_retry_max' AND state='active' AND scope_key IN ($1,'global') ORDER BY CASE WHEN scope_key=$1 THEN 0 ELSE 1 END LIMIT 1`, "project:"+project.ID).Scan(&configured)
-	if cfgErr != nil && !errors.Is(cfgErr, sql.ErrNoRows) {
+	values, cfgErr := catalogDefaultsTx(ctx, tx, project.ID, "fabric.ztp_retry_max")
+	if cfgErr != nil {
 		return nil, cfgErr
 	}
-	if cfgErr == nil {
+	if configured, ok := values["fabric.ztp_retry_max"]; ok {
 		parsed, parseErr := strconv.Atoi(configured)
 		if parseErr != nil || parsed < 0 || parsed > 10 {
 			return nil, apiError(409, "ZTP_RETRY_CONFIG_INVALID", "Invalid configured ZTP retry maximum")

@@ -134,4 +134,30 @@ func TestZTPManagementPlanTransactions(t *testing.T) {
 	input.ExpectedHash = next.ContentHash
 	_, e = s.CommitZTPManagementPlan(ctx, reader, p, input, "test")
 	assertErrorCode(t, e, "FORBIDDEN")
+	global, e := s.UpsertParamKey(ctx, actor, nil, UpsertParamKeyInput{Key: "fabric.batch_size", ValueType: "string", DefaultValue: "invalid-global"}, "test")
+	if e != nil {
+		t.Fatal(e)
+	}
+	local, e := s.UpsertParamKey(ctx, actor, p, UpsertParamKeyInput{Key: "fabric.batch_size", ValueType: "enum", Options: []string{"100", "200"}, DefaultValue: "100"}, "test")
+	if e != nil {
+		t.Fatal(e)
+	}
+	policyPreview, e := s.PreviewZTPManagementPlan(ctx, actor, p, input)
+	if e != nil || policyPreview.BatchSize != 100 {
+		t.Fatalf("scope-aware batch default: %+v %v", policyPreview, e)
+	}
+	if _, e = s.RetireParamKey(ctx, actor, p, local.ID, "test"); e != nil {
+		t.Fatal(e)
+	}
+	_, e = s.PreviewZTPManagementPlan(ctx, actor, p, input)
+	assertErrorCode(t, e, "PARAM_KEY_RETIRED")
+	_, e = s.CommitZTPManagementPlan(ctx, actor, p, ZTPManagementPlanInput{BaselineRef: input.BaselineRef, ExpectedHash: policyPreview.ContentHash}, "test")
+	assertErrorCode(t, e, "PARAM_KEY_RETIRED")
+	if _, e = s.RetireParamKey(ctx, actor, nil, global.ID, "test"); e != nil {
+		t.Fatal(e)
+	}
+	latestAfterRetirement, e := s.LatestZTPManagementPlan(ctx, actor, p)
+	if e != nil || latestAfterRetirement.ID != saved.ID {
+		t.Fatal("retirement rewrote historical management plan", e)
+	}
 }

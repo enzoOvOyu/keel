@@ -99,12 +99,11 @@ func (s *Store) ztpManageabilityFactsTx(ctx context.Context, tx *sql.Tx, id stri
 			request.CredentialBatchRef = script.CredentialBatchRef
 		}
 	}
-	var configured string
-	e = tx.QueryRowContext(ctx, `SELECT default_value FROM param_keys WHERE key='fabric.ztp_retry_max' AND state='active' AND scope_key IN($1,'global') ORDER BY CASE WHEN scope_key=$1 THEN 0 ELSE 1 END LIMIT 1`, "project:"+request.ProjectID).Scan(&configured)
-	if e != nil && !errors.Is(e, sql.ErrNoRows) {
+	values, e := catalogDefaultsTx(ctx, tx, request.ProjectID, "fabric.ztp_retry_max")
+	if e != nil {
 		return nil, e
 	}
-	if e == nil {
+	if configured, ok := values["fabric.ztp_retry_max"]; ok {
 		n, e := strconv.Atoi(configured)
 		if e != nil || n < 0 || n > 10 {
 			return nil, apiError(409, "ZTP_RETRY_CONFIG_INVALID", "ZTP retry maximum must be 0 through 10")

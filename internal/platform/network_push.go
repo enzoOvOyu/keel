@@ -145,23 +145,17 @@ func (s *Store) CreateNetworkPush(ctx context.Context, a *AuthSession, p *Projec
 		return nil, apiError(409, "NETWORK_ADAPTER_NOT_CONFIGURED", e.Error())
 	}
 	j := &NetworkPushJob{ID: RandomID(), ProjectID: p.ID, TemplateID: template.ID, BaselineID: baseline, Input: input, FactsHash: netbaseline.ContentHash(devices), ConfigHash: s.FabricProbes.Fingerprint, State: "CREATED", CanaryMinSize: 5, Concurrency: 50, CreatedBy: a.User.ID, CreatedAt: time.Now().UTC(), Devices: []NetworkPushDevice{}, Signatures: []netbaseline.Signature{}}
-	rows, err := tx.QueryContext(ctx, `SELECT key,default_value FROM param_keys WHERE state='active' AND key IN('fabric.canary_min_size','fabric.push_concurrency') AND scope_key IN($1,'global') ORDER BY CASE WHEN scope_key='global' THEN 0 ELSE 1 END,key`, "project:"+p.ID)
+	values, err := catalogDefaultsTx(ctx, tx, p.ID, "fabric.canary_min_size", "fabric.push_concurrency")
 	if err != nil {
 		return nil, err
 	}
-	for rows.Next() {
-		var key, raw string
-		if err = rows.Scan(&key, &raw); err != nil {
-			rows.Close()
-			return nil, err
-		}
+	for key, raw := range values {
 		value, err := strconv.Atoi(raw)
 		maximum := 500
 		if key == "fabric.push_concurrency" {
 			maximum = 50
 		}
 		if err != nil || value < 1 || value > maximum {
-			rows.Close()
 			return nil, apiError(409, "NETWORK_PUSH_PARAMETER_INVALID", "Invalid canary or concurrency parameter")
 		}
 		if key == "fabric.canary_min_size" {
@@ -169,11 +163,6 @@ func (s *Store) CreateNetworkPush(ctx context.Context, a *AuthSession, p *Projec
 		} else {
 			j.Concurrency = value
 		}
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return nil, err
 	}
 	_, e = tx.ExecContext(ctx, `INSERT INTO network_push_jobs(id,project_id,template_id,baseline_id,input,facts_hash,config_hash,state,canary_min_size,push_concurrency,created_by,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,'CREATED',$8,$9,$10,$11,$11)`, j.ID, p.ID, template.ID, baseline, networkJSON(input), j.FactsHash, j.ConfigHash, j.CanaryMinSize, j.Concurrency, a.User.ID, j.CreatedAt)
 	if e != nil {

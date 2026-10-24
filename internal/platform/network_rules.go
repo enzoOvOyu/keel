@@ -668,16 +668,11 @@ func networkRuleDefaultsTx(ctx context.Context, tx *sql.Tx, project string) ([]f
 	if e != nil {
 		return nil, e
 	}
-	rows, e := tx.QueryContext(ctx, `SELECT default_value FROM param_keys WHERE key='fabric.health_score.weights' AND state='active' AND scope_key IN('global',$1) ORDER BY CASE WHEN scope_key='global' THEN 0 ELSE 1 END`, "project:"+project)
+	values, e := catalogDefaultsTx(ctx, tx, project, "fabric.health_score.weights")
 	if e != nil {
 		return nil, e
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var raw string
-		if e = rows.Scan(&raw); e != nil {
-			return nil, e
-		}
+	if raw, ok := values["fabric.health_score.weights"]; ok {
 		var weights map[string]float64
 		if e = json.Unmarshal([]byte(raw), &weights); e != nil {
 			return nil, apiError(409, "FABRIC_HEALTH_WEIGHTS_INVALID", "Health weights must map rule IDs to numbers")
@@ -691,7 +686,7 @@ func networkRuleDefaultsTx(ctx context.Context, tx *sql.Tx, project string) ([]f
 			}
 		}
 	}
-	return catalog.Rules, rows.Err()
+	return catalog.Rules, nil
 }
 
 func mustLosslessConditionValues(rule fabricmon.LosslessRule) map[string]json.Number {

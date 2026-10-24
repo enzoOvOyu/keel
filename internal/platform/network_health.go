@@ -240,34 +240,8 @@ func networkHealthTx(ctx context.Context, tx *sql.Tx, project string, onlyDevice
 	if e != nil {
 		return nil, e
 	}
-	// The parameter catalog remains the source of project/default deduction weights.
-	rows, e := tx.QueryContext(ctx, `SELECT default_value FROM param_keys WHERE key='fabric.health_score.weights' AND state='active' AND scope_key IN('global',$1) ORDER BY CASE WHEN scope_key='global' THEN 0 ELSE 1 END`, "project:"+project)
-	if e != nil {
-		return nil, e
-	}
-	for rows.Next() {
-		var raw string
-		if e = rows.Scan(&raw); e != nil {
-			rows.Close()
-			return nil, e
-		}
-		var weights map[string]float64
-		if json.Unmarshal([]byte(raw), &weights) != nil {
-			rows.Close()
-			return nil, apiError(409, "FABRIC_HEALTH_WEIGHTS_INVALID", "Health weights must be a rule-id to number object")
-		}
-		for i := range catalog.Rules {
-			if weight, ok := weights[catalog.Rules[i].ID]; ok {
-				if weight < 0 || weight > 100 {
-					rows.Close()
-					return nil, apiError(409, "FABRIC_HEALTH_WEIGHTS_INVALID", "Health weights must be 0 through 100")
-				}
-				catalog.Rules[i].Weight = weight
-			}
-		}
-	}
-	e = rows.Err()
-	rows.Close()
+	// Governance previews and live health use the same effective catalog weights.
+	catalog.Rules, e = networkRuleDefaultsTx(ctx, tx, project)
 	if e != nil {
 		return nil, e
 	}
