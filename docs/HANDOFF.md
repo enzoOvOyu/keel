@@ -387,3 +387,7 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 修正测试为现有可访问名称Switch to English后，仅定向 `... python3 scripts/check-media-artifacts-integration.py --global-media-only`，最终证据 `/tmp/keel-media-ft_r6qf5`：真实隔离PG/MinIO/API/Chromium通过全局UI上传/校验/独立审批/下载/退役、字节摘要/大小/Range、重复/非法scope/无文件/错摘要/补传原登记人/替换拒绝、全局目录默认值与登记链接、项目继承只读/可下载、Admin/SRE/Viewer越权、全局/项目交叉访问、匿名401/CSRF403、双语及退役后目录拒绝/不可恢复。此定向选项跳过Go和未变旧回归，前述证据单列。批准页截图已视觉复核。两轮隔离服务、自有测试库和临时凭据均清理，失败轮次不冒充最终通过。
 
 上一lint代码39fd53d的GitHub Actions run40107449159已实际查询completed/success。本节提交前3000仍健康7eb6858、schema37条；准备单独提交推送后从确切SHA archive构建、候选冒烟再更新3000，实际结果后补。WP-1.10/1.11/FR-1/P1仍partial：厂商签名/离线依赖闭包、外链摄取/目标缓存和真实规模分发、报告/修订治理、全消费者/完整语义lint与后置模板同步等尚未闭环，继续按所属阶段推进。
+
+**§35 发布完成**：代码 `fa32cbd4b6ad40d37f2ea1dc126f0c4d872d7697` 已正常推送至GitHub，从该SHA的git archive构建镜像，镜像ID `sha256:a864227552821a47f53198610b1fdae0a2d51a0e5173655c6e18c161cc4d6dfc`，未包含既有旧草稿和秘密配置。候选镜像先在回环3108使用现有受限连接验证：真实登录、原参数/型号/介质/执行/Flow五页、全局目录和全局介质页及只读API作用域、完整SHA、匿名401和控制台均通过。随后于 `2026-10-24T15:43:40.995576+00:00` 切换3000且healthy，切换后同一七页/全局API/版本/控制台检查再次通过，healthz返回完整功能代码SHA。
+
+本次无数据库迁移，schema仍37条；保留兼容旧镜像7eb6858，未重置/恢复运行库、未变更数据卷/worker启用范围/其他服务。切换前.env、私有发布状态和七页截图在 `/home/ubuntu/.local/state/keel/releases/20261024T154157Z`，.env仍600。独立候选容器和临时配置已清理；旧026/fabric_precheck草稿原样保留，是仅有的未跟踪文件。GitHub Actions run40108146445记录时in_progress，尚不能宣称本次CI通过；上批39fd53d已success。后续文档提交不改变3000对应的上述功能SHA。
