@@ -10,12 +10,13 @@
     "tokens": "node scripts/generate-tokens.mjs",
     "routes": "tsr generate",
     "dev": "npm run tokens && vite --host 127.0.0.1",
-    "typecheck": "npm run api:generate && npm run tokens && npm run routes && npm run check:ui && tsc --noEmit",
+    "typecheck": "npm run api:generate && npm run tokens && npm run routes && npm run check:ui && npm run check:versions && tsc --noEmit",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "api:generate": "openapi-typescript ../api/openapi.yaml -o src/generated/api.d.ts && openapi-typescript ../api/execution.openapi.yaml -o src/generated/execution.d.ts",
     "ui:add": "shadcn add",
-    "check:ui": "node scripts/check-ui-boundaries.mjs"
+    "check:ui": "node scripts/check-ui-boundaries.mjs",
+    "check:versions": "node --test scripts/check-version-inputs.test.mjs && node scripts/check-version-inputs.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "5.104.2",

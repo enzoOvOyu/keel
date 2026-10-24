@@ -1,0 +1,17 @@
+[
+  {
+    "file": "src/features/media/MediaPage.tsx",
+    "component": "RegisterMediaDialog",
+    "id": "media-version",
+    "kind": "media-registration",
+    "reason": "PRD FR-1.8 / DS §9: registering a new version is allowed; API validates metadata and approval."
+  },
+  {
+    "file": "src/features/ztp/ZtpOnboardBoard.tsx",
+    "component": "Board",
+    "id": "kea-version",
+    "kind": "mock-protocol-fixture",
+    "digest": "07ecbf4ecad792354f28ffcef4c5508bacece827925751ff8cde556c2ba8f92b",
+    "reason": "Existing mock-only DHCP option 43 version intent, not a selected NOS artifact. Frozen pending catalog-backed NOS intent admission; not evidence of U-4 completion. Do not copy or expand this exception."
+  }
+]

@@ -359,3 +359,14 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 **§33 发布完成**：代码 `7eb6858ada4926039f24ca6350e9b2f79224b138` 已正常推送至GitHub；从该SHA的git archive构建镜像，ID `sha256:1bd4c64bec0d2ed50dd28f89bcf5463a7d3594c3b4732d1e0b745f7454e45cc5`，未包含既有旧草稿或秘密配置。候选镜像仅映射回环3108，使用现有受限连接，通过登录、原参数/型号/介质/执行/Flow五页以及新增全局目录页面/全局只读API、匿名401、完整SHA与控制台检查。随后于 `2026-10-24T15:24:36.890391+00:00` 切换3000，healthy；切换后同一套实际Chromium检查通过，healthz返回完整代码SHA。全局目录隔离验收截图已视觉复核。
 
 运行schema仍37条，无数据库迁移或重置，保留兼容旧镜像3d38703；既有数据卷、worker/profile范围和其他服务保持原状。.env仍600，切换前.env、受保护发布状态及六页截图在 `/home/ubuntu/.local/state/keel/releases/20261024T152321Z`，不进Git。候选容器及临时候选配置已清理。既有026/fabric_precheck草稿原样保留，未暂存。GitHub Actions run40106739359记录时in_progress，尚不能声称CI通过；本次发布记录单独文档提交，3000继续运行上述代码SHA。下一步继续A4已就绪输入下的WP-1.11剩余治理与版本字段约束，不将全局管理完成等同P1闭环。
+
+
+## 34. 2026-10-24 A4 版本输入 lint 防回归门禁
+
+在 `/opt/keel`、`dev/p1-network-bom`、HEAD基线4f68b35接续WP-1.11。新增无依赖的TypeScript AST源代码检查及反例测试，接入web typecheck→根check/build→现有CI make check。识别原生/共享/别名/namespace控件的版本语义，拒绝自由输入与手工版本下拉，输出定位且非零退出；Flow动态渲染器单独保护“登记键ParamSelect、未知.version在文本fallback前返回禁用下拉”。允许正式介质登记的精确元数据字段、只读展示与修订引用选择，不豁免整页。
+
+现有mock Kea版本意向并非已批准NOS制品选择；保留原模拟契约，以精确文件/函数/id/控件摘要冻结一个旧例外，变更/复制/过期会失败。没有把模拟意向描述为真实版本准入，也没有扩大例外或为FR-0补后置依赖。完整边界见CATALOG-ADMISSION.md。尚无全语义分析/六界面走查/ReadinessGate lint闭环，E-2/U-4/FR-1/P1仍partial。
+
+实际通过：根 `npm run build`，日志 `/tmp/keel-version-lint-build.log`，含正式类型生成、原UI边界、新lint/六组反例测试、TypeScript及Vite；脚本最终扩充spread/namespace/只读覆盖检查后，定向 `npm run check:versions --workspace=@keel/web` 六组测试和当前树扫描再次通过，日志 `/tmp/keel-version-lint-tests.log`。扩充包装标签检查时曾将Flow修订选项文本误当版本标签；修正为只读取标签自身内容、排除嵌套控件后添加回归，失败轮次不计最终通过。真实CLI临时违例探针返回exit1并含文件/行列，探针随后finally删除，证据 `/tmp/keel-version-lint-cli-probe.log`；未遗留测试源文件。无产品Go/前端运行逻辑/API/数据库更改，因此未重复Go/PG/浏览器或重发相同3000镜像。
+
+设计引用/diff/Node语法检查通过；上一功能代码7eb6858的GitHub Actions run40106739359已实际查询completed/success。当前3000继续运行健康7eb6858，schema仍37；旧026/fabric_precheck草稿原样保留未暂存。此功能块准备单独提交推送，本次CI结果须另行查询，不能把上一提交CI成功冒充本次成功。后续按A4已具备输入推进剩余目录消费者/治理与型号能力，模板同步和后置派发依赖留所属阶段。

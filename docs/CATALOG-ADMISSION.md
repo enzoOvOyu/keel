@@ -105,3 +105,15 @@ ZTP批次与重试上限、网络推送canary/并发、DDM阈值/采样间隔、
 全局目录不能借用某项目的批准介质，不能从全局路由修改项目参数或反向从项目路由退役全局参数。全局编辑/退役保留有效项目同名覆盖；没有项目覆盖的消费者按当前全局有效性准入，已冻结快照不回写。全局保存后使当前用户相关查询失效；跨标签页陈旧编辑仍由服务端条件写入拒绝。
 
 本页没有全局介质登记/上传入口，只消费已经批准的全局制品；介质登记/独立审批能力在服务层已存在，完整全局介质管理页面仍待实施。这里也不实现目录修订历史、审批报告治理、全消费入口lint或项目模板默认值同步。无数据库迁移；WP-1.11/FR-1/P1仍partial。验证和发布证据见HANDOFF §33。
+
+
+## 前端版本输入源代码门禁
+
+`npm run check:versions --workspace=@keel/web` 使用仓库已有TypeScript AST，扫描src TSX中的原生/共享Input、Textarea及NativeSelect，识别id/name/value/变更回调/相邻标签中的version或“版本”；共享控件的命名别名、namespace导入和带版本引用的spread也检查。可识别的版本输入应使用ParamSelect，普通Flow修订下拉不属于介质版本输入。明确只读展示/隐藏字段允许保留；条件readOnly、条件disabled和可被后续spread覆盖的只读属性不能作为豁免。动态Flow渲染器另行检查：已登记键由ParamSelect承接，未知.version键在文本fallback之前直接返回禁用下拉；删除保护分支或改成可编辑选择会失败。
+
+检查接入web typecheck，因此根npm run check、npm run build及CI现有make check均执行，并首先运行反例测试。违规返回非零和文件/行列；源码语法错误也失败。没有自动登记例外命令。例外清单位于web/scripts/version-input-exceptions.json，过期、重复或变更的例外失败：
+
+- 正式介质登记仅允许MediaPage的RegisterMediaDialog中media-version元数据字段录入新版本，不豁免整个页面或执行表单。
+- 既有mock Kea的kea-version是仿真DHCP option43意向字段，尚不是目录批准NOS制品选择；以精确文件/函数/id/控件摘要冻结，禁止改写或复制例外。本次不改该旧模拟链路的契约，后续接入目录/NOS准入后应移除此例外。
+
+这是可识别控件与现有动态渲染器的防回归门禁，不能证明任意自定义包装器、无语义变量名、任意JSON/编辑器中的值或未来六类下发界面均满足准入。新增执行界面须继续人工走查和服务端准入；所有业务入口的语义覆盖、mock意向整改及ReadinessGate lint仍未闭环，E-2/U-4和P1不得据此标为完成。未改产品运行代码/API/schema，3000无需为本工具变更重发镜像。验证记录见HANDOFF §34。
