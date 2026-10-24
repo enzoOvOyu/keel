@@ -1,5 +1,6 @@
 export const catalogManagementTranslations = {
  zh: {
+  catalogGlobalMediaHint: '仅列出全局已批准且有实际文件的介质；本页不提供全局介质登记。', catalogGlobalTitle: '全局参数目录', catalogGlobalIntro: '仅平台管理员可管理全局定义。新消费在项目未定义同名键时继承；已有项目覆盖和历史快照保持不变。', catalogGlobalEditable: '全局', catalogGlobalRetireDetail: '在全局作用域退役参数 {{key}}。', catalogGlobalRetireImpact: '退役后，依赖该全局定义的新选择和当前策略消费被阻断；有效的项目同名覆盖继续生效。历史快照保留，退役不可恢复。',
   catalogTitle: '参数目录', catalogIntro: '管理当前项目的受控参数、默认值和兼容依赖。全局定义仅供查看，项目同名定义优先；目录默认值不代表项目模板已套用。',
   catalogCreate: '新增参数', catalogEdit: '编辑参数', catalogSave: '保存参数', catalogSaved: '参数目录已更新。', catalogRetire: '退役参数', catalogRefresh: '刷新目录',
   catalogKey: '参数键', catalogType: '类型', catalogValues: '可选值', catalogDefault: '目录默认值', catalogScope: '作用域', catalogState: '状态', catalogActions: '操作',
@@ -11,6 +12,7 @@ export const catalogManagementTranslations = {
   catalogRetireDetail: '在项目“{{project}}”退役参数 {{key}}。', catalogRetireImpact: '退役后禁止新增引用，历史执行快照保留；不能恢复有效状态。项目定义退役后不会回退同名全局定义。',
  },
  en: {
+  catalogGlobalMediaHint: 'Only approved global media with stored files are listed. Global media registration is unavailable on this page.', catalogGlobalTitle: 'Global parameter catalog', catalogGlobalIntro: 'Platform administrators manage global definitions. Projects inherit them only without their own definition; project overrides and historical snapshots remain unchanged.', catalogGlobalEditable: 'Global', catalogGlobalRetireDetail: 'Retire parameter {{key}} in the global scope.', catalogGlobalRetireImpact: 'New selections and current policy consumers using this global definition are blocked. Active project overrides remain effective. Historical snapshots are retained; retirement cannot be undone.',
   catalogTitle: 'Parameter catalog', catalogIntro: 'Manage controlled project parameters, defaults and compatibility dependencies. Global definitions are read-only; project definitions take precedence. Catalog defaults do not imply that a project template has been applied.',
   catalogCreate: 'Add parameter', catalogEdit: 'Edit parameter', catalogSave: 'Save parameter', catalogSaved: 'Parameter catalog updated.', catalogRetire: 'Retire parameter', catalogRefresh: 'Refresh catalog',
   catalogKey: 'Parameter key', catalogType: 'Type', catalogValues: 'Options', catalogDefault: 'Catalog default', catalogScope: 'Scope', catalogState: 'State', catalogActions: 'Actions',

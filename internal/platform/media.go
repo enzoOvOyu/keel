@@ -107,6 +107,9 @@ func (s *Store) ListMedia(ctx context.Context, a *AuthSession, project *ProjectS
 		return out, e
 	}
 	defer tx.Rollback()
+	if project == nil && !a.User.IsAdmin {
+		return out, ErrForbidden
+	}
 	if project != nil {
 		if e := requireProjectMember(ctx, tx, a, project.ID); e != nil {
 			return out, e

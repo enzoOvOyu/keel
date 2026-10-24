@@ -342,3 +342,16 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 **§32 发布完成**：代码 `3d387032670b386c5efb838e4b294d6b67e34ddd` 已正常推送GitHub；从该提交archive构建镜像，镜像ID `sha256:8f1710b3021da601dc26eeab94964e4c23436dc1468529aa622157968d24a8cd`。候选镜像先在仅回环映射3108、使用既有受限API连接的容器验证schema/登录/参数目录/型号/介质/执行/Flow页面，随后在 `2026-10-24T15:08:37.287388+00:00` 更新3000并healthy。切换后同一五页、版本SHA、匿名401和控制台检查全部通过，healthz返回完整3d38703。证据与切换前.env受保护备份在 `/home/ubuntu/.local/state/keel/releases/20261024T150724Z`；.env仍600。无数据库迁移，运行schema仍37条，保留兼容旧镜像c326068；未执行数据库恢复或重置、未触碰其他服务/卷。独立候选容器和临时候选配置已清理。
 
 本代码GitHub Actions run40105536743记录时in_progress，尚不能声称通过；上一批c326068为completed/success。本节发布记录提交仅更新文档，3000继续对应上述功能代码SHA。旧草稿原样保留，WP-1.11与P1仍partial。
+
+
+## 33. 2026-10-24 A4 全局参数目录管理
+
+从 `/opt/keel`、`dev/p1-network-bom`、HEAD `1d993b8` 接续§32，完成 WP-1.11 独立功能块：平台管理员系统入口 `/admin/params`，复用项目目录编辑/默认值/依赖/条件写入/退役确认及中英文界面。正式契约新增全局目录GET/PUT、按键退役POST和全局介质选项GET；全局scope由服务端固定，项目Admin/DL/Viewer均不可管理或读取全局管理接口。服务层nil项目读取也要求平台管理员，项目继承消费保持原授权。全局版本选项只使用全局已批准且有实际文件的制品，不混入项目介质；本次未提供全局介质登记上传页面。
+
+保留项目定义优先、退役墓碑、条件更新冲突及CreatedAt不变、不可恢复退役和历史快照规则；全局修改刷新当前用户目录缓存。项目覆盖不受全局退役影响，未覆盖项目仍拒绝退役参数。无数据库迁移。旧026/fabric_precheck草稿原样保留且不提交；Go仍用 `/tmp/keel-delivery-check/overlay.json` 排除。
+
+实际通过：platform/httpapi race（2.569s/1.117s）及vet，日志 `/tmp/keel-global-catalog-race.log`；正式类型生成/共享组件边界/TypeScript/Vite完整构建 `/tmp/keel-global-catalog-build.log`。真实隔离PG集成 `/tmp/keel-global-catalog-vk9a3nrg/go-integration.log` 通过新增全局权限/作用域/覆盖/冲突/介质来源及既有管理与消费者测试（8.989s）；该Go介质对象传输使用testMediaObjects，不冒充MinIO上传验证。
+
+最终 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-media-artifacts-integration.py --management-only`，证据 `/tmp/keel-media-b3l_84iq`：真实隔离PG/MinIO/API/Chromium通过原项目管理和新增全局页面/API创建编辑退役、陈旧更新/退役409、跨作用域404、项目覆盖隔离、继承只读、排除项目版本、平台权限、匿名401/CSRF403、非法scope与分页过滤输入拒绝及双语导航；隔离服务/测试库/凭据已清理。此前umoux6ns因测试使用错误语言按钮名称而超时，不计最终通过；修正为现有可访问名称后定向复跑，未放宽产品规则。该选项跳过Go及未变介质回归，PG证据单独见上。
+
+上一代码3d38703的GitHub Actions run40105536743已实际查询completed/success。本节提交前3000仍3d38703、运行schema37条；提交后从明确SHA的archive构建，候选验证后更新3000，实际结果随后追加。WP-1.11/FR-1/P1仍partial：参数修订/报告治理、前端版本字段lint、完整消费者/目标BOM型号OS交叉准入、全局介质管理及所属阶段模板同步继续按依赖推进，不因FR-0跨期追赶后置开发。

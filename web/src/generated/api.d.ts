@@ -1684,6 +1684,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/params": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Platform administrators only. Uses the global scope, preserves project overrides and frozen history; retains existing conflict and retirement semantics. */
+        get: operations["listGlobalParamKeys"];
+        /** @description Platform administrators only. Uses the global scope, preserves project overrides and frozen history; retains existing conflict and retirement semantics. */
+        put: operations["upsertGlobalParamKey"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/params/{keyId}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Platform administrators only. Uses the global scope, preserves project overrides and frozen history; retains existing conflict and retirement semantics. */
+        post: operations["retireGlobalParamKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/params/media-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Platform administrators only. Uses the global scope; project administrators are forbidden. Global media metadata includes lifecycle state; selectable versions require approved status and an immutable stored artifact. */
+        get: operations["listGlobalCatalogMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7590,6 +7642,131 @@ export interface operations {
                     "application/json": components["schemas"]["DiscardModelDraftResult"];
                 };
             };
+        };
+    };
+    listGlobalParamKeys: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+                arch?: string;
+                /** @description Management query: DL, project Admin or platform administrator only. Default active-only reads retain project-member authorization. */
+                include_retired?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped catalog result. Versions require approved stored artifacts; validation is read-only. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParamKeyPage"];
+                };
+            };
+        };
+    };
+    upsertGlobalParamKey: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertParamKeyInput"];
+            };
+        };
+        responses: {
+            /** @description Project-scoped catalog result. Versions require approved stored artifacts; validation is read-only. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParamKeySummary"];
+                };
+            };
+            /** @description Definition changed, already exists, or is retired */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    retireGlobalParamKey: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                keyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RetireParamKeyInput"];
+            };
+        };
+        responses: {
+            /** @description Project-scoped catalog result. Versions require approved stored artifacts; validation is read-only. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParamKeySummary"];
+                };
+            };
+            /** @description Definition changed or already retired */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listGlobalCatalogMedia: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Registered media with lifecycle state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

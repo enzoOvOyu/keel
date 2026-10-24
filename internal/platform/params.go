@@ -117,6 +117,9 @@ func (s *Store) ListParamKeysIncludingRetired(ctx context.Context, a *AuthSessio
 		return out, e
 	}
 	defer tx.Rollback()
+	if project == nil && !a.User.IsAdmin {
+		return out, ErrForbidden
+	}
 	if project != nil {
 		if e := requireProjectMember(ctx, tx, a, project.ID); e != nil {
 			return out, e

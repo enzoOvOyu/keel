@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as AccountSecurityRouteImport } from './routes/account.security'
 import { Route as AdminAuditsRouteImport } from './routes/admin.audits'
+import { Route as AdminParamsRouteImport } from './routes/admin.params'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as PProjectIdRouteImport } from './routes/p.$projectId'
 import { Route as PProjectIdAssetsRouteImport } from './routes/p_.$projectId.assets'
@@ -54,6 +55,11 @@ const AccountSecurityRoute = AccountSecurityRouteImport.update({
 const AdminAuditsRoute = AdminAuditsRouteImport.update({
   id: '/admin/audits',
   path: '/admin/audits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminParamsRoute = AdminParamsRouteImport.update({
+  id: '/admin/params',
+  path: '/admin/params',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/projects': typeof ProjectsRoute
   '/account/security': typeof AccountSecurityRoute
   '/admin/audits': typeof AdminAuditsRoute
+  '/admin/params': typeof AdminParamsRoute
   '/admin/users': typeof AdminUsersRoute
   '/p/$projectId': typeof PProjectIdRoute
   '/p/$projectId/assets': typeof PProjectIdAssetsRoute
@@ -166,6 +173,7 @@ export interface FileRoutesByTo {
   '/projects': typeof ProjectsRoute
   '/account/security': typeof AccountSecurityRoute
   '/admin/audits': typeof AdminAuditsRoute
+  '/admin/params': typeof AdminParamsRoute
   '/admin/users': typeof AdminUsersRoute
   '/p/$projectId': typeof PProjectIdRoute
   '/p/$projectId/assets': typeof PProjectIdAssetsRoute
@@ -190,6 +198,7 @@ export interface FileRoutesById {
   '/projects': typeof ProjectsRoute
   '/account/security': typeof AccountSecurityRoute
   '/admin/audits': typeof AdminAuditsRoute
+  '/admin/params': typeof AdminParamsRoute
   '/admin/users': typeof AdminUsersRoute
   '/p/$projectId': typeof PProjectIdRoute
   '/p_/$projectId/assets': typeof PProjectIdAssetsRoute
@@ -215,6 +224,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/account/security'
     | '/admin/audits'
+    | '/admin/params'
     | '/admin/users'
     | '/p/$projectId'
     | '/p/$projectId/assets'
@@ -238,6 +248,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/account/security'
     | '/admin/audits'
+    | '/admin/params'
     | '/admin/users'
     | '/p/$projectId'
     | '/p/$projectId/assets'
@@ -261,6 +272,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/account/security'
     | '/admin/audits'
+    | '/admin/params'
     | '/admin/users'
     | '/p/$projectId'
     | '/p_/$projectId/assets'
@@ -285,6 +297,7 @@ export interface RootRouteChildren {
   ProjectsRoute: typeof ProjectsRoute
   AccountSecurityRoute: typeof AccountSecurityRoute
   AdminAuditsRoute: typeof AdminAuditsRoute
+  AdminParamsRoute: typeof AdminParamsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   PProjectIdRoute: typeof PProjectIdRoute
   PProjectIdAssetsRoute: typeof PProjectIdAssetsRoute
@@ -338,6 +351,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/audits'
       fullPath: '/admin/audits'
       preLoaderRoute: typeof AdminAuditsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/params': {
+      id: '/admin/params'
+      path: '/admin/params'
+      fullPath: '/admin/params'
+      preLoaderRoute: typeof AdminParamsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/users': {
@@ -461,6 +481,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectsRoute: ProjectsRoute,
   AccountSecurityRoute: AccountSecurityRoute,
   AdminAuditsRoute: AdminAuditsRoute,
+  AdminParamsRoute: AdminParamsRoute,
   AdminUsersRoute: AdminUsersRoute,
   PProjectIdRoute: PProjectIdRoute,
   PProjectIdAssetsRoute: PProjectIdAssetsRoute,

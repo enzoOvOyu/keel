@@ -70,6 +70,7 @@ export function WorkspaceNavigation({ projectId }: { projectId?: string }) {
     </section>
     <section aria-label={t('systemNavigation')}><h2 className="nav-section-heading"><span>{t('systemNavigation')}</span></h2>
       {links(administration)}
+      {session.user.is_admin && <Link to="/admin/params" title={t('catalogGlobalTitle')} aria-label={t('catalogGlobalTitle')}><Icon name="layers" /><span className="nav-label">{t('catalogGlobalTitle')}</span></Link>}
       {session.user.is_admin && session.permissions.includes('user:read') && <Link to="/admin/users" title={t('usersTitle')} aria-label={t('usersTitle')}><Icon name="users" /><span className="nav-label">{t('usersTitle')}</span></Link>}
       {session.user.is_admin && session.permissions.includes('audit:read') && <Link to="/admin/audits" title={t('platformAudit')} aria-label={t('platformAudit')}><Icon name="audit" /><span className="nav-label">{t('platformAudit')}</span></Link>}
       <Link to="/account/security" title={t('accountSecurity')} aria-label={t('accountSecurity')}><Icon name="shield" /><span className="nav-label">{t('accountSecurity')}</span></Link>
