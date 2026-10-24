@@ -422,3 +422,7 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 继续用既有Go overlay排除两份旧fabric_precheck/026草稿，原文件原样未暂存；本轮硬件使用独立fixture，不声明真实设备验收。上一轮369223d的GitHub Actions run40109273783已查询completed/success。本节发布结果、vet及最终检查在完成后补记。FR-14/WP-1.12/P1仍partial；GPU/其他部件、面板/角色、显式升级失效和G1等按依赖后续推进。
 
 §37提交前检查补记：`npm run check` 与 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json go vet ./internal/platform ./internal/httpapi` 均实际退出0，日志分别 `/tmp/keel-model-mac-types.log`、`/tmp/keel-model-mac-vet.log`；设计、Node语法及diff检查通过，GitHub SSH认证成功。
+
+**§37 发布完成**：功能代码 `8dcac8cab6b3a32465805e465fb0e9d37340f08d` 已正常推送GitHub，按确切SHA的git archive构建镜像，镜像ID `sha256:4926a439c515906ddce934ccb6f543207841221ebad268cced19677864b05360`。候选回环3108通过真实登录、原参数/型号/介质/执行/Flow与全局目录/全局介质七页、只读API作用域、匿名401、版本SHA及浏览器控制台检查；随后 `2026-10-24T16:10:54.735340+00:00` 更新3000并healthy，同套检查在3000再次通过，healthz返回上述完整代码SHA。
+
+运行库仍37条迁移记录，无迁移、库重置或卷修改；worker启用范围和其他服务保持原状，保留兼容旧369223d镜像。.env权限600，切换前配置、私有发布状态及截图保留在 `/home/ubuntu/.local/state/keel/releases/20261024T160902Z`；候选容器和临时配置已清理。两份旧草稿仍原样未暂存。GitHub Actions run40110165418当前in_progress，本轮不声明CI通过；前轮369223d已completed/success。后续交接文档提交不改变3000所运行的功能SHA。
