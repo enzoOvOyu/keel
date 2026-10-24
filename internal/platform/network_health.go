@@ -19,14 +19,15 @@ type NetworkGate struct {
 	EvidenceRefs []string `json:"evidence_refs"`
 }
 type NetworkDeviceHealth struct {
-	Device        FabricDeviceSummary      `json:"device"`
-	Protocol      NetworkGate              `json:"protocol"`
-	Optics        NetworkGate              `json:"optics"`
-	Lossless      fabricmon.LosslessHealth `json:"lossless"`
-	Source        string                   `json:"evidence_source"`
-	SampleRef     string                   `json:"sample_ref"`
-	Warnings      []string                 `json:"warnings"`
-	FindingCounts map[string]int           `json:"finding_counts"`
+	Device         FabricDeviceSummary      `json:"device"`
+	Protocol       NetworkGate              `json:"protocol"`
+	Optics         NetworkGate              `json:"optics"`
+	Lossless       fabricmon.LosslessHealth `json:"lossless"`
+	Source         string                   `json:"evidence_source"`
+	SampleRef      string                   `json:"sample_ref"`
+	Warnings       []string                 `json:"warnings"`
+	AppliedRuleIDs []string                 `json:"applied_rule_ids"`
+	FindingCounts  map[string]int           `json:"finding_counts"`
 }
 type NetworkHealthReport struct {
 	FabricStorm    fabricmon.FabricStorm  `json:"fabric_storm"`
@@ -288,7 +289,7 @@ func networkHealthTx(ctx context.Context, tx *sql.Tx, project string, onlyDevice
 		}
 	}
 	for _, d := range inventory {
-		h := NetworkDeviceHealth{Device: d, Protocol: networkGate("protocol", "PASS", ""), Optics: networkGate("optics", "PASS", ""), Warnings: []string{}, Source: out.EvidenceSource, FindingCounts: map[string]int{}}
+		h := NetworkDeviceHealth{Device: d, Protocol: networkGate("protocol", "PASS", ""), Optics: networkGate("optics", "PASS", ""), Warnings: []string{}, Source: out.EvidenceSource, FindingCounts: map[string]int{}, AppliedRuleIDs: []string{}}
 		var sample *fabricmon.Snapshot
 		if collection != nil && !collection.Stale {
 			var raw []byte
@@ -381,12 +382,20 @@ func networkHealthTx(ctx context.Context, tx *sql.Tx, project string, onlyDevice
 			all = append(all, fabricmon.EvaluateLosslessUnit(&evaluation, u, catalog.Rules)...)
 		}
 		h.Lossless = fabricmon.RollupLossless(all, units)
+		appliedRules := map[string]bool{}
 		for _, f := range all {
+			for _, id := range f.AppliedRules {
+				appliedRules[id] = true
+			}
 			h.FindingCounts[f.State]++
 			if f.RuleID == stormPolicy.RuleID {
 				stormFindings = append(stormFindings, f)
 			}
 		}
+		for id := range appliedRules {
+			h.AppliedRuleIDs = append(h.AppliedRuleIDs, id)
+		}
+		sort.Strings(h.AppliedRuleIDs)
 		if !detail {
 			h.Lossless.Findings = []fabricmon.LosslessFinding{}
 		}

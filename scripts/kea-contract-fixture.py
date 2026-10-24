@@ -107,6 +107,13 @@ class KeaFixture:
     else:self.answer({},404)
    def do_POST(self):
     raw=self.rfile.read(int(self.headers['Content-Length']));body=json.loads(raw)
+    if re.fullmatch(r'/v1/projects/[a-f0-9]{32}/network-delivery/review',self.path):
+     fault=fixture.fault.read_text();now=datetime.datetime.now(datetime.timezone.utc)
+     result={'version':'network-delivery-review/v1','project_id':body['project_id'],'scope_hash':body['scope_hash'],'request_sha256':hashlib.sha256(raw).hexdigest(),'observed_at':now.isoformat(),'review':{'acceptance':None,'waivers':[],'code':'fixture_no_cmdb_acceptance'}}
+     if fault=='delivery-review-bad-scope':result['scope_hash']='0'*64
+     if fault=='delivery-review-stale':result['observed_at']=(now-datetime.timedelta(minutes=1)).isoformat()
+     if fault=='delivery-review-fixture':result['review']['acceptance']={'id':'fixture-acceptance','scope_hash':body['scope_hash'],'approval_ref':'fixture:approval','cmdb_snapshot_ref':'fixture:snapshot','accepted_at':now.isoformat(),'evidence_source':'protocol_fixture'}
+     self.answer(result);return
     if re.fullmatch(r'/v1/projects/[a-f0-9]{32}/network-operations',self.path):
      op=body;phase=op['phase'];key=(op['project_id'],op['device_id']);fault=fixture.fault.read_text()
      with fixture.log.open('a') as f:f.write('network-'+phase+':'+op['serial']+'\n')

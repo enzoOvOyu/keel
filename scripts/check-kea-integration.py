@@ -7,7 +7,7 @@ import os,json,secrets,subprocess,tempfile,time,urllib.parse,urllib.request,sock
 from pathlib import Path
 os.umask(0o077)
 root=Path(__file__).resolve().parents[1];os.chdir(root)
-test_port=3105 if '--diagnostics' in sys.argv else 3102
+test_port=3106 if '--delivery' in sys.argv else 3105 if '--diagnostics' in sys.argv else 3102
 probe=socket.socket();probe.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);probe.bind(('127.0.0.1',test_port));probe.close()
 record=json.loads(subprocess.check_output(['docker','inspect','keel-auth-test-postgres']))[0]
 assert record['Config']['Labels'].get('io.keel.test-environment')=='disposable'
@@ -77,7 +77,7 @@ try:
  else:raise RuntimeError('Isolated API did not become ready')
  env.update(KEEL_WORKER_ID='kea-contract-worker',KEEL_WORKER_CONCURRENCY='4',KEEL_WORKER_LEASE='2s')
  worker=subprocess.Popen([str(work/'keel-worker')],env=env,stdout=(work/'worker.log').open('w'),stderr=subprocess.STDOUT)
- credentials=work/'credentials.json';credentials.write_text(json.dumps(dict(base_url=f'http://127.0.0.1:{test_port}',username='shelladmin',password=pw,management_project_id=project,fault_file=str(fixture.fault),command_log=str(fixture.log))));credentials.chmod(0o600)
+ credentials=work/'credentials.json';credentials.write_text(json.dumps(dict(base_url=f'http://127.0.0.1:{test_port}',username='shelladmin',password=pw,management_project_id=project,fault_file=str(fixture.fault),command_log=str(fixture.log),test_database=database,test_database_owner=owner)));credentials.chmod(0o600)
  env.update(KEEL_AUTH_BROWSER_CREDENTIALS_FILE=str(credentials),KEEL_WORKSPACE_EVIDENCE_DIR=str(work))
  import sys
  command=['node','scripts/check-kea-browser.mjs']
@@ -86,6 +86,7 @@ try:
  if '--rules' in sys.argv:command=['node','scripts/check-network-rules-browser.mjs']
  if '--ztp-completion' in sys.argv:command=['node','scripts/check-ztp-completion-browser.mjs']
  if '--diagnostics' in sys.argv:command=['node','scripts/check-fabric-diagnostics-browser.mjs']
+ if '--delivery' in sys.argv:command=['node','scripts/check-network-delivery-browser.mjs']
  if '--fabric' in sys.argv:command=['node','scripts/check-fabric-browser.mjs']
  if '--sim-regression' in sys.argv:
   command=['python3','scripts/check-execution-integration.py'];env['KEEL_SIM_TEST_TARGETS']='24'

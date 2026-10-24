@@ -2399,6 +2399,213 @@ paths:
 
   /api/v1/projects/{id}/fabric/devices/{deviceId}/ddm-trends/export: {"post": {"operationId": "auditFabricDDMPNGExport", "security": [{"sessionCookie": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}, {"name": "deviceId", "in": "path", "required": true, "schema": {"type": "string"}}, {"$ref": "#/components/parameters/CSRFToken"}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["port", "hours", "content_hash"], "properties": {"port": {"type": "string"}, "hours": {"type": "integer", "enum": [24, 48]}, "content_hash": {"type": "string"}}}}}}, "responses": {"200": {"description": "Authorized exact-dataset PNG export proof; pixels are rendered by the client with the current theme/Intel font.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/FabricDDMTrends"}}}}}}}
 
+  /api/v1/projects/{id}/fabric/delivery/preflight:
+    get:
+      operationId: getNetworkDeliveryPreflight
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Project-authorized immutable evidence; draft archives are explicitly non-delivery.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworkDeliveryPreview'
+        '401':
+          description: Session required
+        '403':
+          description: Insufficient project permission
+        '404':
+          description: Project not accessible
+  /api/v1/projects/{id}/fabric/delivery/references:
+    get:
+      operationId: getNetworkDeliveryReferences
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+          default: 1
+      - name: page_size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 200
+      responses:
+        '200':
+          description: Project-authorized immutable evidence; draft archives are explicitly non-delivery.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworkDeliveryReferencePage'
+        '401':
+          description: Session required
+        '403':
+          description: Insufficient project permission
+        '404':
+          description: Project not accessible
+  /api/v1/projects/{id}/fabric/delivery/exports:
+    get:
+      operationId: getNetworkDeliveryExports
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Project-authorized immutable evidence; draft archives are explicitly non-delivery.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NetworkDeliveryExport'
+        '401':
+          description: Session required
+        '403':
+          description: Insufficient project permission
+        '404':
+          description: Project not accessible
+    post:
+      operationId: createNetworkDeliveryExport
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NetworkDeliveryExportInput'
+      responses:
+        '201':
+          description: Project-authorized immutable evidence; draft archives are explicitly non-delivery.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworkDeliveryExport'
+        '400':
+          description: Invalid input
+        '409':
+          description: Stale preflight, incomplete evidence, changed scope or idempotency conflict
+  /api/v1/projects/{id}/fabric/delivery/schema:
+    get:
+      operationId: getNetworkDeliverySchema
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Project-authorized immutable evidence; draft archives are explicitly non-delivery.
+          content:
+            application/schema+json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Session required
+        '403':
+          description: Insufficient project permission
+        '404':
+          description: Project not accessible
+  /api/v1/projects/{id}/fabric/delivery/exports/{exportId}/download:
+    get:
+      operationId: downloadNetworkDeliveryExport
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: exportId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Exact archived JSON bytes; X-Keel-Content-SHA256 identifies their digest.
+          headers:
+            X-Keel-Content-SHA256:
+              schema:
+                type: string
+                pattern: ^[a-f0-9]{64}$
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '404':
+          description: Archive not found in this project
+        '409':
+          description: Archive integrity check failed
+  /api/v1/projects/{id}/fabric/baseline/export:
+    get:
+      operationId: exportNetworkBaseline
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: export_id
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Exact archived JSON bytes; X-Keel-Content-SHA256 identifies their digest.
+          headers:
+            X-Keel-Content-SHA256:
+              schema:
+                type: string
+                pattern: ^[a-f0-9]{64}$
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '404':
+          description: Archive not found in this project
+        '409':
+          description: Archive integrity check failed
 components:
 
   securitySchemes:
@@ -2578,16 +2785,41 @@ components:
         fabric: { $ref: '#/components/schemas/LosslessHealthRollup' }
     NetworkDeviceHealth:
       type: object
-      required: [device, protocol, optics, lossless, evidence_source, sample_ref, warnings, finding_counts]
+      required:
+      - device
+      - protocol
+      - optics
+      - lossless
+      - evidence_source
+      - sample_ref
+      - warnings
+      - finding_counts
+      - applied_rule_ids
       properties:
-        device: { $ref: '#/components/schemas/FabricDeviceSummary' }
-        protocol: { $ref: '#/components/schemas/NetworkGate' }
-        optics: { $ref: '#/components/schemas/NetworkGate' }
-        lossless: { $ref: '#/components/schemas/LosslessHealth' }
-        evidence_source: { type: string }
-        sample_ref: { type: string }
-        warnings: { type: array, items: { type: string } }
-        finding_counts: { type: object, additionalProperties: { type: integer } }
+        device:
+          $ref: '#/components/schemas/FabricDeviceSummary'
+        protocol:
+          $ref: '#/components/schemas/NetworkGate'
+        optics:
+          $ref: '#/components/schemas/NetworkGate'
+        lossless:
+          $ref: '#/components/schemas/LosslessHealth'
+        evidence_source:
+          type: string
+        sample_ref:
+          type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        finding_counts:
+          type: object
+          additionalProperties:
+            type: integer
+        applied_rule_ids:
+          type: array
+          items:
+            type: string
     NetworkHealthReport:
       type: object
       required: [fabric_storm, version, project_id, package_id, readiness_at, ttl_seconds, valid_until, devices, lossless, ns7, evidence_source]
@@ -4028,6 +4260,303 @@ components:
           type: integer
           minimum: 1
           maximum: 100
+    NetworkDeliveryReference:
+      type: object
+      required:
+      - id
+      - kind
+      - object_id
+      - version
+      - sha256
+      - evidence_source
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+        object_id:
+          type: string
+        version:
+          type: string
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        evidence_source:
+          type: string
+        observed_at:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+    NetworkDeliveryStage:
+      type: object
+      required:
+      - id
+      - state
+      - reasons
+      - evidence_refs
+      properties:
+        id:
+          type: string
+        state:
+          type: string
+          enum:
+          - PASS
+          - WARN
+          - FAIL
+          - BLOCKED
+          - WAIVED
+        reasons:
+          type: array
+          items:
+            type: string
+        evidence_refs:
+          type: array
+          items:
+            type: string
+        original_state:
+          type: string
+        waiver_id:
+          type: string
+    NetworkDeliveryWaiver:
+      type: object
+      required:
+      - id
+      - stage
+      - scope_hash
+      - approved
+      - approval_ref
+      - reason
+      - compensation
+      - valid_until
+      - evidence_source
+      properties:
+        id:
+          type: string
+        stage:
+          type: string
+        scope_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        approved:
+          type: boolean
+        approval_ref:
+          type: string
+        reason:
+          type: string
+        compensation:
+          type: string
+        valid_until:
+          type: string
+          format: date-time
+        evidence_source:
+          type: string
+    NetworkDeliveryAcceptance:
+      type: object
+      required:
+      - id
+      - scope_hash
+      - approval_ref
+      - cmdb_snapshot_ref
+      - accepted_at
+      - evidence_source
+      properties:
+        id:
+          type: string
+        scope_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        approval_ref:
+          type: string
+        cmdb_snapshot_ref:
+          type: string
+        accepted_at:
+          type: string
+          format: date-time
+        evidence_source:
+          type: string
+    NetworkDeliveryReview:
+      type: object
+      required:
+      - acceptance
+      - waivers
+      - code
+      properties:
+        acceptance:
+          anyOf:
+          - $ref: '#/components/schemas/NetworkDeliveryAcceptance'
+          - type: 'null'
+        waivers:
+          type: array
+          items:
+            $ref: '#/components/schemas/NetworkDeliveryWaiver'
+        code:
+          type: string
+    NetworkDeliveryPreflight:
+      type: object
+      required:
+      - version
+      - project_id
+      - package_id
+      - scope_hash
+      - preflight_hash
+      - readiness_at
+      - valid_until
+      - ttl_seconds
+      - state
+      - delivery_allowed
+      - consistency_check_rate
+      - checked_references
+      - total_references
+      - object_count
+      - stages
+      - integrity_errors
+      - review
+      properties:
+        version:
+          type: string
+        project_id:
+          type: string
+        package_id:
+          type: string
+        scope_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        preflight_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        readiness_at:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+        ttl_seconds:
+          type: integer
+        state:
+          type: string
+        delivery_allowed:
+          type: boolean
+        consistency_check_rate:
+          type: number
+        checked_references:
+          type: integer
+        total_references:
+          type: integer
+        object_count:
+          type: integer
+        stages:
+          type: array
+          items:
+            $ref: '#/components/schemas/NetworkDeliveryStage'
+        integrity_errors:
+          type: array
+          items:
+            type: string
+        review:
+          $ref: '#/components/schemas/NetworkDeliveryReview'
+    NetworkDeliveryPreview:
+      type: object
+      required:
+      - preflight
+      - references
+      - object_count
+      - reference_total
+      properties:
+        preflight:
+          $ref: '#/components/schemas/NetworkDeliveryPreflight'
+        references:
+          type: array
+          items:
+            $ref: '#/components/schemas/NetworkDeliveryReference'
+        object_count:
+          type: integer
+        reference_total:
+          type: integer
+    NetworkDeliveryReferencePage:
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - page_size
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NetworkDeliveryReference'
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+    NetworkDeliveryExport:
+      type: object
+      required:
+      - id
+      - project_id
+      - package_id
+      - revision
+      - kind
+      - schema_version
+      - scope_hash
+      - preflight_hash
+      - content_hash
+      - consistency_check_rate
+      - created_by
+      - created_at
+      - size
+      properties:
+        id:
+          type: string
+        project_id:
+          type: string
+        package_id:
+          type: string
+        revision:
+          type: integer
+        kind:
+          type: string
+          enum:
+          - draft
+          - delivery
+        schema_version:
+          type: string
+        scope_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        preflight_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        content_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        consistency_check_rate:
+          type: number
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        size:
+          type: integer
+    NetworkDeliveryExportInput:
+      type: object
+      required:
+      - kind
+      - expected_preflight_hash
+      properties:
+        kind:
+          type: string
+          enum:
+          - draft
+          - delivery
+        expected_preflight_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+      additionalProperties: false
   responses:
     InvalidRequest:
       description: Invalid JSON, unsupported fields, validation failure, or missing idempotency key.

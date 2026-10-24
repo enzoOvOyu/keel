@@ -1419,6 +1419,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/fabric/delivery/preflight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNetworkDeliveryPreflight"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/delivery/references": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNetworkDeliveryReferences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/delivery/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNetworkDeliveryExports"];
+        put?: never;
+        post: operations["createNetworkDeliveryExport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/delivery/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNetworkDeliverySchema"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/delivery/exports/{exportId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["downloadNetworkDeliveryExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/baseline/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["exportNetworkBaseline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1941,6 +2037,7 @@ export interface components {
             finding_counts: {
                 [key: string]: number;
             };
+            applied_rule_ids: string[];
         };
         NetworkHealthReport: {
             fabric_storm: components["schemas"]["FabricStorm"];
@@ -2979,6 +3076,108 @@ export interface components {
             total: number;
             page: number;
             page_size: number;
+        };
+        NetworkDeliveryReference: {
+            id: string;
+            kind: string;
+            object_id: string;
+            version: string;
+            sha256: string;
+            evidence_source: string;
+            /** Format: date-time */
+            observed_at?: string;
+            /** Format: date-time */
+            valid_until?: string;
+        };
+        NetworkDeliveryStage: {
+            id: string;
+            /** @enum {string} */
+            state: "PASS" | "WARN" | "FAIL" | "BLOCKED" | "WAIVED";
+            reasons: string[];
+            evidence_refs: string[];
+            original_state?: string;
+            waiver_id?: string;
+        };
+        NetworkDeliveryWaiver: {
+            id: string;
+            stage: string;
+            scope_hash: string;
+            approved: boolean;
+            approval_ref: string;
+            reason: string;
+            compensation: string;
+            /** Format: date-time */
+            valid_until: string;
+            evidence_source: string;
+        };
+        NetworkDeliveryAcceptance: {
+            id: string;
+            scope_hash: string;
+            approval_ref: string;
+            cmdb_snapshot_ref: string;
+            /** Format: date-time */
+            accepted_at: string;
+            evidence_source: string;
+        };
+        NetworkDeliveryReview: {
+            acceptance: components["schemas"]["NetworkDeliveryAcceptance"] | null;
+            waivers: components["schemas"]["NetworkDeliveryWaiver"][];
+            code: string;
+        };
+        NetworkDeliveryPreflight: {
+            version: string;
+            project_id: string;
+            package_id: string;
+            scope_hash: string;
+            preflight_hash: string;
+            /** Format: date-time */
+            readiness_at: string;
+            /** Format: date-time */
+            valid_until: string;
+            ttl_seconds: number;
+            state: string;
+            delivery_allowed: boolean;
+            consistency_check_rate: number;
+            checked_references: number;
+            total_references: number;
+            object_count: number;
+            stages: components["schemas"]["NetworkDeliveryStage"][];
+            integrity_errors: string[];
+            review: components["schemas"]["NetworkDeliveryReview"];
+        };
+        NetworkDeliveryPreview: {
+            preflight: components["schemas"]["NetworkDeliveryPreflight"];
+            references: components["schemas"]["NetworkDeliveryReference"][];
+            object_count: number;
+            reference_total: number;
+        };
+        NetworkDeliveryReferencePage: {
+            items: components["schemas"]["NetworkDeliveryReference"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        NetworkDeliveryExport: {
+            id: string;
+            project_id: string;
+            package_id: string;
+            revision: number;
+            /** @enum {string} */
+            kind: "draft" | "delivery";
+            schema_version: string;
+            scope_hash: string;
+            preflight_hash: string;
+            content_hash: string;
+            consistency_check_rate: number;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            size: number;
+        };
+        NetworkDeliveryExportInput: {
+            /** @enum {string} */
+            kind: "draft" | "delivery";
+            expected_preflight_hash: string;
         };
         FlowInput: {
             /** @enum {string} */
@@ -6269,6 +6468,309 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["FabricDDMTrends"];
                 };
+            };
+        };
+    };
+    getNetworkDeliveryPreflight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-authorized immutable evidence; draft archives are explicitly non-delivery. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkDeliveryPreview"];
+                };
+            };
+            /** @description Session required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient project permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Project not accessible */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getNetworkDeliveryReferences: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-authorized immutable evidence; draft archives are explicitly non-delivery. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkDeliveryReferencePage"];
+                };
+            };
+            /** @description Session required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient project permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Project not accessible */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getNetworkDeliveryExports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-authorized immutable evidence; draft archives are explicitly non-delivery. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["NetworkDeliveryExport"][];
+                    };
+                };
+            };
+            /** @description Session required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient project permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Project not accessible */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createNetworkDeliveryExport: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NetworkDeliveryExportInput"];
+            };
+        };
+        responses: {
+            /** @description Project-authorized immutable evidence; draft archives are explicitly non-delivery. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkDeliveryExport"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Stale preflight, incomplete evidence, changed scope or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getNetworkDeliverySchema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-authorized immutable evidence; draft archives are explicitly non-delivery. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/schema+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Session required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient project permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Project not accessible */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    downloadNetworkDeliveryExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                exportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact archived JSON bytes; X-Keel-Content-SHA256 identifies their digest. */
+            200: {
+                headers: {
+                    "X-Keel-Content-SHA256"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Archive not found in this project */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Archive integrity check failed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exportNetworkBaseline: {
+        parameters: {
+            query: {
+                export_id: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact archived JSON bytes; X-Keel-Content-SHA256 identifies their digest. */
+            200: {
+                headers: {
+                    "X-Keel-Content-SHA256"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Archive not found in this project */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Archive integrity check failed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

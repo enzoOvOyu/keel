@@ -19,6 +19,7 @@ import { Route as PProjectIdRouteImport } from './routes/p.$projectId'
 import { Route as PProjectIdAssetsRouteImport } from './routes/p_.$projectId.assets'
 import { Route as PProjectIdAuditsRouteImport } from './routes/p_.$projectId.audits'
 import { Route as PProjectIdConfigurationRouteImport } from './routes/p_.$projectId.configuration'
+import { Route as PProjectIdDeliveryRouteImport } from './routes/p_.$projectId.delivery'
 import { Route as PProjectIdExecutionsRouteImport } from './routes/p_.$projectId.executions'
 import { Route as PProjectIdFabricRouteImport } from './routes/p_.$projectId.fabric'
 import { Route as PProjectIdFlowsRouteImport } from './routes/p_.$projectId.flows'
@@ -79,6 +80,11 @@ const PProjectIdConfigurationRoute = PProjectIdConfigurationRouteImport.update({
   path: '/p/$projectId/configuration',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PProjectIdDeliveryRoute = PProjectIdDeliveryRouteImport.update({
+  id: '/p_/$projectId/delivery',
+  path: '/p/$projectId/delivery',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PProjectIdExecutionsRoute = PProjectIdExecutionsRouteImport.update({
   id: '/p_/$projectId/executions',
   path: '/p/$projectId/executions',
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/p/$projectId/assets': typeof PProjectIdAssetsRoute
   '/p/$projectId/audits': typeof PProjectIdAuditsRoute
   '/p/$projectId/configuration': typeof PProjectIdConfigurationRoute
+  '/p/$projectId/delivery': typeof PProjectIdDeliveryRoute
   '/p/$projectId/executions': typeof PProjectIdExecutionsRoute
   '/p/$projectId/fabric': typeof PProjectIdFabricRoute
   '/p/$projectId/flows': typeof PProjectIdFlowsRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByTo {
   '/p/$projectId/assets': typeof PProjectIdAssetsRoute
   '/p/$projectId/audits': typeof PProjectIdAuditsRoute
   '/p/$projectId/configuration': typeof PProjectIdConfigurationRoute
+  '/p/$projectId/delivery': typeof PProjectIdDeliveryRoute
   '/p/$projectId/executions': typeof PProjectIdExecutionsRoute
   '/p/$projectId/fabric': typeof PProjectIdFabricRoute
   '/p/$projectId/flows': typeof PProjectIdFlowsRoute
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   '/p_/$projectId/assets': typeof PProjectIdAssetsRoute
   '/p_/$projectId/audits': typeof PProjectIdAuditsRoute
   '/p_/$projectId/configuration': typeof PProjectIdConfigurationRoute
+  '/p_/$projectId/delivery': typeof PProjectIdDeliveryRoute
   '/p_/$projectId/executions': typeof PProjectIdExecutionsRoute
   '/p_/$projectId/fabric': typeof PProjectIdFabricRoute
   '/p_/$projectId/flows': typeof PProjectIdFlowsRoute
@@ -202,6 +211,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/assets'
     | '/p/$projectId/audits'
     | '/p/$projectId/configuration'
+    | '/p/$projectId/delivery'
     | '/p/$projectId/executions'
     | '/p/$projectId/fabric'
     | '/p/$projectId/flows'
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/assets'
     | '/p/$projectId/audits'
     | '/p/$projectId/configuration'
+    | '/p/$projectId/delivery'
     | '/p/$projectId/executions'
     | '/p/$projectId/fabric'
     | '/p/$projectId/flows'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/p_/$projectId/assets'
     | '/p_/$projectId/audits'
     | '/p_/$projectId/configuration'
+    | '/p_/$projectId/delivery'
     | '/p_/$projectId/executions'
     | '/p_/$projectId/fabric'
     | '/p_/$projectId/flows'
@@ -266,6 +278,7 @@ export interface RootRouteChildren {
   PProjectIdAssetsRoute: typeof PProjectIdAssetsRoute
   PProjectIdAuditsRoute: typeof PProjectIdAuditsRoute
   PProjectIdConfigurationRoute: typeof PProjectIdConfigurationRoute
+  PProjectIdDeliveryRoute: typeof PProjectIdDeliveryRoute
   PProjectIdExecutionsRoute: typeof PProjectIdExecutionsRoute
   PProjectIdFabricRoute: typeof PProjectIdFabricRoute
   PProjectIdFlowsRoute: typeof PProjectIdFlowsRoute
@@ -349,6 +362,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectIdConfigurationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p_/$projectId/delivery': {
+      id: '/p_/$projectId/delivery'
+      path: '/p/$projectId/delivery'
+      fullPath: '/p/$projectId/delivery'
+      preLoaderRoute: typeof PProjectIdDeliveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p_/$projectId/executions': {
       id: '/p_/$projectId/executions'
       path: '/p/$projectId/executions'
@@ -426,6 +446,7 @@ const rootRouteChildren: RootRouteChildren = {
   PProjectIdAssetsRoute: PProjectIdAssetsRoute,
   PProjectIdAuditsRoute: PProjectIdAuditsRoute,
   PProjectIdConfigurationRoute: PProjectIdConfigurationRoute,
+  PProjectIdDeliveryRoute: PProjectIdDeliveryRoute,
   PProjectIdExecutionsRoute: PProjectIdExecutionsRoute,
   PProjectIdFabricRoute: PProjectIdFabricRoute,
   PProjectIdFlowsRoute: PProjectIdFlowsRoute,

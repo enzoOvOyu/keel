@@ -1,0 +1,451 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:keel:network-delivery:v1",
+  "title": "Keel immutable network delivery baseline",
+  "type": "object",
+  "required": [
+    "version",
+    "id",
+    "revision",
+    "kind",
+    "is_delivery",
+    "notice",
+    "generated_at",
+    "project_id",
+    "package_id",
+    "preflight",
+    "references",
+    "objects",
+    "addresses",
+    "configuration_index",
+    "rule_versions"
+  ],
+  "properties": {
+    "version": {
+      "const": "network-delivery/v1"
+    },
+    "id": {
+      "type": "string"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "kind": {
+      "enum": [
+        "draft",
+        "delivery"
+      ]
+    },
+    "is_delivery": {
+      "type": "boolean"
+    },
+    "notice": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "package_id": {
+      "type": "string"
+    },
+    "preflight": {
+      "$ref": "#/$defs/NetworkDeliveryPreflight"
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/NetworkDeliveryReference"
+      }
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "item_uid",
+          "category",
+          "status",
+          "bom_ref",
+          "asset_ref",
+          "sample_refs",
+          "state",
+          "source"
+        ],
+        "properties": {
+          "item_uid": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "bom_ref": {
+            "type": "string"
+          },
+          "asset_ref": {
+            "type": "string"
+          },
+          "sample_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "state": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "addresses": {
+      "type": [
+        "array",
+        "object",
+        "null"
+      ]
+    },
+    "configuration_index": {
+      "type": [
+        "array",
+        "object",
+        "null"
+      ]
+    },
+    "rule_versions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "draft"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "is_delivery": {
+            "const": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "delivery"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "is_delivery": {
+            "const": true
+          },
+          "preflight": {
+            "properties": {
+              "delivery_allowed": {
+                "const": true
+              },
+              "consistency_check_rate": {
+                "const": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "NetworkDeliveryReference": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "object_id",
+        "version",
+        "sha256",
+        "evidence_source"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "object_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "evidence_source": {
+          "type": "string"
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "valid_until": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "NetworkDeliveryStage": {
+      "type": "object",
+      "required": [
+        "id",
+        "state",
+        "reasons",
+        "evidence_refs"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "WARN",
+            "FAIL",
+            "BLOCKED",
+            "WAIVED"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "original_state": {
+          "type": "string"
+        },
+        "waiver_id": {
+          "type": "string"
+        }
+      }
+    },
+    "NetworkDeliveryWaiver": {
+      "type": "object",
+      "required": [
+        "id",
+        "stage",
+        "scope_hash",
+        "approved",
+        "approval_ref",
+        "reason",
+        "compensation",
+        "valid_until",
+        "evidence_source"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "stage": {
+          "type": "string"
+        },
+        "scope_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "approved": {
+          "type": "boolean"
+        },
+        "approval_ref": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "compensation": {
+          "type": "string"
+        },
+        "valid_until": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "evidence_source": {
+          "type": "string"
+        }
+      }
+    },
+    "NetworkDeliveryAcceptance": {
+      "type": "object",
+      "required": [
+        "id",
+        "scope_hash",
+        "approval_ref",
+        "cmdb_snapshot_ref",
+        "accepted_at",
+        "evidence_source"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "scope_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "approval_ref": {
+          "type": "string"
+        },
+        "cmdb_snapshot_ref": {
+          "type": "string"
+        },
+        "accepted_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "evidence_source": {
+          "type": "string"
+        }
+      }
+    },
+    "NetworkDeliveryReview": {
+      "type": "object",
+      "required": [
+        "acceptance",
+        "waivers",
+        "code"
+      ],
+      "properties": {
+        "acceptance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NetworkDeliveryAcceptance"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "waivers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NetworkDeliveryWaiver"
+          }
+        },
+        "code": {
+          "type": "string"
+        }
+      }
+    },
+    "NetworkDeliveryPreflight": {
+      "type": "object",
+      "required": [
+        "version",
+        "project_id",
+        "package_id",
+        "scope_hash",
+        "preflight_hash",
+        "readiness_at",
+        "valid_until",
+        "ttl_seconds",
+        "state",
+        "delivery_allowed",
+        "consistency_check_rate",
+        "checked_references",
+        "total_references",
+        "object_count",
+        "stages",
+        "integrity_errors",
+        "review"
+      ],
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "project_id": {
+          "type": "string"
+        },
+        "package_id": {
+          "type": "string"
+        },
+        "scope_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "preflight_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "readiness_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "valid_until": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ttl_seconds": {
+          "type": "integer"
+        },
+        "state": {
+          "type": "string"
+        },
+        "delivery_allowed": {
+          "type": "boolean"
+        },
+        "consistency_check_rate": {
+          "type": "number"
+        },
+        "checked_references": {
+          "type": "integer"
+        },
+        "total_references": {
+          "type": "integer"
+        },
+        "object_count": {
+          "type": "integer"
+        },
+        "stages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NetworkDeliveryStage"
+          }
+        },
+        "integrity_errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "review": {
+          "$ref": "#/$defs/NetworkDeliveryReview"
+        }
+      }
+    }
+  }
+}
