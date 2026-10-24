@@ -355,3 +355,7 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 最终 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-media-artifacts-integration.py --management-only`，证据 `/tmp/keel-media-b3l_84iq`：真实隔离PG/MinIO/API/Chromium通过原项目管理和新增全局页面/API创建编辑退役、陈旧更新/退役409、跨作用域404、项目覆盖隔离、继承只读、排除项目版本、平台权限、匿名401/CSRF403、非法scope与分页过滤输入拒绝及双语导航；隔离服务/测试库/凭据已清理。此前umoux6ns因测试使用错误语言按钮名称而超时，不计最终通过；修正为现有可访问名称后定向复跑，未放宽产品规则。该选项跳过Go及未变介质回归，PG证据单独见上。
 
 上一代码3d38703的GitHub Actions run40105536743已实际查询completed/success。本节提交前3000仍3d38703、运行schema37条；提交后从明确SHA的archive构建，候选验证后更新3000，实际结果随后追加。WP-1.11/FR-1/P1仍partial：参数修订/报告治理、前端版本字段lint、完整消费者/目标BOM型号OS交叉准入、全局介质管理及所属阶段模板同步继续按依赖推进，不因FR-0跨期追赶后置开发。
+
+**§33 发布完成**：代码 `7eb6858ada4926039f24ca6350e9b2f79224b138` 已正常推送至GitHub；从该SHA的git archive构建镜像，ID `sha256:1bd4c64bec0d2ed50dd28f89bcf5463a7d3594c3b4732d1e0b745f7454e45cc5`，未包含既有旧草稿或秘密配置。候选镜像仅映射回环3108，使用现有受限连接，通过登录、原参数/型号/介质/执行/Flow五页以及新增全局目录页面/全局只读API、匿名401、完整SHA与控制台检查。随后于 `2026-10-24T15:24:36.890391+00:00` 切换3000，healthy；切换后同一套实际Chromium检查通过，healthz返回完整代码SHA。全局目录隔离验收截图已视觉复核。
+
+运行schema仍37条，无数据库迁移或重置，保留兼容旧镜像3d38703；既有数据卷、worker/profile范围和其他服务保持原状。.env仍600，切换前.env、受保护发布状态及六页截图在 `/home/ubuntu/.local/state/keel/releases/20261024T152321Z`，不进Git。候选容器及临时候选配置已清理。既有026/fabric_precheck草稿原样保留，未暂存。GitHub Actions run40106739359记录时in_progress，尚不能声称CI通过；本次发布记录单独文档提交，3000继续运行上述代码SHA。下一步继续A4已就绪输入下的WP-1.11剩余治理与版本字段约束，不将全局管理完成等同P1闭环。
