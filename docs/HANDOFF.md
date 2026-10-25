@@ -532,3 +532,7 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 持续开发第四块，按附录A的引用优先级，将NIC汇总MAC与逐口永久MAC的比较移到物料身份解析后，按端口parentUID与NIC UID归属，避免业务码/行号别名误归属，也接受对已有NIC稳定UID的合法引用。格式检查仍在早期，错误或缺少逐口MAC仍BLOCK；差异给出期望/实际、源文件/原始行和型号引用。标准包与兼容宽表使用同一检查，预检及实际提交都重新验证；无迁移、接口或前端变化。
 
 实际定向单测和vet通过（`/tmp/keel-component-mac-unit.log`、`/tmp/keel-component-mac-vet.log`）。完整隔离 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py`退出0，证据 `/tmp/keel-models-oz33rqfu`，PG/race23.489s及全部HTTP/扫描/发布/布局/固定资产版本/托盘/全局浏览器回归通过。新增server与compute-tray稳定NIC UID重导实际提交保留同一部件，汇总MAC伪造在行2显示期望/实际并阻断预检和伪造令牌提交。既有错误UID不得借用同名端口单测通过。前端未改复用§44构建，旧fabric/026草稿未暂存，fixture不作硬件证据。WP/FR-14/P1保持partial，发布后补。
+
+**§45 发布完成**：功能代码 `4d9580d67169556f637448eefe835be407b7f4ad` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:71861d81a69a2a0b3082804b53c82c1605ae3f3bee6d0ebbe6aa2d99ff4a6b73`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T00:51:52.424863+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
+
+无迁移，运行库仍37条迁移记录；保留兼容旧镜像 `keel:f1fb61f858bc0c6bbab073ceb6c5f996af93c0ee`，不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T005024Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40148254614记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
