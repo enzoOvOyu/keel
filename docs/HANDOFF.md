@@ -510,3 +510,14 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 **§43 发布完成**：功能代码 `c72ea6efcacf767c7550871aab1de785a6259974` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:45c9c4c20f72cda07fe8dbb4df57c1e1dd45275479d591d0391a52d618f7bc3e`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T00:39:07.984082+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
 
 无迁移，运行库仍37条迁移记录；保留兼容旧镜像 `keel:ceeaaa8d9f4ef66b4e39d66e71b11e482066790d`，不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T003449Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40147246983记录时 completed/success，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
+
+
+## 44. A4/B / WP-1.12：项目资产查看固定型号与历史布局（2026-10-25）
+
+持续开发第三块，工作区与分支沿用前节。新增只读GET /api/v1/projects/{id}/assets/{assetId}/model，在同一查询中绑定项目、资产、型号及确切版本；全局共享或本项目私有scope才可读，退役不挡历史，缺失绑定/异项目/型号版本不匹配均404。不读取Machine当前型号，也不退回latest。资产列表增加model_id/model_version_id/绑定版本号；同样不暴露越scope型号。列表正式OpenAPI与前端生成类型同步，资产version与型号version分开显示。
+
+资产页提供只读双语查看弹窗，固定版本摘要、完整规格、同版本槽位及复用面板预览；库有新版本时明确仍绑定旧版本，未绑定显示明确状态。缓存按用户/项目/资产/绑定版本与记录版本隔离，项目切换销毁弹窗状态。没有新增重绑定、门禁、G1或数据库迁移，不冒充完整P2 PortPanel监控，WP-1.12/FR-14/P1仍partial。
+
+实际Go vet退出0（`/tmp/keel-asset-model-vet.log`）。真实PG/race20.744s通过，证据 `/tmp/keel-models-zzpgbvp5`，包含全局/私有计算托盘、资产记录v9而绑定型号v1、库v2与退役后仍取v1、槽位unused保持、未绑定及跨项目拒绝；原HTTP/扫描/发布/布局/权限回归至发布浏览器通过。首轮新增管理员夹具缺少initial标志被正确拒绝，已修正夹具；浏览器验证旧布局、Viewer/admin、双语、跨scope及匿名时发现默认Close与自有Close重复，统一为自有双语关闭入口并定向复核。最终构建/定向结果后补；没有放宽认证、权限或产品门禁。原两份草稿未暂存，继续overlay排除，fixture不代表硬件PoC。
+
+§44提交前补记：最终根npm run build退出0（`/tmp/keel-asset-model-build.log`，含契约/TypeScript/UI边界/版本lint/Vite）；仅重跑 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py --asset-models-only`退出0，证据 `/tmp/keel-models-mynxcfzr`，Viewer/admin固定旧版本、退役历史布局、双语关闭、跨项目/匿名拒绝全部通过，asset-bound-model.png已视觉复核。没有重复跑未改变的Go回归。

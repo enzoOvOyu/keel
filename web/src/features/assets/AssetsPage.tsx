@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button'
+import { AssetModelDialog } from './AssetModelDialog'
 import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -109,6 +111,7 @@ function AssetsContent() {
   const allowed = session.permissions.includes('model:read')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [packageImporting, setPackageImporting] = useState(false)
+  const [modelTarget, setModelTarget] = useState<ProjectAsset | null>(null)
   const manage = canManageProject(project, session.user.is_admin) && session.permissions.includes('model:manage')
   const assets = useQuery({ queryKey: ['private', session.user.id, 'project', project.id, 'assets', page], queryFn: ({ signal }) => listProjectAssets(project.id, page, signal), enabled: allowed })
   useExpireOnUnauthorized(assets.error)
@@ -127,17 +130,18 @@ function AssetsContent() {
       {assets.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : assets.data && <>
         <div className="table-scroll" tabIndex={0} role="region" aria-label={t('bomTitle')}><table className="data-table"><thead><tr>{manage && <th scope="col"><input type="checkbox" aria-label={t('trustSelectAll')} checked={!!(assets.data.items ?? []).length && selected.size === (assets.data.items ?? []).length} onChange={(event) => setSelected(event.target.checked ? new Set((assets.data.items ?? []).map((a) => a.machine_id)) : new Set())} /></th>}<th scope="col">{t('bomHostname')}</th><th scope="col">{t('bomSerial')}</th><th scope="col">{t('bomModel')}</th><th scope="col">{t('bomRack')}</th><th scope="col">{t('bomIpRef')}</th><th scope="col">{t('bomState')}</th><th scope="col">{t('trustTitle')}</th></tr></thead>
           <tbody>{(assets.data.items ?? []).map((asset) => <tr key={asset.id}>{manage && <td><input type="checkbox" aria-label={asset.hostname} checked={selected.has(asset.machine_id)} onChange={(event) => { const next = new Set(selected); if (event.target.checked) next.add(asset.machine_id); else next.delete(asset.machine_id); setSelected(next) }} /></td>}<td><strong>{asset.hostname}</strong><span className="cell-subtitle">v{asset.version}</span></td>
-            <td className="mono-value">{asset.serial_number}</td><td>{asset.model_name || '—'}</td><td>{asset.rack}{asset.unit_position ? ` / ${asset.unit_position}` : ''}</td><td className="mono-value">{asset.ip_reference || '—'}</td>
+            <td className="mono-value">{asset.serial_number}</td><td>{asset.model_name || '—'}{asset.model_version_id && asset.model_version > 0 ? <><span className="cell-subtitle">{t('assetModelVersion')} v{asset.model_version}</span><Button type="button" variant="ghost" size="sm" onClick={() => setModelTarget(asset)}>{t('assetModelBinding')}</Button></> : <span className="cell-subtitle">{t('assetModelUnbound')}</span>}</td><td>{asset.rack}{asset.unit_position ? ` / ${asset.unit_position}` : ''}</td><td className="mono-value">{asset.ip_reference || '—'}</td>
             <td><span className={`status-label ${asset.state === 'provisioned' ? 'enabled' : asset.state === 'failed' ? 'disabled' : ''}`}>{t('bom_state_' + asset.state)}</span></td>
             <td><span className={`status-label ${asset.ssh_trust === 'established' ? 'enabled' : asset.ssh_trust === 'revoked' ? 'disabled' : ''}`}>{t('trust_state_' + asset.ssh_trust)}</span></td></tr>)}</tbody></table>
           {!(assets.data.items ?? []).length && <p className="table-loading">{t('bomNoAssets')}</p>}</div>
         <Pagination offset={(page - 1) * assets.data.page_size} limit={assets.data.page_size} total={assets.data.total} busy={assets.isFetching} onChange={(offset) => setPage(offset / assets.data.page_size + 1)} /></>}
     </section>
+    {modelTarget && <AssetModelDialog key={`${project.id}:${modelTarget.id}`} projectId={project.id} asset={modelTarget} onClose={() => setModelTarget(null)} />}
     {packageImporting && <BomPackageDialog projectId={project.id} onClose={() => setPackageImporting(false)} onDone={(message) => done(message)} />}
     {importing && <BomImportDialog projectId={project.id} onClose={() => setImporting(false)} onDone={(message) => done(message)} />}
     {trustTarget && <TrustDialog projectId={project.id} machines={trustTarget} onClose={() => setTrustTarget(null)} onDone={(message) => { setSelected(new Set()); return done(message) }} />}
   </>
 }
 export function AssetsPage({ projectId }: { projectId: string }) {
-  return <ProjectWorkspace projectId={projectId}><AssetsContent /></ProjectWorkspace>
+  return <ProjectWorkspace projectId={projectId}><AssetsContent key={projectId} /></ProjectWorkspace>
 }

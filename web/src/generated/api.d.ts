@@ -52,6 +52,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listProjectAssets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/model": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAssetModelBinding"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/models": {
         parameters: {
             query?: never;
@@ -3420,6 +3452,35 @@ export interface components {
             page: number;
             page_size: number;
         };
+        ProjectAssetSummary: {
+            id: string;
+            machine_id: string;
+            serial_number: string;
+            hostname: string;
+            ip_reference: string;
+            state: string;
+            version: number;
+            model_name: string;
+            rack: string;
+            unit_position: string;
+            ssh_trust: string;
+            model_id: string;
+            model_version_id: string;
+            model_version: number;
+        };
+        ProjectAssetPage: {
+            items: components["schemas"]["ProjectAssetSummary"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        AssetModelBinding: {
+            asset_id: string;
+            machine_id: string;
+            asset_version: number;
+            model: components["schemas"]["DeviceModelSummary"];
+            model_version: components["schemas"]["DeviceModelVersionDetail"];
+        };
         ModelPanelPort: {
             /** @description Unique in this layout; no surrounding whitespace. */
             id: string;
@@ -4122,6 +4183,65 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    listProjectAssets: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project assets with exact pinned model version IDs; empty IDs and version zero mean no published binding. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectAssetPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAssetModelBinding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+                assetId: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Asset's exact immutable model version, including historical layout and slots. Never falls back to latest or machine current model. Retired history is readable. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetModelBinding"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Project or asset is inaccessible */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     listProjectDeviceModels: {

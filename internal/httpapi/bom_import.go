@@ -57,6 +57,23 @@ func (a *authAPI) registerBomImport(r *gin.Engine) {
 		}
 		c.JSON(http.StatusCreated, result)
 	})
+	r.GET("/api/v1/projects/:id/assets/:assetId/model", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		project, err := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		binding, err := a.store.GetAssetModelBinding(c.Request.Context(), actor, project, c.Param("assetId"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, binding)
+	})
 	r.GET("/api/v1/projects/:id/assets", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {

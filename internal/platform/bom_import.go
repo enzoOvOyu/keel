@@ -427,10 +427,11 @@ func (s *Store) ListProjectAssets(ctx context.Context, a *AuthSession, project *
 		return out, e
 	}
 	rows, e := tx.QueryContext(ctx, `SELECT pa.id,pa.machine_id,m.serial_number,pa.hostname,pa.ip_reference,pa.state,pa.version,
-			COALESCE(dm.name,''), m.rack, m.unit_position, m.ssh_trust
+			COALESCE(dm.name,''), m.rack, m.unit_position, m.ssh_trust, COALESCE(dm.id,''), COALESCE(mv.id,''), COALESCE(mv.version,0)
 		FROM project_assets pa
 		JOIN machines m ON m.id=pa.machine_id
-		LEFT JOIN device_models dm ON dm.id=pa.model_id
+		LEFT JOIN device_models dm ON dm.id=pa.model_id AND (dm.scope_key='global' OR dm.scope_key='project:'||pa.project_id)
+		LEFT JOIN device_model_versions mv ON mv.id=pa.model_version_id AND mv.model_id=dm.id
 		WHERE pa.project_id=$1
 		ORDER BY pa.hostname LIMIT $2 OFFSET $3`, project.ID, p.PageSize, p.Offset())
 	if e != nil {
@@ -439,7 +440,7 @@ func (s *Store) ListProjectAssets(ctx context.Context, a *AuthSession, project *
 	defer rows.Close()
 	for rows.Next() {
 		var item ProjectAssetSummary
-		if e = rows.Scan(&item.ID, &item.MachineID, &item.SerialNumber, &item.Hostname, &item.IpReference, &item.State, &item.Version, &item.ModelName, &item.Rack, &item.UnitPosition, &item.SshTrust); e != nil {
+		if e = rows.Scan(&item.ID, &item.MachineID, &item.SerialNumber, &item.Hostname, &item.IpReference, &item.State, &item.Version, &item.ModelName, &item.Rack, &item.UnitPosition, &item.SshTrust, &item.ModelID, &item.ModelVersionID, &item.ModelVersion); e != nil {
 			return out, e
 		}
 		out.Items = append(out.Items, item)
@@ -454,15 +455,18 @@ func (s *Store) ListProjectAssets(ctx context.Context, a *AuthSession, project *
 }
 
 type ProjectAssetSummary struct {
-	ID           string `json:"id"`
-	MachineID    string `json:"machine_id"`
-	SerialNumber string `json:"serial_number"`
-	Hostname     string `json:"hostname"`
-	IpReference  string `json:"ip_reference"`
-	State        string `json:"state"`
-	Version      int64  `json:"version"`
-	ModelName    string `json:"model_name"`
-	Rack         string `json:"rack"`
-	UnitPosition string `json:"unit_position"`
-	SshTrust     string `json:"ssh_trust"`
+	ID             string `json:"id"`
+	MachineID      string `json:"machine_id"`
+	SerialNumber   string `json:"serial_number"`
+	Hostname       string `json:"hostname"`
+	IpReference    string `json:"ip_reference"`
+	State          string `json:"state"`
+	Version        int64  `json:"version"`
+	ModelName      string `json:"model_name"`
+	ModelID        string `json:"model_id"`
+	ModelVersionID string `json:"model_version_id"`
+	ModelVersion   int64  `json:"model_version"`
+	Rack           string `json:"rack"`
+	UnitPosition   string `json:"unit_position"`
+	SshTrust       string `json:"ssh_trust"`
 }
