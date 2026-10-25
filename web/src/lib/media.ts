@@ -1,5 +1,5 @@
 import { request } from "./api";
-import type { components } from "../generated/api";
+import type { components, paths } from "../generated/api";
 
 export type MediaItemSummary = components["schemas"]["MediaItemSummary"];
 
@@ -49,15 +49,18 @@ const write = <T>(
     return value as T;
   });
 
+export type MediaListFilter = Pick<NonNullable<paths["/api/v1/projects/{id}/media"]["get"]["parameters"]["query"]>, "search" | "type" | "state" | "compatible_arch" | "stored_only">;
+
 export const listMedia = (
   projectId: string | null,
   page: number,
   signal: AbortSignal,
-) =>
-  read<components["schemas"]["MediaPage"]>(
-    `${mediaBase(projectId)}?${pageQuery(page)}`,
-    signal,
-  );
+  filters: MediaListFilter = {},
+) => {
+ const query = new URLSearchParams(pageQuery(page));
+ for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== '') query.set(key, String(value));
+ return read<components["schemas"]["MediaPage"]>(`${mediaBase(projectId)}?${query}`, signal);
+};
 export const registerMedia = (
   projectId: string | null,
   body: components["schemas"]["RegisterMediaInput"],

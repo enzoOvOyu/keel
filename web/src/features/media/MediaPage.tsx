@@ -1,3 +1,5 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import type { MediaListFilter } from '../../lib/media';
 import { MediaCompatibilityImport, MediaCompatibilitySummary } from './MediaCompatibility';
 import type { MediaCompatibility } from '../../lib/media';
 import { MediaSourceDialog } from './MediaSourceDialog';
@@ -394,6 +396,9 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
   const { t, i18n } = useTranslation(),
     session = useSession(),
     client = useQueryClient();
+  const [filters, setFilters] = useState<MediaListFilter>({});
+  const [search, setSearch] = useState("");
+  function changeFilters(next: MediaListFilter) { setPage(1); setFilters(next); }
   const [matrixView, setMatrixView] = useState<MediaItemSummary | null>(null);
   const [sourceFetch, setSourceFetch] = useState<MediaItemSummary | null>(null);
   const [manifestExport, setManifestExport] = useState<MediaItemSummary | null>(null);
@@ -417,9 +422,10 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
       projectId === null ? "global" : "project",
       projectId,
       "media",
+      filters,
       page,
     ],
-    queryFn: ({ signal }) => listMedia(projectId, page, signal),
+    queryFn: ({ signal }) => listMedia(projectId, page, signal, filters),
     enabled: allowed,
   });
   useExpireOnUnauthorized(media.error);
@@ -467,6 +473,13 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
           </button>
         )}
       </div>
+      <form role="search" aria-label={t("mediaFilters")} className="ui:grid ui:gap-3 ui:mb-4 ui:sm:grid-cols-2 ui:lg:grid-cols-5" onSubmit={event => { event.preventDefault(); changeFilters({ ...filters, search: search.trim() }); }}>
+        <div className="field"><Label htmlFor="media-search">{t("mediaSearch")}</Label><Input id="media-search" value={search} maxLength={120} onChange={event => setSearch(event.target.value)} /></div>
+        <div className="field"><Label htmlFor="media-filter-type">{t("mediaType")}</Label><NativeSelect id="media-filter-type" value={filters.type ?? ""} onChange={event => changeFilters({ ...filters, type: event.target.value as MediaListFilter['type'] })}><NativeSelectOption value="">{t("mediaFilterAll")}</NativeSelectOption>{types.map(type => <NativeSelectOption value={type} key={type}>{t("media_type_"+type)}</NativeSelectOption>)}</NativeSelect></div>
+        <div className="field"><Label htmlFor="media-filter-state">{t("mediaState")}</Label><NativeSelect id="media-filter-state" value={filters.state ?? ""} onChange={event => changeFilters({ ...filters, state: event.target.value as MediaListFilter['state'] })}><NativeSelectOption value="">{t("mediaFilterAll")}</NativeSelectOption>{Object.keys(nextStates).map(state => <NativeSelectOption value={state} key={state}>{t("media_state_"+state)}</NativeSelectOption>)}</NativeSelect></div>
+        <div className="field"><Label htmlFor="media-filter-arch">{t("mediaCompatibleArch")}</Label><NativeSelect id="media-filter-arch" value={filters.compatible_arch ?? ""} onChange={event => changeFilters({ ...filters, compatible_arch: event.target.value as MediaListFilter['compatible_arch'] })}><NativeSelectOption value="">{t("mediaFilterAll")}</NativeSelectOption>{['amd64','arm64','noarch'].map(arch => <NativeSelectOption value={arch} key={arch}>{arch}</NativeSelectOption>)}</NativeSelect></div>
+        <div className="ui:flex ui:items-end ui:gap-2 ui:pb-3"><Button type="submit">{t("mediaFilterApply")}</Button><Button type="button" variant="outline" onClick={() => { setSearch(""); changeFilters({}); }}>{t("mediaFilterClear")}</Button></div>
+      </form>
       {success && <SuccessNotice>{success}</SuccessNotice>}
       {matrixView && <ActionDialog title={t("mediaCompatibility")} description={`${matrixView.name} · ${matrixView.version}`} busy={false} confirm={t("mediaMatrixClose")} onClose={() => setMatrixView(null)} onSubmit={event => { event.preventDefault(); setMatrixView(null); }}><MediaCompatibilitySummary matrix={matrixView.deps.compatibility} /></ActionDialog>}
       {sourceFetch && <MediaSourceDialog projectId={projectId} item={sourceFetch} onClose={() => setSourceFetch(null)} onDone={() => done(t("mediaSourceFetched"))} />}

@@ -1,5 +1,12 @@
 export const mediaTranslations = {
   zh: {
+    mediaFilters: "筛选介质",
+    mediaSearch: "名称或版本",
+    mediaFilterAll: "全部",
+    mediaCompatibleArch: "适配架构（含noarch）",
+    mediaFilterApply: "查询",
+    mediaFilterClear: "清空筛选",
+
     mediaCompatibility: "兼容矩阵",
     mediaMatrixSource: "矩阵来源",
     mediaMatrixVersion: "矩阵版本",
@@ -103,6 +110,13 @@ export const mediaTranslations = {
     mediaExists: "同类型、名称与版本的介质已存在。",
   },
   en: {
+    mediaFilters: "Filter media",
+    mediaSearch: "Name or version",
+    mediaFilterAll: "All",
+    mediaCompatibleArch: "Compatible architecture (includes noarch)",
+    mediaFilterApply: "Search",
+    mediaFilterClear: "Clear filters",
+
     mediaCompatibility: "Compatibility matrix",
     mediaMatrixSource: "Matrix source",
     mediaMatrixVersion: "Matrix version",

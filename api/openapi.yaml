@@ -314,7 +314,14 @@ paths:
           schema: { type: string, pattern: '^[a-f0-9]{32}$' }
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
+        - { name: search, in: query, description: Literal case-insensitive name or version substring, schema: { type: string, maxLength: 120 } }
+        - { name: type, in: query, schema: { type: string, enum: [driver, firmware, os, nccl, tool, config, ztp_script] } }
+        - { name: state, in: query, schema: { type: string, enum: [uploaded, verified, approved, retired] } }
+        - { name: compatible_arch, in: query, description: Include this architecture and noarch; noarch includes only noarch, schema: { type: string, enum: [amd64, arm64, noarch] } }
+        - { name: stored_only, in: query, description: Root has stored bytes and is not quarantined; does not attest to the transitive closure, schema: { type: boolean, default: false } }
       responses:
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Registered media with lifecycle state
           content:
@@ -3036,8 +3043,8 @@ paths:
           $ref: '#/components/responses/NotFound'
       x-resource-scope: platform-admin
       x-platform-admin-required: true
-      description: Platform administrators only. Uses the global scope; project administrators are forbidden. Global media metadata
-        includes lifecycle state; selectable versions require approved status and an immutable stored artifact.
+      description: Platform administrators only. Uses the global scope; project administrators are forbidden. Global media candidates
+        include only approved stored nonquarantined roots; this does not attest to the full dependency closure.
   /api/v1/admin/media:
     get:
       operationId: globalListProjectMedia
@@ -3046,9 +3053,16 @@ paths:
       security:
       - sessionCookie: []
       parameters:
-      - $ref: '#/components/parameters/Page'
-      - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - { name: search, in: query, description: Literal case-insensitive name or version substring, schema: { type: string, maxLength: 120 } }
+        - { name: type, in: query, schema: { type: string, enum: [driver, firmware, os, nccl, tool, config, ztp_script] } }
+        - { name: state, in: query, schema: { type: string, enum: [uploaded, verified, approved, retired] } }
+        - { name: compatible_arch, in: query, description: Include this architecture and noarch; noarch includes only noarch, schema: { type: string, enum: [amd64, arm64, noarch] } }
+        - { name: stored_only, in: query, description: Root has stored bytes and is not quarantined; does not attest to the transitive closure, schema: { type: boolean, default: false } }
       responses:
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Registered media with lifecycle state
           content:

@@ -711,3 +711,14 @@ WP-1.10接续PRD登记外部引用，复用现有manifest_ref及§53固定绑定
 **§56 发布完成**：功能代码 `3817277f67a6a73c0e11e0404073add4d0b738b4` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:6700087e0b0d252c395a339e0b989650906eb5d53bdb374f5e4e34727329cde4`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T03:49:19.951056+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
 
 无迁移，运行库38条迁移记录；保留旧镜像 `keel:b20b7c4b92f37ade60aad27c59a063492456908d`。保留兼容旧镜像。不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T034634Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40159454541记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
+
+
+## 57. A4 介质筛选与批准来源的分页前准入（2026-10-25）
+
+项目/全局介质GET新增契约化search/type/state/compatible_arch/stored_only，平台服务在授权scope括号内参数化筛选后统一计数/分页，追加ID稳定顺序；%/_/反斜杠是字面字符，拒绝重复参数、无效枚举/布尔/UTF-8/NUL或>120字符。保留无筛选原有全局继承元数据可见性，未把全局草稿元数据可见误当成可下载。更正§55使用文档中不准确的“批准的继承全局项”措辞；批准/字节权限仍由既有路径检查。
+
+共享UI查询/类型/状态/适配架构/清空，改变条件回第一页；架构语义明确包含noarch。依赖选择在后端先筛approved+stored+根源非隔离+架构，再分页，缓存纳入架构、切换回第一页，已选不兼容引用保留错误。目录管理的批准来源也先筛选，修正前端catalogApprovedMedia漏过滤隔离标记的问题，免除草稿占满分页或误列隔离源的混淆。stored_only不宣称完整DAG/目标就绪，实际登记/审批/执行继续原闭包与字节校验。无迁移、无版本自由输入例外。
+
+定向证据：/tmp/keel-media-filter-final-integration.log、/tmp/keel-media-oxjx20r3退出0，真实PG隔离根源筛除race6.219s，实际PG/MinIO/API/浏览器覆盖25草稿之前分页、字面%/_/反斜杠、版本大小写搜索、SQL注入样式零命中、准确计数/第二页、amd64/arm64/noarch、重复/非法查询、项目/全局/匿名/Viewer/跨项目拒绝、中英文及架构切换。第一次仅原生option等待可见性错误，改成等待DOM附着后通过，未改业务规则。受影响host Go race/vet与最终npm build通过；目录来源补充改动后的完整集成/发布后补。两份fabric草稿原样保留，WP/P1保持partial。
+
+§57完整实际集成通过：/tmp/keel-media-filter-full-integration.log、/tmp/keel-media-zp8yh_60，真实PG platform race46.459s及mediaartifact/mediamanifest/mediasource通过，14组HTTP/浏览器退出0，包含全局目录批准来源的更新语义和隔离/关联行/依赖/来源/归档/矩阵全回归。沿用受影响vet、最终前端构建；无变动的容量与硬件不重复。§56精确发布镜像另在network=none、只读根文件系统、匹配操作员UID、无数据库环境下执行两条归档命令通过，/tmp/keel-media-rjmmufqq/image-bundle-proof保留证据；3817277 run40159454541及交接222a3b1 run40159720296已查询completed/success。无迁移，准备确切提交候选/3000发布。

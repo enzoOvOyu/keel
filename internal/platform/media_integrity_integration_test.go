@@ -174,6 +174,16 @@ func TestMediaIntegrityRetriesAndQuarantine(t *testing.T) {
 	if !found {
 		t.Fatal("quarantine hidden from scoped media list")
 	}
+	ready, err := s.ListMediaFiltered(ctx, owner, project, Pagination{Page: 1, PageSize: 100}, MediaListFilter{State: "approved", StoredOnly: true, CompatibleArch: "noarch"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, candidate := range ready.Items {
+		if candidate.ID == item.ID || candidate.ArtifactQuarantined || !candidate.ArtifactStored {
+			t.Fatal("stored source filter offered a quarantined or absent object")
+		}
+	}
+
 	if _, err = s.TransitionMedia(ctx, reviewer, project, item.ID, "retired", "test"); err != nil {
 		t.Fatal(err)
 	}

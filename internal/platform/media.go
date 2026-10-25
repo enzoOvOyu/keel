@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/enzoOvOyu/keel/internal/mediasource"
 	"github.com/jackc/pgx/v5/pgconn"
 	"regexp"
@@ -101,10 +102,44 @@ func validateMediaInput(input RegisterMediaInput) error {
 	return nil
 }
 
+type MediaListFilter struct {
+	Search         string
+	Type           string
+	State          string
+	CompatibleArch string
+	StoredOnly     bool
+}
+
+func (f MediaListFilter) validate() error {
+	if !utf8.ValidString(f.Search) || utf8.RuneCountInString(f.Search) > 120 || strings.ContainsRune(f.Search, 0) {
+		return apiError(400, "VALIDATION_ERROR", "Invalid media search")
+	}
+	if f.Type != "" && f.Type != "driver" && f.Type != "firmware" && f.Type != "os" && f.Type != "nccl" && f.Type != "tool" && f.Type != "config" && f.Type != "ztp_script" {
+		return apiError(400, "VALIDATION_ERROR", "Invalid media type filter")
+	}
+	if f.State != "" && f.State != "uploaded" && f.State != "verified" && f.State != "approved" && f.State != "retired" {
+		return apiError(400, "VALIDATION_ERROR", "Invalid media state filter")
+	}
+	if f.CompatibleArch != "" && f.CompatibleArch != "amd64" && f.CompatibleArch != "arm64" && f.CompatibleArch != "noarch" {
+		return apiError(400, "VALIDATION_ERROR", "Invalid compatible architecture filter")
+	}
+	return nil
+}
+
 func (s *Store) ListMedia(ctx context.Context, a *AuthSession, project *ProjectSummary, p Pagination) (Page[MediaItemSummary], error) {
+	return s.ListMediaFiltered(ctx, a, project, p, MediaListFilter{})
+}
+
+// ListMediaFiltered applies every filter inside the authorized scope before
+// counting or paginating. StoredOnly describes the root, not full DAG admission.
+func (s *Store) ListMediaFiltered(ctx context.Context, a *AuthSession, project *ProjectSummary, p Pagination, criteria MediaListFilter) (Page[MediaItemSummary], error) {
 	out := NewPage[MediaItemSummary](p)
 	if e := p.Validate(); e != nil {
 		return out, e
+	}
+	criteria.Search = strings.TrimSpace(criteria.Search)
+	if err := criteria.validate(); err != nil {
+		return out, err
 	}
 	scope := s.scopeKeyFor(project)
 	tx, e := s.beginControlRead(ctx, a)
@@ -120,11 +155,33 @@ func (s *Store) ListMedia(ctx context.Context, a *AuthSession, project *ProjectS
 			return out, e
 		}
 	}
-	filter := "scope_key = $1 OR scope_key = 'global'"
-	if e = tx.QueryRowContext(ctx, "SELECT count(*) FROM media_items WHERE "+filter, scope).Scan(&out.Total); e != nil {
+	filter := "(scope_key = $1 OR scope_key = 'global')"
+	args := []any{scope}
+	add := func(clause string, value any) {
+		args = append(args, value)
+		filter += " AND " + fmt.Sprintf(clause, len(args))
+	}
+	if criteria.Search != "" {
+		escaped := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(criteria.Search)
+		args = append(args, "%"+escaped+"%")
+		filter += fmt.Sprintf(" AND (name ILIKE $%d ESCAPE E'\\\\' OR version ILIKE $%d ESCAPE E'\\\\')", len(args), len(args))
+	}
+	if criteria.Type != "" {
+		add("type = $%d", criteria.Type)
+	}
+	if criteria.State != "" {
+		add("state = $%d", criteria.State)
+	}
+	if criteria.CompatibleArch != "" {
+		add("(arch = $%d OR arch = 'noarch')", criteria.CompatibleArch)
+	}
+	if criteria.StoredOnly {
+		filter += " AND EXISTS(SELECT 1 FROM media_artifacts ma WHERE ma.media_id=media_items.id) AND NOT EXISTS(SELECT 1 FROM media_artifact_integrity mi WHERE mi.media_id=media_items.id AND mi.quarantined_at IS NOT NULL)"
+	}
+	if e = tx.QueryRowContext(ctx, "SELECT count(*) FROM media_items WHERE "+filter, args...).Scan(&out.Total); e != nil {
 		return out, e
 	}
-	rows, e := tx.QueryContext(ctx, "SELECT id,scope_key,type,name,version,sha256,size,arch,os_scope,hw_scope,deps,manifest_ref,state,uploaded_by,coalesce(approved_by,''),created_at,updated_at,EXISTS(SELECT 1 FROM media_artifacts ma WHERE ma.media_id=media_items.id),EXISTS(SELECT 1 FROM media_artifact_integrity mi WHERE mi.media_id=media_items.id AND mi.quarantined_at IS NOT NULL) FROM media_items WHERE "+filter+" ORDER BY type,name,version DESC LIMIT $2 OFFSET $3", scope, p.PageSize, p.Offset())
+	rows, e := tx.QueryContext(ctx, "SELECT id,scope_key,type,name,version,sha256,size,arch,os_scope,hw_scope,deps,manifest_ref,state,uploaded_by,coalesce(approved_by,''),created_at,updated_at,EXISTS(SELECT 1 FROM media_artifacts ma WHERE ma.media_id=media_items.id),EXISTS(SELECT 1 FROM media_artifact_integrity mi WHERE mi.media_id=media_items.id AND mi.quarantined_at IS NOT NULL) FROM media_items WHERE "+filter+fmt.Sprintf(" ORDER BY type,name,version DESC,id LIMIT $%d OFFSET $%d", len(args)+1, len(args)+2), append(args, p.PageSize, p.Offset())...)
 	if e != nil {
 		return out, e
 	}

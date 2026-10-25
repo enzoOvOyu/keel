@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,8 @@ export function MediaDependencyPicker({ projectId, arch, selected, disabled, onC
   projectId: string | null; arch: string; selected: MediaDependencyChoice[]; disabled: boolean; onChange: (items: MediaDependencyChoice[]) => void
 }) {
   const { t } = useTranslation(), session = useSession(), [page, setPage] = useState(1)
-  const options = useQuery({ queryKey: ['private', session.user.id, 'project', projectId, 'media-dependency-options', page], queryFn: ({ signal }) => listMedia(projectId, page, signal) })
+  const options = useQuery({ queryKey: ['private', session.user.id, 'project', projectId, 'media-dependency-options', arch, page], queryFn: ({ signal }) => listMedia(projectId, page, signal, { state: 'approved', compatible_arch: arch as 'amd64' | 'arm64' | 'noarch', stored_only: true }) })
+  useEffect(() => setPage(1), [arch])
   useExpireOnUnauthorized(options.error)
   const eligible = options.data?.items.filter(item => item.state === 'approved' && item.artifact_stored && !item.artifact_quarantined && (item.arch === 'noarch' || item.arch === arch)) ?? []
   return <div className="field">

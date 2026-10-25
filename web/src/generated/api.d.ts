@@ -1860,7 +1860,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Platform administrators only. Uses the global scope; project administrators are forbidden. Global media metadata includes lifecycle state; selectable versions require approved status and an immutable stored artifact. */
+        /** @description Platform administrators only. Uses the global scope; project administrators are forbidden. Global media candidates include only approved stored nonquarantined roots; this does not attest to the full dependency closure. */
         get: operations["listGlobalCatalogMedia"];
         put?: never;
         post?: never;
@@ -4541,6 +4541,14 @@ export interface operations {
             query?: {
                 page?: components["parameters"]["Page"];
                 page_size?: components["parameters"]["PageSize"];
+                /** @description Literal case-insensitive name or version substring */
+                search?: string;
+                type?: "driver" | "firmware" | "os" | "nccl" | "tool" | "config" | "ztp_script";
+                state?: "uploaded" | "verified" | "approved" | "retired";
+                /** @description Include this architecture and noarch; noarch includes only noarch */
+                compatible_arch?: "amd64" | "arm64" | "noarch";
+                /** @description Root has stored bytes and is not quarantined; does not attest to the transitive closure */
+                stored_only?: boolean;
             };
             header?: never;
             path: {
@@ -4559,7 +4567,9 @@ export interface operations {
                     "application/json": components["schemas"]["MediaPage"];
                 };
             };
+            400: components["responses"]["InvalidRequest"];
             401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8625,6 +8635,14 @@ export interface operations {
             query?: {
                 page?: components["parameters"]["Page"];
                 page_size?: components["parameters"]["PageSize"];
+                /** @description Literal case-insensitive name or version substring */
+                search?: string;
+                type?: "driver" | "firmware" | "os" | "nccl" | "tool" | "config" | "ztp_script";
+                state?: "uploaded" | "verified" | "approved" | "retired";
+                /** @description Include this architecture and noarch; noarch includes only noarch */
+                compatible_arch?: "amd64" | "arm64" | "noarch";
+                /** @description Root has stored bytes and is not quarantined; does not attest to the transitive closure */
+                stored_only?: boolean;
             };
             header?: never;
             path?: never;
@@ -8641,7 +8659,9 @@ export interface operations {
                     "application/json": components["schemas"]["MediaPage"];
                 };
             };
+            400: components["responses"]["InvalidRequest"];
             401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };

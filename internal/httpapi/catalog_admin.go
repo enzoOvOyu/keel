@@ -52,7 +52,7 @@ func (a *authAPI) registerCatalogAdmin(r *gin.Engine) {
 		if !ok {
 			return
 		}
-		out, e := a.store.ListMedia(c.Request.Context(), actor, nil, p)
+		out, e := a.store.ListMediaFiltered(c.Request.Context(), actor, nil, p, platform.MediaListFilter{State: "approved", StoredOnly: true})
 		if e != nil {
 			a.respondError(c, e)
 			return
