@@ -124,6 +124,7 @@ def check(manifest):
     for machine in machines:
         serial = machine["serial"]
         asset = by_serial[serial]
+        require(isinstance(asset.get("id"), str) and ID.fullmatch(asset["id"]) and type(asset.get("version")) is int and asset["version"] > 0, "stable asset ID and positive asset version required")
         machine_id = asset.get("machine_id", "")
         require(isinstance(machine_id, str) and ID.fullmatch(machine_id) and machine_id not in identities, "unique platform machine identity required")
         identities.add(machine_id)

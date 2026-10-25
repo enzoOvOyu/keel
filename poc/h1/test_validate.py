@@ -80,6 +80,9 @@ class EvidenceChecks(unittest.TestCase):
 
     def test_simulated_cross_project_and_partial_exports_rejected(self):
         for field, transform in [("assets", lambda value: value["items"][0].update(ssh_trust_source="sim")),
+                                 ("assets", lambda value: value["items"][0].pop("version")),
+                                 ("assets", lambda value: value["items"][0].update(version=True)),
+                                 ("assets", lambda value: value["items"][0].pop("id")),
                                  ("assets", lambda value: value.update(total=11)),
                                  ("trust_requests", lambda value: value["items"][0].update(project_id="c" * 32)),
                                  ("trust_requests", lambda value: value["items"][0].update(action="trust.repair")),
