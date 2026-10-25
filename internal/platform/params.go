@@ -46,6 +46,10 @@ var paramKeyPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,118}$`)
 const paramOptionsLimit = 256
 
 func validateParamInput(input UpsertParamKeyInput) error {
+	if _, present := input.Deps["artifacts"]; present {
+		return apiError(400, "VALIDATION_ERROR", "Artifact dependencies belong to media, not parameter keys")
+	}
+
 	if input.CreateOnly && input.ExpectedUpdatedAt != nil {
 		return apiError(400, "VALIDATION_ERROR", "create_only and expected_updated_at are mutually exclusive")
 	}

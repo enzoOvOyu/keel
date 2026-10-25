@@ -4283,7 +4283,7 @@
             "type": "string"
           },
           "deps": {
-            "$ref": "#/components/schemas/CatalogDependencies"
+            "$ref": "#/components/schemas/MediaDependencies"
           }
         },
         "required": [
@@ -4329,6 +4329,57 @@
           "updated_at",
           "deps"
         ]
+      },
+      "MediaArtifactDependency": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "media_id",
+          "sha256"
+        ],
+        "properties": {
+          "media_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "type": {
+            "type": "string",
+            "readOnly": true
+          },
+          "name": {
+            "type": "string",
+            "readOnly": true
+          },
+          "version": {
+            "type": "string",
+            "readOnly": true
+          },
+          "arch": {
+            "type": "string",
+            "readOnly": true
+          }
+        }
+      },
+      "MediaDependencies": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "compatibility": {
+            "$ref": "#/components/schemas/CompatibilityMatrix"
+          },
+          "artifacts": {
+            "type": "array",
+            "maxItems": 32,
+            "description": "Exact approved artifact identities. Server records canonical labels; no latest-version lookup. Closure is bounded to 128 dependencies and 16 edges deep.",
+            "items": {
+              "$ref": "#/components/schemas/MediaArtifactDependency"
+            }
+          }
+        }
       }
     }
   }

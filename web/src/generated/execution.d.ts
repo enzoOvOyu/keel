@@ -926,7 +926,7 @@ export interface components {
             os_scope: string;
             sha256: string;
             object_version: string;
-            deps: components["schemas"]["CatalogDependencies"];
+            deps: components["schemas"]["MediaDependencies"];
         };
         CatalogSelection: {
             key_id: string;
@@ -936,6 +936,19 @@ export interface components {
             updated_at: string;
             deps: components["schemas"]["CatalogDependencies"];
             media?: components["schemas"]["CatalogMedia"];
+        };
+        MediaArtifactDependency: {
+            media_id: string;
+            sha256: string;
+            readonly type?: string;
+            readonly name?: string;
+            readonly version?: string;
+            readonly arch?: string;
+        };
+        MediaDependencies: {
+            compatibility?: components["schemas"]["CompatibilityMatrix"];
+            /** @description Exact approved artifact identities. Server records canonical labels; no latest-version lookup. Closure is bounded to 128 dependencies and 16 edges deep. */
+            artifacts?: components["schemas"]["MediaArtifactDependency"][];
         };
     };
     responses: {

@@ -24,7 +24,8 @@ type Compatibility struct {
 	Combinations []map[string]string `json:"combinations,omitempty"`
 }
 type catalogDependencies struct {
-	Compatibility *Compatibility `json:"compatibility,omitempty"`
+	Compatibility *Compatibility            `json:"compatibility,omitempty"`
+	Artifacts     []MediaArtifactDependency `json:"artifacts,omitempty"`
 }
 
 func decodeCompatibility(raw json.RawMessage) (*Compatibility, error) {
@@ -38,10 +39,13 @@ func decodeCompatibility(raw json.RawMessage) (*Compatibility, error) {
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	if e := d.Decode(&deps); e != nil {
-		return nil, errors.New("deps must contain only a documented compatibility matrix")
+		return nil, errors.New("deps must contain only documented compatibility or pinned artifact dependencies")
 	}
 	if e := d.Decode(new(any)); e != io.EOF {
 		return nil, errors.New("invalid dependency document")
+	}
+	if _, e := mediaArtifactDependencies(raw); e != nil {
+		return nil, e
 	}
 	c := deps.Compatibility
 	if c == nil {
@@ -284,6 +288,14 @@ func ValidateCatalogTx(ctx context.Context, tx *sql.Tx, projectID string, values
 			}
 			if len(matches) != 1 {
 				issue(key, "PARAM_MEDIA_AMBIGUOUS", "Multiple artifacts share this version; give media distinct version labels before selection")
+				continue
+			}
+			if dependencyError := checkPinnedMediaDependencies(ctx, tx, matches[0].ID, nil); dependencyError != nil {
+				var validation *Error
+				if !errors.As(dependencyError, &validation) {
+					return out, dependencyError
+				}
+				issue(key, validation.Code, validation.Message)
 				continue
 			}
 			selection.Media = &matches[0]

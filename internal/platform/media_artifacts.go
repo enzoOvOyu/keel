@@ -177,6 +177,18 @@ func (s *Store) AttachMedia(ctx context.Context, a *AuthSession, project *Projec
 // checkedMedia reads the entire pinned version before any response bytes or
 // approval are emitted. Range responses therefore never expose unchecked data.
 func (s *Store) checkedMedia(ctx context.Context, tx *sql.Tx, m *MediaItemSummary) (*stagedMedia, error) {
+	staged, err := s.checkedMediaFile(ctx, tx, m)
+	if err != nil {
+		return nil, err
+	}
+	if err = checkPinnedMediaDependencies(ctx, tx, m.ID, s); err != nil {
+		staged.close()
+		return nil, err
+	}
+	return staged, nil
+}
+
+func (s *Store) checkedMediaFile(ctx context.Context, tx *sql.Tx, m *MediaItemSummary) (*stagedMedia, error) {
 	var key, version, sha string
 	var size int64
 	e := tx.QueryRowContext(ctx, "SELECT object_key,object_version,sha256,size FROM media_artifacts WHERE media_id=$1", m.ID).Scan(&key, &version, &sha, &size)

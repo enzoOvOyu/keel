@@ -583,3 +583,21 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 **§48 发布完成**：功能代码 `f2f418582947ebcf341c60cec26d0b23893d3ac9` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:3b3f3a5acb795e80f2bdcb9d989015360718f84d7732f1cdce537bb636dd664a`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T01:18:11.539385+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
 
 无迁移，运行库仍37条迁移记录；保留兼容旧镜像 `keel:0abd781e5d229f9517f70bb38b527e6ef69b17bc`，不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T011219Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40149709532记录时 completed/success，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
+
+## 49. A4 / WP-1.10：固定版本制品依赖闭包（2026-10-25）
+
+持续开发第八块。复用已批准的不可变制品与现有deps JSON，新增精确media_id+SHA256的artifacts引用，服务端固化实际名称/类型/版本/架构，不从latest或客户端显示字段推断。登记要求全部依赖已批准且已存文件，同项目或全局可见、架构相同或noarch；全局不能引用项目。最大32直接依赖/128传递依赖/16边深度，检查循环及共享子图最长路径。兼容矩阵原规则保留；参数键不接受制品引用。无迁移。
+
+校验、独立审批、下载与执行准入检查完整闭包当前状态和固定对象实际字节；依赖退役、缺失、身份/架构或摘要不符拒绝，不输出父文件或创建成功执行。目录预检查元数据，提交边界检查字节；传入简化的父项快照也重新装载依赖事实，不漏传递依赖。锁保留至事务结束，新版本不替换旧引用，坏依赖不阻止父介质本身退役。项目/全局共享登记组件提供已批准/已存文件/架构筛选、精确摘要、去重及移除；确认弹窗列固定依赖，列表计数，双语错误保留弹窗。正式platform与execution API及生成类型同步，CatalogMedia.deps使用MediaDependencies，参数自身deps仍为CatalogDependencies。
+
+实际根npm run build通过（/tmp/keel-media-dependency-final-build.log，23m45s发生在内存盘证据积累期）；最后契约修改后生成与类型检查退出0（/tmp/keel-media-dependency-contract-generate.log、-contract-typecheck.log）。platform/execution/httpapi vet、execution/httpapi race及check-design退出0（/tmp/keel-media-dependency-vet.log、-consumer-unit.log、-final-design.log）。隔离真实PG/race通过：/tmp/keel-media-5dcte843，mediaartifact1.055s、platform36.964s，覆盖循环、共享深路径、跨作用域/架构/未批准/不存在/摘要拒绝且不持久化父项、canonical字段、传递全局文件损坏拒绝校验/下载/执行准入、退役阻断且新版本不偷换旧边；对象传输在Go层为mock，后续真实MinIO/API/browser另验证。
+
+最终HTTP/浏览器回归--browser-only退出0（/tmp/keel-media-dependency-browser-regression.log），覆盖新依赖项目/全局双语实际上传、确认、读取、退役阻断；原介质HTTP、参数、上传/Range/独立审批、目录依赖与执行快照、目录管理、全局介质/继承权限和陈旧确认全部通过。首次依赖测试创建全局已批准driver版本干扰旧参数夹具的精确选项断言，已通过真实退役其自建测试制品消除污染，不修改产品规则或放宽断言；初次cycle夹具因noarch->amd64先被架构校验拦截，改为同架构真实循环后通过。失败轮次保留，不能算整体PASS。截图/tmp/keel-media-l_q8td7v/media-dependencies-project.png已视觉检查。
+
+内存问题留证：/tmp为20GiB tmpfs，积累约12GiB旧测试证据，首次全Go进程signal:killed，不算通过。将已结束且无临时凭据/活跃可执行进程的Keel证据目录转存到用户私有磁盘目录并保留原/tmp软链接，无删除证据、无改服务/数据库卷。当前会话目录在/home/ubuntu/.local/state/keel/evidence/20261025-continuous，已完成旧目录在completed-20261025。media测试封装此后将大体积可执行二进制保存在私有磁盘目录media，/tmp内保留真实凭据目录及二进制软链接，不放宽MinIO真实路径安全校验；新增--browser-only允许只重跑受影响HTTP/浏览器，--dependencies-only聚焦新闭包。Go测试以GOMEMLIMIT=768MiB约束重跑，后续结果如上。
+
+不是签名离线仓库manifest、厂商签名、包管理源、目标缓存、重传隔离或规模分发闭环，WP-1.10/FR-1/P1保持partial。原fabric_precheck.go与026迁移草稿保留原样未暂存，所有Go命令沿用/tmp/keel-delivery-check/overlay.json。私有磁盘证据分配的最终隔离验证及3000发布结果后补。
+
+§49收口补记：全部HTTP/浏览器证据在/tmp/keel-media-lrx6wirb。磁盘二进制分配方案的独立复核退出0（/tmp/keel-media-dependency-disk-binaries-check.log，/tmp/keel-media-1o963vof，PG/race7.886s及项目/全局双语浏览器通过）；首次把整个目录软链接到磁盘被MinIO原路径校验拒绝，已改为仅二进制放磁盘，安全路径校验保持，不将该失败算PASS。视觉复核另发现已有真实文件仍显示“校验前需要上传”旧提示，现仅缺文件时显示，并补浏览器断言；完整前端再次构建通过（/tmp/keel-media-dependency-reviewed-build.log，Vite15.70s），内存证据迁出后的资源改善不据此宣称所有负载指标达标。最后界面提示回归随后补记。
+
+§49最后界面与封装复核退出0（/tmp/keel-media-dependency-reviewed-integration.log，/tmp/keel-media-wuvir2ez）：PG/race7.885s及更新后的项目/全局双语依赖浏览器通过，已有真实文件不再误报需上传，损坏/退役失败保留审阅对话框；Go和MinIO原有真实路径安全约束不变。

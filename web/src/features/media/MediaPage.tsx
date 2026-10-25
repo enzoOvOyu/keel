@@ -1,3 +1,4 @@
+import { MediaDependencyPicker, MediaDependencySummary, type MediaDependencyChoice } from './MediaDependencyPicker';
 import { Workspace } from "../../components/Workspace";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +70,7 @@ function RegisterMediaDialog({
     action = useAction(),
     keyFor = useIdempotencyKey();
   const [file, setFile] = useState<File | null>(null);
+  const [dependencies, setDependencies] = useState<MediaDependencyChoice[]>([]);
   const [type, setType] = useState<"driver">("driver"),
     [name, setName] = useState(""),
     [version, setVersion] = useState("");
@@ -105,6 +107,7 @@ function RegisterMediaDialog({
       setValidation(t("mediaFileLimit"));
       return;
     }
+    if (dependencies.some(item => item.arch !== 'noarch' && item.arch !== arch)) { setValidation(t('mediaDependencyArchMismatch')); return; }
     setValidation("");
     const body = {
       type,
@@ -116,6 +119,7 @@ function RegisterMediaDialog({
       os_scope: osScope.trim(),
       hw_scope: hwScope.trim(),
       manifest_ref: manifest.trim(),
+      deps: dependencies.length ? { artifacts: dependencies.map(item => ({ media_id: item.id, sha256: item.sha256 })) } : undefined,
     };
     const result = await action.run(() =>
       upload
@@ -138,7 +142,7 @@ function RegisterMediaDialog({
       onSubmit={(event) => void submit(event)}
       onClose={onClose}
     >
-      <ActionError error={action.error} />
+      {action.error?.code?.startsWith("MEDIA_DEPENDENCY_") ? <p role="alert" className="field-error">{t("mediaDependencyBlocked")}</p> : <ActionError error={action.error} />}
       {validation && (
         <p className="field-error" role="alert">
           {validation}
@@ -255,6 +259,7 @@ function RegisterMediaDialog({
           disabled={action.busy}
         />
       </div>
+      <MediaDependencyPicker projectId={projectId} arch={arch} selected={dependencies} onChange={setDependencies} disabled={action.busy} />
       {!upload && (
         <div className="field">
           <label htmlFor="media-manifest">{t("mediaManifest")}</label>
@@ -353,7 +358,7 @@ function TransitionDialog({
       onSubmit={(event) => void submit(event)}
       onClose={onClose}
     >
-      {action.error?.code === "MEDIA_CONFLICT" ? <p role="alert" className="field-error">{t("mediaConflict")}</p> : <ActionError error={action.error} />}
+      {action.error?.code === "MEDIA_CONFLICT" ? <p role="alert" className="field-error">{t("mediaConflict")}</p> : action.error?.code?.startsWith("MEDIA_DEPENDENCY_") ? <p role="alert" className="field-error">{t("mediaDependencyBlocked")}</p> : <ActionError error={action.error} />}
       <dl className="action-target">
         <dt>{t("mediaName")}</dt>
         <dd>
@@ -362,13 +367,14 @@ function TransitionDialog({
         <dt>{t("mediaState")}</dt>
         <dd>{t("media_state_" + item.state)}</dd>
       </dl>
+      <MediaDependencySummary refs={item.deps.artifacts} />
       {target === "retired" && (
         <p className="impact-notice">{t("mediaRetireImpact")}</p>
       )}
       {target === "approved" && (
         <p className="impact-notice">{t("mediaSelfApproval")}</p>
       )}
-      {target === "verified" && (
+      {target === "verified" && !item.artifact_stored && (
         <p className="impact-notice">{t("mediaManifestMissing")}</p>
       )}
     </ActionDialog>
@@ -479,6 +485,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
                       <tr key={item.id}>
                         <td>
                           <strong>{item.name}</strong>
+                              {!!item.deps.artifacts?.length && <span className="cell-subtitle">{t("mediaDependencyCount", { count: item.deps.artifacts.length })}</span>}
                           {item.scope_key === "global" && <span className="cell-subtitle">{t(projectId === null ? "mediaGlobalScope" : "mediaGlobalInherited")}</span>}
                           <span className="cell-subtitle mono-value">
                             {item.version} · {item.sha256.slice(0, 12)}…

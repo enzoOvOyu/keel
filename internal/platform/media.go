@@ -152,6 +152,9 @@ func (s *Store) registerMedia(ctx context.Context, a *AuthSession, project *Proj
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	m := &MediaItemSummary{ID: RandomID(), ScopeKey: scope, Type: input.Type, Name: strings.TrimSpace(input.Name), Version: strings.TrimSpace(input.Version), Sha256: input.Sha256, Size: input.Size, Arch: input.Arch, OsScope: input.OsScope, HwScope: input.HwScope, Deps: modelSpecJSON(input.Deps), ManifestRef: input.ManifestRef, State: "uploaded", UploadedBy: a.User.ID, CreatedAt: now, UpdatedAt: now}
+	if e = canonicalMediaDependencies(ctx, tx, m); e != nil {
+		return nil, e
+	}
 	_, e = tx.ExecContext(ctx, "INSERT INTO media_items(id,scope_key,type,name,version,sha256,size,arch,os_scope,hw_scope,deps,manifest_ref,state,uploaded_by,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'uploaded',$13,$14,$14)",
 		m.ID, m.ScopeKey, m.Type, m.Name, m.Version, m.Sha256, m.Size, m.Arch, m.OsScope, m.HwScope, m.Deps, m.ManifestRef, a.User.ID, now)
 	if e != nil {
