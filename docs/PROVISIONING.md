@@ -29,3 +29,9 @@ v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud
 ## 集中浏览器验证准备
 
 `python3 scripts/check-media-artifacts-integration.py --provision-only` 已接入实际隔离 PostgreSQL/MinIO/API 和真实 owner CLI 的装机准备场景：项目/全局上传固定引导角色、实际存储核对、BOM/型号/公钥预览、撤销拒绝和无装机副作用；仅使用测试生成的小字节 fixture，不是真实可启动镜像。新增浏览器场景尚未运行。配置查询失权/失败时页面清除旧预览并禁用提交，OS 核对弹窗不显示已失败请求的缓存字节证据。
+
+## 下一个实施单元的代码落点
+
+沿用 internal/execution/ssh.go 的授权、稳定幂等键、冻结公共身份、exec_targets 和创建 outbox 的同事务模式，不另开装机队列。平台预览目前在自己的只读事务取数，实际创建需抽出可在调用事务内复用的准入/渲染路径，不能先读取预览后在第二个事务直接信任结果。每次实际重装使用新的持久请求 ID；冻结资产/型号/物理引导口、四角色对象版本/摘要及项目域公钥，派发前复验当前授权、资产与撤销事实。
+
+资源接入需同时修改 worker 的真实机器命名和模式映射：与 SSH/Agent 共用现有 device:machine:<machine_id>，装机取独占，不能退回 sim:<target_id> 或只锁新建 provision:<id>。unknown 保留原设备占用，回调必须匹配请求/项目/SN/MAC及当前 attempt/fence，不能凭 DHCP 指纹或客户端成功字符串释放。网络侧现有 Kea/ZTP 配置不等于服务器 ProxyDHCP 已实现，二者测试网络范围与控制权必须明确隔离。只有实际 installer/首连回执成立后才投影安装/互信状态；准备接口和软件fixture不提前推进设备状态。
