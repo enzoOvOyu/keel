@@ -8,6 +8,8 @@ export type Execution = components['schemas']['ExecutionSummary']
 export type ExecutionDetail = components['schemas']['ExecutionDetail']
 export type ExecutionAttempt = components['schemas']['ExecutionAttempt']
 export type ExecutionEvent = components['schemas']['ExecutionEvent']
+export type SSHCreateInput = components['schemas']['SSHCreateInput']
+export const createSSHExecution = (projectId: string, body: SSHCreateInput, csrf: string, key: string) => request<components['schemas']['Execution']>(`/projects/${encodeURIComponent(projectId)}/ssh-executions`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify(body) })
 
 export const executionStates = ['created', 'scheduled', 'dispatching', 'running', 'pausing', 'paused', 'cancelling', 'reconciling', 'success', 'failed', 'killed', 'warning'] as const
 export const attemptStates = ['pending', 'running', 'success', 'failed', 'cancelled', 'unknown', 'skipped'] as const

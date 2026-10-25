@@ -1,10 +1,10 @@
 # 受限服务器 SSH 执行
 
-实施计划 A3 / WP-1.4→1.5、PRD FR-1.2/1.10/1.11、ARCHITECTURE ADR-01/03/06/13 的当前增量。复用 Execution、outbox、TaskAttempt、PostgreSQL 资源租约、fencing 和回执对账，不另建队列。普通查询支持 `host.identity`（主机名/OS/架构）和 `host.wait`（有界等待）；独立批准的首次连接验证只发送只读 `trust.verify`。不执行用户 shell 或安装软件。
+实施计划 A3 / WP-1.4→1.5、PRD FR-1.2/1.10/1.11、ARCHITECTURE ADR-01/03/06/13 的当前增量。复用 Execution、outbox、TaskAttempt、PostgreSQL 资源租约、fencing 和回执对账，不另建队列。普通查询支持 `host.identity`（主机名/OS/架构）和 `host.wait`（有界等待）；独立批准的连接验证发送只读 `trust.verify`，可选受控公钥安装发送 `trust.install` 并通过新钥全新握手查询原回执证明。helper须预先由运维部署，不执行用户 shell 或安装软件。
 
 ## 操作员配置
 
-默认不配置 `KEEL_SSH_RUNNER_FILE`，SSH 关闭。只读查询无需介质；脚本执行、完整bootstrap/repair、目标公钥注入/轮换/删除、Agent 和目标缓存尚未交付，不借查询例外放行它们。原有 mock 互信动作不证明真实首连。
+默认不配置 `KEEL_SSH_RUNNER_FILE`，SSH 关闭。只读查询无需介质；目标已有非root临时登录和helper时，可经独立批准追加受限公钥并证明新钥。脚本执行、root首登、完整bootstrap/repair、完整双钥轮换/删除、Agent 和目标缓存尚未交付，不借查询例外放行它们。原有 mock 互信动作不证明真实首连。
 
 配置 JSON 的 `targets` 是最多128个显式项目/机器绑定，每项为：
 
@@ -15,7 +15,7 @@
 | user | 本步固定为非特权 `keel-ctrl`；不支持 root 作业 |
 | host_key | 经独立可信渠道取得的 OpenSSH SHA256 主机密钥指纹；禁止自动接受未知指纹 |
 | credential_ref | 项目/rail 域密钥的操作员引用名，1～64字符 |
-| credential_version / credential_expires_at | 普通长期域配置可省略；受限首连验证必填版本与覆盖授权窗口的RFC3339到期时间，消费后不重用该目标的同一引用版本 |
+| credential_version / credential_expires_at | 历史未记录安装身份的普通配置可省略；已证明安装身份的普通任务必须使用精确vault版本和到期时间；受限首连验证必填版本与覆盖授权窗口的RFC3339到期时间，消费后不重用该目标的同一引用版本 |
 | private_key_file | 文件提供者使用的受控 Ed25519 PKCS8/OpenSSH 私钥文件路径；不含密码，不落数据库；vault 提供者必须为空 |
 | credential_provider | 省略沿用文件提供者；`vault` 通过独立主密钥解密数据库中精确项目/引用/版本的域密钥，必须同时配置版本和到期时间 |
 
@@ -45,7 +45,7 @@ SSH连接按项目/机器及配置固定复用，最多128个绑定；握手最�
 
 Pause停止新派发，当前只读步骤安全完成；Kill需要cancelled/其他实际终态回执，拿不到则保留unknown/reconciling租约。断连先有界查询或取消，不把网络错误伪造成failed/killed。worker租约过期后迟到回执只能走授权对账，不直接释放资源或自动新建尝试。
 
-当前提交入口为正式API；页面复用已有执行详情与控制，尚未新增普通SSH任务启动向导；资产页已有独立批准的信任验证入口。只读系统Flow不允许借普通sim编辑/重跑接口执行脚本。WP-1.4/1.5、P1仍partial，服务器脚本/Agent/PXE/维护态完整治理及真机PoC另验。
+资产页提供普通只读SSH启动入口：当前项目Admin/DE/DL/SRE显式选择当前页已装机且source=ssh的可信目标（最多32台），仅允许host.identity/host.wait，超时100～30000ms且等待短于超时。提交成功进入既有Execution详情与控制；网络响应不明时相同参数在当前表单重试复用同一幂等键，不扩大目标或自动重派发。401/403/404关闭过期表单，凭据未切为已证明域钥或环境未启用SSH时显示操作员提示。信任安装仍走独立批准入口。只读系统Flow不允许借普通sim编辑/重跑接口执行脚本。WP-1.4/1.5、P1仍partial，服务器脚本/Agent/PXE/维护态完整治理及真机PoC另验。
 
 ## 验证
 
@@ -108,3 +108,6 @@ keel-admin ssh-key-revoke --project PROJECT_ID --id KEY_ID --expected-version 1 
 普通SSH任务创建和派发均读取当前持久绑定，锁定并检查密钥项目/版本/公钥/期限/撤销，再核对运维正常目标配置确实选择该vault提供者及精确版本/公钥。缺配置返回 `SSH_DOMAIN_BINDING_REQUIRED`，不借临时凭据或sim继续；配置切换由运维显式完成，禁止在证明未完成/unknown期间提前改配置，否则旧命令绑定对账仍会拒绝。legacy纯只读首次证明仍沿用原有受控边界，不能当新域钥安装证据。
 
 046是schema42→43，先备份及隔离恢复演练，保持原业务计数、信任/指纹/来源和受限角色权限；旧schema42镜像不可直接回切。完整S-3/轮换/目标撤销证明与P1仍未闭环。
+
+
+只读启动浏览器验证 `scripts/check-ssh-launch-browser.mjs` 由真实PG/HTTP/回环SSH fixture驱动，先实际安装/证明新域钥并显式切换vault，再以项目DE登录提交identity和wait。第一次POST实际创建后明确注入丢响应，重试必须返回原执行；页面403是明确故障注入，Viewer隐藏来自真实权限。中英390宽及目标长标识换行纳入检查。CI使用单独keel_test_ssh_ui库运行同一用例；不启用生产SSH。

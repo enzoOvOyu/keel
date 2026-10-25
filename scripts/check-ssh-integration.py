@@ -42,6 +42,7 @@ try:
     env['KEEL_TEST_SSH_TRUST_BROWSER_SCRIPT'] = str(root / 'scripts/check-ssh-trust-browser.mjs')
     env['KEEL_TEST_SSH_DOMAIN_BROWSER_SCRIPT'] = str(root / 'scripts/check-ssh-domain-keys-browser.mjs')
     env['KEEL_TEST_SSH_INSTALL_BROWSER_SCRIPT'] = str(root / 'scripts/check-ssh-install-browser.mjs')
+    env['KEEL_TEST_SSH_LAUNCH_BROWSER_SCRIPT'] = str(root / 'scripts/check-ssh-launch-browser.mjs')
     assert (root / 'web/dist/index.html').is_file(), 'Build the current frontend first'
     with (work / 'go-integration.log').open('w') as log:
         command = ['go', 'test', '-race', '-count=1', '-v', './internal/taskrunner']

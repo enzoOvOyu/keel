@@ -1,13 +1,13 @@
 # 当前开发状态
 
-更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～66。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～67。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
-## 当前恢复入口（2026-10-25 07:58 UTC）
+## 当前恢复入口（2026-10-25 08:13 UTC）
 
-- 唯一工作区`/opt/keel`，分支`dev/p1-network-bom`。3000运行`cd5dc87cdbb86d63ccc61a48a98ec9f3ae5bdfd1`，镜像`sha256:c76393b5a7ee563692a97de702392fb879dbed03b4a047cfbb46cc51d7a3a1e0`，健康及八页真实登录/公钥列表/受限角色API复验通过。045已应用，运行库42条迁移；旧schema41镜像不可直接回切，备份恢复另走批准流程。
+- 唯一工作区`/opt/keel`，分支`dev/p1-network-bom`。3000运行`c346d232bcf5caab504fa00e3d60dc5fe93eaa46`，镜像`sha256:0ed80cec3d4b5c3c90203b9fb39e48247d7c0c678535ab69039e78aafd929af9`，健康及八页真实登录/公钥列表/受限角色API复验通过。046已应用，运行库43条迁移；旧schema42镜像不可直接回切，备份恢复另走批准流程。
 - A3/WP-1.5新增独立批准的受控非root公钥安装，强制helper条目追加保持客户内容，新域钥全新SSH握手查询原回执才写真实互信。unknown保持资源隔离、恢复不重装；安装前或证明后撤销均阻断信任。实际PG/SSH/双人浏览器与全量检查通过，详见§64。
 - 生产worker、真实SSH、主密钥提供者、外部介质获取仍关闭；签名只读挂载保持。无生产域钥生成或真机操作，两份原fabric草稿未跟踪且未构建。
-- 用户两小时开发仍在继续。WP-1.14 OIDC/LDAP已提交发布（§65/66），生产仍关闭；正在补SSH安装后的普通任务域钥绑定，未提交/发布；root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、Agent与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
+- 用户两小时开发仍在继续。WP-1.14 OIDC/LDAP已提交发布（§65/66），生产仍关闭；SSH安装后的普通任务域钥绑定已提交发布（§67），正在补资产页普通只读SSH启动入口；root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、Agent与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
 
 ## 1. 工作区与运行版本（早期快照，当前见上方）
 
@@ -884,3 +884,21 @@ SSH目标可显式选择vault提供者，仍保留原文件兼容；精确版本
 
 
 §67最终全量检查 `/tmp/keel-domain-binding-make-check.log`退出0（Go vet/race、正式契约、UI/types/build；保留现有bundle提示），设计/diff检查通过。§65 OIDC功能CI run40173471981及§66 LDAP功能CI run40174367537均已核验completed/success。
+
+
+§67发布：功能`c346d232bcf5caab504fa00e3d60dc5fe93eaa46`已正常推送，确切归档镜像`sha256:0ed80cec3d4b5c3c90203b9fb39e48247d7c0c678535ab69039e78aafd929af9`于`2026-10-25T08:07:16.616676+00:00`发布3000。046备份/隔离恢复及正式应用通过，schema42→43，旧业务行数/host pin/source保持；历史域钥身份均null，未补造证明，不可清空触发器与受限授权已核验。候选八页/受限API通过并有匹配版本证据后切换；3000同套复验 `/tmp/keel-binding-3000-smoke.log`、`/tmp/keel-binding-3000-read.log`退出0。证据`/home/ubuntu/.local/state/keel/releases/20261025T080253Z`。生产SSH/worker/主密钥提供者及OIDC/LDAP仍关闭；旧schema42镜像不可直接回切。功能GitHub CI run40175093458已核验completed/success；两份原fabric草稿保持。
+
+
+## 68. A3/WP-1.5：资产页普通只读SSH启动
+
+在§67实际域钥绑定前置上，资产页新增项目Admin/DE/DL/SRE可见的只读执行入口。显式选择当前页已provisioned且真实ssh信任目标，最多32台；仅host.identity/host.wait及100～30000ms超时，不接受shell、目标地址或私钥。复用正式SSHCreateInput契约、CSRF与统一Execution/outbox/租约/回执，不新增执行器。相同参数在当前表单网络重试复用同一幂等键，成功进入既有Execution详情；401/403/404关闭过期表单，未启用或域钥绑定不足有明确提示。
+
+定向真实PG/HTTP/回环SSH/Chromium与独立CLI/helper `/tmp/keel-ssh-launch-dialog-final.log`、`/tmp/keel-ssh-integration-tb3wgo20`退出0：先真实受控安装并新钥证明、运维显式切vault，再以真实项目DE发起identity/wait；第一次POST实际成功后明确注入响应丢失，重试返回原Execution且目标只运行一次。页面403为明确UI故障注入，真实Viewer无入口；中英、390px弹窗内无溢出、长目标标识换行及无JS错误通过。工作区依DS保留1280px最低宽，未将其横向滚动当作移动适配缺陷。首次长按钮导致弹窗溢出已修复；首次全页无横滚断言不符DS，已改核验弹窗视口和内容边界。新增CI使用独立keel_test_ssh_ui库运行同一真实流程。
+
+完整回归/全量检查、提交/CI与3000发布按后续实际补记；生产SSH/worker/组织认证仍关闭，无真机或运行库任务。WP/P1/FR-0仍partial，root首登、PXE、Agent、完整双钥轮换/目标撤销等缺口未改变。两份原fabric草稿保留。
+
+
+§68完整真实PG/SSH/HTTP、所有既有信任/域钥/双人安装和新增只读启动浏览器、独立CLI/helper进程 `/tmp/keel-ssh-launch-full-integration.log`、`/tmp/keel-ssh-integration-ene4iobu`退出0，Go race 55.724s。全量检查进行中；未将明确注入的响应丢失/页面403记为真实环境故障。
+
+
+§68最终overlay make check `/tmp/keel-ssh-launch-make-check.log`退出0，包含Go vet/race、正式API类型生成、共享UI边界/版本选择、前端类型/生产构建；现有bundle提示保留。最终异步卸载防护后定向真实PG/SSH/HTTP/浏览器与独立CLI `/tmp/keel-ssh-launch-last-integration.log`、`/tmp/keel-ssh-integration-vlcxprwu`退出0。设计/diff检查通过；SSH文档入口已同步现有受控安装和已安装域钥强制绑定边界。

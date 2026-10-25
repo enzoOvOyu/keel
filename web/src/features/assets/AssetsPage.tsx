@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button'
 import { AssetModelDialog } from './AssetModelDialog'
 import { SSHTrustRequests } from './SSHTrustRequests'
 import { SSHDomainKeys } from './SSHDomainKeys'
+import { SSHExecutions } from './SSHExecutions'
 import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -139,6 +140,7 @@ function AssetsContent() {
         <Pagination offset={(page - 1) * assets.data.page_size} limit={assets.data.page_size} total={assets.data.total} busy={assets.isFetching} onChange={(offset) => setPage(offset / assets.data.page_size + 1)} /></>}
     </section>
     <SSHTrustRequests assets={assets.isError ? [] : assets.data?.items ?? []} />
+    <SSHExecutions assets={assets.isError ? [] : assets.data?.items ?? []} />
     <SSHDomainKeys />
     {modelTarget && <AssetModelDialog key={`${project.id}:${modelTarget.id}`} projectId={project.id} asset={modelTarget} onClose={() => setModelTarget(null)} />}
     {packageImporting && <BomPackageDialog projectId={project.id} onClose={() => setPackageImporting(false)} onDone={(message) => done(message)} />}
