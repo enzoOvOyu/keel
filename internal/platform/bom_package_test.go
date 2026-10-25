@@ -344,6 +344,11 @@ func TestBOMComponentSummaryMustMatchPermanentPortMAC(t *testing.T) {
 		t.Fatal(err)
 	}
 	ApplyBOMMappingProfile(pkg, testBOMProfile())
+	// Engineering comparison consumes resolved identities after format parsing.
+	pkg.Issues = append(pkg.Issues, validateResolvedComponentPortMACs([]*bomMaterial{
+		{category: "nic", uid: "resolved-nic", row: pkg.Rows["server/server_components.csv"][0]},
+		{category: "port", parentUID: "resolved-nic", row: pkg.Rows["server/server_ports.csv"][0]},
+	})...)
 	if !issueFound(pkg, "component_port_mac_mismatch") {
 		t.Fatal("NIC summary disagreed with permanent per-port MAC but preview did not block")
 	}

@@ -102,43 +102,21 @@ func validateMappedBOMRows(pkg *BOMPackage) {
 			}
 		}
 	}
-	validateComponentPortMACs(pkg)
+	validateComponentMACFormats(pkg)
 }
 
-func validateComponentPortMACs(pkg *BOMPackage) {
+func validateComponentMACFormats(pkg *BOMPackage) {
 	for _, component := range pkg.Rows["server/server_components.csv"] {
-		if component.Values["category"] != "nic" || component.Values["mac"] == "" {
+		if component.Values["category"] != "nic" {
 			continue
 		}
-		expected := map[string]bool{}
 		for _, raw := range strings.Split(component.Values["mac"], ",") {
+			if strings.TrimSpace(raw) == "" && component.Values["mac"] == "" {
+				continue
+			}
 			parsed, err := net.ParseMAC(strings.TrimSpace(raw))
 			if err != nil || len(parsed) != 6 {
 				pkg.Issues = append(pkg.Issues, BOMPackageIssue{Severity: "BLOCK", File: component.File, BOMLineNo: component.Line, Field: "mac", Code: "invalid_component_mac"})
-				continue
-			}
-			expected[strings.ToLower(parsed.String())] = true
-		}
-		actual := map[string]bool{}
-		line := strconv.Itoa(component.Line)
-		for _, port := range pkg.Rows["server/server_ports.csv"] {
-			if port.Values["parent_ref"] != line && port.Values["parent_ref"] != component.Values["serial"] {
-				continue
-			}
-			if port.Values["mac"] == "" {
-				pkg.Issues = append(pkg.Issues, BOMPackageIssue{Severity: "BLOCK", File: port.File, BOMLineNo: port.Line, Field: "mac", Code: "per_port_mac_missing"})
-				continue
-			}
-			actual[port.Values["mac"]] = true
-		}
-		if len(expected) != len(actual) {
-			pkg.Issues = append(pkg.Issues, BOMPackageIssue{Severity: "BLOCK", File: component.File, BOMLineNo: component.Line, Field: "mac", Code: "component_port_mac_mismatch"})
-			continue
-		}
-		for mac := range expected {
-			if !actual[mac] {
-				pkg.Issues = append(pkg.Issues, BOMPackageIssue{Severity: "BLOCK", File: component.File, BOMLineNo: component.Line, Field: "mac", Code: "component_port_mac_mismatch"})
-				break
 			}
 		}
 	}

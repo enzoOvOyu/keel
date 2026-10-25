@@ -132,6 +132,7 @@ func analyzeLegacyBOMTx(ctx context.Context, tx *sql.Tx, project *ProjectSummary
 				return nil, nil, nil, err
 			}
 		} else {
+			out.Issues = append(out.Issues, validateResolvedComponentPortMACs(materials)...)
 			macIssues, macErr := validateBOMMACPrefixes(ctx, tx, materials)
 			if macErr != nil {
 				return nil, nil, nil, macErr

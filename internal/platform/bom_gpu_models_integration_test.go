@@ -244,6 +244,52 @@ func testBOMPackageGPUInventory(t *testing.T, rootKind string) {
 	if _, err = s.CommitBOMPackage(ctx, actor, project, files, preview.PreviewToken, "test"); err != nil {
 		t.Fatal(err)
 	}
+	// A subsequent standard package may refer to the stable NIC UID instead
+	// of its serial or line. Summary comparison must resolve that same owner.
+	var nicUID string
+	if err = s.DB.QueryRowContext(ctx, "SELECT id FROM components WHERE serial_number='NIC-1'").Scan(&nicUID); err != nil {
+		t.Fatal(err)
+	}
+	uidFiles := collisionFiles()
+	uidFiles["server/server_ports.csv"] = bytes.ReplaceAll(uidFiles["server/server_ports.csv"], []byte("3,NIC-1,"), []byte("3,"+nicUID+","))
+	var uidManifest BOMPackageManifest
+	json.Unmarshal(uidFiles["manifest.json"], &uidManifest)
+	uidManifest.Seq = 2
+	uidManifest.BatchID = "BOM-BATCH-P1-20261020-2"
+	uidFiles["manifest.json"], _ = json.Marshal(uidManifest)
+	rehashBOMFixture(t, uidFiles)
+	uidPreview, e := s.PreviewBOMPackage(ctx, actor, project, uidFiles)
+	if e != nil || !uidPreview.CanCommit {
+		t.Fatalf("stable NIC UID lost MAC ownership: %+v %v", uidPreview, e)
+	}
+	badSummary := map[string][]byte{}
+	for name, data := range uidFiles {
+		badSummary[name] = append([]byte{}, data...)
+	}
+	badSummary["server/server_components.csv"] = bytes.ReplaceAll(badSummary["server/server_components.csv"], []byte("aa:bb:cc:dd:ee:01"), []byte("aa:bb:cc:dd:ee:09"))
+	rehashBOMFixture(t, badSummary)
+	badPreview, e := s.PreviewBOMPackage(ctx, actor, project, badSummary)
+	located := false
+	if badPreview != nil {
+		for _, issue := range badPreview.Issues {
+			if issue.Code == "component_port_mac_mismatch" && issue.BOMLineNo == 2 && issue.Expected == "aa:bb:cc:dd:ee:09" && issue.Actual == "aa:bb:cc:dd:ee:01" {
+				located = true
+			}
+		}
+	}
+	if e != nil || !located || badPreview.CanCommit || badPreview.PreviewToken != "" {
+		t.Fatalf("UID summary mismatch escaped: %+v %v", badPreview, e)
+	}
+	if _, e = s.CommitBOMPackage(ctx, actor, project, badSummary, bomPreviewToken(actor, project.ID, badSummary), "test"); e == nil {
+		t.Fatal("UID summary mismatch committed")
+	}
+	if _, e = s.CommitBOMPackage(ctx, actor, project, uidFiles, uidPreview.PreviewToken, "test"); e != nil {
+		t.Fatal(e)
+	}
+	var preserved string
+	if e = s.DB.QueryRowContext(ctx, "SELECT id FROM components WHERE serial_number='NIC-1'").Scan(&preserved); e != nil || preserved != nicUID {
+		t.Fatal("UID reimport created a different NIC")
+	}
 	var secondVersion string
 	if err = s.DB.QueryRowContext(ctx, `SELECT a.model_version_id FROM project_assets a JOIN components c ON c.machine_id=a.machine_id WHERE a.project_id=$1 AND c.serial_number='GPU-SECOND-1'`, project.ID).Scan(&secondVersion); err != nil || secondVersion != newer.ID {
 		t.Fatalf("second GPU assigned to wrong machine: %s %v", secondVersion, err)

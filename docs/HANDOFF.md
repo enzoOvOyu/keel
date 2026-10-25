@@ -525,3 +525,10 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 **§44 发布完成**：功能代码 `f1fb61f858bc0c6bbab073ceb6c5f996af93c0ee` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:051ea0c60ed7ca373f3a888e69851472dea333165d93d47e6baf0fb4c534fc52`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T00:47:25.320294+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
 
 无迁移，运行库仍37条迁移记录；保留兼容旧镜像 `keel:c72ea6efcacf767c7550871aab1de785a6259974`，不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T004501Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40147904900记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
+
+
+## 45. B / WP-1.15：NIC汇总MAC按稳定部件身份比对（2026-10-25）
+
+持续开发第四块，按附录A的引用优先级，将NIC汇总MAC与逐口永久MAC的比较移到物料身份解析后，按端口parentUID与NIC UID归属，避免业务码/行号别名误归属，也接受对已有NIC稳定UID的合法引用。格式检查仍在早期，错误或缺少逐口MAC仍BLOCK；差异给出期望/实际、源文件/原始行和型号引用。标准包与兼容宽表使用同一检查，预检及实际提交都重新验证；无迁移、接口或前端变化。
+
+实际定向单测和vet通过（`/tmp/keel-component-mac-unit.log`、`/tmp/keel-component-mac-vet.log`）。完整隔离 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py`退出0，证据 `/tmp/keel-models-oz33rqfu`，PG/race23.489s及全部HTTP/扫描/发布/布局/固定资产版本/托盘/全局浏览器回归通过。新增server与compute-tray稳定NIC UID重导实际提交保留同一部件，汇总MAC伪造在行2显示期望/实际并阻断预检和伪造令牌提交。既有错误UID不得借用同名端口单测通过。前端未改复用§44构建，旧fabric/026草稿未暂存，fixture不作硬件证据。WP/FR-14/P1保持partial，发布后补。

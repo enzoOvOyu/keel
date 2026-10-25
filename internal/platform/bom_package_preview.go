@@ -189,6 +189,7 @@ func analyzeBOMPackageTx(ctx context.Context, tx *sql.Tx, project *ProjectSummar
 				return nil, nil, err
 			}
 			pkg.Issues = append(pkg.Issues, hardwareIssues...)
+			pkg.Issues = append(pkg.Issues, validateResolvedComponentPortMACs(materials)...)
 			macIssues, err := validateBOMMACPrefixes(ctx, tx, materials)
 			if err != nil {
 				return nil, nil, err

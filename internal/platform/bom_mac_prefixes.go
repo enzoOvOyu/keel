@@ -62,7 +62,7 @@ func validateBOMMACPrefixes(ctx context.Context, tx *sql.Tx, materials []*bomMat
 		}
 		prefixes, err := modelMACPrefixes(raw)
 		if err != nil {
-			issues = append(issues, macPrefixIssue(server.row, ref, "model_mac_expectation_invalid", "1-256 distinct three-octet prefixes", string(raw)))
+			issues = append(issues, bomMACIssue(server.row, ref, "model_mac_expectation_invalid", "1-256 distinct three-octet prefixes", string(raw)))
 			continue
 		}
 		if len(prefixes) == 0 {
@@ -84,12 +84,12 @@ func validateBOMMACPrefixes(ctx context.Context, tx *sql.Tx, materials []*bomMat
 					}
 				}
 				if !matches {
-					issues = append(issues, macPrefixIssue(material.row, ref, "model_mac_prefix_mismatch", strings.Join(prefixes, ","), supplied))
+					issues = append(issues, bomMACIssue(material.row, ref, "model_mac_prefix_mismatch", strings.Join(prefixes, ","), supplied))
 				}
 			}
 		}
 		if !observed {
-			issue := macPrefixIssue(server.row, ref, "model_mac_prefix_unverified", strings.Join(prefixes, ","), "no permanent MAC supplied")
+			issue := bomMACIssue(server.row, ref, "model_mac_prefix_unverified", strings.Join(prefixes, ","), "no permanent MAC supplied")
 			issue.Severity = "WARN"
 			issues = append(issues, issue)
 		}
@@ -97,7 +97,7 @@ func validateBOMMACPrefixes(ctx context.Context, tx *sql.Tx, materials []*bomMat
 	return issues, nil
 }
 
-func macPrefixIssue(row BOMPackageRow, ref, code, expected, actual string) BOMPackageIssue {
+func bomMACIssue(row BOMPackageRow, ref, code, expected, actual string) BOMPackageIssue {
 	line := row.Line
 	if row.File == "legacy/wide.csv" {
 		if original, err := strconv.Atoi(row.Values["legacy_source_line"]); err == nil {
