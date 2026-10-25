@@ -671,3 +671,7 @@ WP-1.10接续PRD登记外部引用，复用现有manifest_ref及§53固定绑定
 契约中实际scheme名为sessionCookie，补自动检查所有HTTP操作引用已声明的securitySchemes（包含path级parameters的规范解码），不以类型生成成功冒充完整契约校验。来源摄取默认关闭，未获运营来源allowlist不替用户开放外网或造供应商凭据；是受控HTTP文件获取，不是apt/yum同步、厂商签名或目标端分发/缓存，WP-1.10/P1仍partial。§53功能9746305 run40156706937和交接16d0b3f run40156996633已查询completed/success；3000当前仍9746305/schema38。两份旧草稿继续保留原样。
 
 §54最终检查：/tmp/keel-media-source-browser-regression.log完整12组HTTP/浏览器退出0；未重复昂贵PG整组，沿用本步实际PG3.582s和§53完整Go44.906s，新增全仓go test -race ./...退出0（无DB项按规范skip，/tmp/keel-media-source-go-all.log）。受影响包vet、契约security引用、最终npm check/build、Compose/设计检查均通过。新增服务自身5分钟总期限，源正文最多读登记长度+1后拒绝超长，避免已知短文件被恶意大响应消耗。无新增迁移；运行来源origin默认仍未配置。
+
+**§54 发布完成**：功能代码 `cfa89b653a596299444ffd7de56693793a9d76ac` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:d7bd0b9eb2c3e39a43a7b38001efa5ddc7340f1e3c2a605df0aec5dbd55004be`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T03:25:17.032318+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
+
+无迁移，运行库38条迁移记录；保留旧镜像 `keel:974630557b2c746513746e3ce372890851668ca6`。保留兼容旧镜像。不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T032130Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40157910473记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
