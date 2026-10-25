@@ -482,3 +482,7 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 截图复核发现原长表单错误提示在视口外，补焦点定位及实际焦点/视口断言后仅重跑受影响构建和publication-only；最终证据后补。保留旧fabric_precheck/026草稿，Go继续沿用隔离overlay；独立fixture不是硬件验收。上一f9e4f53的GitHub Actions run40145313377已查询completed/success。本轮提交和3000发布结果后补；FR-14/WP-1.12/P1仍partial，继续按依赖补齐剩余硬件和布局能力。
 
 §41提交前补记：最终根 `npm run build`退出0（`/tmp/keel-slot-build.log`，含契约生成/TypeScript/UI边界/版本lint/Vite）；仅受影响的 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py --publication-only`退出0，证据 `/tmp/keel-models-hbngcgj1`，实际错误焦点与视口断言、零发布请求、原完整审核/不可变历史/权限/差异导出回归通过。最终model-slot-conflict.png再次视觉复核，错误位于可见区域。设计/Node语法/diff检查通过，GitHub SSH认证成功，远端无待同步提交。
+
+**§41 发布完成**：功能代码 `768965ff3c13af11c9c819c017ea80ec0280e148` 已正常推送GitHub，从确切SHA的git archive构建镜像，镜像ID `sha256:4c445cf516ee10f19463856e0a1d9c784ed7010085e588768a1977251d561618`，不含旧草稿和秘密配置。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查全部通过。于 `2026-10-25T00:22:46.691180+00:00` 更新3000并healthy，切换后同套八页/API/版本/控制台检查再次通过，healthz显示上述功能SHA。
+
+无迁移，运行库仍37条迁移记录；保留兼容旧f9e4f53镜像，不改数据卷、worker启用范围或其他服务。.env权限600，切换前配置、私有发布状态及截图在 `/home/ubuntu/.local/state/keel/releases/20261025T002121Z`；候选容器/临时候选配置已清理，两份旧草稿原样未暂存。GitHub Actions run40146358234记录时 in_progress/尚无结论，仅按实际状态报告；上一f9e4f53已completed/success。后续交接文档提交不改变3000功能SHA。WP-1.12/FR-14/P1仍partial，后续布局/角色、显式迁移失效及G1按各自依赖推进。
