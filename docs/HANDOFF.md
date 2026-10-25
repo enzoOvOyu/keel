@@ -495,3 +495,7 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 共用预览组件在审核表单随输入变化、在版本历史按每版本自身布局和槽位显示登记位置、默认角色及端口详情。键盘可选端口；使用现有Button与设计令牌，无新依赖。明确型号预期而非真实链路或项目RoleBinding，不把缺失槽位自动当板载。不实现P2监控PortPanel、显式迁移失效或G1，WP-1.12/FR-14/P1仍partial。OpenAPI及生成类型同步，MODEL-PUBLICATION记录示例与边界。
 
 实际根npm run build通过（`/tmp/keel-panel-build.log`）；Go面板校验单测和vet通过（`/tmp/keel-panel-unit.log`、`/tmp/keel-panel-vet.log`）。原生控件边界检查曾指出新按钮应复用既有Button，已按约束修正，没有改基线或放宽检查。完整隔离 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py`证据 `/tmp/keel-models-043jl6a1`，PG/race17.732s及原HTTP/扫描/发布/托盘/全局浏览器回归全通过；新增布局审核和历史预览、位置/槽位详情、非法位置/引用/空布局API和UI阻断通过。数据库覆盖非法扫描无自动身份和不可变版本变更；历史布局保留，model-panel-history.png已视觉复核。独立fixture不代表硬件验收。两份旧fabric_precheck/026草稿原样未暂存，Go继续使用既有overlay。发布结果后补。
+
+**§42 发布完成**：功能代码 `ceeaaa8d9f4ef66b4e39d66e71b11e482066790d` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:a528a4e7f107e775e7304a4dd665e93186d3561692f7038dae526769a0c36254`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T00:33:31.076818+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
+
+无迁移，运行库仍37条迁移记录；保留兼容旧镜像 `keel:768965ff3c13af11c9c819c017ea80ec0280e148`，不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T003019Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40146941962记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
