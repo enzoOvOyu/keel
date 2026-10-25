@@ -991,3 +991,5 @@ CI诊断包装复核：ab36da7加入tee时未显式pipefail，可能掩盖make c
 本轮无Go业务改动、无迁移/生产写入；schema46保持，两份原fabric草稿继续未跟踪且不构建。WP-1.8全部UX、WP-1.5/P1与FR-0仍partial。Agent完整任务/安装/续签、PXE、完整repair和真机验证不因UI整合而记完成。
 
 §73最终本地补记：新增UI全链最终退出0，/tmp/keel-ui-tj9usmy8，覆盖14页面/登录项目表单/复选框键盘及16px/焦点恢复/本地四字重/等宽/明暗/移动端，确认没有旧Intel字体请求。先前一轮Chromium在并行检查期间内存紧张崩溃，不计通过；仅将本轮已结束的自有测试二进制移至磁盘证据目录，日志和截图保留，UI runner后续直接在该目录构建，串行复验通过。Fabric真实协议/页面及8-tab抽屉/tmp/keel-shell-2feg40hi、规则编辑/版本/发布/tmp/keel-shell-9ys7cnbf均退出0。共享UI及业务页面测试不是完整无障碍或硬件验收。
+
+§73移动登录修正：首功能提交0a87a9e的CI/run40194760988在认证浏览器阶段失败，未切换3000。本地对其候选镜像运行原scripts/check-browser.mjs复现移动输入字号13px低于16px；已恢复用户名/密码16px（含md覆盖）并在新UI回归增加该断言。修正后最终前端构建退出0，实际UI全链加原disabled-provider/双语/明暗/移动登录脚本均退出0，证据/tmp/keel-ui-pzp0lc4d；候选旧容器及临时env已移除，失败CI不计通过。随后以修正提交重新验证CI与发布。

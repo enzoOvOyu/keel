@@ -16,6 +16,7 @@ async function fontCheck(){await page.evaluate(async()=>{await Promise.all([400,
 try{
  await page.goto('/login',{waitUntil:'networkidle'});await fontCheck()
  assert.equal(await page.locator('#username').evaluate(e=>e.getBoundingClientRect().height),48)
+ await page.setViewportSize({width:390,height:844});for(const id of ['#username','#password'])assert(await page.locator(id).evaluate(e=>parseFloat(getComputedStyle(e).fontSize))>=16,'Mobile login inputs retain at least 16px text');await page.setViewportSize({width:1440,height:1000})
  const toggle=page.locator('[aria-controls=password]');await toggle.click();assert.equal(await page.locator('#password').getAttribute('type'),'text');await toggle.click()
  await page.locator('#username').fill(c.username);await page.locator('#password').fill(c.password);await page.locator('#login-form button[type=submit]').click();await page.waitForURL('**/projects')
  await page.locator('#new-project-button').click();await page.locator('#project-name').fill('Shared controls');await page.locator('#project-slug').fill('shared-controls');await page.locator('#project-description').fill('Actual UI migration check')
