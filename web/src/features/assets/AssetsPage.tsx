@@ -8,6 +8,7 @@ import { AssetModelDialog } from './AssetModelDialog'
 import { SSHTrustRequests } from './SSHTrustRequests'
 import { SSHDomainKeys } from './SSHDomainKeys'
 import { SSHExecutions } from './SSHExecutions'
+import { AgentExecutions } from './AgentExecutions'
 import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -145,6 +146,7 @@ function AssetsContent() {
     </section>
     <SSHTrustRequests assets={assets.isError ? [] : assets.data?.items ?? []} />
     <SSHExecutions assets={assets.isError ? [] : assets.data?.items ?? []} />
+    <AgentExecutions />
     <SSHDomainKeys />
     {modelTarget && <AssetModelDialog key={`${project.id}:${modelTarget.id}`} projectId={project.id} asset={modelTarget} onClose={() => setModelTarget(null)} />}
     {packageImporting && <BomPackageDialog projectId={project.id} onClose={() => setPackageImporting(false)} onDone={(message) => done(message)} />}

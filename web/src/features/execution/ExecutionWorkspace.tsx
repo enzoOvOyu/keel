@@ -2,6 +2,7 @@ import {RerunDialog} from './RerunDialog'
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import {
@@ -23,7 +24,7 @@ import {
 import { useAction } from "../../lib/management";
 import { useProject } from "../../components/ProjectWorkspace";
 import { useSession, useExpireOnUnauthorized } from "../../lib/session";
-import { controlExecution } from "../../lib/execution";
+import { controlExecution, reconcileAttempt } from "../../lib/execution";
 import { ApiError } from "../../lib/api";
 import {
   downloadOutput,
@@ -331,8 +332,9 @@ function AttemptDrawer({
   onLogs: () => void;
   onRerun?: (targetID:string) => void;
 }) {
-  const session = useSession(),
+  const session = useSession(), project = useProject(), client = useQueryClient(),
     { t } = useTranslation(),
+    action = useAction(),
     prior = useRef(document.activeElement instanceof HTMLElement ? document.activeElement : null),
     query = useQuery({
       queryKey: [
@@ -349,26 +351,55 @@ function AttemptDrawer({
         getAttempt(projectId, executionId, attempt, signal),
       retry: false,
     });
+  const [evidence, setEvidence] = useState(''), [denied, setDenied] = useState<ApiError | null>(null)
+  const submission = useRef({ body: '', key: '' })
+  const mounted = useRef(true)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   useExpireOnUnauthorized(query.error);
+  useEffect(() => {
+    if (!accessDenied(action.error)) return
+    setDenied(action.error)
+    void client.invalidateQueries({ queryKey: ['private', session.user.id, 'project', projectId] })
+  }, [action.error])
+  const canReconcile = session.user.is_admin || ['Admin', 'DL', 'SRE'].includes(project.role)
+  const proof = query.data?.attempt.receipt
+  const currentAttempt = query.data?.attempt
+  const matchingProof = proof && currentAttempt && proof.attempt_id === currentAttempt.id && proof.command_id === currentAttempt.command_id && proof.fencing_token === currentAttempt.fencing_token
+  async function reconcile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!currentAttempt || !matchingProof || !proof || currentAttempt.state !== 'unknown' || !canReconcile || denied || evidence.trim().length < 10 || evidence.length > 2000) return
+    const body = { expected_version: currentAttempt.state_version, result: proof.result, evidence: evidence.trim() }
+    const serialized = JSON.stringify(body)
+    if (submission.current.body !== serialized) submission.current = { body: serialized, key: crypto.randomUUID() }
+    const result = await action.run(() => reconcileAttempt(projectId, executionId, attempt, body, session.csrf_token, submission.current.key))
+    if (result.ok && mounted.current) {
+      await client.invalidateQueries({ queryKey: ['private', session.user.id, 'project', projectId, 'execution-view', executionId] })
+      await client.invalidateQueries({ queryKey: ['private', session.user.id, 'project', projectId, 'executions'] })
+      if (mounted.current) onClose()
+    }
+  }
   return (
-    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+    <Dialog open onOpenChange={open => { if (!open && !action.busy) onClose(); }}>
     <DialogContent
       className="execution-attempt-drawer ui:top-0 ui:left-auto ui:right-0 ui:translate-x-0 ui:translate-y-0 ui:w-[min(640px,100vw)] ui:h-dvh ui:max-h-dvh ui:max-w-none ui:sm:max-w-none ui:rounded-none ui:overflow-auto"
       aria-describedby={undefined}
       showCloseButton={false}
+      onEscapeKeyDown={event => { if (action.busy) event.preventDefault(); }}
+      onInteractOutside={event => event.preventDefault()}
       onCloseAutoFocus={event => { event.preventDefault(); if(prior.current?.isConnected) prior.current.focus(); }}
     >
       <div className="execution-view-toolbar">
         <DialogTitle id="execution-attempt-heading">
           {t("executionViewAttemptDetails")}
         </DialogTitle>
-        <Button variant="outline" type="button" className="secondary-button" onClick={onClose}>
+        <Button variant="outline" type="button" className="secondary-button" disabled={action.busy} onClick={onClose}>
           {t("executionViewClose")}
         </Button>
       </div>
       <ActionError error={query.error} />
+      <ActionError error={denied ?? action.error} />
       {query.isPending && <p role="status">{t("loadingRecords")}</p>}
-      {query.data && !accessDenied(query.error) && (
+      {query.data && !accessDenied(query.error) && !denied && (
         <>
           <dl className="execution-view-facts">
             <dt>{t("attemptTarget")}</dt>
@@ -383,8 +414,14 @@ function AttemptDrawer({
             <dd>{stamp(query.data.attempt.started_at)}</dd>
             <dt>{t("executionFinished")}</dt>
             <dd>{stamp(query.data.attempt.finished_at)}</dd>
+            {query.data.mode === 'agent' && query.data.target.agent && <>
+              <dt>{t('agentCredential')}</dt>
+              <dd><code className="ui:break-all">{query.data.target.agent.host_key}</code><span className="cell-subtitle">v{query.data.target.revision}</span></dd>
+              <dt>SHA256</dt>
+              <dd><code className="ui:break-all">{query.data.target.agent.config_hash}</code></dd>
+            </>}
           </dl>
-          <Button variant="outline" type="button" className="secondary-button" onClick={onLogs}>
+          <Button variant="outline" type="button" className="secondary-button" disabled={action.busy} onClick={onLogs}>
             {t("executionViewFocusLogs")}
           </Button>
           {onRerun && <Button variant="outline" onClick={()=>onRerun(query.data!.target.id)}>{t('rerunTarget')}</Button>}
@@ -394,6 +431,16 @@ function AttemptDrawer({
               ? JSON.stringify(query.data.attempt.receipt, null, 2)
               : t("executionViewNoReceipt")}
           </pre>
+          {currentAttempt?.state === 'unknown' && <section aria-label={t('executionReconcileTitle')}>
+            <h3>{t('executionReconcileTitle')}</h3>
+            <p className="impact-notice">{t(matchingProof ? 'executionReconcileDescription' : 'executionReconcilePending')}</p>
+            <Button type="button" variant="outline" disabled={action.busy || query.isFetching} onClick={() => void query.refetch()}>{t('executionReconcileRefresh')}</Button>
+            {canReconcile && matchingProof && proof && !['archived', 'delivered'].includes(project.state) && <form onSubmit={event => void reconcile(event)} aria-busy={action.busy}>
+              <p>{t('executionReconcileResult')}: <strong>{t('attempt_state_' + proof.result)}</strong></p>
+              <div className="field"><Label htmlFor="execution-reconcile-evidence">{t('executionReconcileEvidence')}</Label><Textarea id="execution-reconcile-evidence" value={evidence} onChange={event => setEvidence(event.target.value)} required minLength={10} maxLength={2000} disabled={action.busy} aria-describedby="execution-reconcile-hint" /><p className="field-hint" id="execution-reconcile-hint">{t('executionReconcileEvidenceHint')}</p></div>
+              <Button type="submit" disabled={action.busy || query.isFetching || evidence.trim().length < 10 || evidence.length > 2000}>{t('executionReconcileConfirm')}</Button>
+            </form>}
+          </section>}
         </>
       )}
     </DialogContent>
@@ -531,7 +578,7 @@ export function ExecutionWorkspace({
   const trustVerification = Boolean(current?.execution.trust_verification);
   const canControl = Boolean(
     current &&
-      ((current.execution.mode === "sim" || current.execution.mode === "ssh")
+      ((current.execution.mode === "sim" || current.execution.mode === "ssh" || current.execution.mode === "agent")
         ? session.user.is_admin ||
           (trustVerification ? ["Admin", "SRE", "DL"] : ["Admin", "SRE", "DE", "DL"]).includes(project.role)
         : session.user.is_admin || ["Admin", "NDE"].includes(project.role)),
@@ -578,6 +625,8 @@ export function ExecutionWorkspace({
         {t(
           current.execution.mode === "ssh"
             ? trustVerification ? "sshTrustExecutionNotice" : "sshExecutionNotice"
+            : current.execution.mode === "agent"
+            ? "agentExecutionNotice"
             : current.execution.mode === "fabric"
             ? "networkExecutionDetail"
             : current.execution.mode === "kea"

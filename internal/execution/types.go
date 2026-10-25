@@ -27,11 +27,14 @@ type Service struct {
 	agentReceiptCursorAt time.Time
 	agentReceiptCursorID string
 	AgentRunner          taskrunner.Runner
-	SSHRunner            taskrunner.Runner
-	MediaStore           *platform.Store
-	DB                   *sql.DB
-	KeaStore             *platform.Store
-	NetworkStore         *platform.Store
+	// AgentAdmissionOnly enables API admission from authenticated connection
+	// metadata. Workers must use their own live AgentRunner instead.
+	AgentAdmissionOnly bool
+	SSHRunner          taskrunner.Runner
+	MediaStore         *platform.Store
+	DB                 *sql.DB
+	KeaStore           *platform.Store
+	NetworkStore       *platform.Store
 }
 
 func New(db *sql.DB) *Service { return &Service{DB: db} }

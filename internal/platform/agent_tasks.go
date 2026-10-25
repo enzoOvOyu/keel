@@ -56,15 +56,26 @@ func (s *Store) ActiveAgentTaskBinding(ctx context.Context, project, machine str
 	if e != nil {
 		return nil, "", e
 	}
-	var connection string
-	e = tx.QueryRowContext(ctx, `SELECT id FROM agent_connections WHERE credential_id=$1 AND disconnected_at IS NULL AND last_seen_at>now()-interval '30 seconds' AND task_session_id IS NOT NULL AND task_disconnected_at IS NULL FOR SHARE`, out.ID).Scan(&connection)
-	if errors.Is(e, sql.ErrNoRows) {
-		return nil, "", ErrAgentDenied
-	}
+	connection, e := s.ActiveAgentTaskConnectionTx(ctx, tx, out.ID)
 	if e != nil {
 		return nil, "", e
 	}
 	return out, connection, tx.Commit()
+}
+
+// ActiveAgentTaskConnectionTx checks liveness inside the identity/admission
+// transaction, avoiding a second connection and inconsistent credential reads.
+// This metadata permits admission only; it never gives a worker a task stream.
+func (s *Store) ActiveAgentTaskConnectionTx(ctx context.Context, tx *sql.Tx, credential string) (string, error) {
+	var connection string
+	e := tx.QueryRowContext(ctx, `SELECT id FROM agent_connections WHERE credential_id=$1 AND disconnected_at IS NULL AND last_seen_at>now()-interval '30 seconds' AND task_session_id IS NOT NULL AND task_disconnected_at IS NULL FOR SHARE`, credential).Scan(&connection)
+	if errors.Is(e, sql.ErrNoRows) {
+		return "", ErrAgentDenied
+	}
+	if e != nil {
+		return "", e
+	}
+	return connection, nil
 }
 func (s *Store) VerifyAgentTaskConnection(ctx context.Context, cert *x509.Certificate, authority, connection string) (*AgentCredential, error) {
 	if !sshTrustIDPattern.MatchString(connection) {

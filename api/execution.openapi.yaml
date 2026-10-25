@@ -8,6 +8,10 @@
   "tags": [
     {
       "name": "Simulation execution"
+    },
+    {
+      "name": "Agent execution",
+      "description": "Opt-in registered mTLS Agent read-only tasks through the unified execution kernel."
     }
   ],
   "paths": {
@@ -919,7 +923,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Simulation-only result",
+            "description": "Reconciled execution from an existing durable terminal receipt",
             "content": {
               "application/json": {
                 "schema": {
@@ -953,7 +957,7 @@
             "$ref": "#/components/responses/Unavailable"
           }
         },
-        "description": "Project-scoped simulation operation. Historical reads remain available to authorized users; writes reject delivered/archived projects. Writes require strict JSON <=512 KiB and unknown fields are rejected.",
+        "description": "Current Admin/DL/SRE authority and exact unknown attempt version are required. Consumes an already persisted durable runner receipt and checks that the claimed result exactly matches it; evidence text alone cannot establish success or unlock resources. No task rerun or dispatch. Delivered/archived projects reject writes.",
         "requestBody": {
           "required": true,
           "content": {
@@ -2065,6 +2069,157 @@
           }
         }
       }
+    },
+    "/api/v1/projects/{id}/agent-executions": {
+      "post": {
+        "operationId": "createAgentExecution",
+        "tags": [
+          "Agent execution"
+        ],
+        "x-permission": "execution:create",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created immutable read-only Agent execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Execution"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Explicitly enabled API admission only: authenticates current Admin/DE/DL/SRE authority, pins the current registered identity and provisioned project asset, and requires a fresh authenticated worker task stream. Existing outbox/attempt/lease machinery performs dispatch. Only host.identity and host.wait; no new queue, arbitrary command, file operation, installation or hardware acceptance. Same actor/key/payload reuses its execution; disconnects without durable terminal proof remain unknown and quarantined.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentCreateInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/agent-targets": {
+      "get": {
+        "operationId": "listAgentTargets",
+        "tags": [
+          "Agent execution"
+        ],
+        "x-permission": "execution:read",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current Agent task eligibility metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTargetPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Current project-authorized read. Returns only provisioned project assets whose serial and asset version exactly match a current registered unrevoked, unexpired Agent credential. Public metadata only; no PEM, grant token or private material. connected means a fresh (<30 seconds) authenticated heartbeat with an open task stream, never host health, SSH trust or hardware evidence. Explicit API opt-in defaults disabled; disabled returns enabled=false and an empty page. Listing does not dispatch or own worker connections."
+      }
     }
   },
   "components": {
@@ -2566,7 +2721,8 @@
               "sim",
               "kea",
               "fabric",
-              "ssh"
+              "ssh",
+              "agent"
             ]
           },
           "resource_key": {
@@ -2579,6 +2735,9 @@
           "ssh_trust_request_id": {
             "type": "string",
             "description": "Frozen approved one-time first-connection verification request; absent for ordinary queries."
+          },
+          "agent": {
+            "$ref": "#/components/schemas/AgentBinding"
           }
         },
         "required": [
@@ -2688,7 +2847,8 @@
               "sim",
               "kea",
               "fabric",
-              "ssh"
+              "ssh",
+              "agent"
             ]
           },
           "flow": {
@@ -2773,7 +2933,8 @@
               "sim",
               "kea",
               "fabric",
-              "ssh"
+              "ssh",
+              "agent"
             ]
           },
           "state": {
@@ -2904,7 +3065,8 @@
               "sim",
               "kea",
               "fabric",
-              "ssh"
+              "ssh",
+              "agent"
             ]
           },
           "state": {
@@ -3046,7 +3208,7 @@
           "started_at",
           "finished_at"
         ],
-        "description": "Immutable durable simulation receipt. cancelled is attempt outcome; execution cancellation terminal is killed."
+        "description": "Immutable durable runner proof tied to command, attempt and fencing token. cancelled is an attempt outcome; execution cancellation terminal is killed. Read-only Agent output is not hardware acceptance."
       },
       "ExecutionAttempt": {
         "type": "object",
@@ -3162,7 +3324,7 @@
           "started_at",
           "finished_at"
         ],
-        "description": "receipt exposes real persisted simulator proof even when the control-plane completion acknowledgement was dropped. Unknown attempts keep reconciling locks; no automatic retry/unlock."
+        "description": "Durable runner receipt may be present while the attempt remains unknown. Unknown attempts keep reconciling locks; only an explicit versioned reconciliation consumes the proof, with no automatic retry/unlock."
       },
       "ExecutionDetail": {
         "type": "object",
@@ -3314,7 +3476,8 @@
               "sim",
               "kea",
               "fabric",
-              "ssh"
+              "ssh",
+              "agent"
             ]
           }
         },
@@ -3656,9 +3819,7 @@
           },
           "model_version": {
             "type": "string",
-            "enum": [
-              "sim-model-v1"
-            ]
+            "description": "Frozen target model version identity; simulation uses sim-model-v1."
           },
           "created_at": {
             "type": "string",
@@ -3670,11 +3831,15 @@
               "sim",
               "kea",
               "fabric",
-              "ssh"
+              "ssh",
+              "agent"
             ]
           },
           "resource_key": {
             "type": "string"
+          },
+          "agent": {
+            "$ref": "#/components/schemas/AgentBinding"
           }
         },
         "required": [
@@ -4680,6 +4845,153 @@
         },
         "required": [
           "expected_version"
+        ]
+      },
+      "AgentCreateInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "machine_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "host.identity",
+              "host.wait"
+            ]
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 30000,
+            "default": 5000
+          },
+          "wait_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30000,
+            "default": 0
+          }
+        },
+        "required": [
+          "machine_ids",
+          "operation"
+        ],
+        "description": "Only bounded host.identity or host.wait on 1..32 unique registered Agent machine IDs. identity requires wait_ms=0; wait_ms must be shorter than timeout_ms. Current project-bound asset must be provisioned, and its serial/version must match the unrevoked/unexpired credential with a fresh authenticated worker task stream. No addresses, secrets, scripts, installation or files."
+      },
+      "AgentTarget": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "machine_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "asset_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "serial_number": {
+            "type": "string"
+          },
+          "asset_version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "credential_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "credential_expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_seen_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "connected": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "machine_id",
+          "asset_id",
+          "hostname",
+          "serial_number",
+          "asset_version",
+          "credential_id",
+          "credential_expires_at",
+          "connected"
+        ]
+      },
+      "AgentTargetPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentTarget"
+            },
+            "maxItems": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Explicit API task admission opt-in. False returns no target metadata or write admission."
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size",
+          "enabled"
+        ]
+      },
+      "AgentBinding": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "host_key": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$",
+            "description": "Registered credential ID; shared transport-neutral binding field name, not an SSH fingerprint."
+          },
+          "config_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "SHA256 of the exact registered certificate DER."
+          }
+        },
+        "required": [
+          "host_key",
+          "config_hash"
         ]
       }
     }

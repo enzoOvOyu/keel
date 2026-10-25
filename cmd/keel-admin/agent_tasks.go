@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/enzoOvOyu/keel/internal/agentrunner"
 	"github.com/enzoOvOyu/keel/internal/execution"
 	"github.com/enzoOvOyu/keel/internal/platform"
 )
@@ -113,9 +112,9 @@ func runAgentTasks(command string, args []string) error {
 		return platform.ErrForbidden
 	}
 	service := execution.New(store.DB)
-	// Binding reads registered task-session metadata; this CLI never owns an
-	// Agent transport, sends a remote command, or acts as another dispatcher.
-	service.AgentRunner = agentrunner.New(store)
+	// Like the API, the owner CLI admits from current public metadata inside
+	// the execution transaction; only the worker owns the task stream.
+	service.AgentAdmissionOnly = true
 	var result any
 	switch command {
 	case "agent-task-create":

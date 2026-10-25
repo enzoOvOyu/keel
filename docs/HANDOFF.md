@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～73。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～74。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-25 13:06 UTC）
 
@@ -997,3 +997,18 @@ CI诊断包装复核：ab36da7加入tee时未显式pipefail，可能掩盖make c
 §73发布补记：完整修正提交`e5f540ea82e177d72cf27782d7d082cb5514f5ba`已推送，[CI/run40195483027](https://github.com/enzoOvOyu/keel/actions/runs/40195483027) completed/success（含新增UI/字体回归、原登录/认证/SSH/OIDC/LDAP及容器健康）。准确归档镜像`sha256:076737fa627fa6665168222f9fdc9fb8b22898b6b40030eaec13d81087628a55`已发布3000，发布目录`/home/ubuntu/.local/state/keel/releases/20261025T125818Z`保留source.tar、构建日志、candidate/runtime健康和真实登录八页工作台/权限读探针、四个WOFF2逐字节摘要、移动字段16px/48px高度/密码56px留白/显示隐藏/明暗截图。候选及运行版均退出0；候选容器和临时环境文件已移除。
 
 无新迁移，运行库保持46；生产worker/Agent listener/真实SSH/主密钥/OIDC/LDAP/外部介质fetch继续关闭，Agent生产三表仍空；旧镜像/卷/备份保留。原fabric草稿仍未跟踪、不构建、不提交。仅本轮已结束测试二进制从内存/tmp迁往磁盘证据，日志截图保留；不清理用户其他目录/服务。后续可在已完成共享UI基础上继续既有统一执行/Agent工作，完整业务能力和P1仍按实际证据保持partial。
+
+
+## 74. Agent 只读任务 API、资产页启动与真实回执对账（2026-10-25）
+
+接续§72/73，所属WP-1.5及WP-1.8。新增默认关闭的KEEL_AGENT_TASKS_ENABLED，认证项目成员可分页读取当前有效Agent目标的公共身份/连接元数据，Admin/DE/DL/SRE可提交host.identity/host.wait。API与owner CLI在同一创建事务复验当前资产/SN/证书及新鲜任务连接，无跨连接嵌套准入；API无任务Broker/CA/listener，worker仍只消费自身真实mTLS流，复用原Execution/outbox/TaskAttempt/资源租约/fencing及审计。无新迁移。
+
+资产页复用shadcn控件/现有字体，显示任务通道连接、最后心跳和证书到期；当前页仅在线目标可选（最多32），30秒连接缓存或证书到期即停止选择，明确连接不等于主机健康。提交保持同body稳定幂等键；失权关闭表单。既有执行五Tab支持agent，尝试详情展示冻结公共绑定及真实proof，unknown只有command/attempt/fence匹配的持久终态才出现Admin/DL/SRE显式对账表单；没有人工指定成功或新远程重放入口。
+
+新增actual PG/HTTP/Agent测试及浏览器fixture。首轮/tmp/keel-agent-integration-l900904t未通过：重复ID验证被首目标离线检查抢先返回503，现已将纯ID校验前移；浏览器终态等待后另读遇到尚在running的记录，改为轮询并断言同一实际HTTP响应的success与真实proof。失败轮不计PASS。修正后HTTP权限/分页/默认关闭/CSRF/八角色/跨项目/幂等/真实任务/断线回执与显式对账全部通过，/tmp/keel-agent-integration-dgzdq9q8的HTTP测试PASS（同轮旧浏览器断言仍失败，不记总通过）；最终独立真实浏览器/tmp/keel-agent-integration-65wl_wc_退出0，含真实失联unknown→重连query→网页对账→资源释放/原command未重放、身份任务响应丢失幂等重试、五Tab、UI403、英语移动端wait与Viewer只读。初轮其余既有Agent PKI/gRPC/CLI/任务/受限角色测试PASS，证据保留。所有为隔离软件身份，无硬件PoC。
+
+宿主Go仍使用既有GOFLAGS overlay与GOMEMLIMIT=768MiB；新runner将大二进制写磁盘私有证据目录，保留/tmp日志截图，支持--browser及--run定向复验。CI新增独立Agent浏览器步；正式OpenAPI和生成类型、Agent运行说明及追踪同步，仍标partial。最终全量检查/提交/CI/3000发布以随后补记为准，此时运行版仍§73。
+
+生产Agent listener/worker/HTTP任务准入、真实SSH/主密钥/外部介质获取/组织认证保持关闭；两份原fabric草稿未跟踪、不编译不提交。完整任务目录、传输/自动安装/systemd、续签/CA轮换、遥测、完整bootstrap/repair/PXE与真机验收仍未完成，WP-1.5/P1/FR-0不能据此闭环。
+
+§74本地最终补记：全量 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json GOMEMLIMIT=768MiB GOMAXPROCS=2 make check` 退出0，/tmp/keel-agent-api-make-check.log，包含设计、H-1离线测试、Go vet/race、正式类型生成、UI零预算/版本输入与生产构建（既有大bundle提示保留）。Compose config --quiet、diff --check通过；GitHub SSH认证成功，fetch后本地与origin无分叉。提交/CI与3000证据随后补记。

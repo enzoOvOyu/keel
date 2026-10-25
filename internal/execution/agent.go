@@ -14,7 +14,7 @@ import (
 // Agent admission pins the registered public identity and asset in the same
 // transaction as execution creation. A transport reconnect is never a new task.
 func (s *Service) agentTargetTx(ctx context.Context, tx *sql.Tx, project, machine string) (Target, error) {
-	if s.AgentRunner == nil {
+	if s.AgentRunner == nil && !s.AgentAdmissionOnly {
 		return Target{}, failure(503, "AGENT_DISABLED", "Agent task transport is not configured")
 	}
 	t := Target{ProjectID: project, ResourceKey: machine, Mode: "agent"}
@@ -30,8 +30,16 @@ func (s *Service) agentTargetTx(ctx context.Context, tx *sql.Tx, project, machin
 		return t, e
 	}
 	expected := platform.AgentCertificateBinding(identity)
-	b, e := s.AgentRunner.Binding(project, machine)
+	b := expected
+	if s.AgentRunner != nil {
+		b, e = s.AgentRunner.Binding(project, machine)
+	} else {
+		_, e = (&platform.Store{DB: s.DB}).ActiveAgentTaskConnectionTx(ctx, tx, identity.ID)
+	}
 	if e != nil {
+		if s.AgentRunner == nil && !errors.Is(e, platform.ErrAgentDenied) {
+			return t, e
+		}
 		return t, failure(503, "AGENT_OFFLINE", "No authenticated Agent task stream is currently available")
 	}
 	if b != expected {
@@ -102,6 +110,11 @@ func (s *Service) CreateAgent(ctx context.Context, a *Actor, project string, in 
 	ids := append([]string{}, in.MachineIDs...)
 	sort.Strings(ids)
 	in.MachineIDs = ids
+	for i, machine := range ids {
+		if !opaqueID.MatchString(machine) || (i > 0 && machine == ids[i-1]) {
+			return nil, invalid("Unique valid machine IDs are required")
+		}
+	}
 	tx, e := s.DB.BeginTx(ctx, nil)
 	if e != nil {
 		return nil, e
@@ -109,6 +122,9 @@ func (s *Service) CreateAgent(ctx context.Context, a *Actor, project string, in 
 	defer tx.Rollback()
 	if e = authorize(ctx, tx, a, project, "Admin", "DE", "DL", "SRE"); e != nil {
 		return nil, e
+	}
+	if s.AgentRunner == nil && !s.AgentAdmissionOnly {
+		return nil, failure(503, "AGENT_DISABLED", "Agent task admission is not configured")
 	}
 	idem, prior, e := idempotency(ctx, tx, a, "agent.execute:"+project, key, in)
 	if e != nil {
@@ -120,10 +136,7 @@ func (s *Service) CreateAgent(ctx context.Context, a *Actor, project string, in 
 	}
 	targets := []Target{}
 	targetIDs := []string{}
-	for i, machine := range ids {
-		if !opaqueID.MatchString(machine) || (i > 0 && machine == ids[i-1]) {
-			return nil, invalid("Unique valid machine IDs are required")
-		}
+	for _, machine := range ids {
 		target, e := s.agentTargetTx(ctx, tx, project, machine)
 		if e != nil {
 			return nil, e

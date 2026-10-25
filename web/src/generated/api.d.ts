@@ -4297,6 +4297,12 @@ export interface components {
             host_key: string;
             config_hash: string;
         };
+        AgentBinding: {
+            /** @description Registered credential ID; shared transport-neutral binding field name, not an SSH fingerprint. */
+            host_key: string;
+            /** @description SHA256 of the exact registered certificate DER. */
+            config_hash: string;
+        };
         SimTarget: {
             id: string;
             project_id: string;
@@ -4309,12 +4315,13 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent";
             /** @description Stable controller/device identity for non-simulation targets. */
             resource_key?: string;
             ssh?: components["schemas"]["SSHBinding"];
             /** @description Frozen approved one-time first-connection verification request; absent for ordinary queries. */
             ssh_trust_request_id?: string;
+            agent?: components["schemas"]["AgentBinding"];
         };
         RerunSource: {
             execution_id: string;
@@ -4327,7 +4334,7 @@ export interface components {
         /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
         ExecutionSnapshot: {
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent";
             flow: components["schemas"]["FlowVersion"];
             targets: components["schemas"]["SimTarget"][];
             /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
@@ -4346,7 +4353,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;

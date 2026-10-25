@@ -126,4 +126,15 @@ keel-admin agent-task-reconcile --username LOCAL_ADMIN --password-file /protecte
 
 create成功后由既有outbox调度，无单独start命令；action仅支持pause/resume/cancel。status展示原有执行和回执状态，不将正在排队解释为完成。worker后台对unknown只query并持久化真实终态，CLI reconcile只能消费已经匹配command/attempt/fence的真实回执；没有回执则拒绝并保留隔离。CLI不从独立进程伪造跨worker恢复或另发run。
 
-本阶段未新增浏览器启动表单和自动安装；前端后续按用户排期先补shadcn/ui整合与全局等宽字体，再接入相应页面。身份凭据仍只有一小时有效期，自动续签/CA轮换及完整任务/进程管理留后续，不能将本阶段运行作为真机安装或硬件健康验收。
+身份凭据仍只有一小时有效期，自动安装、续签/CA轮换及完整任务/进程管理留后续，不能将本阶段运行作为真机安装或硬件健康验收。
+
+### 认证 API 与网页只读入口
+
+`KEEL_AGENT_TASKS_ENABLED=true` 显式开启 HTTP 准入，默认 false。它不创建 listener、不加载 CA 或私钥，也不启用 worker；运维须另行准备上文的 worker 和目标配置。owner CLI 的显式操作不依赖此网页开关。API 与 CLI 在创建执行的同一事务内冻结当前身份、资产版本及新鲜任务连接，worker 仍只能派发至自身拥有的真实流；数据库在线标记不是跨进程传输池。
+
+- `GET /api/v1/projects/{id}/agent-targets`：认证项目成员读取分页的当前有效注册目标；关闭时返回 `enabled:false` 和空列表。只含资产、证书 ID/到期时间、最后心跳及任务通道状态，不返回证书 PEM、注册令牌或配置。离线目标仍可见，已撤销/过期或资产版本/SN 失配的身份不进入候选。
+- `POST /api/v1/projects/{id}/agent-executions`：当前 Admin/DE/DL/SRE 可提交 1～32 个目标，仅 `host.identity` / `host.wait`，超时 100～30000ms；要求原有 CSRF 和 Idempotency-Key。关闭时拒绝 `AGENT_DISABLED`，无新鲜任务流拒绝 `AGENT_OFFLINE`。复用原执行、outbox、资源锁、审计和不可变回执。
+- 资产页展示通道连接、到期时间及只读任务确认表单；列表分页，当前页仅在线目标可选。连接缓存超过 30 秒或证书过期即停止选择，操作者可刷新。通道在线不等于主机健康或互信验收。
+- 创建后进入原执行列表及五 Tab。断线后的 unknown 不自动解锁；worker 重连只查询原 command 的本地回执并保存真实证明。当前 Admin/DL/SRE 在尝试详情核对 command/attempt/fence 与证明、填写依据，调用既有 `/reconcile` 消费已保存的终态。没有证明不可手工指定成功，也没有新增 API 远程执行/重放入口。
+
+实际隔离数据库/HTTP/mTLS/浏览器验证入口：先构建 web，再执行 `python3 scripts/check-agent-integration.py --browser`；普通模式不运行浏览器。证据由 runner 输出到私有目录；生产能力与真实硬件验收另行记录。

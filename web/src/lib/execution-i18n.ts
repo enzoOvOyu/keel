@@ -2,7 +2,7 @@ export const executionTranslations = {
   "zh": {
     "executionsTab": "执行",
     "executionsTitle": "执行",
-    "executionsIntro": "查看与发起执行。当前执行引擎只运行模拟适配器，不连接真实设备。",
+    "executionsIntro": "查看与发起执行。按每条记录的通道、冻结快照和实际回执核对结果；模拟结果不能作为硬件验收依据。",
     "simulationNotice": "模拟执行",
     "simulationNoticeDetail": "当前版本仅运行显式模拟的适配器：不建立设备连接，也不产生硬件证据。结果不能作为硬件验收依据。",
     "targetsTitle": "模拟目标",
@@ -80,7 +80,7 @@ export const executionTranslations = {
   "en": {
     "executionsTab": "Executions",
     "executionsTitle": "Executions",
-    "executionsIntro": "Review and start executions. The engine runs simulated adapters only and never connects to real devices.",
+    "executionsIntro": "Review and start executions. Check each record's channel, frozen snapshot and actual receipts; simulation results are not hardware acceptance.",
     "simulationNotice": "Simulated execution",
     "simulationNoticeDetail": "This build runs explicitly simulated adapters only: no device connection is established and no hardware evidence is produced. Results are not hardware acceptance.",
     "targetsTitle": "Simulation targets",

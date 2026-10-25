@@ -56,6 +56,7 @@ func main() {
 		}
 		store = opened
 		defer store.Close()
+		store.AgentTasksEnabled = os.Getenv("KEEL_AGENT_TASKS_ENABLED") == "true"
 		store.LDAP, err = ldapauth.Load(os.Getenv("KEEL_LDAP_CONFIG_FILE"))
 		if err != nil {
 			slog.Error("directory authentication configuration rejected")

@@ -204,10 +204,12 @@ schema39镜像不能直接连接schema40库，保留数据修复前进；备份�
 
 ## Agent 身份基础（可选，默认关闭）
 
-WP-1.5 的一次性注册、短期mTLS与连接心跳见 [AGENT-IDENTITY](AGENT-IDENTITY.md)。迁移047后须重新授予受限角色的列级消费/行锁权限；未设置 `KEEL_AGENT_IDENTITY_FILE` 时不创建listener。Compose只提供可选只读配置挂载，不发布新端口。未交付自动安装、任务Runner、遥测或证书续签，不能据此签署完整P1验收。真实PG/TLS/gRPC/CLI验证使用 `python3 scripts/check-agent-integration.py` 的独立随机测试数据库，不操作运行库或物理设备。
+WP-1.5 的一次性注册、短期mTLS与连接心跳见 [AGENT-IDENTITY](AGENT-IDENTITY.md)。迁移047后须重新授予受限角色的列级消费/行锁权限；未设置 `KEEL_AGENT_IDENTITY_FILE` 时不创建listener。Compose只提供可选只读配置挂载，不发布新端口。后续048/049增加下文有界只读Runner；自动安装、遥测和证书续签仍未交付，不能据此签署完整P1验收。真实PG/TLS/gRPC/CLI验证使用 `python3 scripts/check-agent-integration.py` 的独立随机测试数据库，不操作运行库或物理设备。
 
 ## Agent 有界只读任务增量（048/049）
 
 启用前备份并在独立恢复库演练048/049；048扩展既有执行模式，049只增加活动连接的任务流元数据，不另建队列。已有047的受限应用角色对agent_connections整表UPDATE覆盖新增列；保留注册/证书撤销的owner权限和审计禁止更新/删除约束。运行库迁移后不能直接回切schema44旧镜像。
 
 任务worker通过受保护的KEEL_AGENT_WORKER_FILE显式启用；配置增加tasks_enabled=true，目标Agent也须显式开启。Compose只读挂载/run/keel/agent-worker且默认不开worker profile或端口。普通API身份listener不提供任务派发。配置、真实平台Admin登录、CLI幂等键和未知回执处置见[Agent运行说明](AGENT-IDENTITY.md)。默认发布保持所有真实执行通道关闭。
+
+网页/API入口另由 `KEEL_AGENT_TASKS_ENABLED=true` 开启，默认false；开关只允许提交既有只读任务，不启动worker或签发身份。资产页的在线/离线来自当前证书绑定和30秒心跳/任务连接，不能替代主机健康；执行页沿用原五Tab，unknown在worker查询到真实终态后由当前有权限操作员显式对账。此入口无新增迁移；`npm run build` 后运行 `python3 scripts/check-agent-integration.py --browser` 可验证隔离PG/HTTP/真实Agent/浏览器链路。

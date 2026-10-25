@@ -28,6 +28,9 @@ type MediaObjectStore interface {
 }
 
 type Store struct {
+	// AgentTasksEnabled admits HTTP read-only tasks; no task transport or CA is
+	// loaded by this switch. Dispatch remains exclusively worker-owned.
+	AgentTasksEnabled   bool
 	OIDC                *oidcauth.Service
 	LDAP                *ldapauth.Service
 	SSHRunner           *taskrunner.SSH

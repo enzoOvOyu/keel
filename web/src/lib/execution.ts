@@ -9,6 +9,11 @@ export type ExecutionDetail = components['schemas']['ExecutionDetail']
 export type ExecutionAttempt = components['schemas']['ExecutionAttempt']
 export type ExecutionEvent = components['schemas']['ExecutionEvent']
 export type SSHCreateInput = components['schemas']['SSHCreateInput']
+export type AgentCreateInput = components['schemas']['AgentCreateInput']
+export type AgentTarget = components['schemas']['AgentTarget']
+export const listAgentTargets = (projectId: string, page: number, signal: AbortSignal) => request<components['schemas']['AgentTargetPage']>(`/projects/${encodeURIComponent(projectId)}/agent-targets?page=${page}&page_size=20`, { signal })
+export const createAgentExecution = (projectId: string, body: AgentCreateInput, csrf: string, key: string) => request<components['schemas']['Execution']>(`/projects/${encodeURIComponent(projectId)}/agent-executions`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify(body) })
+export const reconcileAttempt = (projectId: string, executionId: string, attemptId: string, body: components['schemas']['ReconcileAttemptInput'], csrf: string, key: string) => request<components['schemas']['Execution']>(`/projects/${encodeURIComponent(projectId)}/executions/${encodeURIComponent(executionId)}/attempts/${encodeURIComponent(attemptId)}/reconcile`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify(body) })
 export const createSSHExecution = (projectId: string, body: SSHCreateInput, csrf: string, key: string) => request<components['schemas']['Execution']>(`/projects/${encodeURIComponent(projectId)}/ssh-executions`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify(body) })
 
 export const executionStates = ['created', 'scheduled', 'dispatching', 'running', 'pausing', 'paused', 'cancelling', 'reconciling', 'success', 'failed', 'killed', 'warning'] as const
