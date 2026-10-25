@@ -521,3 +521,7 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 实际Go vet退出0（`/tmp/keel-asset-model-vet.log`）。真实PG/race20.744s通过，证据 `/tmp/keel-models-zzpgbvp5`，包含全局/私有计算托盘、资产记录v9而绑定型号v1、库v2与退役后仍取v1、槽位unused保持、未绑定及跨项目拒绝；原HTTP/扫描/发布/布局/权限回归至发布浏览器通过。首轮新增管理员夹具缺少initial标志被正确拒绝，已修正夹具；浏览器验证旧布局、Viewer/admin、双语、跨scope及匿名时发现默认Close与自有Close重复，统一为自有双语关闭入口并定向复核。最终构建/定向结果后补；没有放宽认证、权限或产品门禁。原两份草稿未暂存，继续overlay排除，fixture不代表硬件PoC。
 
 §44提交前补记：最终根npm run build退出0（`/tmp/keel-asset-model-build.log`，含契约/TypeScript/UI边界/版本lint/Vite）；仅重跑 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py --asset-models-only`退出0，证据 `/tmp/keel-models-mynxcfzr`，Viewer/admin固定旧版本、退役历史布局、双语关闭、跨项目/匿名拒绝全部通过，asset-bound-model.png已视觉复核。没有重复跑未改变的Go回归。
+
+**§44 发布完成**：功能代码 `f1fb61f858bc0c6bbab073ceb6c5f996af93c0ee` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:051ea0c60ed7ca373f3a888e69851472dea333165d93d47e6baf0fb4c534fc52`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T00:47:25.320294+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
+
+无迁移，运行库仍37条迁移记录；保留兼容旧镜像 `keel:c72ea6efcacf767c7550871aab1de785a6259974`，不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T004501Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40147904900记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
