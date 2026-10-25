@@ -467,3 +467,7 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 实际通过根npm run build（`/tmp/keel-tray-build.log`，含契约/边界/版本/TypeScript/Vite）、Go定向单测及vet（`/tmp/keel-tray-vet.log`）、设计/Node语法/diff检查。完整隔离命令 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py` 证据 `/tmp/keel-models-cwetdo5b`，PG/race17.920s通过；server/compute-tray双用例包含正向提交落库、旧版本不变、三种机器归属、错误GPU/槽位/MAC差异BLOCK、机柜/交换机拒绝及伪造令牌提交拒绝。原HTTP、扫描HTTP、扫描浏览器七组、完整发布/权限/全局型号回归全部通过。新增真实API/Chromium完成托盘创建、扫描导入、审核发布、双语类型；宽表正确识别固定托盘版本，不能证明NIC/GPU库存时仍BLOCK，原行2、版本与CSV差异保留，确认禁用。compute-tray-bom-difference.png已视觉复核。自有API/测试库/临时凭据自动清理，独立fixture不代表真实GB300验收。
 
 沿用overlay排除两份旧fabric_precheck/026草稿，原样保留未暂存。上一4b76052的GitHub Actions run40144306188已实际查询completed/success。本轮提交和3000发布结果后补；FR-14/WP-1.12/P1仍partial，后续按依赖推进部件规则、布局/角色、显式升级与失效、G1和真实硬件验收，不向后置阶段强行扩展。
+
+**§40 发布完成**：功能代码 `f9e4f53f181ab949aa8e61b1b43d4998c57d4c44` 已正常推送GitHub，从确切SHA的git archive构建，镜像ID `sha256:54c2394b6b63484c44d2220ee2dd78c4bc1320d95d0bf1727564f51ad1a2646b`。候选3108真实登录、参数/型号/介质/执行/Flow和全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及浏览器控制台检查通过。于 `2026-10-25T00:06:42.861866+00:00` 更新3000且healthy，同套八页/API/版本/控制台检查再次通过，healthz返回上述功能SHA。
+
+无数据库迁移，schema实际仍37条，保留兼容旧4b76052镜像；不改运行库数据卷、worker范围或其他服务。.env仍600，切换前配置、私有发布状态与截图在 `/home/ubuntu/.local/state/keel/releases/20261025T000513Z`；候选容器与临时配置已清理，原两份草稿未暂存。GitHub Actions run40145313377记录时 in_progress/尚无结论，仅据实际状态报告；上一4b76052已completed/success。后续交接文档提交不改变3000所运行的功能SHA。FR-14/WP-1.12/P1仍partial，下一步按现有依赖推进剩余硬件/布局与角色约束。
