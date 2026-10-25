@@ -706,16 +706,56 @@ paths:
                   methods:
                     type: array
                     uniqueItems: true
-                    maxItems: 1
+                    maxItems: 2
                     items:
                       type: string
                       enum:
                       - local
-                    description: Contains local when ready; otherwise empty. Federated methods are not implemented in this increment.
+                      - oidc
+                    description: Only configured methods are listed when initialized.
+                  oidc_providers:
+                    type: array
+                    maxItems: 8
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [id, name]
+                      properties:
+                        id: {type: string, pattern: '^[a-z][a-z0-9-]{0,31}$'}
+                        name: {type: string, minLength: 1, maxLength: 80}
                   environment:
                     type: string
         '503':
           $ref: '#/components/responses/Unavailable'
+  /api/v1/auth/oidc/{provider}/start:
+    get:
+      tags: [Authentication]
+      operationId: startOIDC
+      security: []
+      description: Same-origin navigation starts a five-minute server-side state, nonce and S256 PKCE flow bound to an unauthenticated browser session.
+      parameters:
+      - {name: provider, in: path, required: true, schema: {type: string, pattern: '^[a-z][a-z0-9-]{0,31}$'}}
+      - {name: next, in: query, schema: {type: string, maxLength: 256}}
+      responses:
+        '302': {description: Redirect to configured identity provider.}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {description: Sign out before switching accounts.}
+        '429': {description: Too many authentication requests.}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/auth/oidc/{provider}/callback:
+    get:
+      tags: [Authentication]
+      operationId: completeOIDC
+      security: []
+      description: One-use state and browser binding, code exchange with PKCE, signed issuer/audience/expiry/nonce verification and exact subject binding. Rotates the existing server session; no token is sent to the frontend.
+      parameters:
+      - {name: provider, in: path, required: true, schema: {type: string}}
+      - {name: state, in: query, schema: {type: string}}
+      - {name: code, in: query, schema: {type: string}}
+      responses:
+        '303': {description: Generic result at /auth/callback; secrets never included.}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /api/v1/auth/csrf:
     get:
       tags:

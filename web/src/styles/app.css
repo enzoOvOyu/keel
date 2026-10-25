@@ -199,3 +199,5 @@ button, a { touch-action: manipulation; }
 .model-panel-port[aria-pressed=true] { border-color: var(--color-primary-readable); background: var(--color-brand-panel); }
 .model-panel-port:focus-visible { outline: 2px solid var(--color-primary-readable); outline-offset: 2px; }
 .model-panel-detail { font-size: var(--font-size-sm); white-space: normal; }
+
+.oidc-login { margin-top: 12px; text-decoration: none; }

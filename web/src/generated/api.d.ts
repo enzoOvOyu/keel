@@ -355,6 +355,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/oidc/{provider}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Same-origin navigation starts a five-minute server-side state, nonce and S256 PKCE flow bound to an unauthenticated browser session. */
+        get: operations["startOIDC"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oidc/{provider}/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description One-use state and browser binding, code exchange with PKCE, signed issuer/audience/expiry/nonce verification and exact subject binding. Rotates the existing server session; no token is sent to the frontend. */
+        get: operations["completeOIDC"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/csrf": {
         parameters: {
             query?: never;
@@ -5511,13 +5545,80 @@ export interface operations {
                 content: {
                     "application/json": {
                         status: components["schemas"]["AuthStatus"];
-                        /** @description Contains local when ready; otherwise empty. Federated methods are not implemented in this increment. */
-                        methods: "local"[];
+                        /** @description Only configured methods are listed when initialized. */
+                        methods: ("local" | "oidc")[];
+                        oidc_providers?: {
+                            id: string;
+                            name: string;
+                        }[];
                         environment: string;
                     };
                 };
             };
             503: components["responses"]["Unavailable"];
+        };
+    };
+    startOIDC: {
+        parameters: {
+            query?: {
+                next?: string;
+            };
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to configured identity provider. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description Sign out before switching accounts. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too many authentication requests. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    completeOIDC: {
+        parameters: {
+            query?: {
+                state?: string;
+                code?: string;
+            };
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Generic result at /auth/callback; secrets never included. */
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["Forbidden"];
         };
     };
     authCSRF: {

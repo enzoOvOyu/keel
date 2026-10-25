@@ -18,6 +18,7 @@ import { Route as AdminMediaRouteImport } from './routes/admin.media'
 import { Route as AdminModelsRouteImport } from './routes/admin.models'
 import { Route as AdminParamsRouteImport } from './routes/admin.params'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as PProjectIdRouteImport } from './routes/p.$projectId'
 import { Route as PProjectIdAssetsRouteImport } from './routes/p_.$projectId.assets'
 import { Route as PProjectIdAuditsRouteImport } from './routes/p_.$projectId.audits'
@@ -77,6 +78,11 @@ const AdminParamsRoute = AdminParamsRouteImport.update({
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PProjectIdRoute = PProjectIdRouteImport.update({
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/admin/models': typeof AdminModelsRoute
   '/admin/params': typeof AdminParamsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/p/$projectId': typeof PProjectIdRoute
   '/p/$projectId/assets': typeof PProjectIdAssetsRoute
   '/p/$projectId/audits': typeof PProjectIdAuditsRoute
@@ -191,6 +198,7 @@ export interface FileRoutesByTo {
   '/admin/models': typeof AdminModelsRoute
   '/admin/params': typeof AdminParamsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/p/$projectId': typeof PProjectIdRoute
   '/p/$projectId/assets': typeof PProjectIdAssetsRoute
   '/p/$projectId/audits': typeof PProjectIdAuditsRoute
@@ -218,6 +226,7 @@ export interface FileRoutesById {
   '/admin/models': typeof AdminModelsRoute
   '/admin/params': typeof AdminParamsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/p/$projectId': typeof PProjectIdRoute
   '/p_/$projectId/assets': typeof PProjectIdAssetsRoute
   '/p_/$projectId/audits': typeof PProjectIdAuditsRoute
@@ -246,6 +255,7 @@ export interface FileRouteTypes {
     | '/admin/models'
     | '/admin/params'
     | '/admin/users'
+    | '/auth/callback'
     | '/p/$projectId'
     | '/p/$projectId/assets'
     | '/p/$projectId/audits'
@@ -272,6 +282,7 @@ export interface FileRouteTypes {
     | '/admin/models'
     | '/admin/params'
     | '/admin/users'
+    | '/auth/callback'
     | '/p/$projectId'
     | '/p/$projectId/assets'
     | '/p/$projectId/audits'
@@ -298,6 +309,7 @@ export interface FileRouteTypes {
     | '/admin/models'
     | '/admin/params'
     | '/admin/users'
+    | '/auth/callback'
     | '/p/$projectId'
     | '/p_/$projectId/assets'
     | '/p_/$projectId/audits'
@@ -325,6 +337,7 @@ export interface RootRouteChildren {
   AdminModelsRoute: typeof AdminModelsRoute
   AdminParamsRoute: typeof AdminParamsRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
   PProjectIdRoute: typeof PProjectIdRoute
   PProjectIdAssetsRoute: typeof PProjectIdAssetsRoute
   PProjectIdAuditsRoute: typeof PProjectIdAuditsRoute
@@ -405,6 +418,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/users'
       fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/p/$projectId': {
@@ -525,6 +545,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminModelsRoute: AdminModelsRoute,
   AdminParamsRoute: AdminParamsRoute,
   AdminUsersRoute: AdminUsersRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
   PProjectIdRoute: PProjectIdRoute,
   PProjectIdAssetsRoute: PProjectIdAssetsRoute,
   PProjectIdAuditsRoute: PProjectIdAuditsRoute,

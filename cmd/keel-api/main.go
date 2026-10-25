@@ -18,6 +18,7 @@ import (
 	"github.com/enzoOvOyu/keel/internal/mediaartifact"
 	"github.com/enzoOvOyu/keel/internal/mediamanifest"
 	"github.com/enzoOvOyu/keel/internal/mediasource"
+	"github.com/enzoOvOyu/keel/internal/oidcauth"
 	"github.com/enzoOvOyu/keel/internal/platform"
 )
 
@@ -54,6 +55,13 @@ func main() {
 		}
 		store = opened
 		defer store.Close()
+		oidcCtx, oidcCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		store.OIDC, err = oidcauth.Load(oidcCtx, os.Getenv("KEEL_OIDC_PROVIDERS_FILE"), config.PublicOrigins, config.Environment == "development" && config.InsecureDevCookie)
+		oidcCancel()
+		if err != nil {
+			slog.Error("organization authentication configuration rejected")
+			os.Exit(1)
+		}
 		checkCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		err = store.CheckMigrations(checkCtx)
 		cancel()

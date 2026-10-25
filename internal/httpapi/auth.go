@@ -150,6 +150,7 @@ func (a *authAPI) allowPre(c *gin.Context) bool {
 	return v.count <= 30
 }
 func (a *authAPI) register(r *gin.Engine) {
+	a.registerOIDC(r)
 	r.GET("/api/v1/auth/providers", func(c *gin.Context) {
 		yes, e := a.store.HasAdministrator(c.Request.Context())
 		if e != nil {
@@ -161,8 +162,15 @@ func (a *authAPI) register(r *gin.Engine) {
 		if yes {
 			status = "ready"
 			methods = append(methods, "local")
+			if len(a.store.OIDC.Public()) > 0 {
+				methods = append(methods, "oidc")
+			}
 		}
-		c.JSON(200, gin.H{"status": status, "methods": methods, "environment": a.config.Environment})
+		providers := a.store.OIDC.Public()
+		if !yes {
+			providers = providers[:0]
+		}
+		c.JSON(200, gin.H{"status": status, "methods": methods, "environment": a.config.Environment, "oidc_providers": providers})
 	})
 	r.GET("/api/v1/auth/csrf", func(c *gin.Context) {
 		if !a.host(c) {

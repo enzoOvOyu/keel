@@ -14,6 +14,7 @@ import (
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/mediamanifest"
 	"github.com/enzoOvOyu/keel/internal/mediasource"
+	"github.com/enzoOvOyu/keel/internal/oidcauth"
 	"github.com/enzoOvOyu/keel/internal/taskrunner"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"io"
@@ -26,6 +27,7 @@ type MediaObjectStore interface {
 }
 
 type Store struct {
+	OIDC                *oidcauth.Service
 	SSHRunner           *taskrunner.SSH
 	MediaObjects        MediaObjectStore
 	MediaSources        *mediasource.Fetcher

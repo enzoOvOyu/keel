@@ -191,3 +191,8 @@ schema39镜像不能直接连接schema40库，保留数据修复前进；备份�
 ### 加密SSH域密钥
 
 可选`KEEL_CREDENTIAL_MASTER_KEY_FILE`沿用私有SSH目录只读挂载，默认空值关闭。044迁移新增加密域密钥表；迁移与备份恢复演练后只给`keel_app`新表SELECT，不授INSERT/UPDATE/DELETE/TRUNCATE。主密钥独立保管，数据库备份不包含它；不得因部署自动生成或替换真实主密钥。API/worker继续使用受限角色，创建/撤销只由授权服务器owner CLI执行。命令、权限和控制面撤销边界见[SSH-RUNNER](SSH-RUNNER.md#加密项目域密钥提供者)。本功能发布不自动开启真实SSH、生产worker或目标公钥安装。
+
+
+## 可选 OIDC 登录
+
+默认关闭。私有provider文件、只读挂载、精确回调/subject绑定、TLS、重启及单进程授权状态的部署边界见 [OIDC](OIDC.md)。不得把provider文件/client secret加入镜像或日志；关闭或改绑定不等于撤销既有会话，紧急撤权使用现有本地停用/会话撤销流程。

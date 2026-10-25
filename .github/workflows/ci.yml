@@ -70,6 +70,14 @@ jobs:
           node scripts/check-auth-browser.mjs
           node scripts/check-control-browser.mjs
           KEEL_BASE_URL=http://127.0.0.1:3102 KEEL_PLAYWRIGHT_MODULE=/tmp/keel-browser-check/node_modules/playwright/index.mjs node scripts/check-browser.mjs
+      - name: Signed OIDC, PostgreSQL and browser authentication
+        env:
+          KEEL_TEST_OIDC_DATABASE_URL: postgresql://keel_test:isolated-ci-only@127.0.0.1:15433/keel_test_oidc_ci?sslmode=disable
+        run: |
+          docker exec '${{ job.services.postgres.id }}' createdb -U keel_test keel_test_oidc_ci
+          export KEEL_TEST_OIDC_STATIC_DIR="$GITHUB_WORKSPACE/web/dist"
+          export KEEL_TEST_OIDC_BROWSER_SCRIPT="$GITHUB_WORKSPACE/scripts/check-oidc-browser.mjs"
+          go test -race -count=1 ./internal/oidcauth
       - run: docker compose config --quiet
       - run: docker compose up -d --build --wait --wait-timeout 120 api
       - run: curl --fail http://127.0.0.1:3000/healthz

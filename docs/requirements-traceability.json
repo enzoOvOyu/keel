@@ -1596,7 +1596,7 @@
         "U-12"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Local credentials/bootstrap, sessions, CSRF/Origin, throttling, authorized next, revocation and account/member/audit administration have implementation records. LDAP/OIDC and the full v3.0.3 network role/permission catalog remain incomplete; see HANDOFF for evidence scope.",
+      "implementation_notes": "Local credentials/bootstrap, sessions, CSRF/Origin, throttling, authorized next, revocation and account/member/audit administration have implementation records. LDAP/OIDC and the full v3.0.3 network role/permission catalog remain incomplete; see HANDOFF for evidence scope. Optional configured OIDC code/PKCE sign-in now has protected provider configuration, issuer/audience/signature/expiry/nonce/azp verification, browser-bound one-use state, explicit subject-to-existing-local-account binding, current-role session rotation, safe result callback and bilingual login entry. Actual PostgreSQL/loopback signed identity provider/HTTP/Chromium evidence is in HANDOFF section65 and docs/OIDC.md. Single-process pending authorization state requires sticky routing for replicas; LDAP and external organizational provider acceptance remain incomplete. Status remains partial.",
       "evidence_refs": [
         "docs/HANDOFF.md",
         "internal/platform/store_integration_test.go",

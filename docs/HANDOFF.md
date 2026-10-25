@@ -840,4 +840,16 @@ SSH目标可显式选择vault提供者，仍保留原文件兼容；精确版本
 边界：运维仍须准备非root临时登录、host pin和helper；不实现root首登、账号创建、PXE、旧钥删除/完整轮换/目标撤销证明、Vault销毁或Agent。普通任务后续需运维将目标绑定切为新vault版本，不自动覆盖配置。schema41→42后旧镜像不能直接回切；两份原fabric草稿继续保留。WP-1.5/1.7、S-3、P1和FR-0保持partial。
 
 
-§64发布：功能`b60c0f9413e70111af50ae2e4712c50e4f42b473`已推送GitHub，确切提交归档镜像`sha256:e159f2f4f1a9423683f6e2775fb5ae0f63f062b5787c871588f4907acfb7dc2e`于`2026-10-25T07:26:45.638655+00:00`发布3000。schema41→42备份/隔离恢复、原业务计数和host pin/source保持、安装快照触发器与既有应用/审计授权验证通过。候选及3000八页真实登录、新钥列表/资产页/API、匿名401/CSRF403/禁用503通过，无运行环境业务写入。证据`/home/ubuntu/.local/state/keel/releases/20261025T072335Z`，`/tmp/keel-install-3000-smoke.log`与`/tmp/keel-install-3000-read.log`退出0。演练首次因镜像未就绪中止；第二次发现隔离恢复明确不恢复ACL，已在演练库重新建立既有受限授权后通过。原运行库未受失败演练影响。生产SSH/worker/主密钥提供者仍关闭，旧schema41镜像不可直接回切。CI状态单独核验，不以推送代替通过。
+§64发布：功能`b60c0f9413e70111af50ae2e4712c50e4f42b473`已推送GitHub，确切提交归档镜像`sha256:e159f2f4f1a9423683f6e2775fb5ae0f63f062b5787c871588f4907acfb7dc2e`于`2026-10-25T07:26:45.638655+00:00`发布3000。schema41→42备份/隔离恢复、原业务计数和host pin/source保持、安装快照触发器与既有应用/审计授权验证通过。候选及3000八页真实登录、新钥列表/资产页/API、匿名401/CSRF403/禁用503通过，无运行环境业务写入。证据`/home/ubuntu/.local/state/keel/releases/20261025T072335Z`，`/tmp/keel-install-3000-smoke.log`与`/tmp/keel-install-3000-read.log`退出0。演练首次因镜像未就绪中止；第二次发现隔离恢复明确不恢复ACL，已在演练库重新建立既有受限授权后通过。原运行库未受失败演练影响。生产SSH/worker/主密钥提供者仍关闭，旧schema41镜像不可直接回切。功能CI run40172594664已实际核验completed/success。
+
+
+## 65. P1 WP-1.14：可选 OIDC 组织登录
+
+在本地认证/会话/项目权限前置已具备后独立推进，不把LDAP或PXE当作FR-0前置。新增受保护provider文件与只读Compose挂载、真实发现/授权码/S256 PKCE/state/nonce、签名issuer/audience/expiry/azp与可选at_hash校验；subject显式绑定已存在本地账号，IdP email/角色不建号或授权。成功沿用现有DB会话，锁定预会话与当前启用用户、轮换Cookie、脱敏审计及当前security_version。无密钥/token进入API、审计、浏览器存储或Git。登录页按配置显示provider名称，后端回调只把通用结果交给前端/auth/callback，再按当前权限检查next。
+
+真实PG/回环签名IdP/HTTP与Chromium `/tmp/keel-oidc-first-integration.log`、`/tmp/keel-oidc-integration-69s5jfu2`退出0，包括合法PKCE往返、错误签名/nonce/issuer/audience/azp/到期/未绑定、外浏览器与重放、cross-site、重复state、Cookie轮换、本地非Admin角色、退出与pending期间停用；页面中文/英文390宽/无token持久化及原本地登录均通过。state到期和4096上限/清理亦有race测试。全量检查、最终增强负例和发布结果随后补记。此时3000仍为§64，OIDC生产配置未启用。
+
+边界：待完成授权状态在单进程内存，重启后重新发起；多副本需同一往返固定路由，尚无跨副本状态。配置修改需重启，现有会话紧急撤权仍用本地用户停用/安全版本。LDAP、外部组织IdP实际接入及完整F-10.5/S-6/U-12仍未闭环；WP-1.14/P1保持partial。详见OIDC.md。无新数据库迁移；两份原fabric草稿保持未跟踪。
+
+
+§65最终验证：`/tmp/keel-oidc-final-integration.log`、`/tmp/keel-oidc-integration-wkypx7tx`退出0，增加PKCE错误挑战拒绝、8并发回调仅一次成功、错误/取消及回调issuer不符立即消耗state、真实来源IP限流和超限不再写审计；原浏览器全链仍通过。完整overlay make check `/tmp/keel-oidc-make-check.log`退出0，最终相关Go vet `/tmp/keel-oidc-final-vet.log`、Compose/设计/diff检查通过。无新数据库迁移；生产OIDC配置仍未启用。
