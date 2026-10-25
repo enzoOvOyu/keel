@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMediaArtifactDependencyInput(t *testing.T) {
@@ -143,6 +144,33 @@ func TestMediaArtifactDependencies(t *testing.T) {
 		}
 	}
 	verify("")
+
+	// Admission holds every transitive dependency through the enclosing commit,
+	// including a global leaf: concurrent retirement cannot slip into that window.
+	admission, e := s.DB.BeginTx(ctx, nil)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = s.VerifyCatalogArtifactsTx(ctx, admission, selection.Selections); e != nil {
+		admission.Rollback()
+		t.Fatal(e)
+	}
+	retireCtx, cancelRetire := context.WithTimeout(ctx, time.Second)
+	_, retireErr := s.TransitionMedia(retireCtx, reviewer, nil, global.ID, "retired", "test-concurrent-retire")
+	deadline := retireCtx.Err()
+	cancelRetire()
+	admission.Rollback()
+	if retireErr == nil || deadline != context.DeadlineExceeded {
+		t.Fatalf("retirement was not held behind admission: error=%v context=%v", retireErr, deadline)
+	}
+	var globalState string
+	if e = s.DB.QueryRowContext(ctx, "SELECT state FROM media_items WHERE id=$1", global.ID).Scan(&globalState); e != nil || globalState != "approved" {
+		t.Fatalf("blocked retirement changed dependency: %s %v", globalState, e)
+	}
+	var retireAudits int
+	if e = s.DB.QueryRowContext(ctx, "SELECT count(*) FROM audits WHERE target_id=$1 AND action='media.retired'", global.ID).Scan(&retireAudits); e != nil || retireAudits != 0 {
+		t.Fatalf("blocked retirement wrote success audit: %d %v", retireAudits, e)
+	}
 	// Pinned bytes of a transitive global dependency, not only the parent, are rechecked.
 	var objectKey, objectVersion string
 	if e = s.DB.QueryRowContext(ctx, "SELECT object_key,object_version FROM media_artifacts WHERE media_id=$1", global.ID).Scan(&objectKey, &objectVersion); e != nil {

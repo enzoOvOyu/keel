@@ -906,13 +906,17 @@ export interface components {
             }[];
             selection_hash: string;
         };
+        /** @description Common requirements AND one complete combination row. Rows have identical keys; values from different rows cannot be mixed. At least one nonempty rule is required. */
         CompatibilityMatrix: {
             source: string;
             version: string;
             report_ref: string;
-            requires: {
+            requires?: {
                 [key: string]: string[];
             };
+            combinations?: {
+                [key: string]: string;
+            }[];
         };
         CatalogDependencies: {
             compatibility?: components["schemas"]["CompatibilityMatrix"];

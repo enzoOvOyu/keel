@@ -601,3 +601,21 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 §49收口补记：全部HTTP/浏览器证据在/tmp/keel-media-lrx6wirb。磁盘二进制分配方案的独立复核退出0（/tmp/keel-media-dependency-disk-binaries-check.log，/tmp/keel-media-1o963vof，PG/race7.886s及项目/全局双语浏览器通过）；首次把整个目录软链接到磁盘被MinIO原路径校验拒绝，已改为仅二进制放磁盘，安全路径校验保持，不将该失败算PASS。视觉复核另发现已有真实文件仍显示“校验前需要上传”旧提示，现仅缺文件时显示，并补浏览器断言；完整前端再次构建通过（/tmp/keel-media-dependency-reviewed-build.log，Vite15.70s），内存证据迁出后的资源改善不据此宣称所有负载指标达标。最后界面提示回归随后补记。
 
 §49最后界面与封装复核退出0（/tmp/keel-media-dependency-reviewed-integration.log，/tmp/keel-media-wuvir2ez）：PG/race7.885s及更新后的项目/全局双语依赖浏览器通过，已有真实文件不再误报需上传，损坏/退役失败保留审阅对话框；Go和MinIO原有真实路径安全约束不变。
+
+**§49 发布完成**：功能代码 `293e82cd1d9fde2c973788f7da256efdd041d35f` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:e6df76dd7012d512c9865141556e3640366349a44b2bc142eb3ccee65837fd3b`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T02:07:19.083289+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
+
+无迁移，运行库仍37条迁移记录；保留兼容旧镜像 `keel:f2f418582947ebcf341c60cec26d0b23893d3ac9`，不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T020510Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40153102448记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
+
+§49并行构建负载补记：确切293e82cd1d9fde2c973788f7da256efdd041d35f、启动时已跟踪工作区干净，以GOMEMLIMIT=768MiB运行默认2,000档，同时从同一提交git archive构建发布镜像、执行候选与3000检查。证据/tmp/keel-execution-capacity-ghquq3rb（/tmp/keel-settlement-build-load-capacity.log），整套12组退出0；2,000/2,000成功164.857s，全套180.671s，开始02:05:22、结束02:08:23 UTC，确有构建/发布检查交叠。API峰172020KiB、worker151008KiB、客户端31144KiB，worker观测CPU69.40s。容量子项没有未决回执，丢确认故障组仍按预期生成unknown并通过证据对账；不是自动重跑unknown。与空载130.464s区分，不把本次未复现前次资源压力失败写成全部负载已解决，更不代替万目标30秒工作量或真机。隔离资源/凭据清理完成。
+
+## 50. A4 收口：兼容矩阵契约一致性与退役并发验证（2026-10-25）
+
+查实execution.openapi.yaml的CompatibilityMatrix副本落后于平台：强制requires且不含combinations/完整边界，导致跨文件生成的冻结快照类型另生schemas-*分支。以平台现有正式契约同步该副本，生成类型消除重复分叉，requires可选且关联行完整保留；不改运行中的矩阵判据。新增httpapi纯契约测试比较两份API的六个共享schema，无新依赖，复用现有yaml.v3；先实际复现不一致FAIL（/tmp/keel-catalog-contract-before.log），修正后race通过1.446s（-after.log），根npm run check生成/控件/版本lint/TS通过（-typecheck.log）。无运行代码、迁移或数据变更，不因文档/测试提交重复发布镜像；3000仍为§49功能SHA。
+
+新增真实PG并发负例：执行准入事务验证并持有所有传递节点，另一会话尝试退役全局传递依赖被锁至请求期限；状态仍approved且无成功退役审计，随后释放准入锁，其他生命周期测试继续通过。隔离--dependencies-only退出0（/tmp/keel-media-dependency-concurrency-check.log，/tmp/keel-media-ke6_l59g），PG/race11.842s及项目/全局双语浏览器通过。仅对象传输Go层mock，PG/事务/会话与实际MinIO浏览器另外留证。
+
+同步FR1-EXECUTION-VIEWS旧暂存说明到§22/§23已验证的真实接续状态，避免AI把初始未返回结果当当前状态；明确2,000软件负载与10,000×30s/硬件判据差别。执行容量封装接续介质封装的磁盘二进制保留，保持/tmp真实凭据路径/安全校验与私有权限，并在资源报告补实际GOMEMLIMIT、GOMAXPROCS及二进制目录；dev100验证结果后补，不替代本轮两个默认2,000档。FR-1/相关WP/P1仍partial，用户原两份草稿未改。
+
+§50验证补记：磁盘二进制版容量封装--targets100退出0（/tmp/keel-capacity-disk-binaries-check.log，/tmp/keel-execution-capacity-yc0kjnng），100/100、4.179s，全套12组18.821s；报告记录GOMEMLIMIT=768MiB、GOMAXPROCS为Go默认和私有磁盘目录，/tmp只保留二进制软链接与小体积证据。此为封装dev档自检，不重复冒充2,000档。
+
+另补新依赖的完整HTTP执行用例，项目和全局各由真实Flow/参数目录创建执行，检查固定依赖快照，worker完成批准模拟；依赖退役后新执行422且总数不增加，历史快照不改写。--dependencies-only退出0（/tmp/keel-media-dependency-execution-check.log，/tmp/keel-media-0_7hd3tb），PG/race12.363s与双语浏览器通过。契约一致性/当前设计引用检查均通过。§49实际功能提交293e82c的GitHub Actions run40153102448已于02:14 UTC查询为completed/success；后续测试/契约/文档提交CI另记，不冒充已通过。

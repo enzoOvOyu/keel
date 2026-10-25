@@ -3923,42 +3923,6 @@ export interface components {
             selection_hash: string;
             change_reason: string;
         };
-        "schemas-CompatibilityMatrix": {
-            source: string;
-            version: string;
-            report_ref: string;
-            requires: {
-                [key: string]: string[];
-            };
-        };
-        "schemas-CatalogDependencies": {
-            compatibility?: components["schemas"]["schemas-CompatibilityMatrix"];
-        };
-        "schemas-MediaDependencies": {
-            compatibility?: components["schemas"]["schemas-CompatibilityMatrix"];
-            /** @description Exact approved artifact identities. Server records canonical labels; no latest-version lookup. Closure is bounded to 128 dependencies and 16 edges deep. */
-            artifacts?: components["schemas"]["MediaArtifactDependency"][];
-        };
-        "schemas-CatalogMedia": {
-            id: string;
-            uri: string;
-            version: string;
-            arch: string;
-            hw_scope: string;
-            os_scope: string;
-            sha256: string;
-            object_version: string;
-            deps: components["schemas"]["schemas-MediaDependencies"];
-        };
-        "schemas-CatalogSelection": {
-            key_id: string;
-            key: string;
-            value: string;
-            /** Format: date-time */
-            updated_at: string;
-            deps: components["schemas"]["schemas-CatalogDependencies"];
-            media?: components["schemas"]["schemas-CatalogMedia"];
-        };
         /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
         ExecutionSnapshot: {
             /** @enum {string} */
@@ -3974,7 +3938,7 @@ export interface components {
             /** Format: date-time */
             frozen_at: string;
             rerun_source?: components["schemas"]["RerunSource"];
-            catalog?: components["schemas"]["schemas-CatalogSelection"][];
+            catalog?: components["schemas"]["CatalogSelection"][];
         };
         Execution: {
             id: string;

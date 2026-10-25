@@ -4216,15 +4216,28 @@
       "CompatibilityMatrix": {
         "type": "object",
         "additionalProperties": false,
+        "required": [
+          "source",
+          "version",
+          "report_ref"
+        ],
+        "minProperties": 4,
+        "description": "Common requirements AND one complete combination row. Rows have identical keys; values from different rows cannot be mixed. At least one nonempty rule is required.",
         "properties": {
           "source": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
           },
           "version": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
           },
           "report_ref": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
           },
           "requires": {
             "type": "object",
@@ -4232,18 +4245,33 @@
             "maxProperties": 32,
             "additionalProperties": {
               "type": "array",
+              "minItems": 1,
+              "maxItems": 256,
+              "uniqueItems": true,
               "items": {
-                "type": "string"
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              }
+            }
+          },
+          "combinations": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 128,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "minProperties": 1,
+              "maxProperties": 32,
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
               }
             }
           }
-        },
-        "required": [
-          "source",
-          "version",
-          "report_ref",
-          "requires"
-        ]
+        }
       },
       "CatalogDependencies": {
         "type": "object",

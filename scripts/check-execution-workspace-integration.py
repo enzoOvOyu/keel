@@ -28,6 +28,12 @@ os.umask(0o077)
 root = Path(__file__).resolve().parents[1]
 os.chdir(root)
 work = Path(tempfile.mkdtemp(prefix='keel-execution-capacity-'))
+# Retain large binaries on disk without changing private /tmp evidence paths.
+evidence_root = Path.home() / '.local/state/keel/evidence/capacity'
+evidence_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+evidence_root.chmod(0o700)
+binary_directory = evidence_root / work.name
+binary_directory.mkdir(mode=0o700)
 lock = Path('/tmp/keel-isolated-api-3102.lock')
 container = 'keel-auth-test-postgres'
 database = 'keel_test_capacity_' + uuid.uuid4().hex[:12]
@@ -92,7 +98,9 @@ try:
                KEEL_ENV='development', KEEL_INSECURE_DEV_COOKIE='true', KEEL_PUBLIC_ORIGINS='http://127.0.0.1:3102', KEEL_LISTEN_ADDR='127.0.0.1:3102', KEEL_STATIC_DIR=str(root / 'web/dist'),
                KEEL_WORKER_ID='capacity-' + uuid.uuid4().hex[:12], KEEL_WORKER_CONCURRENCY='8', KEEL_WORKER_LEASE='5s', KEEL_SIM_TEST_TARGETS=str(args.targets), KEEL_SIM_REPORT_FILE=str(work / 'simulation-report.json'))
     for target in ['api', 'admin', 'worker']:
-        checked(['go', 'build', '-o', str(work / ('keel-' + target)), './cmd/keel-' + target], env, 'build-' + target)
+        executable = binary_directory / ('keel-' + target)
+        checked(['go', 'build', '-o', str(executable), './cmd/keel-' + target], env, 'build-' + target)
+        (work / ('keel-' + target)).symlink_to(executable)
     checked([str(work / 'keel-admin'), 'migrate'], env, 'migrate')
     secret = work / 'password'
     secret.write_text(secrets.token_urlsafe(32))
@@ -123,7 +131,7 @@ try:
                 'tracked_workspace_modified': bool(subprocess.check_output(['git', 'diff', 'HEAD', '--name-only'])), 'tracked_diff_sha256': hashlib.sha256(subprocess.check_output(['git', 'diff', 'HEAD', '--binary'])).hexdigest(), 'go_overlay_applied': '-overlay' in env.get('GOFLAGS', ''), 'binaries_sha256': {name: hashlib.sha256((work / ('keel-' + name)).read_bytes()).hexdigest() for name in ['api', 'admin', 'worker']}, 'runner_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'check_sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
                 'architecture': platform.machine(), 'logical_cpus': os.cpu_count(), 'memory_total_kib': int(next(line.split()[1] for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith('MemTotal:'))),
                 'database_container': {'image': record['Config']['Image'], 'cpu_quota': record['HostConfig']['CpuQuota'], 'nano_cpus': record['HostConfig']['NanoCpus'], 'memory_limit_bytes': record['HostConfig']['Memory']},
-                'worker_lease_seconds': 5, 'hardware_adapters_enabled': False, 'redis_used': False, 'object_storage_used': False, 'shared_host_resources': True, 'network_counter_scope': 'host loopback includes unrelated shared-host traffic; not hardware transport bytes', 'before': resources()}
+                'worker_lease_seconds': 5, 'go_memory_limit': env.get('GOMEMLIMIT', 'Go default'), 'go_max_procs': env.get('GOMAXPROCS', 'Go default'), 'retained_binaries_directory': str(binary_directory), 'hardware_adapters_enabled': False, 'redis_used': False, 'object_storage_used': False, 'shared_host_resources': True, 'network_counter_scope': 'host loopback includes unrelated shared-host traffic; not hardware transport bytes', 'before': resources()}
     started = time.monotonic()
     with (work / 'http.log').open('w') as log:
         processes['acceptance'] = subprocess.Popen(['python3', str(source)], env=env, stdout=log, stderr=subprocess.STDOUT)

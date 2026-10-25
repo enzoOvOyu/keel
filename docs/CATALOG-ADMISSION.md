@@ -117,3 +117,9 @@ ZTP批次与重试上限、网络推送canary/并发、DDM阈值/采样间隔、
 - 既有mock Kea的kea-version是仿真DHCP option43意向字段，尚不是目录批准NOS制品选择；以精确文件/函数/id/控件摘要冻结，禁止改写或复制例外。本次不改该旧模拟链路的契约，后续接入目录/NOS准入后应移除此例外。
 
 这是可识别控件与现有动态渲染器的防回归门禁，不能证明任意自定义包装器、无语义变量名、任意JSON/编辑器中的值或未来六类下发界面均满足准入。新增执行界面须继续人工走查和服务端准入；所有业务入口的语义覆盖、mock意向整改及ReadinessGate lint仍未闭环，E-2/U-4和P1不得据此标为完成。未改产品运行代码/API/schema，3000无需为本工具变更重发镜像。验证记录见HANDOFF §34。
+
+## 平台与执行快照共用契约
+
+目录返回和ExecutionSnapshot内的`CatalogMedia.deps`均为MediaDependencies：兼容矩阵外可有精确media_id+SHA256的制品依赖；参数键本身的deps继续是CatalogDependencies，仅兼容矩阵。固定制品闭包的登记、批准、架构、作用域与实际字节校验见[MEDIA-ARTIFACTS](MEDIA-ARTIFACTS.md)。新版本不替换旧边，传递依赖退役或损坏会阻断新执行准入。
+
+两份OpenAPI中CompatibilityMatrix、CatalogDependencies、MediaArtifactDependency、MediaDependencies、CatalogMedia、CatalogSelection必须一致。`TestSharedCatalogOpenAPISchemas`用既有Go YAML解析两份正式契约并比较，CI的Go测试自动执行；曾经execution副本错误地必填requires且缺少combinations及边界，现与平台契约同步，使完整关联行和可选公共约束在冻结快照类型中正确保留。变更只需既有类型生成，无新增依赖或运行迁移；不能以契约一致代替业务矩阵/授权与字节验证。

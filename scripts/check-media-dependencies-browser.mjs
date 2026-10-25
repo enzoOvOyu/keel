@@ -20,6 +20,9 @@ try {
   const out = await r.json(); assert.equal(r.status(), expected, `${method} ${path}: ${JSON.stringify(out)}`); return out
  }
  const suffix = crypto.randomUUID().slice(0, 8), project = await call('POST', '/projects', { name: 'Artifact dependencies', slug: 'media-deps-' + suffix }, 201)
+ const projectBase = `/projects/${project.id}`
+ await call('PUT',projectBase+'/params',{key:'driver.version',value_type:'version',source_media_type:'driver'},201)
+ const targets=await call('POST',projectBase+'/sim-targets',{prefix:'dep-'+suffix,count:1,seed:42},201)
  const username = 'deps-reviewer-' + suffix, password = crypto.randomUUID() + '-Password!'
  await call('POST', '/admin/users', { username, display_name: 'Independent reviewer', password, is_admin: true }, 201)
  const reviewer = await browser.newContext({ baseURL: c.base_url }), reviewToken = await login(reviewer, username, password)
@@ -53,10 +56,40 @@ try {
   await page.locator('.action-dialog button[type=submit]').click();await row.getByText('已校验',{exact:true}).waitFor()
   await call('POST',base+'/'+parent.id+'/transition',{state:'approved'},200,reviewer,reviewToken)
   const download=await admin.request.get('/api/v1'+base+'/'+parent.id+'/content');assert.equal(download.status(),200);assert.equal((await download.body()).toString(),'parent payload')
+  const yaml = `api_version: keel.sim/v1
+inputs:
+  cpu.arch: {type: enum, required: true, enum: [amd64]}
+  driver.version: {type: string, required: true}
+tasks:
+  - id: inspect
+    type: sim.read
+    retry: 0
+    idempotent: true
+    timeout_ms: 1000
+    resources: [machine]
+    sim: {outcome: success, duration_ms: 10, seed: 42}
+`
+  const flow=await call('POST',projectBase+'/flows',{name:'Pinned dependency '+scope,yaml_source:yaml,expected_version:0},201)
+  const executionInput={flow_version_id:flow.id,mode:'sim',target_ids:[targets.items[0].id],parameters:{'driver.version':'v1','cpu.arch':'amd64'}}
+  const beforeExecutions=(await call('GET',projectBase+'/executions')).total
+  const execution=await call('POST',projectBase+'/executions',executionInput,201),frozen=execution.snapshot.catalog
+  assert.deepEqual(frozen.find(item=>item.key==='driver.version').media.deps.artifacts,parent.deps.artifacts)
+  for(let attempt=0;attempt<100;attempt++) {
+   const state=(await call('GET',projectBase+'/executions/'+execution.id)).execution.state
+   if(state==='success')break
+   if(attempt===99)throw new Error('Dependency-backed simulation did not complete')
+   await page.waitForTimeout(100)
+  }
+
   // A reviewed dependency retirement blocks the parent's next download and a new parent verification.
   const pendingParent=await call('POST',base,{type:'tool',name:'pending-parent-'+scope+'-'+suffix,version:'v1',arch:'amd64',sha256:parent.sha256,size:parent.size,deps:{artifacts:[{media_id:leaf.id,sha256:leaf.sha256}]}},201)
   const attachment=await admin.request.put('/api/v1'+base+'/'+pendingParent.id+'/content',{headers:{Origin:c.base_url,'X-CSRF-Token':csrf,'Content-Type':'application/octet-stream'},data:Buffer.from('parent payload')});assert.equal(attachment.status(),200)
   await call('POST',base+'/'+leaf.id+'/transition',{state:'retired'},200,reviewer,reviewToken)
+  const denied=await call('POST',projectBase+'/executions',executionInput,422)
+  assert.equal(denied.code,'MEDIA_DEPENDENCY_UNAVAILABLE')
+  assert.equal((await call('GET',projectBase+'/executions')).total,beforeExecutions+1)
+  assert.deepEqual((await call('GET',projectBase+'/executions/'+execution.id)).execution.snapshot.catalog,frozen)
+
   const blocked=await admin.request.get('/api/v1'+base+'/'+parent.id+'/content');assert.equal(blocked.status(),422);assert.equal((await blocked.json()).code,'MEDIA_DEPENDENCY_UNAVAILABLE')
   await page.reload({waitUntil:'networkidle'});const blockedRow=page.getByRole('row').filter({hasText:pendingParent.name});await blockedRow.getByRole('button',{name:'校验',exact:true}).click()
   await page.locator('.action-dialog button[type=submit]').click();await page.getByText('固定依赖校验失败：请检查依赖是否仍已批准、有文件、摘要一致且架构兼容。',{exact:true}).waitFor()
@@ -75,5 +108,6 @@ try {
  }
  assert.deepEqual(errors,[])
  console.log('PASS project/global approved stored compatible dependency selection, exact immutable ID/digest registration, canonical metadata, reviewed verification and actual content download')
+ console.log('PASS real execution creation freezes exact dependency identities, worker completes the approved simulation, retired dependencies reject new execution without partial rows or rewriting historical snapshots')
  console.log('PASS pending/incompatible dependencies excluded, duplicate selection disabled, retired dependencies block distribution and localized verification without closing the review dialog')
 } finally {await browser.close()}

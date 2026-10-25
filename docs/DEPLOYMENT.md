@@ -125,6 +125,8 @@ python3 scripts/check-execution-workspace-integration.py
 
 每次保留私有证据目录：simulation-report.json记录容量与模拟口径，resource-report.json记录源码版本/差异摘要、二进制摘要、CPU/内存/磁盘、API/worker/测试进程和数据库容器观测。数据库容器与宿主机网络指标可能包含其他测试负载，明确标为共享；Redis/对象存储不参与此测试，真实设备连接与传输字节为0。失败保留状态和待对账回执证据，不能把容量子步骤或旧结果当整套PASS。结束只清理自有进程/随机库/临时凭据，日志保留600。历史未接入草稿需按当前工作区约定使用Go overlay，不能为了测试删除草稿。
 
+开发机的/tmp当前为tmpfs。执行容量与介质集成封装把大体积可执行二进制保留到用户私有磁盘目录`~/.local/state/keel/evidence/{capacity,media}/`，原/tmp证据目录内通过软链接执行和计算摘要；凭据目录仍是真实/tmp路径，MinIO原安全路径校验不变。报告同时记录实际GOMEMLIMIT/GOMAXPROCS设置，不把内存参数不同的结果视为同一性能档。旧证据迁存应保留原路径入口，只处理已结束测试，不删除他人证据或运行数据。
+
 ## 6. ZTP 设备入口
 
 普通 3000 UI/API 与设备引导 listener 分开。239/143 只有在专用 TLS 配置齐备且数据库匹配时启用；Compose 预览是否启用见 HANDOFF。
