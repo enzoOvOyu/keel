@@ -545,3 +545,7 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 实际根npm run build通过（`/tmp/keel-model-revision-build.log`）；UI边界检查首次指出新增原生表头/单元格，已复用共享组件修正。隔离 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py --revision-only`退出0，证据 `/tmp/keel-models-dbdem_qa`，项目/全局从v1而非最新v2修订得v3，全部原字段、槽位unused、额外布局元数据保留，v1/v2对象不变、未传草稿ID；并发v4后陈旧编辑409且无v5，Viewer/共享/退役无入口，中英文通过，截图model-revision-project.png视觉复核。共用表单其余浏览器回归结果后补，未改Go复用§45证据。两份原草稿原样未暂存，FR-14/WP-1.12/P1仍partial。
 
 §46提交前补记：`--browser-only`在新隔离库执行全部既有HTTP与浏览器回归退出0（`/tmp/keel-model-revision-regression.log`，Model evidence directory: /tmp/keel-models-sv4cr5p5），包含扫描草稿、完整发布/冲突/布局、资产固定版本、托盘和全局作用域。未重复未变化的Go回归；check-design.py退出0（`/tmp/keel-model-revision-design.log`）。
+
+**§46 发布完成**：功能代码 `4f563fb3a3f20d84f07a9ee362598503fd7edcb6` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:e5c02e9ab0155adf1d96ecd4dbd67f9006a893a736283c2061f0dd61859a3763`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T00:57:11.406838+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
+
+无迁移，运行库仍37条迁移记录；保留兼容旧镜像 `keel:4d9580d67169556f637448eefe835be407b7f4ad`，不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T005428Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40148518113记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
