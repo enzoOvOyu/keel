@@ -910,3 +910,9 @@ SSH目标可显式选择vault提供者，仍保留原文件兼容；精确版本
 ## 69. 已安装域钥的只读repair安全回归
 
 新增真实PG/SSH用例 `TestSSHInstalledDomainReadOnlyRepairBoundaries`，不改变运行协议：实际受控安装和新钥证明后才明确注入broken状态；创建、批准、执行均拒绝复制域标签的临时文件钥，恢复精确vault后原批准流程可继续。正例实际trust.verify成功保留原公开域身份；排队后改回临时凭据零派发，实际远端终态后撤销域钥使修复失败且不投影互信。三组均核验原域身份未替换/清空。`/tmp/keel-domain-repair-first.log`、`/tmp/keel-ssh-integration-c49594yq`退出0（race 6.723s），包含独立CLI/helper进程；相关Go vet及race `/tmp/keel-domain-repair-race.log`退出0。此项为前批安全边界补充证据，不声明完整repair/轮换或H-1。3000仍运行§68功能版本，无新迁移。
+
+
+§68功能GitHub CI run40176069375已核验completed/success。§69测试提交2a67c0c的CI run40176336228失败：新增文件按注册顺序先建管理员，暴露原TestSSHExecutionPostgresProtocolAndHTTP强制首次初始化的隐含顺序依赖。完整本地复现 `/tmp/keel-repair-all-ci-repro.log`、`/tmp/keel-ssh-integration-yd5231qz`失败同一administrator already initialized，不记作通过；已改为在现有隔离库创建独立Admin，并补拒绝派发后真实lease到期/unknown隔离。后续完整回归与CI结果按实测补记。ab36da7为失败日志注解诊断，未修改运行代码。
+
+
+§69顺序依赖修复后完整真实PG/SSH/HTTP/全部既有及新增浏览器、独立CLI/helper `/tmp/keel-repair-order-fixed-full.log`、`/tmp/keel-ssh-integration-afmy6umt`退出0（race 57.350s）；相关Go vet通过。派发前改回临时凭据后，实际lease到期进入unknown并保留device/SSH两把隔离租约，未制造stop回执。旧失败保留，不以单独用例通过代替完整顺序回归。

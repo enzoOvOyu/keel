@@ -104,6 +104,10 @@ func TestSSHInstalledDomainReadOnlyRepairBoundaries(t *testing.T) {
 				if err == nil || f.ssh.runs.Load() != 1 {
 					t.Fatal("changed repair binding dispatched work", err)
 				}
+				// The rejected claim has no stop receipt. Exercise the actual
+				// expiry path and retain quarantine instead of leaving a running
+				// fixture claim for subsequent tests to discover by timing.
+				f.forceUnknown(claim)
 			} else if err != nil {
 				t.Fatal(err)
 			}

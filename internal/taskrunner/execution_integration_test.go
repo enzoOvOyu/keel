@@ -42,7 +42,13 @@ func TestSSHExecutionPostgresProtocolAndHTTP(t *testing.T) {
 	}
 	password := "isolated-ssh-" + platform.RandomID()
 	name := "ssh" + platform.RandomID()[:8]
-	if _, e = store.CreateUser(ctx, name, name, password, true, true); e != nil {
+	// Other SSH fixtures may have initialized the shared disposable database.
+	// Own a distinct administrator without depending on test registration order.
+	var initialized bool
+	if e = store.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM users WHERE is_admin)").Scan(&initialized); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = store.CreateUser(ctx, name, name, password, true, !initialized); e != nil {
 		t.Fatal(e)
 	}
 	login := func(user string) (string, *platform.AuthSession) {
