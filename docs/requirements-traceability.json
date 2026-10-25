@@ -2,7 +2,7 @@
   "schema_version": 1,
   "design_version": "v3.0.3",
   "product": "keel",
-  "updated_at": "2026-10-24",
+  "updated_at": "2026-10-25",
   "status_semantics": "Design mappings define required scope, not completed implementation. planned/partial describe the whole mapped requirement; individual tests, deployment health and hardware PoC are separate evidence. Preserve valid evidence and rerun only affected checks; full gates run at the documented PR/phase boundaries. Current runtime and remaining work are in docs/HANDOFF.md.",
   "requirements": [
     {
@@ -1238,7 +1238,15 @@
         "F-1.2",
         "F-1.3"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Logical simulator supports persistent seeded target registration and shared-process workers. Default isolated 2,000-target API/PostgreSQL/worker checks passed at 100% with 10ms simulated tasks, worker concurrency 8 and execution concurrency 64; source/binary/resource reports and controlled receipt-loss/reconciliation are retained. This is software simulation only: small real SSH services, complete keel-agent transport and full adapter/mock equivalence for this WP remain incomplete. See HANDOFF sections48-50; no hardware or whole-P1 completion claim.",
+      "evidence_refs": [
+        "internal/execution/executions.go",
+        "scripts/check-execution-integration.py",
+        "scripts/check-execution-workspace-integration.py",
+        "docs/DEPLOYMENT.md",
+        "docs/HANDOFF.md"
+      ]
     },
     {
       "id": "WP-1.3",
@@ -1275,7 +1283,7 @@
         "F-1.13"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Simulated execution engine implemented and verified: flows with immutable versions, logical simulation targets, outbox-driven worker, task attempts, run control and reconciliation. Capacity evidence: 2,000 persisted logical targets completed at 100% in 301.6s (seed 42, worker concurrency 8), satisfying the P1 fan-out criterion of 99.5%. Simulation only: no device transport and no hardware acceptance. Hardware channels (SSH, keel-agent, BMC runners) remain planned. Main-workspace FR-1.4 single-target and failed-only rerun now creates a new execution through the existing admission transaction, preserves immutable source lineage, checks preview hash/current authorization and rejects unknown/incomplete targets. Real API/PostgreSQL/worker/browser evidence: /tmp/keel-views-y5o63831. Generic simulation tasks only; full FR-1/P1 remain partial. Execution receipt/settlement now projects frozen control/Flow fields and latest per-target/task attempt states instead of decoding all targets/results; leases, fencing, unknown reconciliation and immutable evidence remain enforced. A disposable API/worker/database harness records source/binary/resource evidence, defaults to 2,000 targets and distinguishes dev100. Retry-DAG, frozen Flow, dependency skip, circuit denominator, controls and unknown receipt checks are covered; full scale and other-mode release evidence is recorded in HANDOFF, not inferred from unit checks.",
+      "implementation_notes": "Simulated execution engine implemented and verified: flows with immutable versions, logical simulation targets, outbox-driven worker, task attempts, run control and reconciliation. Historical capacity evidence completed 2,000 persisted targets at 100%. Current narrowed-settlement checks complete 2,000/2,000 in 130.464s, and 164.857s with concurrent image build/release checks (seed42, 10ms simulated tasks, worker8, execution64). These satisfy only the observed software fan-out portion; they do not demonstrate device transport or 10,000 x 30s performance. Simulation only: no device transport and no hardware acceptance. Hardware channels (SSH, keel-agent, BMC runners) remain planned. Main-workspace FR-1.4 single-target and failed-only rerun now creates a new execution through the existing admission transaction, preserves immutable source lineage, checks preview hash/current authorization and rejects unknown/incomplete targets. Real API/PostgreSQL/worker/browser evidence: /tmp/keel-views-y5o63831. Generic simulation tasks only; full FR-1/P1 remain partial. Execution receipt/settlement now projects frozen control/Flow fields and latest per-target/task attempt states instead of decoding all targets/results; leases, fencing, unknown reconciliation and immutable evidence remain enforced. A disposable API/worker/database harness records source/binary/resource evidence, defaults to 2,000 targets and distinguishes dev100. Retry-DAG, frozen Flow, dependency skip, circuit denominator, controls and unknown receipt checks are covered; full scale and other-mode release evidence is recorded in HANDOFF, not inferred from unit checks.",
       "evidence_refs": [
         "scripts/check-execution-integration.py",
         "scripts/check-integration.sh",
@@ -1400,14 +1408,17 @@
         "E-6",
         "H-1"
       ],
-      "implementation_status": "planned",
+      "implementation_status": "partial",
       "evidence": "PoC execution package #P1 produced (H-1): poc/selfcheck.sh (prerequisite self-check against the live platform + tool/key/BOM window assertions), poc/run-h1.sh (real-machine driver asserting the ACCEPTANCE H-1 criteria verbatim: HTTP-first boot observation, hostname-vs-BOM, 100% auto trust via platform readback AND direct keel-ctrl SSH probes, ED25519 fingerprint capture), poc/ENVIRONMENT.md (prerequisites checklist), poc/results/CHECKLIST.md (operator observation template). Scripts are POSIX sh; self-check smoke PASSed against the deployed platform and the driver correctly FAILs without real machines. Real-machine execution and backfill remain with the engineering owner (GA gate).",
       "evidence_refs": [
         "poc/selfcheck.sh",
         "poc/run-h1.sh",
         "poc/ENVIRONMENT.md",
-        "poc/results/CHECKLIST.md"
-      ]
+        "poc/results/CHECKLIST.md",
+        "scripts/check-execution-workspace-integration.py",
+        "docs/HANDOFF.md"
+      ],
+      "implementation_notes": "P1 software fan-out portion has real isolated 2,000/2,000 logical-target evidence, including a concurrent image-build/release-check case; execution controls and unknown-result reconciliation are exercised. Existing H-1 execution materials are retained, but actual SSH/PXE trust, trust-interruption injection, required upstream WP-1.5/WP-1.7 integration and real-machine PoC remain incomplete. Partial work does not satisfy the WP exit, full P1 or the separate 10,000-target x 30s performance tier."
     },
     {
       "id": "WP-1.10",
@@ -1422,7 +1433,7 @@
         "F-1.8"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Media registry implemented: MediaItem with one-way lifecycle uploaded->verified->approved->retired, scope uniqueness (scope,type,name,version), sha256/arch/dependency validation, manifest gate before verification, uploader/approver separation rejecting self-approval, irreversible retirement keeping history readable. Verified: uniqueness 409, digest validation, second-reviewer approval, retired rejects transitions, cross-scope invisible. UI added: project Media tab with registration dialog, one-way transition dialogs and retirement impact notices; real-browser checks cover registration, second-reviewer approval, self-approval rejection and retirement (7 groups). F-1.8 admission is implemented: execution parameters gated by the catalog reject unapproved versions. Artifact bytes (MinIO), distribution logs and cache accounting (F-1.7) remain planned. A4 artifact storage/read increment: real private MinIO version-pinned upload, server-computed SHA256/size, immutable DB binding, actual-byte verification before independent approval and authorized Range download. Real API/PG/MinIO/browser evidence /tmp/keel-media-koxmml78; details and remaining distribution/signature/cache/consumer work in docs/MEDIA-ARTIFACTS.md. Full requirement/P1 remains partial; no runtime migration/deployment. Pinned artifact dependency closure now complements compatibility matrices: exact approved/stored media ID+SHA, canonical display metadata, same-project/global visibility, CPU architecture, bounded DAG and transitive current-state/object-byte checks at verification, approval, download and execution admission. New versions never replace old edges; retired/corrupt dependencies block future use while history remains. No signed repository manifest, source signature, target cache or full distribution/phase closure is claimed; HANDOFF section49 records actual tests and release.",
+      "implementation_notes": "Current A4 media capability: scoped unique immutable registrations; actual private versioned MinIO artifacts with server-computed SHA256/size; independent approval and one-way retirement; authorized verified Range downloads with audits; global management and inherited project reads; stale lifecycle confirmations rejected. Compatibility matrices coexist with pinned media-ID/SHA artifact dependencies, canonical metadata and bounded transitive DAG validation. Scope, approval, stored bytes, architecture, cycles/depth and current pinned-object integrity are checked through verification, approval, download and execution admission. Concurrent retirement cannot pass the enclosing admission lock. Actual project/global Flow creation freezes dependency identities; retirement blocks new execution without partial rows or rewriting history. Formal platform/execution schemas and generated types agree. See HANDOFF sections49-50 and MEDIA-ARTIFACTS for evidence and the deployed feature release. Source signatures, signed offline repository manifests, package mirror sources, target cache/distribution, finite retry/quarantine and scale/hardware acceptance remain incomplete; WP and P1 stay partial.",
       "evidence_refs": [
         "scripts/check-media-integration.py",
         "internal/platform/media.go",
@@ -1433,7 +1444,8 @@
         "scripts/check-media-artifacts-integration.py",
         "internal/platform/media_dependencies.go",
         "internal/platform/media_dependencies_integration_test.go",
-        "scripts/check-media-dependencies-browser.mjs"
+        "scripts/check-media-dependencies-browser.mjs",
+        "internal/httpapi/catalog_contract_test.go"
       ]
     },
     {
@@ -1447,7 +1459,7 @@
         "U-4"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Project parameter catalog now derives version choices from approved, non-retired, immutably stored project/global artifacts. Shared transactional admission enforces explicit CPU architecture, exact registered dependency sets with source/version/report metadata, type/retirement/scope and ambiguous-version rejection. Both existing simulation launch forms use shared ParamSelect and live validation. Execution commit reads and hashes the pinned artifact and freezes catalog definitions, dependencies, digest and object version; reruns reject changed catalog/media snapshots. Full correlated compatibility matrices/governance, target/BOM/model matching, template defaults, all consumer/editor/lint coverage and real transport remain incomplete; see CATALOG-ADMISSION and HANDOFF for actual evidence.",
+      "implementation_notes": "Version options derive from approved non-retired stored project/global artifacts. ParamSelect/lint, live architecture/type/scope checks, exact correlated compatibility rows with provenance, controlled defaults/edits/retirement, ambiguity rejection and project override tombstones are implemented. Execution admission verifies actual pinned parent/dependency bytes and freezes definitions, versions/digests, matrix and dependency references; reruns reject changed selections. Platform and execution copies of six shared catalog/media schemas are guarded by a Go contract test, including optional common requirements and complete combination rows. Full matrix approval governance, target/BOM/model matching, template defaults, remaining consumer coverage and real transport still need their own evidence. See CATALOG-ADMISSION and HANDOFF sections49-50; full WP/P1 remain partial.",
       "evidence_refs": [
         "scripts/check-param-integration.py",
         "internal/platform/params.go",
@@ -1456,7 +1468,10 @@
         "internal/platform/catalog_admission_integration_test.go",
         "web/src/components/ParamSelect.tsx",
         "scripts/check-catalog-browser.mjs",
-        "docs/CATALOG-ADMISSION.md"
+        "docs/CATALOG-ADMISSION.md",
+        "internal/httpapi/catalog_contract_test.go",
+        "internal/platform/media_dependencies_integration_test.go",
+        "scripts/check-media-dependencies-browser.mjs"
       ]
     },
     {
@@ -2426,7 +2441,7 @@
     }
   ],
   "implementation_checkpoint": {
-    "stage": "Development branch derives from p1-complete (e7d5f1a), which closed the historical P1 scope before v3.0.3 network expansion; it does not close the current P1 work packages.",
+    "stage": "Current development is in ready P1/A3 execution and P1/A4 media/catalog/model increments. Logical fan-out, pinned media dependencies and shared catalog contracts have bounded software evidence; incomplete SSH/Agent/PXE, signature/mirror/cache/distribution and real hardware evidence keep the current P1 work packages partial. Historical p1-complete did not close the v3.0.3 scope.",
     "scope": "Development is active only in the remote /opt/keel Git workspace. FR-0 remains partial; health and physical-diagnostic evidence and remaining scope are recorded in docs/HANDOFF.md.",
     "runtime": "Runtime versions, migrations and backup references are maintained in docs/HANDOFF.md; source verification does not imply deployment."
   },

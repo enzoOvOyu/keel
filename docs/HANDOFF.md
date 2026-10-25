@@ -619,3 +619,9 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 §50验证补记：磁盘二进制版容量封装--targets100退出0（/tmp/keel-capacity-disk-binaries-check.log，/tmp/keel-execution-capacity-yc0kjnng），100/100、4.179s，全套12组18.821s；报告记录GOMEMLIMIT=768MiB、GOMAXPROCS为Go默认和私有磁盘目录，/tmp只保留二进制软链接与小体积证据。此为封装dev档自检，不重复冒充2,000档。
 
 另补新依赖的完整HTTP执行用例，项目和全局各由真实Flow/参数目录创建执行，检查固定依赖快照，worker完成批准模拟；依赖退役后新执行422且总数不增加，历史快照不改写。--dependencies-only退出0（/tmp/keel-media-dependency-execution-check.log，/tmp/keel-media-0_7hd3tb），PG/race12.363s与双语浏览器通过。契约一致性/当前设计引用检查均通过。§49实际功能提交293e82c的GitHub Actions run40153102448已于02:14 UTC查询为completed/success；后续测试/契约/文档提交CI另记，不冒充已通过。
+
+## 51. 当前实施进度追踪收敛（2026-10-25）
+
+对照本轮实际产物修正requirements-traceability的陈旧实施描述：WP-1.2已具有持久化2,000逻辑目标和资源/故障证据，WP-1.9已交付软件扇出部分及既有H-1材料，因此从planned改为partial；SSH/Agent/PXE/互信中断、所需上游联合证据与真机未具备，不改为完成，不提前签署P1。WP-1.4区分空载130.464s/构建负载164.857s与10ms模拟口径；WP-1.10移除“实际文件仍计划中/未部署”的失效描述，保留签名、离线仓库、镜像源、目标缓存与隔离分发缺口；WP-1.11同步已验证关联行、固定制品准入及共享契约检查，完整治理/其他消费者继续partial。日期更新至2026-10-25，checkpoint明确P1/A3+A4，FR-0与阶段状态不因局部产物改变。
+
+证据引用须为文件，首次目录引用被check-design拒绝，已指向实际executions.go；最后设计/依赖/64WP/引用映射检查退出0（/tmp/keel-current-checkpoint-design.log）。§50新增httpapi vet、Python语法与浏览器脚本语法检查退出0；02a98f9已正常推送，3000仍293e82c健康。只文档进度变更，不重复构建/发布相同运行行为。
