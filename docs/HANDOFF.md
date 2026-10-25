@@ -558,3 +558,7 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 实际根npm run build通过（`/tmp/keel-model-references-build.log`，Vite2m6s）；隔离完整model-workspace回归中PG/race23.267s已通过（`/tmp/keel-models-yw4_wigm`），新增同机器跨项目历史绑定、v1/v2、私有/共享、无效型号版本对排除、退役保留和Viewer拒绝。新增实际宽BOM提交后的API/浏览器验证通过：项目各自1、全局2且旧v1未自动升级，Viewer只见本项目计数、退役保留和双语正确。原HTTP/草稿/发布/布局回归已通过，其余原浏览器结果提交前补记。旧fabric/026草稿原样未暂存，overlay沿用。
 
 §47提交前补记：完整model-workspace命令退出0（`/tmp/keel-model-references-integration.log`），全部原扫描/发布/布局/修订/资产/托盘/全局HTTP和浏览器回归通过；model-reference-counts.png已视觉复核。check-design.py退出0（`/tmp/keel-model-references-design.log`）。
+
+**§47 发布完成**：功能代码 `0abd781e5d229f9517f70bb38b527e6ef69b17bc` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:6affb72ef2df857e1ed1e518614b69476304559aee538ef5a2845071b5284a46`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T01:11:29.624704+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
+
+无迁移，运行库仍37条迁移记录；保留兼容旧镜像 `keel:4f563fb3a3f20d84f07a9ee362598503fd7edcb6`，不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T010740Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40149400725记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
