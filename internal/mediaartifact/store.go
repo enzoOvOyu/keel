@@ -37,7 +37,7 @@ func New(endpoint, access, secret, bucket string, development bool) (*Store, err
 	if len(bucket) < 3 || len(bucket) > 63 || strings.ContainsAny(bucket, "/\\:") {
 		return nil, errors.New("invalid media bucket")
 	}
-	c, e := minio.New(u.Host, &minio.Options{Creds: credentials.NewStaticV4(access, secret, ""), Secure: u.Scheme == "https", Region: "us-east-1"})
+	c, e := minio.New(u.Host, &minio.Options{Creds: credentials.NewStaticV4(access, secret, ""), Secure: u.Scheme == "https", Region: "us-east-1", MaxRetries: 1})
 	if e != nil {
 		return nil, errors.New("invalid media storage client configuration")
 	}

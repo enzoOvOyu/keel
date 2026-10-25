@@ -4363,8 +4363,9 @@ components:
     MediaItemSummary:
       type: object
       additionalProperties: false
-      required: [id, scope_key, type, name, version, sha256, size, arch, os_scope, hw_scope, deps, manifest_ref, state, uploaded_by, approved_by, created_at, updated_at, artifact_stored]
+      required: [id, scope_key, type, name, version, sha256, size, arch, os_scope, hw_scope, deps, manifest_ref, state, uploaded_by, approved_by, created_at, updated_at, artifact_stored, artifact_quarantined]
       properties:
+        artifact_quarantined: {type: boolean, description: Sticky isolation after three complete pinned-object digest mismatches. Lifecycle state remains unchanged; restored source bytes do not clear quarantine.}
         artifact_stored: {type: boolean, description: An immutable object version has been attached; approval and fresh integrity checks remain required.}
         id: { type: string, pattern: '^[a-f0-9]{32}$' }
         scope_key: { type: string }

@@ -17,7 +17,7 @@ export function MediaDependencyPicker({ projectId, arch, selected, disabled, onC
   const { t } = useTranslation(), session = useSession(), [page, setPage] = useState(1)
   const options = useQuery({ queryKey: ['private', session.user.id, 'project', projectId, 'media-dependency-options', page], queryFn: ({ signal }) => listMedia(projectId, page, signal) })
   useExpireOnUnauthorized(options.error)
-  const eligible = options.data?.items.filter(item => item.state === 'approved' && item.artifact_stored && (item.arch === 'noarch' || item.arch === arch)) ?? []
+  const eligible = options.data?.items.filter(item => item.state === 'approved' && item.artifact_stored && !item.artifact_quarantined && (item.arch === 'noarch' || item.arch === arch)) ?? []
   return <div className="field">
     <Label htmlFor="media-dependency">{t('mediaArtifactDependencies')}</Label>
     <p className="field-hint">{t('mediaArtifactDependenciesHint')}</p>

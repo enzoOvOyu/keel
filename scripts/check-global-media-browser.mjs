@@ -70,7 +70,7 @@ try {
   response = await user.context.request.post('/api/v1' + base + '/upload', { headers: { Origin: c.base_url, 'X-CSRF-Token': user.csrf }, multipart: { metadata: JSON.stringify(metadata), file: { name: 'x', mimeType: 'application/octet-stream', buffer: payload } } }); assert.equal(response.status(), 403)
  }
  const localPage = await users.Admin.context.newPage(); await localPage.goto(`/p/${project.id}/media`)
- const inheritedRow = localPage.getByRole('row').filter({ hasText: media.name }); await inheritedRow.getByText('全局 · 只读', { exact: true }).waitFor(); assert.equal(await inheritedRow.getByRole('button').count(), 0)
+ const inheritedRow = localPage.getByRole('row').filter({ hasText: media.name }); await inheritedRow.getByText('全局 · 只读', { exact: true }).waitFor(); assert.equal(await inheritedRow.getByRole('button', { name: '导出签名清单', exact: true }).count(), 1); for (const name of ['校验','批准','退役']) assert.equal(await inheritedRow.getByRole('button', { name, exact: true }).count(), 0)
  await localPage.goto('/admin/media'); await localPage.getByRole('heading', { name: '你没有此操作的权限', exact: true }).waitFor(); assert.equal(await localPage.getByRole('link', { name: '全局介质库', exact: true }).count(), 0)
  const definition = await call('PUT', '/admin/params', { key: 'globaltest.driver.version', value_type: 'version', source_media_type: 'driver', default_value: media.version, create_only: true }, 201)
  await call('PUT', `/projects/${project.id}/params`, { key: 'cpu.arch', value_type: 'enum', options: ['amd64', 'arm64'] }, 201)

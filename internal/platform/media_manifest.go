@@ -9,12 +9,12 @@ import (
 
 // ExportMediaManifest attests to the approved registry and verified bytes at
 // export time. It never grants future access or replaces vendor source signing.
-func (s *Store) ExportMediaManifest(ctx context.Context, a *AuthSession, project *ProjectSummary, id, trace string) (*mediamanifest.Envelope, error) {
+func (s *Store) ExportMediaManifest(ctx context.Context, a *AuthSession, project *ProjectSummary, id, trace string) (out *mediamanifest.Envelope, resultErr error) {
 	tx, err := s.beginControl(ctx, a)
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { tx.Rollback(); resultErr = s.RecordMediaIntegrityFailure(ctx, resultErr, a.User.ID, trace) }()
 	if project == nil && !a.User.IsAdmin {
 		return nil, ErrForbidden
 	}

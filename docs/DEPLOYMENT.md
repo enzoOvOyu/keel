@@ -170,3 +170,5 @@ API inline上传上限1 GiB，使用600权限临时文件和5分钟请求期限�
 独立软件集成：`GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-media-artifacts-integration.py`；该overlay仅用于当前既有026草稿的隔离，正式干净代码不需要。脚本使用带disposable标签的测试PostgreSQL及新建的临时MinIO，不连接运行库/桶，完成后清理自己的服务、数据库与凭据。未验证发布镜像、规模或真机不能记PASS。
 
 平台签名清单是可选的独立密钥配置：`KEEL_MEDIA_SIGNING_DIRECTORY` 只读挂载宿主私有目录，`KEEL_MEDIA_SIGNING_KEY_FILE` 指向容器内PKCS8 Ed25519私钥。默认关闭，不影响已批准制品现有读取；已配置的非法私钥导致API启动失败。私钥须由API实际用户拥有且仅属主可读，公钥独立可信分发；配置、轮换、离线命令及平台签名边界见 [MEDIA-MANIFESTS](MEDIA-MANIFESTS.md)。本功能无新迁移。
+
+041完整性迁移为固定源新增独立隔离记录并回填既有绑定；已隔离证据不可更新/删除，不改变原审批生命周期或历史绑定。部署新API前按§3备份并验证格式、执行迁移、授予受限应用角色新表权限。回滚旧镜像不会删除隔离记录，但旧镜像不消费隔离状态；如运行库已产生隔离项，不得仅切回旧版恢复分发。回滚后先停止受影响介质/执行入口，修复并重新发布，不能以绕过隔离作为恢复方案。迁移后的实际版本、备份与回滚条件见HANDOFF。

@@ -3466,6 +3466,8 @@ export interface components {
             approved_at?: string;
         };
         MediaItemSummary: {
+            /** @description Sticky isolation after three complete pinned-object digest mismatches. Lifecycle state remains unchanged; restored source bytes do not clear quarantine. */
+            artifact_quarantined: boolean;
             /** @description An immutable object version has been attached; approval and fresh integrity checks remain required. */
             artifact_stored: boolean;
             id: string;

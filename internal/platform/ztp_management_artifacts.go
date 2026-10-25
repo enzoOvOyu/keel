@@ -85,7 +85,7 @@ func (s *Store) PreviewZTPManagementArtifacts(ctx context.Context, a *AuthSessio
 	return out, tx.Commit()
 }
 func approvedZTPManagementPolicyTx(ctx context.Context, tx *sql.Tx, project, batch, media string, lock bool) (*ZTPManagementArtifactPreview, error) {
-	query := `SELECT sha256,size FROM media_items WHERE id=$1 AND scope_key IN($2,'global') AND type='ztp_script' AND state='approved'`
+	query := `SELECT sha256,size FROM media_items WHERE id=$1 AND scope_key IN($2,'global') AND type='ztp_script' AND state='approved' AND NOT EXISTS(SELECT 1 FROM media_artifact_integrity mi WHERE mi.media_id=media_items.id AND mi.quarantined_at IS NOT NULL)`
 	if lock {
 		query += " FOR SHARE"
 	}
@@ -97,6 +97,18 @@ func approvedZTPManagementPolicyTx(ctx context.Context, tx *sql.Tx, project, bat
 	}
 	if e != nil {
 		return nil, e
+	}
+	// Generated management manifests may predate stored artifacts. If a bound
+	// artifact has integrity state, its quarantine is still an immediate gate.
+	if lock {
+		var quarantined bool
+		e = tx.QueryRowContext(ctx, "SELECT quarantined_at IS NOT NULL FROM media_artifact_integrity WHERE media_id=$1 FOR SHARE", media).Scan(&quarantined)
+		if e != nil && !errors.Is(e, sql.ErrNoRows) {
+			return nil, e
+		}
+		if quarantined {
+			return nil, apiError(409, "ZTP_SCRIPT_QUARANTINED", "Approved bootstrap media is quarantined")
+		}
 	}
 	if hash == fabricboot.IsolationScriptDigest() && size == int64(len(fabricboot.IsolationScriptV1)) {
 		return nil, nil

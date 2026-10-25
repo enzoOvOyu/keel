@@ -134,6 +134,7 @@ type CatalogValidation struct {
 func catalogMediaOptions(ctx context.Context, tx *sql.Tx, scope, mediaType, arch string, lock bool) ([]CatalogMedia, error) {
 	q := `SELECT m.id,m.type,m.name,m.version,m.arch,m.hw_scope,m.os_scope,m.sha256,a.object_version,m.deps
  FROM media_items m JOIN media_artifacts a ON a.media_id=m.id AND a.sha256=m.sha256 AND a.size=m.size
+ JOIN media_artifact_integrity mi ON mi.media_id=m.id AND mi.quarantined_at IS NULL
  WHERE m.scope_key IN('global',$1) AND m.type=$2 AND m.state='approved' AND ($3='' OR m.arch IN($3,'noarch')) ORDER BY m.id`
 	if lock {
 		q += " FOR SHARE OF m,a"

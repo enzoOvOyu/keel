@@ -26,7 +26,7 @@ func (s *Service) Create(ctx context.Context, a *Actor, projectID string, in Cre
 	return s.create(ctx, a, projectID, in, key, trace, nil)
 }
 
-func (s *Service) create(ctx context.Context, a *Actor, projectID string, in CreateInput, key, trace string, origin *rerunOrigin) (*Execution, error) {
+func (s *Service) create(ctx context.Context, a *Actor, projectID string, in CreateInput, key, trace string, origin *rerunOrigin) (execution *Execution, resultErr error) {
 	var rawInput any = in
 	scope := "execution.create:" + projectID
 	if origin != nil {
@@ -37,7 +37,12 @@ func (s *Service) create(ctx context.Context, a *Actor, projectID string, in Cre
 	if e != nil {
 		return nil, e
 	}
-	defer tx.Rollback()
+	defer func() {
+		tx.Rollback()
+		if s.MediaStore != nil && a != nil {
+			resultErr = s.MediaStore.RecordMediaIntegrityFailure(ctx, resultErr, a.User.ID, trace)
+		}
+	}()
 	if e = authorize(ctx, tx, a, projectID, "Admin", "DE", "DL", "SRE"); e != nil {
 		return nil, e
 	}

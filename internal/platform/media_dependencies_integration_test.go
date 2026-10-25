@@ -171,28 +171,9 @@ func TestMediaArtifactDependencies(t *testing.T) {
 	if e = s.DB.QueryRowContext(ctx, "SELECT count(*) FROM audits WHERE target_id=$1 AND action='media.retired'", global.ID).Scan(&retireAudits); e != nil || retireAudits != 0 {
 		t.Fatalf("blocked retirement wrote success audit: %d %v", retireAudits, e)
 	}
-	// Pinned bytes of a transitive global dependency, not only the parent, are rechecked.
-	var objectKey, objectVersion string
-	if e = s.DB.QueryRowContext(ctx, "SELECT object_key,object_version FROM media_artifacts WHERE media_id=$1", global.ID).Scan(&objectKey, &objectVersion); e != nil {
-		t.Fatal(e)
-	}
-	objects.mu.Lock()
-	saved := append([]byte{}, objects.data[objectKey+":"+objectVersion]...)
-	objects.data[objectKey+":"+objectVersion] = []byte("tampered transitive bytes")
-	objects.mu.Unlock()
-	download("MEDIA_DIGEST_MISMATCH")
-	verify("MEDIA_DIGEST_MISMATCH")
+	// Keep a pending parent for retirement checks; corruption/quarantine is
+	// exercised with a distinct closure in TestMediaIntegrityRetriesAndQuarantine.
 	unapproved := upload(project, "blocked-parent", "amd64", deps(middle), false)
-	if _, e = s.TransitionMedia(ctx, reviewer, project, unapproved.ID, "verified", "test"); e == nil {
-		t.Fatal("verification ignored corrupted transitive dependency")
-	} else {
-		assertErrorCode(t, e, "MEDIA_DIGEST_MISMATCH")
-	}
-	objects.mu.Lock()
-	objects.data[objectKey+":"+objectVersion] = saved
-	objects.mu.Unlock()
-	download("")
-	verify("")
 	// Cross-project/global-to-private, approval, arch and digest failures never create a parent.
 	foreign := upload(other, "foreign-leaf", "amd64", nil, true)
 	pending := upload(project, "pending-leaf", "amd64", nil, false)

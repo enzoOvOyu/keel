@@ -2,14 +2,16 @@
 """Real PostgreSQL + disposable MinIO + API + browser media verification."""
 import argparse,json,os,secrets,socket,subprocess,tempfile,time,urllib.parse,urllib.request,uuid
 from pathlib import Path
-parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--catalog-only',action='store_true',help='Run only the catalog API/worker/browser check in a fresh isolated environment; skip Go and unchanged media checks');parser.add_argument('--management-only',action='store_true',help='Run only the catalog management browser check in a fresh isolated environment');parser.add_argument('--global-media-only',action='store_true',help='Run only global media API/browser checks in a fresh isolated environment');parser.add_argument('--media-conflict-only',action='store_true',help='Run only media confirmation concurrency browser checks');parser.add_argument('--dependencies-only',action='store_true',help='Run pinned artifact dependency Go and browser checks');parser.add_argument('--manifest-only',action='store_true',help='Run signed media manifest Go, offline CLI and browser checks');parser.add_argument('--browser-only',action='store_true',help='Run all HTTP/browser checks, skipping unchanged Go checks');args=parser.parse_args()
-if sum([args.catalog_only,args.management_only,args.global_media_only,args.media_conflict_only,args.dependencies_only,args.manifest_only,args.browser_only])>1:parser.error('Choose one focused check')
+from media_integrity_fault_proxy import MediaIntegrityFaultProxy
+parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--catalog-only',action='store_true',help='Run only the catalog API/worker/browser check in a fresh isolated environment; skip Go and unchanged media checks');parser.add_argument('--management-only',action='store_true',help='Run only the catalog management browser check in a fresh isolated environment');parser.add_argument('--global-media-only',action='store_true',help='Run only global media API/browser checks in a fresh isolated environment');parser.add_argument('--media-conflict-only',action='store_true',help='Run only media confirmation concurrency browser checks');parser.add_argument('--dependencies-only',action='store_true',help='Run pinned artifact dependency Go and browser checks');parser.add_argument('--integrity-only',action='store_true',help='Run bounded retry/quarantine Go and fault-injected real MinIO/API/browser checks');parser.add_argument('--manifest-only',action='store_true',help='Run signed media manifest Go, offline CLI and browser checks');parser.add_argument('--browser-only',action='store_true',help='Run all HTTP/browser checks, skipping unchanged Go checks');args=parser.parse_args()
+if sum([args.catalog_only,args.management_only,args.global_media_only,args.media_conflict_only,args.dependencies_only,args.manifest_only,args.integrity_only,args.browser_only])>1:parser.error('Choose one focused check')
+full_browser=not any([args.catalog_only,args.management_only,args.global_media_only,args.media_conflict_only,args.dependencies_only,args.manifest_only,args.integrity_only])
 os.umask(0o077);root=Path(__file__).resolve().parents[1];os.chdir(root)
 probe=socket.socket();probe.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);probe.bind(('127.0.0.1',3102));probe.close()
 record=json.loads(subprocess.check_output(['docker','inspect','keel-auth-test-postgres']))[0]
 assert record['Config']['Labels'].get('io.keel.test-environment')=='disposable'
 config=dict(v.split('=',1) for v in record['Config']['Env'] if '=' in v);owner,password=config['POSTGRES_USER'],config['POSTGRES_PASSWORD']
-database='keel_test_media_'+uuid.uuid4().hex[:12];unit_database=database+'_unit';work=Path(tempfile.mkdtemp(prefix='keel-media-'));api=worker=None
+database='keel_test_media_'+uuid.uuid4().hex[:12];unit_database=database+'_unit';work=Path(tempfile.mkdtemp(prefix='keel-media-'));api=worker=None;fault_proxy=None
 # Keep real /tmp credential directories and the existing MinIO path guard;
 # retain only the large binaries on disk because /tmp is a memory filesystem.
 evidence_root=Path.home()/'.local/state/keel/evidence/media';evidence_root.mkdir(parents=True,exist_ok=True,mode=0o700);evidence_root.chmod(0o700)
@@ -31,17 +33,19 @@ try:
  for target in ['api','admin','worker']:
   executable=evidence/('keel-'+target);checked(['go','build','-o',str(executable),'./cmd/keel-'+target],env);(work/('keel-'+target)).symlink_to(executable)
  checked([str(work/'keel-admin'),'media-init'],env)
- if args.manifest_only or not any([args.catalog_only,args.management_only,args.global_media_only,args.media_conflict_only,args.dependencies_only,args.browser_only]):
+ if args.integrity_only or full_browser:
+  fault_proxy=MediaIntegrityFaultProxy(work,env['KEEL_MEDIA_ENDPOINT']);env['KEEL_MEDIA_ENDPOINT']=fault_proxy.start()
+ if args.integrity_only or args.manifest_only or full_browser:
   checked([str(work/'keel-admin'),'media-signing-keygen','--private-key-file',str(work/'manifest-private.pem'),'--public-key-file',str(work/'manifest-public.pem')],env)
   env.update(KEEL_MEDIA_SIGNING_KEY_FILE=str(work/'manifest-private.pem'),KEEL_MEDIA_MANIFEST_PUBLIC_KEY_FILE=str(work/'manifest-public.pem'),KEEL_ADMIN_BINARY=str(work/'keel-admin'))
- if args.manifest_only:
-  result=checked(['go','test','-race','./internal/mediamanifest','./internal/platform','-run','TestSignedMediaManifest|TestMediaArtifactDependenc|TestSignedManifest|TestSigning','-count=1'],env)
+ if args.integrity_only or args.manifest_only:
+  result=checked(['go','test','-race','./internal/mediamanifest','./internal/platform','-run','TestMediaIntegrity|TestSignedMediaManifest|TestMediaArtifactDependenc|TestSignedManifest|TestSigning','-count=1'],env)
   (work/'go-integration.log').write_text(result);print(result,flush=True)
  elif args.dependencies_only:
   result=checked(['go','test','-race','./internal/platform','-run','TestMediaArtifactDependenc|TestCatalogArtifactAdmission|TestMediaArtifactsLifecycleAndIntegrity','-count=1'],env)
   (work/'go-integration.log').write_text(result);print(result,flush=True)
  elif not (args.catalog_only or args.management_only or args.global_media_only or args.media_conflict_only or args.browser_only):
-  result=checked(['go','test','-race','./internal/mediaartifact','./internal/mediamanifest','./internal/platform','-run','TestSignedManifest|TestSigning|TestSignedMediaManifest|TestRejectUnsafeMediaConfiguration|TestRealMinIOVersionPinning|TestMediaArtifactsLifecycleAndIntegrity|TestMediaArtifactDependenc|TestMediaConditionalTransitions|TestCatalogArtifactAdmission|TestCatalogCorrelatedCombinations|TestCatalogManagement|TestGlobalCatalogScopeBoundaries|TestCompatibility|TestZTP239ApprovedIsolationScript|TestSZTP143|TestZTPMockKeaDurableStageCommit|TestBOMPackage','-count=1'],env)
+  result=checked(['go','test','-race','./internal/mediaartifact','./internal/mediamanifest','./internal/platform','-run','TestMediaIntegrity|TestSignedManifest|TestSigning|TestSignedMediaManifest|TestRejectUnsafeMediaConfiguration|TestRealMinIOVersionPinning|TestMediaArtifactsLifecycleAndIntegrity|TestMediaArtifactDependenc|TestMediaConditionalTransitions|TestCatalogArtifactAdmission|TestCatalogCorrelatedCombinations|TestCatalogManagement|TestGlobalCatalogScopeBoundaries|TestCompatibility|TestZTP239ApprovedIsolationScript|TestSZTP143|TestZTPMockKeaDurableStageCommit|TestBOMPackage','-count=1'],env)
   (work/'go-integration.log').write_text(result);print(result,flush=True)
  checked([str(work/'keel-admin'),'migrate'],env)
  pw=secrets.token_urlsafe(28);secret=work/'password';secret.write_text(pw)
@@ -55,8 +59,8 @@ try:
  worker=subprocess.Popen([str(work/'keel-worker')],env=env,stdout=(work/'worker.log').open('w'),stderr=subprocess.STDOUT)
  credentials=work/'credentials.json';credentials.write_text(json.dumps(dict(base_url='http://127.0.0.1:3102',username='mediaadmin',password=pw)))
  env.update(KEEL_AUTH_BROWSER_CREDENTIALS_FILE=str(credentials),KEEL_WORKSPACE_EVIDENCE_DIR=str(work))
- checks=[(['node','scripts/check-media-dependencies-browser.mjs'],'dependency-browser'),(['python3','scripts/check-media-integration.py'],'legacy-media'),(['python3','scripts/check-param-integration.py'],'parameter-regression'),(['node','scripts/check-media-browser.mjs'],'legacy-browser'),(['node','scripts/check-media-artifacts-browser.mjs'],'artifact-browser'),(['node','scripts/check-catalog-browser.mjs'],'catalog-browser'),(['node','scripts/check-catalog-management-browser.mjs'],'catalog-management-browser'),(['node','scripts/check-global-media-browser.mjs'],'global-media-browser'),(['node','scripts/check-media-conflict-browser.mjs'],'media-conflict-browser'),(['node','scripts/check-media-manifest-browser.mjs'],'manifest-browser')]
- for command,name in ([check for check in checks if check[1] == 'manifest-browser'] if args.manifest_only else [check for check in checks if check[1] == 'dependency-browser'] if args.dependencies_only else [check for check in checks if check[1] == 'media-conflict-browser'] if args.media_conflict_only else [check for check in checks if check[1] == 'global-media-browser'] if args.global_media_only else [check for check in checks if check[1] == 'catalog-management-browser'] if args.management_only else [check for check in checks if check[1].startswith('catalog-')] if args.catalog_only else [check for check in checks if check[1]!='manifest-browser' or not args.browser_only]):
+ checks=[(['node','scripts/check-media-dependencies-browser.mjs'],'dependency-browser'),(['python3','scripts/check-media-integration.py'],'legacy-media'),(['python3','scripts/check-param-integration.py'],'parameter-regression'),(['node','scripts/check-media-browser.mjs'],'legacy-browser'),(['node','scripts/check-media-artifacts-browser.mjs'],'artifact-browser'),(['node','scripts/check-catalog-browser.mjs'],'catalog-browser'),(['node','scripts/check-catalog-management-browser.mjs'],'catalog-management-browser'),(['node','scripts/check-global-media-browser.mjs'],'global-media-browser'),(['node','scripts/check-media-conflict-browser.mjs'],'media-conflict-browser'),(['node','scripts/check-media-manifest-browser.mjs'],'manifest-browser'),(['node','scripts/check-media-integrity-browser.mjs'],'integrity-browser')]
+ for command,name in ([check for check in checks if check[1] == 'integrity-browser'] if args.integrity_only else [check for check in checks if check[1] == 'manifest-browser'] if args.manifest_only else [check for check in checks if check[1] == 'dependency-browser'] if args.dependencies_only else [check for check in checks if check[1] == 'media-conflict-browser'] if args.media_conflict_only else [check for check in checks if check[1] == 'global-media-browser'] if args.global_media_only else [check for check in checks if check[1] == 'catalog-management-browser'] if args.management_only else [check for check in checks if check[1].startswith('catalog-')] if args.catalog_only else checks):
   result=checked(command,env);(work/(name+'.log')).write_text(result);print(result,flush=True)
 finally:
  if worker is not None:
@@ -67,6 +71,7 @@ finally:
   api.terminate()
   try:api.wait(timeout=10)
   except subprocess.TimeoutExpired:api.kill();api.wait()
+ if fault_proxy is not None:fault_proxy.close()
  if (work/'media-container').exists():subprocess.run(['python3','scripts/test-media-environment.py','stop','--directory',str(work)],capture_output=True)
  for name in [database,unit_database]:subprocess.run(['docker','exec','keel-auth-test-postgres','dropdb','--if-exists','-U',owner,name],capture_output=True)
  for name in ['password','credentials.json','manifest-private.pem','wrong-private.pem']:(work/name).unlink(missing_ok=True)

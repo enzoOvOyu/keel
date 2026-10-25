@@ -127,6 +127,9 @@ func (s *Store) bindMediaArtifact(ctx context.Context, tx *sql.Tx, a *AuthSessio
 	if _, e = tx.ExecContext(ctx, "INSERT INTO media_artifacts(media_id,object_key,object_version,sha256,size,uploaded_by,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)", m.ID, key, version, staged.sha256, staged.size, a.User.ID, time.Now().UTC()); e != nil {
 		return e
 	}
+	if _, e = tx.ExecContext(ctx, "INSERT INTO media_artifact_integrity(media_id) VALUES($1)", m.ID); e != nil {
+		return e
+	}
 	updatedAt := nextMediaUpdate(m.UpdatedAt)
 	if _, e = tx.ExecContext(ctx, "UPDATE media_items SET updated_at=$2 WHERE id=$1", m.ID, updatedAt); e != nil {
 		return e
@@ -201,30 +204,58 @@ func (s *Store) checkedMediaFile(ctx context.Context, tx *sql.Tx, m *MediaItemSu
 	if s.MediaObjects == nil {
 		return nil, apiError(503, "MEDIA_STORAGE_UNAVAILABLE", "Media storage is not configured")
 	}
-	body, e := s.MediaObjects.Open(ctx, key, version)
-	if e != nil {
-		return nil, apiError(503, "MEDIA_OBJECT_UNAVAILABLE", "Pinned media object is unavailable")
-	}
-	defer body.Close()
-	staged, e := stageMedia(body)
-	if e != nil {
+	if e = mediaIntegrityGate(ctx, tx, m.ID, false); e != nil {
 		return nil, e
 	}
-	if staged.sha256 != m.Sha256 || staged.size != m.Size || staged.sha256 != sha || staged.size != size {
-		staged.close()
-		return nil, apiError(422, "MEDIA_DIGEST_MISMATCH", "Stored media digest or size no longer matches its approved identity")
+	var last error
+	var mismatch *mediaIntegrityFailure
+	consecutive := 0
+	for attempt := 1; attempt <= mediaReadAttempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		body, err := s.MediaObjects.Open(ctx, key, version)
+		if err != nil {
+			last = apiError(503, "MEDIA_OBJECT_UNAVAILABLE", "Pinned media object is unavailable")
+		} else {
+			staged, err := stageMedia(body)
+			body.Close()
+			if err != nil {
+				last = err
+			} else if staged.sha256 != m.Sha256 || staged.size != m.Size || staged.sha256 != sha || staged.size != size {
+				consecutive++
+				mismatch = &mediaIntegrityFailure{cause: apiError(422, "MEDIA_DIGEST_MISMATCH", "Stored media digest or size differs from its approved identity"), mediaID: m.ID, objectVersion: version, expectedSHA: m.Sha256, observedSHA: staged.sha256, expectedSize: m.Size, observedSize: staged.size}
+				staged.close()
+				last = mismatch.cause
+			} else {
+				// Hold the final integrity gate through the caller's admission commit.
+				if err = mediaIntegrityGate(ctx, tx, m.ID, true); err != nil {
+					staged.close()
+					return nil, err
+				}
+				return staged, nil
+			}
+		}
+		if attempt < mediaReadAttempts {
+			if err := mediaRetryWait(ctx, attempt); err != nil {
+				return nil, err
+			}
+		}
 	}
-	return staged, nil
+	if consecutive == mediaReadAttempts {
+		return nil, mismatch
+	}
+	return nil, last
 }
 
 // DownloadMedia returns a private verified temporary file. The caller owns its
 // close/removal. Raw object credentials/URLs are never returned to browsers.
-func (s *Store) DownloadMedia(ctx context.Context, a *AuthSession, project *ProjectSummary, id, trace string) (*os.File, *MediaItemSummary, error) {
+func (s *Store) DownloadMedia(ctx context.Context, a *AuthSession, project *ProjectSummary, id, trace string) (file *os.File, item *MediaItemSummary, resultErr error) {
 	tx, e := s.beginControl(ctx, a)
 	if e != nil {
 		return nil, nil, e
 	}
-	defer tx.Rollback()
+	defer func() { tx.Rollback(); resultErr = s.RecordMediaIntegrityFailure(ctx, resultErr, a.User.ID, trace) }()
 	if project == nil && !a.User.IsAdmin {
 		return nil, nil, ErrForbidden
 	}

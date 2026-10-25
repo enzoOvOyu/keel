@@ -18,24 +18,25 @@ import (
 // the execution channels (WP-1.4/WP-1.5).
 
 type MediaItemSummary struct {
-	ArtifactStored bool            `json:"artifact_stored"`
-	ID             string          `json:"id"`
-	ScopeKey       string          `json:"scope_key"`
-	Type           string          `json:"type"`
-	Name           string          `json:"name"`
-	Version        string          `json:"version"`
-	Sha256         string          `json:"sha256"`
-	Size           int64           `json:"size"`
-	Arch           string          `json:"arch"`
-	OsScope        string          `json:"os_scope"`
-	HwScope        string          `json:"hw_scope"`
-	Deps           json.RawMessage `json:"deps"`
-	ManifestRef    string          `json:"manifest_ref"`
-	State          string          `json:"state"`
-	UploadedBy     string          `json:"uploaded_by"`
-	ApprovedBy     string          `json:"approved_by"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
+	ArtifactQuarantined bool            `json:"artifact_quarantined"`
+	ArtifactStored      bool            `json:"artifact_stored"`
+	ID                  string          `json:"id"`
+	ScopeKey            string          `json:"scope_key"`
+	Type                string          `json:"type"`
+	Name                string          `json:"name"`
+	Version             string          `json:"version"`
+	Sha256              string          `json:"sha256"`
+	Size                int64           `json:"size"`
+	Arch                string          `json:"arch"`
+	OsScope             string          `json:"os_scope"`
+	HwScope             string          `json:"hw_scope"`
+	Deps                json.RawMessage `json:"deps"`
+	ManifestRef         string          `json:"manifest_ref"`
+	State               string          `json:"state"`
+	UploadedBy          string          `json:"uploaded_by"`
+	ApprovedBy          string          `json:"approved_by"`
+	CreatedAt           time.Time       `json:"created_at"`
+	UpdatedAt           time.Time       `json:"updated_at"`
 }
 
 type RegisterMediaInput struct {
@@ -119,14 +120,14 @@ func (s *Store) ListMedia(ctx context.Context, a *AuthSession, project *ProjectS
 	if e = tx.QueryRowContext(ctx, "SELECT count(*) FROM media_items WHERE "+filter, scope).Scan(&out.Total); e != nil {
 		return out, e
 	}
-	rows, e := tx.QueryContext(ctx, "SELECT id,scope_key,type,name,version,sha256,size,arch,os_scope,hw_scope,deps,manifest_ref,state,uploaded_by,coalesce(approved_by,''),created_at,updated_at,EXISTS(SELECT 1 FROM media_artifacts ma WHERE ma.media_id=media_items.id) FROM media_items WHERE "+filter+" ORDER BY type,name,version DESC LIMIT $2 OFFSET $3", scope, p.PageSize, p.Offset())
+	rows, e := tx.QueryContext(ctx, "SELECT id,scope_key,type,name,version,sha256,size,arch,os_scope,hw_scope,deps,manifest_ref,state,uploaded_by,coalesce(approved_by,''),created_at,updated_at,EXISTS(SELECT 1 FROM media_artifacts ma WHERE ma.media_id=media_items.id),EXISTS(SELECT 1 FROM media_artifact_integrity mi WHERE mi.media_id=media_items.id AND mi.quarantined_at IS NOT NULL) FROM media_items WHERE "+filter+" ORDER BY type,name,version DESC LIMIT $2 OFFSET $3", scope, p.PageSize, p.Offset())
 	if e != nil {
 		return out, e
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var m MediaItemSummary
-		if e = rows.Scan(&m.ID, &m.ScopeKey, &m.Type, &m.Name, &m.Version, &m.Sha256, &m.Size, &m.Arch, &m.OsScope, &m.HwScope, &m.Deps, &m.ManifestRef, &m.State, &m.UploadedBy, &m.ApprovedBy, &m.CreatedAt, &m.UpdatedAt, &m.ArtifactStored); e != nil {
+		if e = rows.Scan(&m.ID, &m.ScopeKey, &m.Type, &m.Name, &m.Version, &m.Sha256, &m.Size, &m.Arch, &m.OsScope, &m.HwScope, &m.Deps, &m.ManifestRef, &m.State, &m.UploadedBy, &m.ApprovedBy, &m.CreatedAt, &m.UpdatedAt, &m.ArtifactStored, &m.ArtifactQuarantined); e != nil {
 			return out, e
 		}
 		out.Items = append(out.Items, m)
@@ -191,7 +192,7 @@ func (s *Store) TransitionMedia(ctx context.Context, a *AuthSession, project *Pr
 	return s.TransitionMediaChecked(ctx, a, project, mediaID, MediaTransitionInput{State: target}, trace)
 }
 
-func (s *Store) TransitionMediaChecked(ctx context.Context, a *AuthSession, project *ProjectSummary, mediaID string, input MediaTransitionInput, trace string) (*MediaItemSummary, error) {
+func (s *Store) TransitionMediaChecked(ctx context.Context, a *AuthSession, project *ProjectSummary, mediaID string, input MediaTransitionInput, trace string) (item *MediaItemSummary, resultErr error) {
 	target := input.State
 	if input.ExpectedUpdatedAt != nil && input.ExpectedUpdatedAt.IsZero() {
 		return nil, apiError(400, "VALIDATION_ERROR", "expected_updated_at must be a non-zero timestamp")
@@ -205,7 +206,7 @@ func (s *Store) TransitionMediaChecked(ctx context.Context, a *AuthSession, proj
 	if e != nil {
 		return nil, e
 	}
-	defer tx.Rollback()
+	defer func() { tx.Rollback(); resultErr = s.RecordMediaIntegrityFailure(ctx, resultErr, a.User.ID, trace) }()
 	if e = requireMediaManager(ctx, tx, a, project); e != nil {
 		return nil, e
 	}
@@ -261,8 +262,8 @@ func mediaForScope(ctx context.Context, tx *sql.Tx, mediaID, scope string) (*Med
 		return nil, apiError(404, "MEDIA_NOT_FOUND", "Media not found")
 	}
 	var m MediaItemSummary
-	e := tx.QueryRowContext(ctx, "SELECT id,scope_key,type,name,version,sha256,size,arch,os_scope,hw_scope,deps,manifest_ref,state,uploaded_by,coalesce(approved_by,''),created_at,updated_at,EXISTS(SELECT 1 FROM media_artifacts ma WHERE ma.media_id=media_items.id) FROM media_items WHERE id=$1 FOR UPDATE", mediaID).
-		Scan(&m.ID, &m.ScopeKey, &m.Type, &m.Name, &m.Version, &m.Sha256, &m.Size, &m.Arch, &m.OsScope, &m.HwScope, &m.Deps, &m.ManifestRef, &m.State, &m.UploadedBy, &m.ApprovedBy, &m.CreatedAt, &m.UpdatedAt, &m.ArtifactStored)
+	e := tx.QueryRowContext(ctx, "SELECT id,scope_key,type,name,version,sha256,size,arch,os_scope,hw_scope,deps,manifest_ref,state,uploaded_by,coalesce(approved_by,''),created_at,updated_at,EXISTS(SELECT 1 FROM media_artifacts ma WHERE ma.media_id=media_items.id),EXISTS(SELECT 1 FROM media_artifact_integrity mi WHERE mi.media_id=media_items.id AND mi.quarantined_at IS NOT NULL) FROM media_items WHERE id=$1 FOR UPDATE", mediaID).
+		Scan(&m.ID, &m.ScopeKey, &m.Type, &m.Name, &m.Version, &m.Sha256, &m.Size, &m.Arch, &m.OsScope, &m.HwScope, &m.Deps, &m.ManifestRef, &m.State, &m.UploadedBy, &m.ApprovedBy, &m.CreatedAt, &m.UpdatedAt, &m.ArtifactStored, &m.ArtifactQuarantined)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil, apiError(404, "MEDIA_NOT_FOUND", "Media not found")
 	}

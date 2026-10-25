@@ -1,5 +1,6 @@
 export const mediaTranslations = {
   zh: {
+    mediaQuarantined: "已隔离：固定制品连续摘要不符，请退役并登记复核新版本。",
     mediaManifestExport: "导出签名清单",
     mediaManifestExportDetail: "重新核对批准状态及全部依赖的实际文件，导出含固定版本、架构、摘要与审批记录的平台签名清单。",
     mediaManifestDownload: "验证并下载清单",
@@ -81,6 +82,7 @@ export const mediaTranslations = {
     mediaExists: "同类型、名称与版本的介质已存在。",
   },
   en: {
+    mediaQuarantined: "Quarantined: repeated pinned artifact digest mismatch. Retire and register a reviewed new version.",
     mediaManifestExport: "Export signed manifest",
     mediaManifestExportDetail: "Recheck current approval and every pinned artifact, then export platform-signed versions, architectures, digests and approval records.",
     mediaManifestDownload: "Verify and download manifest",

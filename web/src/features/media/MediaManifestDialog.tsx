@@ -17,7 +17,7 @@ export function MediaManifestDialog({ projectId, item, onClose, onDone }: {
    setTimeout(() => URL.revokeObjectURL(url), 1000); onDone()
   })
  }}>
-  {action.error?.code === 'MEDIA_SIGNING_UNAVAILABLE' ? <p role="alert" className="field-error">{t('mediaSigningUnavailable')}</p> : action.error?.code?.startsWith('MEDIA_DEPENDENCY_') ? <p role="alert" className="field-error">{t('mediaDependencyBlocked')}</p> : <ActionError error={action.error} />}
+  {action.error?.code === 'MEDIA_ARTIFACT_QUARANTINED' ? <p role="alert" className="field-error">{t('mediaQuarantined')}</p> : action.error?.code === 'MEDIA_SIGNING_UNAVAILABLE' ? <p role="alert" className="field-error">{t('mediaSigningUnavailable')}</p> : action.error?.code?.startsWith('MEDIA_DEPENDENCY_') ? <p role="alert" className="field-error">{t('mediaDependencyBlocked')}</p> : <ActionError error={action.error} />}
   <dl className="action-target"><dt>{t('mediaName')}</dt><dd>{item.name} · {item.version}</dd><dt>{t('mediaSha256')}</dt><dd>{item.sha256}</dd></dl>
   <MediaDependencySummary refs={item.deps.artifacts} />
   <p className="impact-notice">{t('mediaManifestTrust')}</p>

@@ -359,7 +359,7 @@ function TransitionDialog({
       onSubmit={(event) => void submit(event)}
       onClose={onClose}
     >
-      {action.error?.code === "MEDIA_CONFLICT" ? <p role="alert" className="field-error">{t("mediaConflict")}</p> : action.error?.code?.startsWith("MEDIA_DEPENDENCY_") ? <p role="alert" className="field-error">{t("mediaDependencyBlocked")}</p> : <ActionError error={action.error} />}
+      {action.error?.code === "MEDIA_ARTIFACT_QUARANTINED" ? <p role="alert" className="field-error">{t("mediaQuarantined")}</p> : action.error?.code === "MEDIA_CONFLICT" ? <p role="alert" className="field-error">{t("mediaConflict")}</p> : action.error?.code?.startsWith("MEDIA_DEPENDENCY_") ? <p role="alert" className="field-error">{t("mediaDependencyBlocked")}</p> : <ActionError error={action.error} />}
       <dl className="action-target">
         <dt>{t("mediaName")}</dt>
         <dd>
@@ -502,6 +502,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
                           >
                             {t("media_state_" + item.state)}
                           </span>
+                          {item.artifact_quarantined && <span className="cell-subtitle field-error">{t("mediaQuarantined")}</span>}
                           <span className="cell-subtitle">
                             {t(
                               item.artifact_stored
@@ -518,8 +519,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
                                 <button
                                   key={target}
                                   disabled={
-                                    target === "verified" &&
-                                    !item.artifact_stored
+                                    (target === "verified" && !item.artifact_stored) || (target !== "retired" && item.artifact_quarantined)
                                   }
                                   className={
                                     target === "retired" ? "danger-text" : ""
@@ -548,7 +548,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
                                 </Button>
                               )}
                             {item.state === "approved" &&
-                              item.artifact_stored && (
+                              item.artifact_stored && !item.artifact_quarantined && (
                                 <><a href={mediaDownloadURL(projectId, item.id)}>
                                   {t("mediaDownload")}
                                 </a><Button variant="ghost" size="sm" onClick={() => setManifestExport(item)}>{t("mediaManifestExport")}</Button></>

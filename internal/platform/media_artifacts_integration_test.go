@@ -91,6 +91,22 @@ func TestMediaArtifactsLifecycleAndIntegrity(t *testing.T) {
 		objects.data[key] = []byte("trusted bytes")
 	}
 	objects.mu.Unlock()
+	if _, e = s.TransitionMedia(ctx, reviewer, p, m.ID, "approved", "test"); e == nil {
+		t.Fatal("restored quarantined source approved")
+	} else {
+		assertErrorCode(t, e, "MEDIA_ARTIFACT_QUARANTINED")
+	}
+	if _, e = s.TransitionMedia(ctx, reviewer, p, m.ID, "retired", "test"); e != nil {
+		t.Fatal(e)
+	}
+	input.Version = "replacement-v1"
+	m, e = s.IngestMedia(ctx, uploader, p, input, bytes.NewBufferString("trusted bytes"), "test")
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.TransitionMedia(ctx, uploader, p, m.ID, "verified", "test"); e != nil {
+		t.Fatal(e)
+	}
 	if _, e = s.TransitionMedia(ctx, reviewer, p, m.ID, "approved", "test"); e != nil {
 		t.Fatal(e)
 	}

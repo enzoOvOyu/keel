@@ -43,8 +43,8 @@ func mediaArtifactDependencies(raw json.RawMessage) ([]MediaArtifactDependency, 
 func mediaDependencyRecord(ctx context.Context, tx *sql.Tx, id string) (MediaItemSummary, error) {
 	var out MediaItemSummary
 	err := tx.QueryRowContext(ctx, `SELECT id,scope_key,type,name,version,sha256,size,arch,deps,state,coalesce(approved_by,''),updated_at,
- EXISTS(SELECT 1 FROM media_artifacts a WHERE a.media_id=m.id)
- FROM media_items m WHERE id=$1 FOR SHARE`, id).Scan(&out.ID, &out.ScopeKey, &out.Type, &out.Name, &out.Version, &out.Sha256, &out.Size, &out.Arch, &out.Deps, &out.State, &out.ApprovedBy, &out.UpdatedAt, &out.ArtifactStored)
+ EXISTS(SELECT 1 FROM media_artifacts a WHERE a.media_id=m.id),EXISTS(SELECT 1 FROM media_artifact_integrity mi WHERE mi.media_id=m.id AND mi.quarantined_at IS NOT NULL)
+ FROM media_items m WHERE id=$1 FOR SHARE`, id).Scan(&out.ID, &out.ScopeKey, &out.Type, &out.Name, &out.Version, &out.Sha256, &out.Size, &out.Arch, &out.Deps, &out.State, &out.ApprovedBy, &out.UpdatedAt, &out.ArtifactStored, &out.ArtifactQuarantined)
 	if errors.Is(err, sql.ErrNoRows) {
 		return out, apiError(422, "MEDIA_DEPENDENCY_UNAVAILABLE", "A pinned media dependency is unavailable")
 	}
@@ -95,6 +95,9 @@ func mediaDependencyClosure(ctx context.Context, tx *sql.Tx, root *MediaItemSumm
 			}
 			if child.State != "approved" || !child.ArtifactStored {
 				return apiError(422, "MEDIA_DEPENDENCY_UNAVAILABLE", "A pinned media dependency is not approved and stored")
+			}
+			if child.ArtifactQuarantined {
+				return apiError(422, "MEDIA_DEPENDENCY_QUARANTINED", "A pinned media dependency is quarantined")
 			}
 			if child.Sha256 != ref.SHA256 {
 				return apiError(422, "MEDIA_DEPENDENCY_IDENTITY_MISMATCH", "A pinned dependency digest differs from its registered identity")
