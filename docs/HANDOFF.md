@@ -722,3 +722,7 @@ WP-1.10接续PRD登记外部引用，复用现有manifest_ref及§53固定绑定
 定向证据：/tmp/keel-media-filter-final-integration.log、/tmp/keel-media-oxjx20r3退出0，真实PG隔离根源筛除race6.219s，实际PG/MinIO/API/浏览器覆盖25草稿之前分页、字面%/_/反斜杠、版本大小写搜索、SQL注入样式零命中、准确计数/第二页、amd64/arm64/noarch、重复/非法查询、项目/全局/匿名/Viewer/跨项目拒绝、中英文及架构切换。第一次仅原生option等待可见性错误，改成等待DOM附着后通过，未改业务规则。受影响host Go race/vet与最终npm build通过；目录来源补充改动后的完整集成/发布后补。两份fabric草稿原样保留，WP/P1保持partial。
 
 §57完整实际集成通过：/tmp/keel-media-filter-full-integration.log、/tmp/keel-media-zp8yh_60，真实PG platform race46.459s及mediaartifact/mediamanifest/mediasource通过，14组HTTP/浏览器退出0，包含全局目录批准来源的更新语义和隔离/关联行/依赖/来源/归档/矩阵全回归。沿用受影响vet、最终前端构建；无变动的容量与硬件不重复。§56精确发布镜像另在network=none、只读根文件系统、匹配操作员UID、无数据库环境下执行两条归档命令通过，/tmp/keel-media-rjmmufqq/image-bundle-proof保留证据；3817277 run40159454541及交接222a3b1 run40159720296已查询completed/success。无迁移，准备确切提交候选/3000发布。
+
+**§57 发布完成**：功能代码 `6a534b019e18f1badc47e4b9eaef2a110308897d` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:75da877baf396ca7f9f9420aa183fb738ed8b51aec2ea11ee8800349ac09b031`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T04:01:37.221550+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
+
+无迁移，运行库38条迁移记录；保留旧镜像 `keel:3817277f67a6a73c0e11e0404073add4d0b738b4`。保留兼容旧镜像。不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T035901Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40160202413记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
