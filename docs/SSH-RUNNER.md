@@ -111,3 +111,5 @@ keel-admin ssh-key-revoke --project PROJECT_ID --id KEY_ID --expected-version 1 
 
 
 只读启动浏览器验证 `scripts/check-ssh-launch-browser.mjs` 由真实PG/HTTP/回环SSH fixture驱动，先实际安装/证明新域钥并显式切换vault，再以项目DE登录提交identity和wait。第一次POST实际创建后明确注入丢响应，重试必须返回原执行；页面403是明确故障注入，Viewer隐藏来自真实权限。中英390宽及目标长标识换行纳入检查。CI使用单独keel_test_ssh_ui库运行同一用例；不启用生产SSH。
+
+已安装域钥只读repair的真实回归见 `internal/taskrunner/domain_repair_integration_test.go`：覆盖临时凭据标签伪装在创建/批准/执行阶段的拒绝、派发前配置变化零远端工作、精确vault修复与远端终态后撤销拒绝信任投影，所有路径保留原公开域身份。该证明不覆盖目标旧钥删除或完整轮换。

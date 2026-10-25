@@ -1,13 +1,13 @@
 # 当前开发状态
 
-更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～67。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～68。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
-## 当前恢复入口（2026-10-25 08:13 UTC）
+## 当前恢复入口（2026-10-25 08:20 UTC）
 
-- 唯一工作区`/opt/keel`，分支`dev/p1-network-bom`。3000运行`c346d232bcf5caab504fa00e3d60dc5fe93eaa46`，镜像`sha256:0ed80cec3d4b5c3c90203b9fb39e48247d7c0c678535ab69039e78aafd929af9`，健康及八页真实登录/公钥列表/受限角色API复验通过。046已应用，运行库43条迁移；旧schema42镜像不可直接回切，备份恢复另走批准流程。
+- 唯一工作区`/opt/keel`，分支`dev/p1-network-bom`。3000运行`d20899486e1220ec016f1fbfc1e0c058471fd514`，镜像`sha256:1b3821ff8745921497bcd2b932ec8f2fab2b63fc75b0b0b82cfca18d559d94a6`，健康及八页真实登录/公钥列表/受限角色API复验通过。046已应用，运行库43条迁移；旧schema42镜像不可直接回切，备份恢复另走批准流程。
 - A3/WP-1.5新增独立批准的受控非root公钥安装，强制helper条目追加保持客户内容，新域钥全新SSH握手查询原回执才写真实互信。unknown保持资源隔离、恢复不重装；安装前或证明后撤销均阻断信任。实际PG/SSH/双人浏览器与全量检查通过，详见§64。
 - 生产worker、真实SSH、主密钥提供者、外部介质获取仍关闭；签名只读挂载保持。无生产域钥生成或真机操作，两份原fabric草稿未跟踪且未构建。
-- 用户两小时开发仍在继续。WP-1.14 OIDC/LDAP已提交发布（§65/66），生产仍关闭；SSH安装后的普通任务域钥绑定已提交发布（§67），正在补资产页普通只读SSH启动入口；root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、Agent与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
+- 用户两小时开发仍在继续。WP-1.14 OIDC/LDAP已提交发布（§65/66），生产仍关闭；SSH安装后的普通任务域钥绑定已提交发布（§67），资产页普通只读SSH启动入口已提交发布（§68），正在补后续只读repair域钥绑定安全回归；root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、Agent与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
 
 ## 1. 工作区与运行版本（早期快照，当前见上方）
 
@@ -902,3 +902,11 @@ SSH目标可显式选择vault提供者，仍保留原文件兼容；精确版本
 
 
 §68最终overlay make check `/tmp/keel-ssh-launch-make-check.log`退出0，包含Go vet/race、正式API类型生成、共享UI边界/版本选择、前端类型/生产构建；现有bundle提示保留。最终异步卸载防护后定向真实PG/SSH/HTTP/浏览器与独立CLI `/tmp/keel-ssh-launch-last-integration.log`、`/tmp/keel-ssh-integration-vlcxprwu`退出0。设计/diff检查通过；SSH文档入口已同步现有受控安装和已安装域钥强制绑定边界。
+
+
+§68发布：功能`d20899486e1220ec016f1fbfc1e0c058471fd514`已正常推送，确切提交归档镜像`sha256:1b3821ff8745921497bcd2b932ec8f2fab2b63fc75b0b0b82cfca18d559d94a6`于`2026-10-25T08:19:24.042661+00:00`发布3000。无新迁移，schema43保持；候选八页和受限API通过且版本证据匹配后才切换。3000同套复验 `/tmp/keel-launch-3000-smoke.log`、`/tmp/keel-launch-3000-read.log`退出0；私有证据`/home/ubuntu/.local/state/keel/releases/20261025T081802Z`。生产SSH/worker/主密钥提供者/外部介质获取/OIDC/LDAP仍关闭，未创建运行环境任务或密钥。CI状态随后按确切SHA核验。两小时开发继续只读repair域钥绑定的安全回归。
+
+
+## 69. 已安装域钥的只读repair安全回归
+
+新增真实PG/SSH用例 `TestSSHInstalledDomainReadOnlyRepairBoundaries`，不改变运行协议：实际受控安装和新钥证明后才明确注入broken状态；创建、批准、执行均拒绝复制域标签的临时文件钥，恢复精确vault后原批准流程可继续。正例实际trust.verify成功保留原公开域身份；排队后改回临时凭据零派发，实际远端终态后撤销域钥使修复失败且不投影互信。三组均核验原域身份未替换/清空。`/tmp/keel-domain-repair-first.log`、`/tmp/keel-ssh-integration-c49594yq`退出0（race 6.723s），包含独立CLI/helper进程；相关Go vet及race `/tmp/keel-domain-repair-race.log`退出0。此项为前批安全边界补充证据，不声明完整repair/轮换或H-1。3000仍运行§68功能版本，无新迁移。
