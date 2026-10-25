@@ -121,6 +121,11 @@ func (s *Service) sshTrustTargetTx(ctx context.Context, tx *sql.Tx, project, req
 		return t, conflict("SSH credential version or validity changed")
 	}
 	t.SSH = &b
+	if t.SSHInstallKey == nil {
+		if err := platform.EnforceSSHDomainBinding(ctx, tx, s.SSHRunner, project, t.ResourceKey); err != nil {
+			return t, err
+		}
+	}
 	if t.SSHInstallKey != nil {
 		expiry := expires
 		t.SSHTrustExpiresAt = &expiry
@@ -239,8 +244,11 @@ func (s *Service) applySSHTrustReceipt(ctx context.Context, tx *sql.Tx, a Attemp
 		current, err := s.SSHRunner.Binding(t.ProjectID, t.ResourceKey)
 		valid = valid && err == nil && current == *t.SSH
 	}
+	if valid && t.SSHInstallKey == nil {
+		valid = platform.EnforceSSHDomainBinding(ctx, tx, s.SSHRunner, t.ProjectID, t.ResourceKey) == nil
+	}
 	if valid {
-		result, err := tx.ExecContext(ctx, `UPDATE machines m SET ssh_trust='established',ssh_trust_source='ssh',host_key_fingerprint=$3,trust_updated_at=now() WHERE m.id=$1 AND m.ssh_trust=$4 AND (m.ssh_trust<>'established' OR m.ssh_trust_source<>'ssh') AND EXISTS(SELECT 1 FROM project_assets a WHERE a.project_id=$2 AND a.machine_id=m.id AND a.version=$5 AND a.state='provisioned')`, t.ResourceKey, t.ProjectID, pin, expectedTrust, assetVersion)
+		result, err := tx.ExecContext(ctx, `UPDATE machines m SET ssh_trust='established',ssh_trust_source='ssh',host_key_fingerprint=$3,trust_updated_at=now(),ssh_domain_credential=CASE WHEN $6::jsonb<>'null'::jsonb THEN $6::jsonb ELSE ssh_domain_credential END WHERE m.id=$1 AND m.ssh_trust=$4 AND (m.ssh_trust<>'established' OR m.ssh_trust_source<>'ssh') AND EXISTS(SELECT 1 FROM project_assets a WHERE a.project_id=$2 AND a.machine_id=m.id AND a.version=$5 AND a.state='provisioned')`, t.ResourceKey, t.ProjectID, pin, expectedTrust, assetVersion, jsonBytes(t.SSHInstallKey))
 		if err != nil {
 			return err
 		}

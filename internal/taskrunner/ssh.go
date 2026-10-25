@@ -57,6 +57,25 @@ type InstallCredential struct {
 	PublicKey string    `json:"public_key"`
 }
 
+// CheckActiveCredential does not substitute a credential: the operator's normal
+// target binding must already select the exact proven vault key. Temporary file
+// credentials with matching labels are deliberately insufficient.
+func (s *SSH) CheckActiveCredential(ctx context.Context, project, machine string, credential InstallCredential) error {
+	ep, err := s.currentEndpoint(ctx, project+":"+machine)
+	if err != nil {
+		return ErrRejected
+	}
+	c := ep.config
+	if c.CredentialProvider != "vault" || c.PrivateKeyFile != "" || c.CredentialRef != credential.Ref || c.CredentialVersion != credential.Version || c.CredentialExpiresAt == nil || !c.CredentialExpiresAt.Equal(credential.ExpiresAt) {
+		return ErrRejected
+	}
+	public, err := installPublicIdentity(credential.PublicKey, project)
+	if err != nil || ssh.FingerprintSHA256(public) != ssh.FingerprintSHA256(ep.signer.PublicKey()) {
+		return ErrRejected
+	}
+	return nil
+}
+
 func (s *SSH) CheckInstallCredential(project, machine string, credential InstallCredential) error {
 	_, _, err := s.installEndpoint(context.Background(), project, machine, credential)
 	return err

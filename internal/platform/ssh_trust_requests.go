@@ -99,6 +99,11 @@ func (s *Store) validateSSHTrustTarget(ctx context.Context, tx *sql.Tx, x *SSHTr
 	if s.SSHRunner == nil {
 		return apiError(503, "SSH_DISABLED", "SSH execution is not configured")
 	}
+	if x.InstallKey == nil {
+		if err := EnforceSSHDomainBinding(ctx, tx, s.SSHRunner, x.ProjectID, x.MachineID); err != nil {
+			return err
+		}
+	}
 	binding, e := s.SSHRunner.Binding(x.ProjectID, x.MachineID)
 	if e != nil {
 		return apiError(409, "SSH_TRUST_BINDING_INVALID", "No valid configured SSH binding is available")

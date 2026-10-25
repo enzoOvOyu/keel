@@ -40,6 +40,9 @@ func (s *Service) sshTargetTx(ctx context.Context, tx *sql.Tx, project, machine 
 	if state != "provisioned" || trust != "established" || source != "ssh" || pin != b.HostKey {
 		return t, failure(409, "SSH_TRUST_REQUIRED", "Provisioned target with established matching host key is required")
 	}
+	if e = platform.EnforceSSHDomainBinding(ctx, tx, s.SSHRunner, project, machine); e != nil {
+		return t, e
+	}
 	return t, nil
 }
 

@@ -32,7 +32,7 @@ func (r installProofBarrierRunner) QueryInstalledCredential(ctx context.Context,
 	return o, err
 }
 
-func keyInstallAdmission(t *testing.T) (*trustAdmissionFixture, *platform.SSHDomainKey, string) {
+func keyInstallAdmission(t *testing.T) (*trustAdmissionFixture, *platform.SSHDomainKey, string, string) {
 	t.Helper()
 	f := newTrustAdmissionFixture(t)
 	dir := filepath.Join(f.ssh.root, "keys")
@@ -63,7 +63,7 @@ func keyInstallAdmission(t *testing.T) (*trustAdmissionFixture, *platform.SSHDom
 	}
 	f.ssh.runner = f.store.SSHRunner
 	f.service.SSHRunner = f.store.SSHRunner
-	return f, key, path
+	return f, key, path, master
 }
 
 func approvedInstall(t *testing.T, f *trustAdmissionFixture, key *platform.SSHDomainKey) *platform.SSHTrustRequest {
@@ -80,7 +80,7 @@ func approvedInstall(t *testing.T, f *trustAdmissionFixture, key *platform.SSHDo
 }
 
 func TestSSHKeyInstallRequiresFreshDomainKeyHandshake(t *testing.T) {
-	f, key, path := keyInstallAdmission(t)
+	f, key, path, _ := keyInstallAdmission(t)
 	r := approvedInstall(t, f, key)
 	x := f.execute(r, f.creator)
 	claim := f.claim(x.ID)
@@ -109,7 +109,7 @@ func TestSSHKeyInstallRequiresFreshDomainKeyHandshake(t *testing.T) {
 }
 
 func TestSSHKeyInstallUnknownCannotReplayOrClaimTrustBeforeNewKeyProof(t *testing.T) {
-	f, key, _ := keyInstallAdmission(t)
+	f, key, _, _ := keyInstallAdmission(t)
 	r := approvedInstall(t, f, key)
 	x := f.execute(r, f.creator)
 	claim := f.claim(x.ID)
@@ -136,8 +136,94 @@ func TestSSHKeyInstallUnknownCannotReplayOrClaimTrustBeforeNewKeyProof(t *testin
 	t.Log("PASS successful append with new-key rejection stays unknown/quarantined; actual fresh new-key query recovers once, without second run")
 }
 
+func TestSSHInstalledDomainBindingRejectsTemporaryAndRevokedCredentials(t *testing.T) {
+	f, key, _, master := keyInstallAdmission(t)
+	r := approvedInstall(t, f, key)
+	x := f.execute(r, f.creator)
+	if err := f.service.RunClaim(f.ctx, f.claim(x.ID)); err != nil {
+		t.Fatal(err)
+	}
+	var stored taskrunner.InstallCredential
+	var raw []byte
+	if err := f.store.DB.QueryRowContext(f.ctx, "SELECT ssh_domain_credential FROM machines WHERE id=$1", f.machine).Scan(&raw); err != nil || json.Unmarshal(raw, &stored) != nil || stored.ID != key.ID || stored.PublicKey != key.PublicKey {
+		t.Fatal("actual installation did not persist public domain binding")
+	}
+	create := func() (*execution.Execution, error) {
+		return f.service.CreateSSH(f.ctx, f.creator, f.project.ID, execution.SSHCreateInput{MachineIDs: []string{f.machine}, Operation: "host.identity"}, platform.RandomID(), "domain-binding")
+	}
+	if _, err := create(); err == nil {
+		t.Fatal("temporary initialization credential admitted ordinary work")
+	}
+	if f.ssh.runs.Load() != 1 {
+		t.Fatal("binding refusal dispatched work")
+	}
+	if _, err := f.store.DB.ExecContext(f.ctx, "UPDATE machines SET ssh_domain_credential='null' WHERE id=$1", f.machine); err == nil {
+		t.Fatal("proven domain identity was cleared")
+	}
+	var config map[string][]taskrunner.TargetConfig
+	raw, err := os.ReadFile(f.ssh.configFile)
+	if err != nil || json.Unmarshal(raw, &config) != nil {
+		t.Fatal("fixture config unavailable")
+	}
+	target := &config["targets"][0]
+	target.CredentialRef = key.Ref
+	target.CredentialVersion = key.Version
+	target.CredentialExpiresAt = &key.ExpiresAt
+	configure := func() {
+		t.Helper()
+		data, e := json.Marshal(config)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if e = os.WriteFile(f.ssh.configFile, data, 0600); e != nil {
+			t.Fatal(e)
+		}
+		if e = f.store.ConfigureSSHRunner(f.ssh.configFile, master); e != nil {
+			t.Fatal(e)
+		}
+		f.ssh.runner = f.store.SSHRunner
+		f.service.SSHRunner = f.ssh.runner
+	}
+	configure()
+	if _, err = create(); err == nil {
+		t.Fatal("temporary file credential with copied domain labels was accepted")
+	}
+	target.CredentialProvider = "vault"
+	target.PrivateKeyFile = ""
+	configure()
+	normal, err := create()
+	if err != nil {
+		t.Fatal("proven domain binding unavailable after explicit operator switch", err)
+	}
+	beforeAuth := f.ssh.installedAuth.Load()
+	if err = f.service.RunClaim(f.ctx, f.claim(normal.ID)); err != nil {
+		t.Fatal(err)
+	}
+	if f.ssh.runs.Load() != 2 || f.ssh.installedAuth.Load() <= beforeAuth {
+		t.Fatal("ordinary work did not authenticate with the installed domain key")
+	}
+	pending, err := create()
+	if err != nil {
+		t.Fatal(err)
+	}
+	claim := f.claim(pending.ID)
+	if _, err = f.store.RevokeSSHDomainKey(f.ctx, f.project.ID, key.ID, 1, "revoke activated target credential"); err != nil {
+		t.Fatal(err)
+	}
+	if err = f.service.RunClaim(f.ctx, claim); err == nil {
+		t.Fatal("queued ordinary work used revoked domain credential")
+	}
+	if f.ssh.runs.Load() != 2 {
+		t.Fatal("revoked credential dispatched remote work")
+	}
+	if _, err = create(); err == nil {
+		t.Fatal("new execution admitted revoked domain key")
+	}
+	t.Log("PASS installed public identity persists; temporary and label-spoofed file access rejected; exact vault activation performs ordinary SSH; revocation blocks queued/new work")
+}
+
 func TestSSHKeyInstallRevocationBeforeDispatchBlocksMutation(t *testing.T) {
-	f, key, path := keyInstallAdmission(t)
+	f, key, path, _ := keyInstallAdmission(t)
 	r := approvedInstall(t, f, key)
 	x := f.execute(r, f.creator)
 	claim := f.claim(x.ID)
@@ -159,7 +245,7 @@ func TestSSHKeyInstallRevocationBeforeDispatchBlocksMutation(t *testing.T) {
 }
 
 func TestSSHKeyInstallRevocationAfterFreshProofCannotEstablishTrust(t *testing.T) {
-	f, key, _ := keyInstallAdmission(t)
+	f, key, _, _ := keyInstallAdmission(t)
 	r := approvedInstall(t, f, key)
 	x := f.execute(r, f.creator)
 	claim := f.claim(x.ID)
@@ -184,7 +270,7 @@ func TestSSHKeyInstallBrowserApprovalAndExecution(t *testing.T) {
 	if os.Getenv("KEEL_TEST_SSH_INSTALL_BROWSER_SCRIPT") == "" {
 		t.Skip("install browser script not configured")
 	}
-	f, key, _ := keyInstallAdmission(t)
+	f, key, _, _ := keyInstallAdmission(t)
 	server := httptest.NewUnstartedServer(nil)
 	origin := "http://" + server.Listener.Addr().String()
 	server.Config.Handler = httpapi.NewWithStore("ssh-key-install", os.Getenv("KEEL_TEST_SSH_STATIC_DIR"), f.store, platform.Config{Environment: "development", InsecureDevCookie: true, PublicOrigins: []string{origin}})

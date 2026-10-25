@@ -872,3 +872,15 @@ SSH目标可显式选择vault提供者，仍保留原文件兼容；精确版本
 §66发布：功能`cd5dc87cdbb86d63ccc61a48a98ec9f3ae5bdfd1`已正常推送GitHub，确切归档镜像`sha256:c76393b5a7ee563692a97de702392fb879dbed03b4a047cfbb46cc51d7a3a1e0`于`2026-10-25T07:53:24.722127+00:00`发布3000。候选八页/受限API通过并生成确切版本证据后才切换，修正后的门禁已生效。3000同套复验 `/tmp/keel-ldap-3000-smoke.log`、`/tmp/keel-ldap-3000-read.log`退出0；公开providers仅local，OIDC数组空/LDAP名空，生产未启用组织认证或真实SSH/worker/主密钥提供者。无新迁移，schema42保持；无生产账号或业务记录新增。最后浏览器/PG验证 `/tmp/keel-ldap-last-integration.log`、`/tmp/keel-ldap-integration-aqjdh2zq`退出0。证据`/home/ubuntu/.local/state/keel/releases/20261025T075131Z`。CI状态独立记录，不以本地检查代替。
 
 功能`43bb7d6f2b8ed9b05caf64ce475de8fd11fc2d5e`的GitHub CI run40173471981已核验completed/success。
+
+
+## 67. A3/WP-1.5：安装后的普通SSH域钥绑定
+
+代码核查发现§64虽然要求运维切到新vault凭据，但普通SSH仅核验已建立信任和host pin，仍可能使用原临时登录配置；已按PRD受控初始化边界修正。046以新钥实际证明事务在Machine持久记录公开域钥身份，历史资产保持null不补造证明；已证明身份不可清空。普通任务创建/派发、已有域钥的只读repair批准/执行/最终投影均检查当前项目、精确密钥版本/公钥/有效期/撤销及运维正常配置真正选择该vault提供者。临时文件凭据或复制引用标签均拒绝，运维显式切换后才可普通执行；不自动改配置/删除目标钥。
+
+定向真实PG/SSH `/tmp/keel-domain-binding-integration.log`、`/tmp/keel-ssh-integration-7l6gidve`退出0，证明安装身份持久化、拒绝清空、旧临时/伪标签文件凭据零派发、切vault后新钥实际握手普通host.identity，以及排队后撤销/后续准入拒绝。完整真实PG/SSH/HTTP/双人安装与原有浏览器/CLI-helper独立进程 `/tmp/keel-domain-binding-full-integration.log`、`/tmp/keel-ssh-integration-xf43ti5y`退出0。最终全量检查、046备份恢复演练、提交/CI和3000结果后续按实测补记。
+
+当前3000仍§66/schema42；046未应用，真实SSH/worker/主密钥提供者和组织认证均关闭。完整root首登/PXE/双钥轮换删除/目标撤销证明/Vault销毁/Agent仍不具备，相关WP/P1/FR-0继续partial。两份原fabric草稿不暂存/构建。
+
+
+§67最终全量检查 `/tmp/keel-domain-binding-make-check.log`退出0（Go vet/race、正式契约、UI/types/build；保留现有bundle提示），设计/diff检查通过。§65 OIDC功能CI run40173471981及§66 LDAP功能CI run40174367537均已核验completed/success。
