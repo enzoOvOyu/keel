@@ -9,6 +9,12 @@ import (
 )
 
 func TestBOMPackageGPUInventory(t *testing.T) {
+	for _, kind := range []string{"server", "compute-tray"} {
+		t.Run(kind, func(t *testing.T) { testBOMPackageGPUInventory(t, kind) })
+	}
+}
+
+func testBOMPackageGPUInventory(t *testing.T, rootKind string) {
 	s := integrationStore(t)
 	ctx := context.Background()
 	const password = "test-only-gpu-bom-password"
@@ -31,6 +37,9 @@ func TestBOMPackageGPUInventory(t *testing.T) {
 	var serverID string
 	for _, kind := range []string{"server", "nic", "switch", "optic_module", "gpu", "other-gpu"} {
 		category := kind
+		if kind == "server" {
+			category = rootKind
+		}
 		if kind == "other-gpu" {
 			category = "gpu"
 		}
@@ -42,6 +51,8 @@ func TestBOMPackageGPUInventory(t *testing.T) {
 		if kind == "server" {
 			serverID = model.ID
 			in.HwSpec = map[string]any{"gpu_count": 1, "gpu": "fixture-gpu"}
+			in.BomExpect = map[string]any{"nic_count": 1, "mac_prefixes": []string{"aa:bb:cc"}}
+			in.Slots = []ModelSlot{{SlotNo: 1, PcieSlot: "PCIe-1", ExpectNicModel: "fixture-nic", PanelPort: "p1", DefaultRole: "compute"}}
 		}
 		if kind == "nic" || kind == "switch" {
 			in.CapabilityMatrix = map[string]any{"ports": map[string]any{"1": map[string]any{"sub_type": "fixture-200g", "speed": "200G"}}}
@@ -85,6 +96,52 @@ func TestBOMPackageGPUInventory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A compute tray is still a physical machine, never a rack aggregate.
+	for _, kind := range []string{"rack", "switch"} {
+		wrong, e := s.CreateDeviceModel(ctx, actor, project, CreateDeviceModelInput{Name: "Invalid-root-" + kind, Kind: kind}, "test")
+		if e != nil {
+			t.Fatal(e)
+		}
+		spec := PublishModelVersionInput{}
+		if kind == "switch" {
+			spec.CapabilityMatrix = map[string]any{"ports": map[string]any{"1": map[string]any{"speed": "200G"}}}
+		}
+		v, e := s.PublishModelVersion(ctx, actor, project, wrong.ID, spec, "test")
+		if e != nil {
+			t.Fatal(e)
+		}
+		files := makeFiles("SN-1", ids["gpu"], "fixture-gpu", 1)
+		files["server/servers.csv"] = bytes.ReplaceAll(files["server/servers.csv"], []byte(ids["server"]), []byte(v.ID))
+		rehashBOMFixture(t, files)
+		checked, e := s.PreviewBOMPackage(ctx, actor, project, files)
+		found := false
+		if checked != nil {
+			for _, issue := range checked.Issues {
+				if issue.Code == "model_kind_mismatch" {
+					found = true
+				}
+			}
+		}
+		if e != nil || !found || checked.CanCommit || checked.PreviewToken != "" {
+			t.Fatalf("invalid root %s: %+v %v", kind, checked, e)
+		}
+		if _, e = s.CommitBOMPackage(ctx, actor, project, files, bomPreviewToken(actor, project.ID, files), "test"); e == nil {
+			t.Fatal("invalid root kind committed")
+		}
+	}
+	wide := []byte("SN,hostname,model_name,MAC,port_name,rail\nTRAY-WIDE,tray-wide,fixture-server,aa:bb:cc:dd:ee:09,p1,0\n")
+	legacy, e := s.PreviewLegacyBOM(ctx, actor, project, "BOM-BATCH-P1-20261024-1", wide)
+	found := false
+	if legacy != nil {
+		for _, issue := range legacy.Issues {
+			if issue.Code == "legacy_gpu_inventory_unverifiable" && issue.ModelVersionRef == newer.ID && issue.BOMLineNo == 2 {
+				found = true
+			}
+		}
+	}
+	if e != nil || !found || legacy.CanCommit {
+		t.Fatalf("wide %s inferred GPU inventory: %+v %v", rootKind, legacy, e)
+	}
 	for _, parent := range []string{"SN-1", "1", machine} {
 		files := makeFiles(parent, ids["gpu"], "user-label-is-not-authority", 1)
 		preview, e := s.PreviewBOMPackage(ctx, actor, project, files)
@@ -101,9 +158,20 @@ func TestBOMPackageGPUInventory(t *testing.T) {
 		{"extra", ids["gpu"], "fixture-gpu", "model_gpu_count_mismatch", 2, ""},
 		{"forged subtype", ids["other-gpu"], "fixture-gpu", "model_gpu_type_mismatch", 1, ""},
 		{"new version", ids["gpu"], "fixture-gpu", "model_gpu_count_mismatch", 1, newer.ID},
+		{"NIC slot", ids["gpu"], "fixture-gpu", "model_nic_slot_invalid", 1, ""},
+		{"MAC prefix", ids["gpu"], "fixture-gpu", "model_mac_prefix_mismatch", 1, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			files := makeFiles(machine, tc.ref, tc.subtype, tc.quantity)
+			if tc.name == "NIC slot" {
+				files["server/server_components.csv"] = bytes.ReplaceAll(files["server/server_components.csv"], []byte(",1,NIC-1,"), []byte(",99,NIC-1,"))
+			}
+			if tc.name == "MAC prefix" {
+				for _, path := range []string{"server/server_components.csv", "server/server_ports.csv"} {
+					files[path] = bytes.ReplaceAll(files[path], []byte("aa:bb:cc:dd:ee:01"), []byte("00:11:22:dd:ee:01"))
+				}
+			}
+			rehashBOMFixture(t, files)
 			if tc.version != "" {
 				files["server/servers.csv"] = bytes.ReplaceAll(files["server/servers.csv"], []byte(ids["server"]), []byte(tc.version))
 				rehashBOMFixture(t, files)

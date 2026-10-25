@@ -65,7 +65,7 @@ func analyzeLegacyBOMTx(ctx context.Context, tx *sql.Tx, project *ProjectSummary
 			continue
 		}
 		var version string
-		err = tx.QueryRowContext(ctx, `SELECT v.id FROM device_models m JOIN device_model_versions v ON v.model_id=m.id WHERE m.name=$1 AND m.kind='server' AND m.state='active' AND m.scope_key IN('global',$2) ORDER BY CASE WHEN m.scope_key=$2 THEN 0 ELSE 1 END,v.version DESC LIMIT 1`, m.ModelName, "project:"+project.ID).Scan(&version)
+		err = tx.QueryRowContext(ctx, `SELECT v.id FROM device_models m JOIN device_model_versions v ON v.model_id=m.id WHERE m.name=$1 AND m.kind IN('server','compute-tray') AND m.state='active' AND m.scope_key IN('global',$2) ORDER BY CASE WHEN m.scope_key=$2 THEN 0 ELSE 1 END,v.version DESC LIMIT 1`, m.ModelName, "project:"+project.ID).Scan(&version)
 		if errors.Is(err, sql.ErrNoRows) {
 			out.Issues = append(out.Issues, BOMPackageIssue{Severity: "BLOCK", File: "legacy/wide.csv", BOMLineNo: folded.ServerLines[m.SerialNumber], Field: "model_name", Code: "model_version_not_found"})
 			continue

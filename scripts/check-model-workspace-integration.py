@@ -36,8 +36,9 @@ try:
  credentials=work/'credentials.json';credentials.write_text(json.dumps(dict(base_url='http://127.0.0.1:3102',username='modeladmin',password=pw)))
  env.update(KEEL_AUTH_BROWSER_CREDENTIALS_FILE=str(credentials),KEEL_WORKSPACE_EVIDENCE_DIR=str(work))
  checks=[(['python3','scripts/check-model-integration.py'],'model-http'),(['python3','scripts/check-model-import.py'],'import-http'),(['node','scripts/check-model-import-browser.mjs'],'import-browser'),(['node','scripts/check-model-publication-browser.mjs'],'publication-browser')]
+ checks.append((['node','scripts/check-compute-tray-browser.mjs'],'compute-tray-browser'))
  checks.append((['node','scripts/check-global-models-browser.mjs'],'global-models-browser'))
- for command,name in (checks[-1:] if args.global_models_only else checks[-2:-1] if args.publication_only else checks):
+ for command,name in (checks[-1:] if args.global_models_only else checks[-3:-2] if args.publication_only else checks):
   output=checked(command,env);(work/(name+'.log')).write_text(output);print(output,flush=True)
 finally:
  if api is not None:

@@ -130,7 +130,8 @@ func analyzeBOMPackageTx(ctx context.Context, tx *sql.Tx, project *ProjectSummar
 			case "fabric/optic_modules.csv":
 				wantKind = "optic_module"
 			}
-			if wantKind != "" && model.kind != wantKind {
+			matchesKind := model.kind == wantKind || (wantKind == "server" && model.kind == "compute-tray")
+			if wantKind != "" && !matchesKind {
 				add(file, row.Line, "model_ref", "model_kind_mismatch")
 			}
 		}

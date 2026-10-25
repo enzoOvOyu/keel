@@ -30,7 +30,7 @@ func validateServerModelHardware(ctx context.Context, tx *sql.Tx, projectID stri
 		ref := server.Values["model_ref"]
 		fact, cached := cache[ref]
 		if !cached {
-			err := tx.QueryRowContext(ctx, `SELECT v.bom_expect,v.hw_spec FROM device_model_versions v JOIN device_models m ON m.id=v.model_id WHERE v.id=$1 AND m.kind='server' AND (m.scope_key='global' OR m.scope_key=$2)`, ref, "project:"+projectID).Scan(&fact.raw, &fact.hardware)
+			err := tx.QueryRowContext(ctx, `SELECT v.bom_expect,v.hw_spec FROM device_model_versions v JOIN device_models m ON m.id=v.model_id WHERE v.id=$1 AND m.kind IN('server','compute-tray') AND (m.scope_key='global' OR m.scope_key=$2)`, ref, "project:"+projectID).Scan(&fact.raw, &fact.hardware)
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return nil, err
 			}

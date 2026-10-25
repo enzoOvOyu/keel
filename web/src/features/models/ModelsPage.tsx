@@ -34,7 +34,7 @@ function CreateModelDialog({ projectId, onClose, onDone }: { projectId: string |
   return <ActionDialog title={t('modelsCreate')} description={t('modelsCreateDetail')} busy={action.busy} confirm={t(action.busy ? 'saving' : 'modelsCreate')} onSubmit={(event) => void submit(event)} onClose={onClose}>
     <ActionError error={action.error} />{validation && <p className="field-error" role="alert">{validation}</p>}
     <div className="field"><label htmlFor="model-name">{t('modelName')}</label><input id="model-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={120} required disabled={action.busy} /></div>
-    <div className="field"><label htmlFor="model-kind">{t('modelKind')}</label><select id="model-kind" value={kind} onChange={(event) => setKind(event.target.value as typeof kind)} disabled={action.busy}>{(['rack', 'server', 'compute-tray', 'switch', 'nic', 'gpu', 'psu', 'bmc', 'optic_module'] as const).map((value) => <option key={value} value={value}>{t('model_kind_' + value)}</option>)}</select></div>
+    <div className="field"><label htmlFor="model-kind">{t('modelKind')}</label><select id="model-kind" value={kind} onChange={(event) => setKind(event.target.value as typeof kind)} disabled={action.busy}>{(['rack', 'server', 'compute-tray', 'switch', 'nic', 'gpu', 'psu', 'bmc', 'optic_module'] as const).map((value) => <option key={value} value={value}>{t('model_kind_' + value.replaceAll('-', '_'))}</option>)}</select></div>
     <p className="impact-notice">{t('modelImmutableNotice')}</p>
   </ActionDialog>
 }
@@ -204,7 +204,7 @@ function ModelsContent({ project }: { project: ReturnType<typeof useProject> | n
       {models.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : models.data && <>
         <div className="table-scroll" tabIndex={0} role="region" aria-label={t('modelsTitle')}><table className="data-table"><thead><tr><th scope="col">{t('modelName')}</th><th scope="col">{t('modelKind')}</th><th scope="col">{t('status')}</th><th scope="col">{t('recordVersion')}</th><th scope="col">{t('actions')}</th></tr></thead>
           <tbody>{models.data.items.map((model) => <tr key={model.id}><td><strong>{model.name}</strong><span className="cell-subtitle mono-value">{model.scope_key === 'global' ? t(projectId === null ? 'modelsGlobalScope' : 'modelsInheritedReadOnly') : t('modelsProjectScope')}</span></td>
-            <td>{t('model_kind_' + model.kind)}</td><td><span className={`status-label ${model.state === 'active' ? 'enabled' : 'disabled'}`}>{t('model_state_' + model.state)}</span></td><td>v{model.latest_version}</td>
+            <td>{t('model_kind_' + model.kind.replaceAll('-', '_'))}</td><td><span className={`status-label ${model.state === 'active' ? 'enabled' : 'disabled'}`}>{t('model_state_' + model.state)}</span></td><td>v{model.latest_version}</td>
             <td><div className="table-actions"><button onClick={() => setExpanded(expanded === model.id ? null : model.id)}>{t('modelsVersions')}</button>
               {manage && model.scope_key === (projectId === null ? 'global' : 'project:' + projectId) && model.state === 'active' && <button onClick={() => { setSuccess(''); setPublish(model) }}>{t('modelsPublish')}</button>}
               {manage && model.scope_key === (projectId === null ? 'global' : 'project:' + projectId) && model.state === 'active' && <button className="danger-text" onClick={() => { setSuccess(''); setRetire(model) }}>{t('modelsRetire')}</button>}</div></td></tr>)}</tbody></table>
