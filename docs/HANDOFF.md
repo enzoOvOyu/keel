@@ -1084,3 +1084,5 @@ WP-1.10→WP-1.7补齐OS引导角色：os rootfs及直接固定的kernel/initrd/
 继续开发仍留在 /opt/keel、dev/p1-network-bom，使用同一宿主 Go overlay/GOMEMLIMIT/GOMAXPROCS。当前 P1 仍 partial：下一项核心链是共享 Execution 下的冻结装机请求与独占资源/重装权限，之后受控 ProxyDHCP/iPXE/可信分发、同请求的一次性回调和真实 SSH 首连/修复；不能把预览或通知送达当安装成功。Agent 全任务目录/介质传输/完整部署轮换、通知邮件/IM与页面、完整留存恢复及规模/真机判据继续按实际依赖推进。不要为 FR-0 强行提前实现 P2/P4。
 
 完整测试/浏览器/镜像按用户要求待 P1 实现里程碑集中进行，当前只准备复用的一次构建生命周期批量入口及现有独立 Agent/SSH/MinIO/浏览器 runners。不要提前 push 触发全量 CI，也不要把任何新用例写作 PASS。运行3000仍为§74的6668a72/schema46；生产worker/Agent/SSH/主密钥/组织认证/外部介质源与新Webhook均未启用。两个原fabric草稿保持未跟踪、排除编译且不提交。后续提交号及时间窗结束另补记。
+
+§78本地提交补记（2026-10-25 17:36:00 UTC）：本窗口5笔源码提交为 `0daed4b`（续签/OS准备/主密钥）、`47c3370`（审计留证）、`f75aaff`（失效预览及浏览器入口）、`3fcdd4b`（cloud-init选项约束）、`b04bab5`（执行Webhook）；`2448b5b`记录下一步事务/共用设备资源落点。全部仅本地，没有 push/CI/发布。最后check-design.py退出0，源迁移为49。除两份原fabric草稿外业务源码已提交；PROVISIONING明确下一单元需在同一创建事务复用准入，实际机器独占device:machine资源，禁止另造队列或落回sim空间。用户要求的集中测试仍待P1实现完成，本轮未开始新集成/浏览器/镜像验收。
