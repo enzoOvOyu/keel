@@ -14,6 +14,20 @@
 - 生产Agent listener、worker、HTTP任务准入、真实SSH、主密钥提供者、外部介质获取仍关闭；签名只读挂载保持。无生产域钥生成或真机操作，两份原fabric草稿未跟踪且未构建。
 - 此前开发批次的功能与修正均已提交推送，最终有效CI通过。WP-1.14 OIDC/LDAP已提交发布（§65/66），生产仍关闭；SSH安装后的普通任务域钥绑定已提交发布（§67），资产页普通只读SSH启动入口已提交发布（§68），后续只读repair域钥绑定安全回归及测试顺序修复已完成（§69）；H-1旧执行包的认证/指纹/缺证据假成功路径已改为离线证据校验（§70）；root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、完整Agent任务目录/自动安装/续签与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
 
+## 本次收工与下次恢复（2026-10-25 14:41 UTC）
+
+用户要求今天停止开发。没有继续运行的开发子代理；3000及数据服务保留运行，不停服务、不清库、不清卷。收工复核3000 healthy，/healthz为6668a72c1adaeb2444b8c28a3f4db4f038db49dd。收工前HEAD为8a930a2（交接文档），功能提交为6668a72，已推送；功能提交的CI与发布证据见§74。除以下两份原草稿外没有未提交业务改动。
+
+下次按以下顺序恢复，不能从历史章节的旧“下一步”重新开始：
+
+1. 工作区固定/opt/keel，分支dev/p1-network-bom。先读AGENTS.md、README.md、本文件当前恢复入口和§71～74、DEPLOYMENT，再定向读PRD/ARCHITECTURE/DESIGN-SYSTEM/IMPLEMENTATION-PLAN对应章节。检查git status、远端差异、实际进程和3000版本，保护已有服务。
+2. 当前主线是WP-1.5双通道Runner的剩余能力。Agent的注册/mTLS/心跳、host.identity/host.wait、统一执行/回执/unknown恢复及网页入口已经完成本阶段交付，不要重复实现。UI旧控件迁移和JetBrains Mono已经完成，不再当待办。
+3. 建议下一完整实施单元优先核对Agent短期证书生命周期：现有证书仅一小时，无自动续签；依据正式设计确定续签、撤销/到期及断线恢复契约，再实现和验证。此建议是接续顺序，不表示设计细节或验收已完成；不把自动安装、PXE或完整监控当作已有前提。完整任务目录/介质分发、安装/systemd、遥测等继续按WP依赖分批推进，不能为关闭FR-0强拉后续功能。
+4. 宿主所有Go命令仍须GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json、GOMEMLIMIT=768MiB；若overlay不存在，先恢复草稿排除措施。internal/platform/fabric_precheck.go与internal/platform/migrations/026_fabric_precheck.sql是原始未跟踪草稿，不能直接编译、迁移、提交或删除。镜像用精确提交git archive构建。
+5. 实际软件验证只使用自有随机keel_test_*隔离库；真实Agent/SSH、主密钥、OIDC/LDAP和外部介质获取默认关闭。不得为展示UI而生成生产CA/token、启用真实设备写入或伪造成功。检查监听归属后再启动开发服务，不能凭历史记录假定5173是Keel。
+
+整体状态：项目/RBAC/审计、BOM/型号/介质/参数、Flow/Execution及共享工作台已有可运行基础；网络域已有BOM、规划/就绪自检、Kea/ZTP与N-S5读取等阶段性增量，完整Golden/健康/Readiness及后续链条未完成。SSH/Agent均已有真实软件协议验证的受限执行子集，完整bootstrap/repair/PXE/凭据生命周期、任务目录、规模与真机PoC仍缺。WP-1.5、P1和跨阶段FR-0保持partial，不按页面数量或旧标签估算完成百分比。
+
 ## 1. 工作区与运行版本（早期快照，当前见上方）
 
 | 项目 | 当前记录 |
