@@ -1,5 +1,6 @@
 SHELL := /bin/sh
-.PHONY: check build integration dev-api dev-web dev-worker up logs
+APP_VERSION ?= development
+.PHONY: check build build-agent generate-agent-proto integration dev-api dev-web dev-worker up logs
 check:
 	python3 scripts/check-design.py
 	python3 -m unittest discover -s poc/h1 -p 'test_*.py'
@@ -17,6 +18,16 @@ build:
 	go build -trimpath -o bin/keel-worker ./cmd/keel-worker
 	go build -trimpath -o bin/keel-sim ./cmd/keel-sim
 	go build -trimpath -o bin/keel-ssh-runner ./cmd/keel-ssh-runner
+	go build -trimpath -ldflags="-X main.version=$(APP_VERSION)" -o bin/keel-agent ./cmd/keel-agent
+build-agent:
+	mkdir -p bin/linux-amd64 bin/linux-arm64
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w -X main.version=$(APP_VERSION)" -o bin/linux-amd64/keel-agent ./cmd/keel-agent
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w -X main.version=$(APP_VERSION)" -o bin/linux-arm64/keel-agent ./cmd/keel-agent
+generate-agent-proto:
+	test "$$(protoc --version)" = 'libprotoc 3.21.12'
+	test "$$(protoc-gen-go --version)" = 'protoc-gen-go v1.36.12'
+	test "$$(protoc-gen-go-grpc --version)" = 'protoc-gen-go-grpc 1.5.1'
+	protoc --go_out=. --go_opt=module=github.com/enzoOvOyu/keel --go-grpc_out=. --go-grpc_opt=module=github.com/enzoOvOyu/keel api/agent/v1/agent.proto
 dev-api:
 	sh scripts/dev-api.sh
 dev-worker:

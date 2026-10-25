@@ -201,3 +201,7 @@ schema39镜像不能直接连接schema40库，保留数据修复前进；备份�
 ## 可选 LDAP 组织账号
 
 默认关闭。固定DN Bind、受保护配置及只读目录挂载、CA/主机名验证、无本地兜底和目录撤权边界见 [LDAP](LDAP.md)。目录口令不进入配置/数据库；配置变化需重启。
+
+## Agent 身份基础（可选，默认关闭）
+
+WP-1.5 的一次性注册、短期mTLS与连接心跳见 [AGENT-IDENTITY](AGENT-IDENTITY.md)。迁移047后须重新授予受限角色的列级消费/行锁权限；未设置 `KEEL_AGENT_IDENTITY_FILE` 时不创建listener。Compose只提供可选只读配置挂载，不发布新端口。未交付自动安装、任务Runner、遥测或证书续签，不能据此签署完整P1验收。真实PG/TLS/gRPC/CLI验证使用 `python3 scripts/check-agent-integration.py` 的独立随机测试数据库，不操作运行库或物理设备。

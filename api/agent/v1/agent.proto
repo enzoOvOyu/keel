@@ -1,0 +1,39 @@
+syntax = "proto3";
+package keel.agent.v1;
+option go_package = "github.com/enzoOvOyu/keel/internal/agentproto;agentproto";
+
+// Identity/liveness increment only. No task execution or telemetry is admitted.
+// Enroll uses verified server TLS and a one-use secret delivered out of band.
+// Heartbeats additionally requires the issued, currently active client cert.
+service AgentIdentity {
+  rpc Enroll(EnrollRequest) returns (EnrollResponse);
+  rpc Heartbeats(stream Heartbeat) returns (stream HeartbeatAck);
+}
+message EnrollRequest {
+  string project_id = 1;
+  string machine_id = 2;
+  string serial_number = 3;
+  string agent_version = 4;
+  string enrollment_token = 5;
+  bytes csr_pem = 6;
+}
+message EnrollResponse {
+  string credential_id = 1;
+  bytes certificate_pem = 2;
+  bytes ca_certificate_pem = 3;
+  string expires_at = 4;
+}
+message Heartbeat {
+  string project_id = 1;
+  string machine_id = 2;
+  string serial_number = 3;
+  string agent_version = 4;
+  string boot_id = 5;
+  uint64 sequence = 6;
+}
+message HeartbeatAck {
+  string connection_id = 1;
+  uint64 sequence = 2;
+  string received_at = 3;
+  uint32 next_heartbeat_seconds = 4;
+}

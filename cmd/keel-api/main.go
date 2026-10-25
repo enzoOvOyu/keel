@@ -185,13 +185,28 @@ func main() {
 			listener net.Listener
 		}{bootSrv, bootListener})
 	}
-	results := make(chan error, len(servers))
+	agentServe, agentErr := optionalAgentIdentity(store)
+	if agentErr != nil {
+		for _, entry := range servers {
+			_ = entry.listener.Close()
+		}
+		slog.Error("Agent identity listener rejected")
+		os.Exit(1)
+	}
+	serverCount := len(servers)
+	if agentServe != nil {
+		serverCount++
+	}
+	results := make(chan error, serverCount)
+	if agentServe != nil {
+		go func() { results <- agentServe(ctx) }()
+	}
 	for _, entry := range servers {
 		go func(server *http.Server, listener net.Listener) { results <- serve(ctx, server, listener) }(entry.server, entry.listener)
 	}
 	first := <-results
 	stop()
-	for range len(servers) - 1 {
+	for range serverCount - 1 {
 		if next := <-results; next != nil && first == nil {
 			first = next
 		}

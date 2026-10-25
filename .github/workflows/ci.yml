@@ -39,15 +39,40 @@ jobs:
           if make check 2>&1 | tee /tmp/keel-ci-check.log; then exit 0; fi
           python3 -c 'from pathlib import Path; tail = Path("/tmp/keel-ci-check.log").read_text()[-12000:]; print("::error title=make check failed::" + tail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))'
           exit 1
-      - name: Compile Linux arm64 control-plane binaries
+      - name: Compile Linux arm64 control-plane and Agent binaries
         env:
           CGO_ENABLED: '0'
           GOOS: linux
           GOARCH: arm64
         run: |
+          set -euo pipefail
           keel_arm64_build_dir="$(mktemp -d /tmp/keel-arm64-build.XXXXXXXX)"
           trap 'rm -rf "$keel_arm64_build_dir"' EXIT
-          go build -trimpath -o "$keel_arm64_build_dir/" ./cmd/keel-api ./cmd/keel-admin ./cmd/keel-worker ./cmd/keel-sim ./cmd/keel-ssh-runner
+          go build -trimpath -o "$keel_arm64_build_dir/" ./cmd/keel-api ./cmd/keel-admin ./cmd/keel-worker ./cmd/keel-sim ./cmd/keel-ssh-runner ./cmd/keel-agent
+      - name: Compile Linux amd64 Agent binary
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          set -euo pipefail
+          keel_agent_build_dir="$(mktemp -d /tmp/keel-agent-build.XXXXXXXX)"
+          trap 'rm -rf "$keel_agent_build_dir"' EXIT
+          go build -trimpath -ldflags="-X main.version=$GITHUB_SHA" -o "$keel_agent_build_dir/keel-agent" ./cmd/keel-agent
+          "$keel_agent_build_dir/keel-agent" version
+      - name: Agent one-time enrollment, mTLS, CLI and restricted-role integration
+        env:
+          KEEL_TEST_AGENT_DATABASE_URL: postgresql://keel_test:isolated-ci-only@127.0.0.1:15433/keel_test_agent_ci?sslmode=disable
+        run: |
+          set -euo pipefail
+          docker exec '${{ job.services.postgres.id }}' createdb -U keel_test keel_test_agent_ci
+          keel_agent_test_dir="$(mktemp -d /tmp/keel-agent-test.XXXXXXXX)"
+          trap 'rm -rf "$keel_agent_test_dir"' EXIT
+          export KEEL_TEST_AGENT_ADMIN_BIN="$keel_agent_test_dir/keel-admin"
+          export KEEL_TEST_AGENT_AGENT_BIN="$keel_agent_test_dir/keel-agent"
+          go build -o "$KEEL_TEST_AGENT_ADMIN_BIN" ./cmd/keel-admin
+          go build -o "$KEEL_TEST_AGENT_AGENT_BIN" ./cmd/keel-agent
+          go test -p=1 -race -count=1 -v ./internal/agentidentity ./internal/platform -run '^TestAgent'
       - name: PostgreSQL authentication, authorization, and browser integration
         env:
           KEEL_ADMIN_BINARY: /tmp/keel-ci-admin

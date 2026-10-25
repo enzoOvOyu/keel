@@ -1,13 +1,13 @@
 # 当前开发状态
 
-更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～70。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～71。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-25 08:44 UTC）
 
 - 唯一工作区`/opt/keel`，分支`dev/p1-network-bom`。3000运行`d20899486e1220ec016f1fbfc1e0c058471fd514`，镜像`sha256:1b3821ff8745921497bcd2b932ec8f2fab2b63fc75b0b0b82cfca18d559d94a6`，健康及八页真实登录/公钥列表/受限角色API复验通过。046已应用，运行库43条迁移；旧schema42镜像不可直接回切，备份恢复另走批准流程。
 - A3/WP-1.5新增独立批准的受控非root公钥安装，强制helper条目追加保持客户内容，新域钥全新SSH握手查询原回执才写真实互信。unknown保持资源隔离、恢复不重装；安装前或证明后撤销均阻断信任。实际PG/SSH/双人浏览器与全量检查通过，详见§64。
 - 生产worker、真实SSH、主密钥提供者、外部介质获取仍关闭；签名只读挂载保持。无生产域钥生成或真机操作，两份原fabric草稿未跟踪且未构建。
-- 本轮两小时开发的功能与修正均已提交推送，最终有效CI通过。WP-1.14 OIDC/LDAP已提交发布（§65/66），生产仍关闭；SSH安装后的普通任务域钥绑定已提交发布（§67），资产页普通只读SSH启动入口已提交发布（§68），后续只读repair域钥绑定安全回归及测试顺序修复已完成（§69）；H-1旧执行包的认证/指纹/缺证据假成功路径已改为离线证据校验（§70）；root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、Agent与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
+- 本轮两小时开发的功能与修正均已提交推送，最终有效CI通过。WP-1.14 OIDC/LDAP已提交发布（§65/66），生产仍关闭；SSH安装后的普通任务域钥绑定已提交发布（§67），资产页普通只读SSH启动入口已提交发布（§68），后续只读repair域钥绑定安全回归及测试顺序修复已完成（§69）；H-1旧执行包的认证/指纹/缺证据假成功路径已改为离线证据校验（§70）；root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、Agent任务/自动安装/续签与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
 
 ## 1. 工作区与运行版本（早期快照，当前见上方）
 
@@ -939,3 +939,19 @@ CI诊断包装复核：ab36da7加入tee时未显式pipefail，可能掩盖make c
 
 
 最终GitHub门禁：功能/测试/执行包及显式pipefail均在`99f9625bb2d22eb6e6b99f8e863f4ed3e01f4db5`下，run40177456628已实际核验completed/success，覆盖全量检查、真实认证/浏览器、域钥SSH启动、OIDC/LDAP以及Compose容器构建/启动/健康。确切版本证据 `/tmp/keel-twohour-final-ci-proof.json`。3000继续运行已验证发布功能d208994，后续提交仅测试/执行包/CI/交接，无新运行逻辑或数据库迁移；不为文档重建镜像。原草稿保持未跟踪，真实SSH/worker/组织认证/外部介质获取仍关闭，P1/FR-0及相关缺口保持partial。
+
+
+## 71. A3/WP-1.5：Agent 一次性注册、mTLS 与连接心跳
+
+接续§70明确的下一实施单元，消费既有项目、Machine 与 provisioned ProjectAsset；运维显式预配隔离软件目标，不假定PXE/cloud-init或G3安装已经可用。新增正式protobuf契约、047及持久公开身份/连接表、受保护本地Ed25519 CA/CSR、owner CLI签发/取消一次性令牌与版本化撤销、可选独立gRPC listener及Linux amd64/arm64 keel-agent。数据库仅保存带域隔离的令牌摘要和公开证书；令牌只落新0600文件，Agent私钥在目标生成并在注册前持久化，不进入控制面、日志或Git。
+
+注册锁定令牌、重查项目/机器/SN/资产版本和CA，原子消费并审计，重放/错绑定/过期/取消均拒绝；证书仅clientAuth、固定URI SAN、一小时有效期。mTLS必须匹配已登记DER摘要；序号/boot ID/流内身份不可变，每次心跳和每2秒复核当前证书/资产。owner撤销中断已有流，不等TLS重连；活动连接保留，过期连接租约后才接新connection ID，旧连接不能续写。客户端采用真实Linux boot ID、2分钟流上限和临时错误退避，无自动注册/任务重放。应用角色可消费令牌、登记证书及连接，但无签发/撤销/删除身份记录权限，列级UPDATE只满足行锁，触发器阻断无撤销信息的证书改写。
+
+实际证据：`GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json GOMEMLIMIT=768MiB python3 scripts/check-agent-integration.py` 第三轮退出0，目录 `/tmp/keel-agent-integration-mz9h7uk8`，含秘密路径/CA/CSR边界、真实PG/TLS/gRPC八场景、实际keel-admin/keel-agent进程和受限SQL角色。注册并发消费仅一次，匿名/同CA未登记证书拒绝，重复序号/身份变化拒绝，在线撤销与幂等审计，CLI秘密零输出、防覆盖、交接失败取消均通过。前两轮失败定位为测试DSN将options空格编码成“+role”，现以独立role启动参数修正后实测；未放宽业务权限。CA/CSR专包race退出0 `/tmp/keel-agent-pki-tests.log`；双架构静态构建、amd64 version、Compose默认关闭及proto固定工具逐字节重现通过 `/tmp/keel-agent-build-wiring.log`。CI增加独立Agent数据库实际测试，不以缺环境Skip替代验证。
+
+全量make check、提交/CI和3000发布状态在后续补记。在此记录时3000仍§70的d208994/schema43，047尚未应用。生产Agent listener/worker/SSH/主密钥提供者/组织认证保持关闭，不生成生产CA/token，不向物理设备注册。原两份fabric草稿保持未跟踪、不暂存不构建。
+
+边界：仅身份与连接存活，不提供任务下发、遥测/CollectPolicy、文件分发、Agent自动安装/systemd、证书自动续签或CA双根轮换。版本是声明值；心跳不投影SSH/BMC互信、硬件健康或PXE/G3成功。过期或响应丢失按AGENT-IDENTITY的owner复核/撤销/新grant与新state目录恢复，不盲目重试。WP-1.5/F-1.2/S-3/P1与FR-0仍partial。下一步在该身份上接既有Execution/TaskAttempt/outbox/资源租约/fencing/持久回执的有界只读任务及断线对账；不另建执行队列，不顺带补未具备的FR-5.7安装链条。
+
+
+§71最终本地验证：全量 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json GOMEMLIMIT=768MiB make check` 已退出0（`/tmp/keel-agent-make-check.log`，含Go vet/race、正式契约/UI检查、类型及前端生产构建，已有大bundle提示保留）。独立审查进一步修正临时DB错误被映射成永久身份拒绝的问题：非sql.ErrNoRows的DB错误保留并返回Unavailable，当前流立即终止但可退避恢复；真实撤销/绑定失效仍PermissionDenied，注册仍禁止自动重试。最终专用runner `/tmp/keel-agent-final-integration.log`、`/tmp/keel-agent-integration-1bcmu4xy` 已退出0，新增第九个真实证书行锁超时场景验证流Unavailable且释放锁后原证书仍有效，其余八场景及受限角色全通过。修改后的相关包vet退出0（`/tmp/keel-agent-final-vet.log`）。后续只补发布证据，不重复已通过且不受影响的前端验证。
