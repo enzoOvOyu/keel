@@ -60,7 +60,7 @@ try{
  assert(Number(sql("SELECT count(*) FROM audits WHERE action IN ('fabric.delivery.export','fabric.delivery.download');"))>=6)
  assert.equal((await context.request.get('/api/v1/projects/'+'f'.repeat(32)+'/fabric/delivery/preflight')).status(),404)
  const outsider=randomUUID().replaceAll('-','');await post('/api/v1/projects',{name:'Delivery isolation',slug:'delivery-isolation-'+outsider.slice(0,8),description:''},201,{'Idempotency-Key':randomUUID()}).then(async p=>{assert.equal((await context.request.get('/api/v1/projects/'+p.id+'/fabric/delivery/exports/'+archive.id+'/download')).status(),404)})
- await page.goto(`/p/${c.management_project_id}/delivery`);await page.getByRole('heading',{name:'网络交付证据',exact:true}).waitFor();await page.getByRole('heading',{name:'N-S0',exact:true}).waitFor();assert.match(await page.locator('main').evaluate(e=>getComputedStyle(e).fontFamily),/Intel One Mono/)
+ await page.goto(`/p/${c.management_project_id}/delivery`);await page.getByRole('heading',{name:'网络交付证据',exact:true}).waitFor();await page.getByRole('heading',{name:'N-S0',exact:true}).waitFor();assert.match(await page.locator('main').evaluate(e=>getComputedStyle(e).fontFamily),/JetBrains Mono/)
  await page.getByRole('button',{name:'保存证据草稿',exact:true}).click();await page.getByRole('dialog').waitFor();await page.getByRole('button',{name:'确认保存',exact:true}).click();await page.waitForURL(url=>url.searchParams.get('tab')==='history');await page.getByRole('heading',{name:'导出历史',exact:true}).waitFor();assert((await page.getByRole('button',{name:'下载 JSON',exact:true}).count())>=4)
  await page.screenshot({path:process.env.KEEL_WORKSPACE_EVIDENCE_DIR+'/network-delivery-history.png',fullPage:true})
  await page.getByRole('button',{name:'交付复核',exact:true}).click();await page.locator('select').filter({has:page.locator('option[value="delivery"]')}).selectOption('delivery');assert(await page.getByRole('button',{name:'生成交付基线',exact:true}).isDisabled())
@@ -72,5 +72,5 @@ try{
  const anonymous=await browser.newContext({baseURL:c.base_url});assert.equal((await anonymous.request.get(delivery+'/preflight')).status(),401);await anonymous.close()
  assert.deepEqual(errors,[])
  console.log('PASS bounded mTLS review adapter rejects wrong scope, stale and fixture acceptance; current project Viewer may download, anonymous access denied')
- console.log('PASS concurrent idempotency, immutable history, export/download audit, cross-project archive denial, URL tabs, real confirmation/export/history browser flow, Intel font and disabled formal action')
+ console.log('PASS concurrent idempotency, immutable history, export/download audit, cross-project archive denial, URL tabs, real confirmation/export/history browser flow, JetBrains Mono font and disabled formal action')
 }finally{await browser.close()}

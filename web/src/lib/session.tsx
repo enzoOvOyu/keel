@@ -1,3 +1,4 @@
+import { Button } from '../components/ui/button'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -44,10 +45,10 @@ export function SessionBoundary({ children }: { children: ReactNode }) {
     const timer = window.setTimeout(() => void auth.refetch(), Math.max(1000, Math.min(remaining, 2_147_000_000)))
     return () => window.clearTimeout(timer)
   }, [auth.data?.expires_at])
-  if (auth.isError && !verifiedIdentity) return <main className="workspace-loading" role="alert"><h1>{t('sessionUnavailable')}</h1><p>{t('tryAgainDetail')}</p><button className="primary-button" onClick={() => void auth.refetch()}>{t('retry')}</button></main>
+  if (auth.isError && !verifiedIdentity) return <main className="workspace-loading" role="alert"><h1>{t('sessionUnavailable')}</h1><p>{t('tryAgainDetail')}</p><Button variant="default" className="primary-button" onClick={() => void auth.refetch()}>{t('retry')}</Button></main>
   if (!verifiedIdentity || !auth.data) return <main className="workspace-loading" role="status">{t('checkingSession')}</main>
   return <>
-    {auth.isError && <div className="workspace-banner" role="status">{t('sessionUnavailable')} <button className="text-button" onClick={() => void auth.refetch()}>{t('retry')}</button></div>}
+    {auth.isError && <div className="workspace-banner" role="status">{t('sessionUnavailable')} <Button variant="ghost" className="text-button" onClick={() => void auth.refetch()}>{t('retry')}</Button></div>}
     <SessionContext.Provider value={auth.data}>{children}</SessionContext.Provider>
   </>
 }

@@ -33,8 +33,8 @@
   --color-brand-line: #d8c5ed;
   --color-primary-readable: #7e22ce;
   --color-notice-background: #f8f5fd;
-  --font-sans: "Intel One Mono", "Noto Sans Mono CJK SC", "Sarasa Mono SC", "PingFang SC", "Microsoft YaHei", monospace;
-  --font-mono: "Intel One Mono", "Noto Sans Mono CJK SC", "Sarasa Mono SC", "PingFang SC", "Microsoft YaHei", monospace;
+  --font-sans: "JetBrains Mono", "Noto Sans Mono CJK SC", "Sarasa Mono SC", "PingFang SC", "Microsoft YaHei", monospace;
+  --font-mono: "JetBrains Mono", "Noto Sans Mono CJK SC", "Sarasa Mono SC", "PingFang SC", "Microsoft YaHei", monospace;
   --font-size-xs: 11px;
   --font-size-sm: 12px;
   --font-size-base: 13px;
@@ -119,8 +119,8 @@
   --color-brand-line: #4b3568;
   --color-primary-readable: #d8b4fe;
   --color-notice-background: #1a1830;
-  --font-sans: "Intel One Mono", "Noto Sans Mono CJK SC", "Sarasa Mono SC", "PingFang SC", "Microsoft YaHei", monospace;
-  --font-mono: "Intel One Mono", "Noto Sans Mono CJK SC", "Sarasa Mono SC", "PingFang SC", "Microsoft YaHei", monospace;
+  --font-sans: "JetBrains Mono", "Noto Sans Mono CJK SC", "Sarasa Mono SC", "PingFang SC", "Microsoft YaHei", monospace;
+  --font-mono: "JetBrains Mono", "Noto Sans Mono CJK SC", "Sarasa Mono SC", "PingFang SC", "Microsoft YaHei", monospace;
   --font-size-xs: 11px;
   --font-size-sm: 12px;
   --font-size-base: 13px;

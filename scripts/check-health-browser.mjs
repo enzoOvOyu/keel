@@ -40,7 +40,7 @@ try{
  readiness=await get(base+'/fabric/readiness')
  assert.equal(readiness.health.fabric_storm.state,'escalated');assert.equal(readiness.health.fabric_storm.affected_ports,3);assert.equal(readiness.health.fabric_storm.incomplete,false);assert.equal(readiness.health.fabric_storm.approximation,false);assert.equal(readiness.health.fabric_storm.affected_device_ids.length,2);assert.deepEqual(readiness.health.fabric_storm.applied_rule_ids,['LL-02@1']);assert.equal(readiness.g2_admission,false)
  console.log('PASS current evaluation boundary -> three distinct BOM ports across two devices -> Fabric escalation, versioned rule references, no extra health deduction or production admission')
- await page.goto(`/p/${c.management_project_id}/health`);await page.getByRole('heading',{name:'网络健康与就绪',exact:true}).waitFor();await page.getByRole('heading',{name:'LL-01～LL-07 无损判定',exact:true}).waitFor();await page.getByRole('heading',{name:'交换机日志分析',exact:true}).waitFor();assert.match(await page.locator('main').evaluate(e=>getComputedStyle(e).fontFamily),/Intel One Mono/);await page.screenshot({path:process.env.KEEL_WORKSPACE_EVIDENCE_DIR+'/network-health.png',fullPage:true});assert.deepEqual(errors,[])
+ await page.goto(`/p/${c.management_project_id}/health`);await page.getByRole('heading',{name:'网络健康与就绪',exact:true}).waitFor();await page.getByRole('heading',{name:'LL-01～LL-07 无损判定',exact:true}).waitFor();await page.getByRole('heading',{name:'交换机日志分析',exact:true}).waitFor();assert.match(await page.locator('main').evaluate(e=>getComputedStyle(e).fontFamily),/JetBrains Mono/);await page.screenshot({path:process.env.KEEL_WORKSPACE_EVIDENCE_DIR+'/network-health.png',fullPage:true});assert.deepEqual(errors,[])
  const storm=page.locator('.network-storm');await storm.getByRole('alert').waitFor();await storm.locator('summary').click();assert.equal(await storm.getByRole('button').count(),2)
  const affected=readiness.health.devices.find(d=>d.device.serial==='FIXTURE-SW-2').device
  await storm.getByRole('button',{name:affected.hostname||affected.serial,exact:true}).click();await page.waitForURL(url=>url.searchParams.get('device')===affected.id&&url.searchParams.get('rule')==='LL-02')
@@ -49,5 +49,5 @@ try{
  assert.equal((await context.request.get('/api/v1/projects/'+'f'.repeat(32)+'/fabric/readiness')).status(),404)
  console.log('PASS real API/DB + mTLS collector: absent evidence unknown, 30s readiness, G2 prerequisites without NP-3 cycle, fixture evidence cannot satisfy production gates')
  console.log('PASS complete typed per-priority windows -> seven normal rules, exact counter increment above 2^53 -> LL-01, QoS intent mismatch -> LL-05, score min rollup and bounded summary/detail')
- console.log('PASS real browser health/readiness workspace, device/rule URL filters, Intel font and cross-project denial')
+ console.log('PASS real browser health/readiness workspace, device/rule URL filters, JetBrains Mono font and cross-project denial')
 }finally{await browser.close()}

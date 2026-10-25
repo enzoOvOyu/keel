@@ -1,3 +1,7 @@
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -31,22 +35,22 @@ export function ManagementPlanning() {
  return <section className="management-planning panel" aria-label={t('managementPlanning')}>
   <h2>{t('managementPlanning')}</h2><p>{t('managementPlanningBoundary')}</p>
   {admin&&<details><summary>{t('managementImport')}</summary><p>{t('managementImportHint')}</p>
-   <div className="field"><label htmlFor="management-baseline-file">{t('managementBaselineFile')}</label><input id="management-baseline-file" type="file" accept=".json,application/json" disabled={action.busy} onChange={event=>void load(event.target.files?.[0])}/></div>
+   <div className="field"><Label className="ui:block ui:leading-normal" htmlFor="management-baseline-file">{t('managementBaselineFile')}</Label><Input id="management-baseline-file" type="file" accept=".json,application/json" disabled={action.busy} onChange={event=>void load(event.target.files?.[0])}/></div>
    {fileError&&<p role="alert">{t('managementFileInvalid')}</p>}
-   {baseline&&<><p>{baseline.version_ref} · {baseline.source_ref}</p><pre>{JSON.stringify(baseline.engineering_limits.management,null,2)}</pre><button className="secondary-button" disabled={action.busy||imported} onClick={()=>void action.run(()=>importNetworkBaseline(project.id,baseline,session.csrf_token)).then(result=>{if(result.ok)setImported(true)})}>{t('managementImportDraft')}</button></>}
-   <div className="field"><label htmlFor="management-customer-approval">{t('managementCustomerApproval')}</label><input id="management-customer-approval" value={customer} maxLength={300} onChange={event=>setCustomer(event.target.value)}/></div>
-   <div className="field"><label htmlFor="management-network-approval">{t('managementNetworkApproval')}</label><input id="management-network-approval" value={network} maxLength={300} onChange={event=>setNetwork(event.target.value)}/></div>
-   <button className="secondary-button" disabled={action.busy||approved||!ref||!customer.trim()||!network.trim()} onClick={()=>void action.run(()=>approveNetworkBaseline(project.id,ref,customer.trim(),network.trim(),session.csrf_token)).then(result=>{if(result.ok){setApproved(true);setPreview(null)}})}>{t('managementApprove')}</button>
+   {baseline&&<><p>{baseline.version_ref} · {baseline.source_ref}</p><pre>{JSON.stringify(baseline.engineering_limits.management,null,2)}</pre><Button variant="outline" className="secondary-button" disabled={action.busy||imported} onClick={()=>void action.run(()=>importNetworkBaseline(project.id,baseline,session.csrf_token)).then(result=>{if(result.ok)setImported(true)})}>{t('managementImportDraft')}</Button></>}
+   <div className="field"><Label className="ui:block ui:leading-normal" htmlFor="management-customer-approval">{t('managementCustomerApproval')}</Label><Input id="management-customer-approval" value={customer} maxLength={300} onChange={event=>setCustomer(event.target.value)}/></div>
+   <div className="field"><Label className="ui:block ui:leading-normal" htmlFor="management-network-approval">{t('managementNetworkApproval')}</Label><Input id="management-network-approval" value={network} maxLength={300} onChange={event=>setNetwork(event.target.value)}/></div>
+   <Button variant="outline" className="secondary-button" disabled={action.busy||approved||!ref||!customer.trim()||!network.trim()} onClick={()=>void action.run(()=>approveNetworkBaseline(project.id,ref,customer.trim(),network.trim(),session.csrf_token)).then(result=>{if(result.ok){setApproved(true);setPreview(null)}})}>{t('managementApprove')}</Button>
    {approved&&<p role="status">{t('managementApproved')}</p>}
   </details>}
-  <div className="management-plan-controls"><div className="field"><label htmlFor="management-baseline-ref">{t('managementBaselineRef')}</label><input id="management-baseline-ref" value={ref} maxLength={120} onChange={event=>{setRef(event.target.value);setPreview(null);setApproved(false)}}/></div><button className="secondary-button" disabled={action.busy||!ref.trim()} onClick={()=>void runPreview()}>{t('managementPreview')}</button><button className="secondary-button" disabled={!shown} onClick={download}>{t('managementExport')}</button></div>
+  <div className="management-plan-controls"><div className="field"><Label className="ui:block ui:leading-normal" htmlFor="management-baseline-ref">{t('managementBaselineRef')}</Label><Input id="management-baseline-ref" value={ref} maxLength={120} onChange={event=>{setRef(event.target.value);setPreview(null);setApproved(false)}}/></div><Button variant="outline" className="secondary-button" disabled={action.busy||!ref.trim()} onClick={()=>void runPreview()}>{t('managementPreview')}</Button><Button variant="outline" className="secondary-button" disabled={!shown} onClick={download}>{t('managementExport')}</Button></div>
   {action.error&&<p role="alert">{t('managementBlocked')}: {action.error.code} · {action.error.message}</p>}
   {latest.error&&<p role="alert">{t('managementLoadFailed')}{latest.error instanceof ApiError?` (${latest.error.code})`:''}</p>}
   {latest.isPending&&<p role="status">{t('managementLoading')}</p>}
   {!shown&&!latest.isPending&&<p>{t('managementEmpty')}</p>}
   {shown&&<><p>{shown.id?t('managementSaved'):t('managementPreviewOnly')} · {shown.baseline_ref} · {t('managementBatchSize')}: {shown.batch_size} · {shown.assignments.length} {t('managementDevices')}</p><p className="management-plan-digest">SHA256: <code>{shown.content_hash}</code></p>
-   <div className="management-plan-table"><table><thead><tr>{['managementSerial','managementHostname','managementAddress','managementGateway','managementBatch'].map(label=><th key={label}>{t(label)}</th>)}</tr></thead><tbody>{shown.assignments.map(item=><tr key={item.switch_id}><td>{item.serial_number}</td><td>{item.hostname}</td><td>{item.management_ip}</td><td>{item.gateway}</td><td>{item.batch_ref}</td></tr>)}</tbody></table></div>
-   <button disabled={action.busy||!preview||!canWrite} title={!canWrite?t('managementReadOnly'):undefined} onClick={()=>void save()}>{t('managementCommit')}</button>
+   <div className="management-plan-table"><Table scrollContainer={false} className="ui:text-xs"><TableHeader><TableRow>{['managementSerial','managementHostname','managementAddress','managementGateway','managementBatch'].map(label=><TableHead className="ui:px-3 ui:py-2" key={label}>{t(label)}</TableHead>)}</TableRow></TableHeader><TableBody>{shown.assignments.map(item=><TableRow key={item.switch_id}><TableCell className="ui:px-3 ui:py-2">{item.serial_number}</TableCell><TableCell className="ui:px-3 ui:py-2">{item.hostname}</TableCell><TableCell className="ui:px-3 ui:py-2">{item.management_ip}</TableCell><TableCell className="ui:px-3 ui:py-2">{item.gateway}</TableCell><TableCell className="ui:px-3 ui:py-2">{item.batch_ref}</TableCell></TableRow>)}</TableBody></Table></div>
+   <Button variant="default" disabled={action.busy||!preview||!canWrite} title={!canWrite?t('managementReadOnly'):undefined} onClick={()=>void save()}>{t('managementCommit')}</Button>
   </>}
  </section>
 }

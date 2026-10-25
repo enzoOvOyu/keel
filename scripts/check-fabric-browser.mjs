@@ -17,7 +17,7 @@ try{
  await page.getByText('交换机互联预校验通过',{exact:true}).waitFor();await page.getByRole('button',{name:'fixture-2',exact:true}).click();const drawer=page.getByRole('dialog',{name:'网络设备详情'});await drawer.waitFor();assert.equal(await drawer.getByRole('tab').count(),8)
  await drawer.getByRole('tab',{name:'运行',exact:true}).click();await drawer.getByText('FIXTURE-SW-3 · swp1',{exact:true}).waitFor()
  await drawer.getByRole('tab',{name:'光模块',exact:true}).click();await drawer.getByText('fixture-optic',{exact:false}).waitFor();assert.match(await drawer.textContent(),/未知/)
- assert.match(await drawer.evaluate(e=>getComputedStyle(e).fontFamily),/Intel One Mono/);assert.notEqual(await drawer.evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)')
+ assert.match(await drawer.evaluate(e=>getComputedStyle(e).fontFamily),/JetBrains Mono/);assert.notEqual(await drawer.evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)')
  await page.screenshot({path:process.env.KEEL_WORKSPACE_EVIDENCE_DIR+'/fabric-drawer.png',fullPage:true});await drawer.getByRole('button',{name:'关闭详情',exact:true}).click();assert(!new URL(page.url()).searchParams.get('device'))
  const portFault=await writeFile(c.fault_file,'fabric-wrong-port');void portFault
  const wrong=await context.request.post(base+'/fabric/collections',{headers});assert.equal(wrong.status(),201);const wrongReport=await wrong.json();assert(wrongReport.findings.some(f=>f.issue_type==='T2'&&f.verdict==='anomaly'))
@@ -36,5 +36,5 @@ try{
  await page.reload();await page.getByRole('button',{name:'fixture-2',exact:true}).waitFor();await page.screenshot({path:process.env.KEEL_WORKSPACE_EVIDENCE_DIR+'/fabric-page.png',fullPage:true});assert.deepEqual(errors,[])
  console.log('PASS mTLS collector -> typed immutable switch snapshots -> real PostgreSQL/API -> Fabric page/8-tab drawer')
  console.log('PASS reciprocal switch LLDP, server pending/NP-3 BLOCKED, wrong-port T2, absent evidence unknown, stale/foreign sample rejection without replacing evidence')
- console.log('PASS server-side DDM unknown without catalog thresholds, source labels, Intel font/theme surface, Viewer read-only, NE retest permission and cross-project denial')
+ console.log('PASS server-side DDM unknown without catalog thresholds, source labels, JetBrains Mono font/theme surface, Viewer read-only, NE retest permission and cross-project denial')
 }finally{await browser.close()}

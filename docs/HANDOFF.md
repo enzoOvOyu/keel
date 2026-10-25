@@ -977,3 +977,17 @@ CI诊断包装复核：ab36da7加入tee时未显式pipefail，可能掩盖make c
 - WP-1.5/FR-1/P1仍partial：完整任务目录、媒体传输、自动安装/systemd、续签/CA轮换、遥测、完整bootstrap/repair与硬件PoC仍待后续。下次前端改动须先完成shadcn/ui剩余整合与全局等宽字体。
 
 §72发布补记：功能提交`f02858cb30f6a70072895d2fdd3453b2eea3e6de`已推送，[GitHub CI/run40188674535](https://github.com/enzoOvOyu/keel/actions/runs/40188674535)全部成功。发布证据目录`/home/ubuntu/.local/state/keel/releases/20261025T112336Z`，pre048049.dump为321895字节；同PG独立克隆恢复并由schema44升级46，业务记录/SSH身份/受限角色/审计限制核验通过，克隆已删除。准确提交归档镜像为`sha256:edfe985b9c1d22f7c02b3ec3a600568e5c4db9b46c29ca8185d4f6e9c1914c51`，未纳入原fabric草稿；运行3000已切换，最终3000八页登录工作台、公共域钥和权限只读探针均通过，runtime-verified.json已记录实际结果；候选容器/临时环境文件已移除。生产worker/Agent listener/SSH/主密钥/OIDC/LDAP/外部介质fetch继续关闭，Agent生产三表仍空。保留旧镜像、原卷与备份，schema44镜像不能直接回切。
+
+## 73. 旧页面共享控件收尾与全局等宽字体（2026-10-25）
+
+所属WP-1.1/1.8，接续§23和用户§72排期。输入为已验证的16个自有shadcn基础组件、既有API/表单、DESIGN-SYSTEM令牌；不依赖未来业务。旧业务button/input/textarea/select/option/label/table族全部迁移，ui-legacy-elements.json实测files为空，预算收紧至零。NativeCheckbox保留原生表单/键盘/onChange；Table新增scrollContainer=false保留已有滚动区与虚拟布局。保持权限、事件、字段和禁用守卫；本轮没有把手写业务抽屉等同完整无障碍验收。
+
+按用户要求统一到本地JetBrains Mono v2.304四字重400/500/600/700，固定官方提交cd5227bd1f61dff3bbd6c814ceaf7ffd95e947d9，WOFF2/OFL/SHA256随应用；全局令牌、Monaco、DDM导出及HTML预加载一致，中文系统回退。未声称是RunPod字体。登录密码留白和项目切换器220/180/110px宽度已复核修正。
+
+实际本地证据：最终前端生成/版本输入守卫/TypeScript/Vite构建退出0，/tmp/keel-ui-preload-final-build.log；设计检查和四个字体SHA256核验通过。共享组件/明暗/忙碌Escape/焦点恢复通过/tmp/keel-shadcn-ba87r_f_；型号实际API/PG/浏览器全组通过/tmp/keel-models-35xsmcih；Flow真实发布/历史/回滚/Monaco和执行入口通过/tmp/keel-flows-985gz_pj；执行视图/矩阵/五Tab/SSE通过/tmp/keel-views-g7_vucf1；网络配置通过/tmp/keel-shell-5qsi93ax；ZTP收尾通过/tmp/keel-shell-s4r1u1c8。介质实际MinIO/API/浏览器各用例均输出PASS，/tmp/keel-media-8_en10_o；总进程退出143，不将该总运行标为退出0，保留各组证据。
+
+新增UI专用runner使用自有随机keel_test_ui库/API3109，验证实际登录/项目表单、14工作台、checkbox键盘与16px尺寸、弹窗焦点、本地字体四字重/等宽、明暗/移动端。开发中修正测试对空项目健康/交付阻断的误判、懒加载等待及控件中文名称；字体资源断言实际发现旧Intel preload并已修正；共享组件首轮受并行Vite重建干扰后在稳定构建通过，不能用失败轮冒充成功。最终总结果及GitHub/3000发布状态随后按实际补记。
+
+本轮无Go业务改动、无迁移/生产写入；schema46保持，两份原fabric草稿继续未跟踪且不构建。WP-1.8全部UX、WP-1.5/P1与FR-0仍partial。Agent完整任务/安装/续签、PXE、完整repair和真机验证不因UI整合而记完成。
+
+§73最终本地补记：新增UI全链最终退出0，/tmp/keel-ui-tj9usmy8，覆盖14页面/登录项目表单/复选框键盘及16px/焦点恢复/本地四字重/等宽/明暗/移动端，确认没有旧Intel字体请求。先前一轮Chromium在并行检查期间内存紧张崩溃，不计通过；仅将本轮已结束的自有测试二进制移至磁盘证据目录，日志和截图保留，UI runner后续直接在该目录构建，串行复验通过。Fabric真实协议/页面及8-tab抽屉/tmp/keel-shell-2feg40hi、规则编辑/版本/发布/tmp/keel-shell-9ys7cnbf均退出0。共享UI及业务页面测试不是完整无障碍或硬件验收。

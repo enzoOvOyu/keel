@@ -16,8 +16,8 @@ try{
  await page.getByRole('heading',{name:'真实设备开通会话',exact:true}).waitFor()
  await page.getByText('尚无真实设备复验会话；协议夹具不会生成真实可管理状态。',{exact:true}).waitFor()
  assert.equal(await page.getByRole('button',{name:'下载待审批管理清单',exact:true}).isDisabled(),true)
- assert.match(await page.locator('#workspace-content').evaluate(e=>getComputedStyle(e).fontFamily),/Intel One Mono/)
+ assert.match(await page.locator('#workspace-content').evaluate(e=>getComputedStyle(e).fontFamily),/JetBrains Mono/)
  assert.deepEqual(errors,[])
  await page.screenshot({path:process.env.KEEL_WORKSPACE_EVIDENCE_DIR+'/ztp-completion.png',fullPage:true})
- console.log('PASS real API/DB/browser ZTP management workspace, project-scoped receipts/device sessions, absent evidence cannot become managed, unapproved manifest export blocked, Intel font and foreign-project denial')
+ console.log('PASS real API/DB/browser ZTP management workspace, project-scoped receipts/device sessions, absent evidence cannot become managed, unapproved manifest export blocked, JetBrains Mono font and foreign-project denial')
 }finally{await browser.close()}

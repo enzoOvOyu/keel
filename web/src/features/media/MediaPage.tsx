@@ -1,5 +1,6 @@
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { MediaQuarantineDialog } from './MediaQuarantineDialog';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import type { MediaListFilter } from '../../lib/media';
 import { MediaCompatibilityImport, MediaCompatibilitySummary } from './MediaCompatibility';
 import type { MediaCompatibility } from '../../lib/media';
@@ -7,9 +8,9 @@ import { MediaSourceDialog } from './MediaSourceDialog';
 import { MediaManifestDialog } from './MediaManifestDialog';
 import { MediaDependencyPicker, MediaDependencySummary, type MediaDependencyChoice } from './MediaDependencyPicker';
 import { Workspace } from "../../components/Workspace";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -160,23 +161,23 @@ function RegisterMediaDialog({
         </p>
       )}
       <div className="field">
-        <label htmlFor="media-type">{t("mediaType")}</label>
-        <select
+        <Label htmlFor="media-type">{t("mediaType")}</Label>
+        <NativeSelect className="ui:min-h-11"
           id="media-type"
           value={type}
           onChange={(event) => setType(event.target.value as typeof type)}
           disabled={action.busy}
         >
           {types.map((value) => (
-            <option key={value} value={value}>
+            <NativeSelectOption key={value} value={value}>
               {t("media_type_" + value)}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
+        </NativeSelect>
       </div>
       <div className="field">
-        <label htmlFor="media-name">{t("mediaName")}</label>
-        <input
+        <Label htmlFor="media-name">{t("mediaName")}</Label>
+        <Input className="ui:h-11"
           id="media-name"
           value={name}
           onChange={(event) => setName(event.target.value)}
@@ -186,8 +187,8 @@ function RegisterMediaDialog({
         />
       </div>
       <div className="field">
-        <label htmlFor="media-version">{t("mediaVersion")}</label>
-        <input
+        <Label htmlFor="media-version">{t("mediaVersion")}</Label>
+        <Input className="ui:h-11"
           id="media-version"
           value={version}
           onChange={(event) => setVersion(event.target.value)}
@@ -211,20 +212,20 @@ function RegisterMediaDialog({
       ) : (
         <>
           <div className="field">
-            <label htmlFor="media-sha">{t("mediaSha256")}</label>
-            <input
+            <Label htmlFor="media-sha">{t("mediaSha256")}</Label>
+            <Input
               id="media-sha"
               value={sha256}
               onChange={(event) => setSha256(event.target.value)}
               maxLength={64}
               required
               disabled={action.busy}
-              className="mono-value"
+              className="mono-value ui:h-11"
             />
           </div>
           <div className="field">
-            <label htmlFor="media-size">{t("mediaSize")}</label>
-            <input
+            <Label htmlFor="media-size">{t("mediaSize")}</Label>
+            <Input className="ui:h-11"
               id="media-size"
               type="number"
               min={0}
@@ -237,22 +238,22 @@ function RegisterMediaDialog({
         </>
       )}
       <div className="field">
-        <label htmlFor="media-arch">{t("mediaArch")}</label>
-        <select
+        <Label htmlFor="media-arch">{t("mediaArch")}</Label>
+        <NativeSelect className="ui:min-h-11"
           id="media-arch"
           value={arch}
           onChange={(event) => setArch(event.target.value as typeof arch)}
           disabled={action.busy}
         >
-          <option value="amd64">amd64</option>
-          <option value="arm64">arm64</option>
-          <option value="noarch">noarch</option>
-        </select>
+          <NativeSelectOption value="amd64">amd64</NativeSelectOption>
+          <NativeSelectOption value="arm64">arm64</NativeSelectOption>
+          <NativeSelectOption value="noarch">noarch</NativeSelectOption>
+        </NativeSelect>
         <span className="field-hint">{t("mediaArchHint")}</span>
       </div>
       <div className="field">
-        <label htmlFor="media-os">{t("mediaOsScope")}</label>
-        <input
+        <Label htmlFor="media-os">{t("mediaOsScope")}</Label>
+        <Input className="ui:h-11"
           id="media-os"
           value={osScope}
           onChange={(event) => setOsScope(event.target.value)}
@@ -261,8 +262,8 @@ function RegisterMediaDialog({
         />
       </div>
       <div className="field">
-        <label htmlFor="media-hw">{t("mediaHwScope")}</label>
-        <input
+        <Label htmlFor="media-hw">{t("mediaHwScope")}</Label>
+        <Input className="ui:h-11"
           id="media-hw"
           value={hwScope}
           onChange={(event) => setHwScope(event.target.value)}
@@ -274,14 +275,14 @@ function RegisterMediaDialog({
       <MediaDependencyPicker projectId={projectId} arch={arch} selected={dependencies} onChange={setDependencies} disabled={action.busy} />
       {!upload && (
         <div className="field">
-          <label htmlFor="media-manifest">{t("mediaManifest")}</label>
-          <input
+          <Label htmlFor="media-manifest">{t("mediaManifest")}</Label>
+          <Input
             id="media-manifest"
             value={manifest}
             onChange={(event) => setManifest(event.target.value)}
             maxLength={200}
             disabled={action.busy}
-            className="mono-value"
+            className="mono-value ui:h-11"
           />
           <span className="field-hint">{t("mediaManifestHint")}</span>
         </div>
@@ -464,15 +465,15 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
           </Button>
         )}
         {manage && (
-          <button
-            className="primary-button"
+          <Button variant="default"
+            className="primary-button ui:min-h-11"
             onClick={() => {
               setSuccess("");
               setCreate(true);
             }}
           >
             {t("mediaCreate")}
-          </button>
+          </Button>
         )}
       </div>
       <form role="search" aria-label={t("mediaFilters")} className="ui:grid ui:gap-3 ui:mb-4 ui:sm:grid-cols-2 ui:lg:grid-cols-5" onSubmit={event => { event.preventDefault(); changeFilters({ ...filters, search: search.trim() }); }}>
@@ -502,31 +503,31 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
                 role="region"
                 aria-label={t(projectId === null ? "mediaGlobalTitle" : "mediaTitle")}
               >
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">{t("mediaName")}</th>
-                      <th scope="col">{t("mediaType")}</th>
-                      <th scope="col">{t("mediaArch")}</th>
-                      <th scope="col">{t("mediaState")}</th>
-                      <th scope="col">{t("createdAt")}</th>
-                      <th scope="col">{t("actions")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table scrollContainer={false} className="data-table">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="ui:align-top ui:p-4" scope="col">{t("mediaName")}</TableHead>
+                      <TableHead className="ui:align-top ui:p-4" scope="col">{t("mediaType")}</TableHead>
+                      <TableHead className="ui:align-top ui:p-4" scope="col">{t("mediaArch")}</TableHead>
+                      <TableHead className="ui:align-top ui:p-4" scope="col">{t("mediaState")}</TableHead>
+                      <TableHead className="ui:align-top ui:p-4" scope="col">{t("createdAt")}</TableHead>
+                      <TableHead className="ui:align-top ui:p-4" scope="col">{t("actions")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {media.data.items.map((item) => (
-                      <tr key={item.id}>
-                        <td>
+                      <TableRow key={item.id}>
+                        <TableCell className="ui:whitespace-normal ui:align-top ui:p-4">
                           <strong>{item.name}</strong>
                               {!!item.deps.artifacts?.length && <span className="cell-subtitle">{t("mediaDependencyCount", { count: item.deps.artifacts.length })}</span>}
                           {item.scope_key === "global" && <span className="cell-subtitle">{t(projectId === null ? "mediaGlobalScope" : "mediaGlobalInherited")}</span>}
                           <span className="cell-subtitle mono-value">
                             {item.version} · {item.sha256.slice(0, 12)}…
                           </span>
-                        </td>
-                        <td>{t("media_type_" + item.type)}</td>
-                        <td>{item.arch}</td>
-                        <td>
+                        </TableCell>
+                        <TableCell className="ui:whitespace-normal ui:align-top ui:p-4">{t("media_type_" + item.type)}</TableCell>
+                        <TableCell className="ui:whitespace-normal ui:align-top ui:p-4">{item.arch}</TableCell>
+                        <TableCell className="ui:whitespace-normal ui:align-top ui:p-4">
                           <span
                             className={`status-label ${item.state === "approved" ? "enabled" : item.state === "retired" ? "disabled" : ""}`}
                           >
@@ -540,22 +541,20 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
                                 : "mediaBytesMissing",
                             )}
                           </span>
-                        </td>
-                        <td>{format(item.created_at)}</td>
-                        <td>
+                        </TableCell>
+                        <TableCell className="ui:whitespace-normal ui:align-top ui:p-4">{format(item.created_at)}</TableCell>
+                        <TableCell className="ui:whitespace-normal ui:align-top ui:p-4">
                           <div className="table-actions">
                             {item.artifact_quarantined && <Button variant="ghost" size="sm" onClick={() => setQuarantineView(item)}>{t("mediaQuarantineView")}</Button>}
                             {item.deps.compatibility && <Button variant="ghost" size="sm" onClick={() => setMatrixView(item)}>{t("mediaMatrixView")}</Button>}
                             {manage && item.scope_key === (projectId === null ? "global" : "project:" + projectId) &&
                               nextStates[item.state].map((target) => (
-                                <button
+                                <Button variant="outline"
                                   key={target}
                                   disabled={
                                     (target === "verified" && !item.artifact_stored) || (target !== "retired" && item.artifact_quarantined)
                                   }
-                                  className={
-                                    target === "retired" ? "danger-text" : ""
-                                  }
+                                  className={[target === "retired" ? "danger-text" : "","ui:min-h-11"].filter(Boolean).join(" ")}
                                   onClick={() => {
                                     setSuccess("");
                                     setTransition({ item, target });
@@ -566,7 +565,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
                                       target.charAt(0).toUpperCase() +
                                       target.slice(1),
                                   )}
-                                </button>
+                                </Button>
                               ))}
                             {manage && item.scope_key === (projectId === null ? "global" : "project:" + projectId) &&
                               item.state === "uploaded" &&
@@ -587,11 +586,11 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
                                 </a><Button variant="ghost" size="sm" onClick={() => setManifestExport(item)}>{t("mediaManifestExport")}</Button></>
                               )}
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
                 {!media.data.items.length && (
                   <p className="table-loading">{t("noRecords")}</p>
                 )}

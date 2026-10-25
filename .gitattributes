@@ -1,0 +1,2 @@
+# Preserve the upstream font license byte-for-byte, including its whitespace.
+web/public/fonts/jetbrains-mono/OFL.txt -whitespace

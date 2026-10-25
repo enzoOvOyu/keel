@@ -8,3 +8,8 @@ export function Checkbox({ className, ...props }: ComponentProps<typeof Primitiv
     <Primitive.Indicator className="ui:flex ui:items-center ui:justify-center"><CheckIcon className="ui:size-3.5" /></Primitive.Indicator>
   </Primitive.Root>
 }
+
+/** Native form/change-event semantics for existing forms and row selection. */
+export function NativeCheckbox({ className, ...props }: Omit<ComponentProps<"input">, "type">) {
+  return <input {...props} type="checkbox" data-slot="native-checkbox" className={cn("ui:size-4 ui:shrink-0 ui:accent-primary ui:appearance-auto ui:cursor-pointer ui:focus-visible:outline-2 ui:focus-visible:outline-ring ui:disabled:cursor-not-allowed ui:disabled:opacity-50", className)} />
+}

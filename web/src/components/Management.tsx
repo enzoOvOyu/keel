@@ -1,4 +1,6 @@
-import {Button} from '@/components/ui/button'
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription,DialogFooter} from '@/components/ui/dialog'
 import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -27,14 +29,14 @@ export function SuccessNotice({ children }: { children: ReactNode }) {
 }
 export function Pagination({ offset, limit, total, busy, onChange }: { offset: number; limit: number; total: number; busy: boolean; onChange: (offset: number) => void }) {
   const { t } = useTranslation()
-  return <nav className="pagination" aria-label={t('pagination')}><span>{t('pageRange', { from: total > offset ? offset + 1 : 0, to: total > offset ? Math.min(offset + limit, total) : 0, total })}</span><div>{offset >= total && offset > 0 && <button type="button" className="secondary-button" disabled={busy} onClick={() => onChange(0)}>{t('firstPage')}</button>}<button type="button" className="secondary-button" disabled={busy || offset === 0} onClick={() => onChange(Math.max(0, offset - limit))}>{t('previousPage')}</button><button type="button" className="secondary-button" disabled={busy || offset + limit >= total} onClick={() => onChange(offset + limit)}>{t('nextPage')}</button></div></nav>
+  return <nav className="pagination" aria-label={t('pagination')}><span>{t('pageRange', { from: total > offset ? offset + 1 : 0, to: total > offset ? Math.min(offset + limit, total) : 0, total })}</span><div>{offset >= total && offset > 0 && <Button variant="outline" type="button" className="secondary-button ui:min-h-11" disabled={busy} onClick={() => onChange(0)}>{t('firstPage')}</Button>}<Button variant="outline" type="button" className="secondary-button ui:min-h-11" disabled={busy || offset === 0} onClick={() => onChange(Math.max(0, offset - limit))}>{t('previousPage')}</Button><Button variant="outline" type="button" className="secondary-button ui:min-h-11" disabled={busy || offset + limit >= total} onClick={() => onChange(offset + limit)}>{t('nextPage')}</Button></div></nav>
 }
 export function SecretField({ id, label, value, onChange, current = false, disabled = false, required = true }: {
   id: string; label: string; value: string; onChange: (value: string) => void; current?: boolean; disabled?: boolean; required?: boolean
 }) {
   const { t } = useTranslation()
   const [visible, setVisible] = useState(false)
-  return <div className="field"><label htmlFor={id}>{label}</label><div className="password-field"><input id={id} name={id} type={visible ? 'text' : 'password'} autoComplete={current ? 'current-password' : 'new-password'} value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled} required={required} maxLength={1024} aria-describedby={!current ? `${id}-hint` : undefined} /><button type="button" className="password-toggle" onClick={() => setVisible(!visible)} aria-label={t(visible ? 'hidePassword' : 'showPassword')} aria-controls={id} aria-pressed={visible} disabled={disabled}><Icon name={visible ? 'eyeOff' : 'eye'} /></button></div>{!current && <span className="field-hint" id={`${id}-hint`}>{t('passwordRules')}</span>}</div>
+  return <div className="field"><Label htmlFor={id}>{label}</Label><div className="password-field"><Input className="ui:h-11 ui:pr-14" id={id} name={id} type={visible ? 'text' : 'password'} autoComplete={current ? 'current-password' : 'new-password'} value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled} required={required} maxLength={1024} aria-describedby={!current ? `${id}-hint` : undefined} /><Button variant="ghost" type="button" className="password-toggle ui:min-h-11 ui:absolute ui:inset-y-0 ui:right-0 ui:h-full ui:w-11 ui:p-0" onClick={() => setVisible(!visible)} aria-label={t(visible ? 'hidePassword' : 'showPassword')} aria-controls={id} aria-pressed={visible} disabled={disabled}><Icon name={visible ? 'eyeOff' : 'eye'} /></Button></div>{!current && <span className="field-hint" id={`${id}-hint`}>{t('passwordRules')}</span>}</div>
 }
 export function ActionDialog({ title, description, children, busy, confirm, danger = false, submitDisabled = false, onSubmit, onClose }: {
   title: string; description: string; children: ReactNode; busy: boolean; confirm: string; danger?: boolean; submitDisabled?: boolean;

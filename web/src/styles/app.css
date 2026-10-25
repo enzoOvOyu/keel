@@ -1,8 +1,9 @@
-@font-face { font-family: "Intel One Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/intel-one-mono/IntelOneMono-Regular.woff2") format("woff2"); }
-@font-face { font-family: "Intel One Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/intel-one-mono/IntelOneMono-Medium.woff2") format("woff2"); }
-@font-face { font-family: "Intel One Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/intel-one-mono/IntelOneMono-Bold.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/jetbrains-mono/JetBrainsMono-Regular.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/jetbrains-mono/JetBrainsMono-Medium.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 600; font-display: swap; src: url("/fonts/jetbrains-mono/JetBrainsMono-SemiBold.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/jetbrains-mono/JetBrainsMono-Bold.woff2") format("woff2"); }
 * { box-sizing: border-box; }
-:root { font-family: var(--font-sans); font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; color-scheme: light; }
+:root { font-family: var(--font-sans); font-synthesis: none; font-variant-ligatures: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
 body { margin: 0; color: var(--color-text-primary); background: var(--color-bg-base); }
 button, input, textarea, select, option, optgroup { font: inherit; }

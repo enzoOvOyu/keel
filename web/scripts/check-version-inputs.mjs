@@ -73,7 +73,7 @@ export function inspectVersionInputs(file, text, exceptions = []) {
     if (versionName.test(attrs + inputLabel(node)) && !(literalAttribute(node, 'type') === 'hidden' && stableAttribute(node, 'type')) && !(!selectTags.has(tag) && booleanTrue(node, 'readOnly') && stableAttribute(node, 'readOnly'))) {
      const exception = exceptions.find(e => e.file === file && e.component === component(node) && e.id === literalAttribute(node, 'id'))
      if (exception && used.has(exception.id)) report(node, 'Version input exception cannot be duplicated.')
-     else if (exception?.kind === 'media-registration' && tag === 'input') used.add(exception.id)
+     else if (exception?.kind === 'media-registration' && (tag === 'input' || tag === 'Input')) used.add(exception.id)
      else if (exception?.kind === 'mock-protocol-fixture' && exception.digest === hash(node.getText())) used.add(exception.id)
      else report(node, 'Version selection must use ParamSelect; new versions belong in media registration.')
     }

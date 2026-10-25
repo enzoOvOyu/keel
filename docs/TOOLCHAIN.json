@@ -57,6 +57,20 @@
       "arm64"
     ],
     "build": "make build-agent APP_VERSION=<source-commit>",
-    "scope": "identity enrollment and mTLS liveness only; no task dispatch, telemetry or installation"
+    "scope": "registered mTLS identity, liveness and opt-in bounded readonly tasks through unified Execution/durable receipts; telemetry, installation and renewal remain incomplete"
+  },
+  "frontend_font": {
+    "family": "JetBrains Mono",
+    "version": "2.304",
+    "upstream_commit": "cd5227bd1f61dff3bbd6c814ceaf7ffd95e947d9",
+    "weights": [
+      400,
+      500,
+      600,
+      700
+    ],
+    "license": "SIL OFL 1.1",
+    "assets": "web/public/fonts/jetbrains-mono",
+    "delivery": "bundled WOFF2; no external font CDN; shared Chinese fallback stack"
   }
 }

@@ -17,7 +17,7 @@ export function MediaCompatibilitySummary({ matrix }: { matrix?: MediaCompatibil
   <h3>{t('mediaCompatibility')}</h3>
   <dl className="action-target"><dt>{t('mediaMatrixSource')}</dt><dd className="ui:break-all">{matrix.source}</dd><dt>{t('mediaMatrixVersion')}</dt><dd className="ui:break-all">{matrix.version}</dd><dt>{t('mediaMatrixReport')}</dt><dd className="ui:break-all">{matrix.report_ref}</dd></dl>
   {Object.keys(matrix.requires ?? {}).sort().map(key => <p key={key} className="ui:break-all"><strong>{key}</strong>: {matrix.requires![key].join(' · ')}</p>)}
-  {!!columns.length && <div role="region" tabIndex={0} aria-label={t('mediaMatrixRows')} className="ui:max-h-72 ui:overflow-auto"><Table><TableHeader><TableRow>{columns.map(key => <TableHead scope="col" key={key}>{key}</TableHead>)}</TableRow></TableHeader><TableBody>{matrix.combinations!.map((row, index) => <TableRow key={index}>{columns.map(key => <TableCell key={key}>{row[key]}</TableCell>)}</TableRow>)}</TableBody></Table></div>}
+  {!!columns.length && <div role="region" tabIndex={0} aria-label={t('mediaMatrixRows')} className="ui:max-h-72 ui:overflow-auto"><Table scrollContainer={false}><TableHeader><TableRow>{columns.map(key => <TableHead scope="col" key={key}>{key}</TableHead>)}</TableRow></TableHeader><TableBody>{matrix.combinations!.map((row, index) => <TableRow key={index}>{columns.map(key => <TableCell key={key}>{row[key]}</TableCell>)}</TableRow>)}</TableBody></Table></div>}
   <p className="field-hint">{t('mediaMatrixTrust')}</p>
  </section>
 }

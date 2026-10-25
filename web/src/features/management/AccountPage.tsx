@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button"
 import { useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Workspace } from '../../components/Workspace'
@@ -32,7 +33,7 @@ function AccountContent() {
   useEffect(() => { document.title = `${t('accountSecurity')} · Keel` }, [t])
   return <><div className="page-heading"><div><p className="section-eyebrow">{t('personalAccount')}</p><h1>{t('accountSecurity')}</h1><p>{t('accountSecurityIntro')}</p></div></div><div className="account-layout">
     <section className="management-panel"><h2>{t('accountDetails')}</h2><dl className="account-facts"><div><dt>{t('account')}</dt><dd>{session.user.username}</dd></div><div><dt>{t('displayName')}</dt><dd>{session.user.display_name}</dd></div><div><dt>{t('accountType')}</dt><dd>{t(session.user.is_admin ? 'platformAdmin' : 'regularUser')}</dd></div></dl></section>
-    <section className="management-panel"><h2>{t('passwordSecurity')}</h2><p className="section-description">{t('changePasswordImpact')}</p><p className="impact-notice">{t('passwordPrivacy')}</p><button className="primary-button" disabled={!session.permissions.includes('account:password')} onClick={() => setOpen(true)}>{t('changePassword')}</button></section>
+    <section className="management-panel"><h2>{t('passwordSecurity')}</h2><p className="section-description">{t('changePasswordImpact')}</p><p className="impact-notice">{t('passwordPrivacy')}</p><Button variant="default" className="primary-button ui:min-h-11" disabled={!session.permissions.includes('account:password')} onClick={() => setOpen(true)}>{t('changePassword')}</Button></section>
   </div>{open && <PasswordDialog onClose={() => setOpen(false)} />}</>
 }
 export function AccountPage() { return <Workspace><AccountContent /></Workspace> }

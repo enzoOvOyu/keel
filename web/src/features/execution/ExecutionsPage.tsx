@@ -1,3 +1,8 @@
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { Button } from '@/components/ui/button'
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table'
 import { CatalogInputs } from './CatalogInputs'
 import { validateCatalog, type CatalogValues } from '../../lib/catalog'
 import { ExecutionWorkspace } from './ExecutionWorkspace'
@@ -50,9 +55,9 @@ function RegisterTargetsDialog({ projectId, onClose, onDone }: {
   }
   return <ActionDialog title={t('registerTargets')} description={t('registerTargetsDetail')} busy={action.busy} confirm={t(action.busy ? 'registering' : 'register')} onSubmit={(event) => void submit(event)} onClose={onClose}>
     <ActionError error={action.error} />{validation && <p className="field-error" role="alert">{validation}</p>}
-    <div className="field"><label htmlFor="target-prefix">{t('targetPrefix')}</label><input id="target-prefix" value={prefix} onChange={(event) => setPrefix(event.target.value)} maxLength={32} required disabled={action.busy} /><span className="field-hint">{t('targetPrefixPlaceholder')}</span></div>
-    <div className="field"><label htmlFor="target-count">{t('targetCount')}</label><input id="target-count" type="number" min={1} max={2000} value={count} onChange={(event) => setCount(event.target.value)} required disabled={action.busy} /><span className="field-hint">{t('targetCountHint')}</span></div>
-    <div className="field"><label htmlFor="target-seed">{t('targetSeed')}</label><input id="target-seed" type="number" min={0} value={seed} onChange={(event) => setSeed(event.target.value)} required disabled={action.busy} /><span className="field-hint">{t('targetSeedHint')}</span></div>
+    <div className="field"><Label htmlFor="target-prefix">{t('targetPrefix')}</Label><Input className="ui:h-11" id="target-prefix" value={prefix} onChange={(event) => setPrefix(event.target.value)} maxLength={32} required disabled={action.busy} /><span className="field-hint">{t('targetPrefixPlaceholder')}</span></div>
+    <div className="field"><Label htmlFor="target-count">{t('targetCount')}</Label><Input className="ui:h-11" id="target-count" type="number" min={1} max={2000} value={count} onChange={(event) => setCount(event.target.value)} required disabled={action.busy} /><span className="field-hint">{t('targetCountHint')}</span></div>
+    <div className="field"><Label htmlFor="target-seed">{t('targetSeed')}</Label><Input className="ui:h-11" id="target-seed" type="number" min={0} value={seed} onChange={(event) => setSeed(event.target.value)} required disabled={action.busy} /><span className="field-hint">{t('targetSeedHint')}</span></div>
     <p className="impact-notice">{t('simulationNoticeDetail')}</p>
   </ActionDialog>
 }
@@ -90,11 +95,11 @@ function CreateExecutionDialog({ projectId, onClose, onDone }: { projectId: stri
   }
   return <ActionDialog submitDisabled={!catalogReady} title={t('newExecution')} description={t('newExecutionDetail')} busy={action.busy} confirm={t(action.busy ? 'starting' : 'startExecution')} onSubmit={(event) => void submit(event)} onClose={onClose}>
     <ActionError error={action.error} />{validation && <p className="field-error" role="alert">{validation}</p>}
-    <div className="field"><label htmlFor="execution-flow">{t('selectFlow')}</label><select id="execution-flow" value={flowVersionId} onChange={(event) => setFlowVersionId(event.target.value)} required disabled={action.busy}>{!flowVersionId && <option value="">—</option>}{flows.data?.items.filter(flow=>flow.definition.api_version==='keel.sim/v1').map((flow) => <option key={flow.id} value={flow.id}>{flow.name} · v{flow.version}</option>)}</select>{!flows.data?.items.length && <span className="field-hint">{t('noFlows')}</span>}</div>
+    <div className="field"><Label htmlFor="execution-flow">{t('selectFlow')}</Label><NativeSelect className="ui:h-11" id="execution-flow" value={flowVersionId} onChange={(event) => setFlowVersionId(event.target.value)} required disabled={action.busy}>{!flowVersionId && <NativeSelectOption value="">—</NativeSelectOption>}{flows.data?.items.filter(flow=>flow.definition.api_version==='keel.sim/v1').map((flow) => <NativeSelectOption key={flow.id} value={flow.id}>{flow.name} · v{flow.version}</NativeSelectOption>)}</NativeSelect>{!flows.data?.items.length && <span className="field-hint">{t('noFlows')}</span>}</div>
     {selectedFlow && <CatalogInputs projectId={projectId} flow={selectedFlow} values={parameters} disabled={action.busy} onChange={setParameters} onReady={setCatalogReady} />}
-    <div className="field"><label htmlFor="execution-total">{t('targetCount')}</label><input id="execution-total" type="number" min={1} max={2000} value={total} onChange={(event) => setTotal(event.target.value)} required disabled={action.busy} /></div>
-    <div className="field"><label htmlFor="execution-concurrency">{t('concurrency')}</label><input id="execution-concurrency" type="number" min={1} max={64} value={concurrency} onChange={(event) => setConcurrency(event.target.value)} required disabled={action.busy} /></div>
-    <div className="field"><label htmlFor="execution-breaker">{t('circuitBreaker')}</label><input id="execution-breaker" type="number" min={0} max={100} value={breaker} onChange={(event) => setBreaker(event.target.value)} required disabled={action.busy} /></div>
+    <div className="field"><Label htmlFor="execution-total">{t('targetCount')}</Label><Input className="ui:h-11" id="execution-total" type="number" min={1} max={2000} value={total} onChange={(event) => setTotal(event.target.value)} required disabled={action.busy} /></div>
+    <div className="field"><Label htmlFor="execution-concurrency">{t('concurrency')}</Label><Input className="ui:h-11" id="execution-concurrency" type="number" min={1} max={64} value={concurrency} onChange={(event) => setConcurrency(event.target.value)} required disabled={action.busy} /></div>
+    <div className="field"><Label htmlFor="execution-breaker">{t('circuitBreaker')}</Label><Input className="ui:h-11" id="execution-breaker" type="number" min={0} max={100} value={breaker} onChange={(event) => setBreaker(event.target.value)} required disabled={action.busy} /></div>
     <p className="impact-notice">{t('simulationNoticeDetail')}</p>
   </ActionDialog>
 }
@@ -122,8 +127,8 @@ function ExecutionsContent() {
   const format = (value: string | null) => value ? new Intl.DateTimeFormat(i18n.language === 'en' ? 'en-US' : 'zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : t('executionFinishedNone')
   return <>
     <div className="page-heading"><div><p className="section-eyebrow">{project.name}</p><h1>{t('executionsTitle')}</h1><p>{t('executionsIntro')}</p></div>
-      <div className="table-actions">{canRegister && <button className="secondary-button" onClick={() => { setSuccess(''); setRegister(true) }}>{t('registerTargets')}</button>}
-        {canCreate && <button className="primary-button" onClick={() => { setSuccess(''); setCreate(true) }}>{t('newExecution')}</button>}</div></div>
+      <div className="table-actions">{canRegister && <Button variant="outline" className="secondary-button ui:min-h-11" onClick={() => { setSuccess(''); setRegister(true) }}>{t('registerTargets')}</Button>}
+        {canCreate && <Button variant="default" className="primary-button ui:min-h-11" onClick={() => { setSuccess(''); setCreate(true) }}>{t('newExecution')}</Button>}</div></div>
     <p className="impact-notice">{t('executionModesNotice')}</p>
     {success && <SuccessNotice>{success}</SuccessNotice>}
     {canRegister && targets.data && <p className="field-hint">{t('targetsRegistered', { total: targets.data.total })}</p>}
@@ -131,8 +136,8 @@ function ExecutionsContent() {
       <section className="management-panel" aria-busy={executions.isFetching}>
         <ActionError error={executions.error} />
         {executions.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : executions.data && <>
-          <div className="table-scroll" tabIndex={0} role="region" aria-label={t('executionListTitle')}><table className="data-table"><thead><tr><th scope="col">{t('executionState')}</th><th scope="col">Mode</th><th scope="col">{t('executionTargets')}</th><th scope="col">{t('executionConcurrency')}</th><th scope="col">{t('executionStarted')}</th><th scope="col">{t('executionFinished')}</th><th scope="col">{t('actions')}</th></tr></thead>
-            <tbody>{executions.data.items.map((execution) => <tr key={execution.id}><td>{t('state_' + execution.state)}</td><td>{execution.mode}</td><td>{execution.target_count}</td><td>{execution.concurrency}</td><td>{format(execution.started_at)}</td><td>{format(execution.finished_at)}</td><td><button onClick={() => go(page, execution.id)}>{t('viewExecution')}</button></td></tr>)}</tbody></table>
+          <div className="table-scroll" tabIndex={0} role="region" aria-label={t('executionListTitle')}><Table scrollContainer={false} className="data-table"><TableHeader><TableRow><TableHead className="ui:h-auto ui:p-4 ui:align-top ui:text-muted-foreground" scope="col">{t('executionState')}</TableHead><TableHead className="ui:h-auto ui:p-4 ui:align-top ui:text-muted-foreground" scope="col">Mode</TableHead><TableHead className="ui:h-auto ui:p-4 ui:align-top ui:text-muted-foreground" scope="col">{t('executionTargets')}</TableHead><TableHead className="ui:h-auto ui:p-4 ui:align-top ui:text-muted-foreground" scope="col">{t('executionConcurrency')}</TableHead><TableHead className="ui:h-auto ui:p-4 ui:align-top ui:text-muted-foreground" scope="col">{t('executionStarted')}</TableHead><TableHead className="ui:h-auto ui:p-4 ui:align-top ui:text-muted-foreground" scope="col">{t('executionFinished')}</TableHead><TableHead className="ui:h-auto ui:p-4 ui:align-top ui:text-muted-foreground" scope="col">{t('actions')}</TableHead></TableRow></TableHeader>
+            <TableBody>{executions.data.items.map((execution) => <TableRow key={execution.id}><TableCell className="ui:p-4 ui:align-top ui:whitespace-normal">{t('state_' + execution.state)}</TableCell><TableCell className="ui:p-4 ui:align-top ui:whitespace-normal">{execution.mode}</TableCell><TableCell className="ui:p-4 ui:align-top ui:whitespace-normal">{execution.target_count}</TableCell><TableCell className="ui:p-4 ui:align-top ui:whitespace-normal">{execution.concurrency}</TableCell><TableCell className="ui:p-4 ui:align-top ui:whitespace-normal">{format(execution.started_at)}</TableCell><TableCell className="ui:p-4 ui:align-top ui:whitespace-normal">{format(execution.finished_at)}</TableCell><TableCell className="ui:p-4 ui:align-top ui:whitespace-normal"><Button className="ui:min-h-11" variant="ghost" onClick={() => go(page, execution.id)}>{t('viewExecution')}</Button></TableCell></TableRow>)}</TableBody></Table>
             {!executions.data.items.length && <p className="table-loading">{t('noExecutions')}</p>}</div>
           <Pagination offset={(page - 1) * executions.data.page_size} limit={executions.data.page_size} total={executions.data.total} busy={executions.isFetching} onChange={(offset) => go(offset / executions.data.page_size + 1)} /></>}
       </section></>}

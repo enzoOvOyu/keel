@@ -1,3 +1,5 @@
+import { Label } from './ui/label'
+import { NativeSelect, NativeSelectOption } from './ui/native-select'
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import type { Project, Session } from '../lib/api'
@@ -37,15 +39,15 @@ function switchDestination(pathname: string, project: Project, session: Session)
 // state or storage can retarget a different tab, open confirmation or request.
 export function ProjectSwitcher({ projectId }: { projectId?: string }) {
   const session = useSession(), navigate = useNavigate(), { pathname } = useLocation(), { t } = useTranslation()
-  return <label className="workspace-project-switcher"><span className="sr-only">{t('switchProject')}</span><Icon name="folder" />
-    <select aria-label={t('switchProject')} value={session.projects.some(project => project.id === projectId) ? projectId : ''} onChange={event => {
+  return <Label className="workspace-project-switcher"><span className="sr-only">{t('switchProject')}</span><Icon name="folder" />
+    <NativeSelect className="ui:w-[220px] ui:max-[1000px]:w-[180px] ui:max-[767px]:w-[110px]" aria-label={t('switchProject')} value={session.projects.some(project => project.id === projectId) ? projectId : ''} onChange={event => {
       const project = session.projects.find(item => item.id === event.target.value)
       if (project) void navigate({ to: switchDestination(pathname, project, session), params: { projectId: project.id } })
     }}>
-      <option value="" disabled>{t(session.projects.length ? 'selectProject' : 'noProjects')}</option>
-      {session.projects.map(project => <option value={project.id} key={project.id}>{project.name}</option>)}
-    </select>
-  </label>
+      <NativeSelectOption value="" disabled>{t(session.projects.length ? 'selectProject' : 'noProjects')}</NativeSelectOption>
+      {session.projects.map(project => <NativeSelectOption value={project.id} key={project.id}>{project.name}</NativeSelectOption>)}
+    </NativeSelect>
+  </Label>
 }
 export function WorkspaceNavigation({ projectId }: { projectId?: string }) {
   const session = useSession(), { pathname } = useLocation(), { t } = useTranslation()

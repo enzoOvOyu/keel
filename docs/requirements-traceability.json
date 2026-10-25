@@ -1216,7 +1216,7 @@
         "E-2"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Go/React skeleton, versioned OpenAPI generation and checks implemented; Agent/sim/proto pipelines remain planned. Saved shared shadcn/Radix foundation integrated with Keel tokens, frozen legacy-control AST checks and isolated browser evidence; this does not close all UI or runtime acceptance.",
+      "implementation_notes": "Go/React skeleton, versioned OpenAPI/proto generation, sim and dual-architecture Agent pipelines are implemented; complete platform acceptance remains partial. Saved shared shadcn/Radix foundation integrated with Keel tokens, frozen legacy-control AST checks and isolated browser evidence; this does not close all UI or runtime acceptance. The 2026-10-25 UI increment migrates remaining native business controls to shared shadcn primitives, tightens the legacy budget to zero and bundles JetBrains Mono v2.304 (400/500/600/700) across UI/Monaco/DDM. Real isolated API/PG/browser evidence is recorded in HANDOFF section73. This does not close all accessibility, scale or work-package acceptance.",
       "evidence_refs": [
         "docs/HANDOFF.md",
         "internal/platform/store_integration_test.go",
@@ -1224,7 +1224,8 @@
         "scripts/check-auth-browser.mjs",
         "docs/SHADCN-UI.md",
         "scripts/check-shadcn-integration.py",
-        "web/scripts/check-ui-boundaries.mjs"
+        "web/scripts/check-ui-boundaries.mjs",
+        "scripts/check-ui-migration-integration.py"
       ]
     },
     {
@@ -1428,13 +1429,14 @@
         "F-17.5"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Shared Shell geometry, full-width content, authorized navigation, dual URL-based project switching, themes, bilingual labels and real-session logout are implemented. TypeScript/Vite build and isolated real API/PostgreSQL browser integration passed. Flow designer, remaining business components and full UX acceptance remain incomplete; this is not full U-3 PASS.",
+      "implementation_notes": "Shared Shell geometry, full-width content, authorized navigation, dual URL-based project switching, themes, bilingual labels and real-session logout are implemented. TypeScript/Vite build and isolated real API/PostgreSQL browser integration passed. Flow designer, remaining business components and full UX acceptance remain incomplete; this is not full U-3 PASS. The 2026-10-25 UI increment migrates remaining native business controls to shared shadcn primitives, tightens the legacy budget to zero and bundles JetBrains Mono v2.304 (400/500/600/700) across UI/Monaco/DDM. Real isolated API/PG/browser evidence is recorded in HANDOFF section73. This does not close all accessibility, scale or work-package acceptance.",
       "evidence_refs": [
         "web/src/features/execution/ExecutionsPage.tsx",
         "scripts/check-control-browser.mjs",
         "docs/HANDOFF.md",
         "web/src/components/WorkspaceNavigation.tsx",
-        "scripts/check-workspace-browser.mjs"
+        "scripts/check-workspace-browser.mjs",
+        "scripts/check-ui-migration-integration.py"
       ]
     },
     {

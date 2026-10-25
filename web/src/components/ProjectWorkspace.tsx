@@ -1,3 +1,4 @@
+import { Button } from './ui/button'
 import { createContext, useContext, useEffect, type ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -32,7 +33,7 @@ function ProjectScope({ projectId, children }: { projectId: string; children: Re
   }, [projectId, session.user.id, client])
   const back = <Link className="back-link" to="/projects"><span aria-hidden="true">←</span>{t('allProjects')}</Link>
   if (project.isPending) return <>{back}<div className="empty-state" role="status">{t('loadingProjects')}</div></>
-  if (project.isError) return <>{back}<div className="empty-state" role="alert"><h1>{t(project.error instanceof ApiError && project.error.status === 404 ? 'projectNotFound' : 'projectsUnavailable')}</h1><p>{t('projectNotFoundDetail')}</p><button className="secondary-button" onClick={() => void project.refetch()}>{t('retry')}</button></div></>
+  if (project.isError) return <>{back}<div className="empty-state" role="alert"><h1>{t(project.error instanceof ApiError && project.error.status === 404 ? 'projectNotFound' : 'projectsUnavailable')}</h1><p>{t('projectNotFoundDetail')}</p><Button variant="outline" className="secondary-button" onClick={() => void project.refetch()}>{t('retry')}</Button></div></>
   return <ProjectContext.Provider value={project.data} key={projectId}>{back}
     {children}
   </ProjectContext.Provider>

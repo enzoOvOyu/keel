@@ -49,7 +49,7 @@ tasks:
  for(const size of [8,16,24,32]) { await page.locator('select').filter({has:page.locator('option[value="8"]')}).selectOption(String(size)); await page.waitForFunction(expected=>{const cell=document.querySelector('.execution-matrix-cell');return cell&&Math.round(cell.getBoundingClientRect().width)===expected&&Math.round(cell.getBoundingClientRect().height)===expected},size) }
  await page.locator('.execution-matrix-cell').first().click();await page.getByRole('dialog').waitFor();await page.getByRole('heading',{name:'任务尝试详情',exact:true}).waitFor();await page.waitForFunction(()=>{const box=document.querySelector('[role=dialog]').getBoundingClientRect();return Math.abs(box.right-innerWidth)<2&&Math.abs(box.width-640)<2&&Math.abs(box.top)<2});await page.getByRole('button',{name:'查看本次尝试的日志',exact:true}).click();await page.getByRole('heading',{name:'执行生命周期日志',exact:true}).waitFor();assert.match(page.url(),/logAttempt=/)
  await page.getByRole('button',{name:/清除尝试筛选/}).click();await page.locator('.execution-journal article').first().waitFor()
- assert.match(await page.locator('main').evaluate(e=>getComputedStyle(e).fontFamily),/Intel One Mono/)
+ assert.match(await page.locator('main').evaluate(e=>getComputedStyle(e).fontFamily),/JetBrains Mono/)
  await page.screenshot({path:process.env.KEEL_WORKSPACE_EVIDENCE_DIR+'/execution-logs.png',fullPage:true})
  // A worker is started only after the large render fixture is safely paused.
  // Just two targets execute; this is connectivity validation, not a throughput SLO.
@@ -116,6 +116,6 @@ tasks:
  await page.goto(`/p/${c.project_id}/executions?execution=${small.id}&tab=outputs`);await page.getByRole('heading',{name:'输出与变量',exact:true}).waitFor();await page.getByRole('button',{name:'下载 JSON 回执',exact:true}).first().waitFor();await page.getByRole('tab',{name:'关联',exact:true}).click();await page.getByRole('heading',{name:'执行关联',exact:true}).waitFor();await page.getByRole('link',{name:'Views fixture · v1',exact:true}).waitFor()
  await page.screenshot({path:process.env.KEEL_WORKSPACE_EVIDENCE_DIR+'/execution-relations.png',fullPage:true});assert.deepEqual(errors,[])
  console.log('PASS consistent overview and task Gantt projections; immutable 500-target matrix server filters/pagination and virtual rendering (not a performance SLO)')
- console.log('PASS lazy five-tab browser, URL filters/attempt drilldown, Intel font; actual shared worker two-target run, frozen inputs, unknown receipt remains incomplete, structured receipt outputs and audited download, cross-execution/project denial')
+ console.log('PASS lazy five-tab browser, URL filters/attempt drilldown, JetBrains Mono font; actual shared worker two-target run, frozen inputs, unknown receipt remains incomplete, structured receipt outputs and audited download, cross-execution/project denial')
  console.log('PASS same-origin lifecycle SSE snapshot/resume contract, future cursor resync, active session revocation closes stream; no fabricated stdout or file artifacts')
 }finally{await browser.close()}

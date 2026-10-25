@@ -4,6 +4,7 @@ import os, signal, socket, subprocess, tempfile, time, urllib.request
 from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 with socket.socket() as probe:
+    probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     probe.bind(("127.0.0.1", 5178))
 work = Path(tempfile.mkdtemp(prefix="keel-shadcn-"))
 print("Shared UI evidence directory: " + str(work), flush=True)

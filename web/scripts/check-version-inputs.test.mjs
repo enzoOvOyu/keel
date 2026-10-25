@@ -38,6 +38,8 @@ test('media registration is an exact file, component and control exception', () 
  const exception = { file, component: 'RegisterMediaDialog', id: 'media-version', kind: 'media-registration' }
  const text = 'function RegisterMediaDialog(){return <input id="media-version" value={version} />} '
  assert.equal(inspectVersionInputs(file, text, [exception]).failures.length, 0)
+ assert.equal(inspectVersionInputs(file, text.replace('<input', '<Input'), [exception]).failures.length, 0)
+ assert(inspectVersionInputs(file, text.replace('<input', '<Textarea'), [exception]).failures.length)
  assert(inspectVersionInputs('src/features/other.tsx', text, [exception]).failures.length)
  assert(inspectVersionInputs(file, text.replace('RegisterMediaDialog', 'Launch'), [exception]).failures.length)
  assert(inspectVersionInputs(file, text.replace('media-version', 'new-version'), [exception]).failures.length)

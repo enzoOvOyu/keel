@@ -78,7 +78,7 @@ try{
  await poll(async()=>await(await context.request.get(base+'/executions/'+unknownExec.id)).json(),v=>v.execution?.state==='reconciling')
  assert(uncertain.devices.slice(1).every(d=>d.state==='PREPARED'));await writeFile(c.fault_file,'')
  console.log('PASS ambiguous device write -> UNKNOWN / shared Execution reconciling; canary peers remain unexecuted and SSH lease stays quarantined')
- await page.goto(`/p/${c.management_project_id}/configuration`);await page.getByRole('heading',{name:'配置推送作业',exact:true}).waitFor();await page.getByText('Critical · NE + DE + NH 三签',{exact:true}).first().waitFor();assert.match(await page.locator('main').evaluate(e=>getComputedStyle(e).fontFamily),/Intel One Mono/)
+ await page.goto(`/p/${c.management_project_id}/configuration`);await page.getByRole('heading',{name:'配置推送作业',exact:true}).waitFor();await page.getByText('Critical · NE + DE + NH 三签',{exact:true}).first().waitFor();assert.match(await page.locator('main').evaluate(e=>getComputedStyle(e).fontFamily),/JetBrains Mono/)
  await page.screenshot({path:process.env.KEEL_WORKSPACE_EVIDENCE_DIR+'/configuration-push-jobs.png',fullPage:true});assert.deepEqual(errors,[])
  const concurrencyResponse=await context.request.put(base+'/params',{headers,data:{key:'fabric.push_concurrency',value_type:'enum',options:['1','2'],default_value:'2',create_only:true}})
  assert.equal(concurrencyResponse.status(),201);const concurrencyPolicy=await concurrencyResponse.json()
@@ -134,5 +134,5 @@ try{
  await page.screenshot({path:process.env.KEEL_WORKSPACE_EVIDENCE_DIR+'/catalog-consumer-retired.png',fullPage:true});assert.deepEqual(errors,[])
  console.log('PASS catalog page retirement blocks ZTP preview and previously reviewed commit; documented default does not bypass tombstone')
  for(const v of Object.values(roles))await v.context.close()
- console.log('PASS real browser configuration workspace, report/diff review, source labels and Intel font; Viewer write/foreign-project access denied')
+ console.log('PASS real browser configuration workspace, report/diff review, source labels and JetBrains Mono font; Viewer write/foreign-project access denied')
 }finally{await browser.close()}

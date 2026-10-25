@@ -1,3 +1,4 @@
+import { Button } from './ui/button'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
@@ -32,9 +33,9 @@ function WorkspaceContent({ children, projectId }: { children: ReactNode; projec
   return <div className={`workspace-shell${collapsed ? ' sidebar-collapsed' : ''}${domainPage ? ' project-workspace' : ' basic-workspace'}`}>
     <a className="skip-link" href="#workspace-content">{t('skipContent')}</a>
     <header className="workspace-header">
-      <div className="workspace-brand-area"><button className="icon-button sidebar-toggle" aria-label={t(collapsed ? 'expandNavigation' : 'collapseNavigation')} aria-expanded={!collapsed} aria-controls="workspace-navigation" onClick={() => setCollapsed(value => !value)}><Icon name="menu" /></button><Link to="/projects" className="brand-link" aria-label="Keel"><Brand /></Link></div>
+      <div className="workspace-brand-area"><Button variant="ghost" className="icon-button sidebar-toggle ui:size-11 ui:p-0" aria-label={t(collapsed ? 'expandNavigation' : 'collapseNavigation')} aria-expanded={!collapsed} aria-controls="workspace-navigation" onClick={() => setCollapsed(value => !value)}><Icon name="menu" /></Button><Link to="/projects" className="brand-link" aria-label="Keel"><Brand /></Link></div>
       {providers.data && <span className={`environment-badge environment-${providers.data.environment}`}>{t(`environment_${providers.data.environment}`)}</span>}
-      <div className="workspace-tools"><ProjectSwitcher projectId={projectId} /><Preferences /><span className="user-name">{session.user.display_name || session.user.username}</span><button className="secondary-button logout-button" aria-label={t(busy ? 'signingOut' : 'signOut')} onClick={() => void signOut()} disabled={busy} title={t(busy ? 'signingOut' : 'signOut')}><Icon name="external" /><span>{t(busy ? 'signingOut' : 'signOut')}</span></button></div>
+      <div className="workspace-tools"><ProjectSwitcher projectId={projectId} /><Preferences /><span className="user-name">{session.user.display_name || session.user.username}</span><Button variant="outline" className="secondary-button logout-button" aria-label={t(busy ? 'signingOut' : 'signOut')} onClick={() => void signOut()} disabled={busy} title={t(busy ? 'signingOut' : 'signOut')}><Icon name="external" /><span>{t(busy ? 'signingOut' : 'signOut')}</span></Button></div>
     </header>
     <aside className="workspace-sidebar"><WorkspaceNavigation projectId={projectId} /></aside>
     <div className="workspace-body">
