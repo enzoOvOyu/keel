@@ -1,13 +1,13 @@
 # 当前开发状态
 
-更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～68。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～70。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
-## 当前恢复入口（2026-10-25 08:20 UTC）
+## 当前恢复入口（2026-10-25 08:35 UTC）
 
 - 唯一工作区`/opt/keel`，分支`dev/p1-network-bom`。3000运行`d20899486e1220ec016f1fbfc1e0c058471fd514`，镜像`sha256:1b3821ff8745921497bcd2b932ec8f2fab2b63fc75b0b0b82cfca18d559d94a6`，健康及八页真实登录/公钥列表/受限角色API复验通过。046已应用，运行库43条迁移；旧schema42镜像不可直接回切，备份恢复另走批准流程。
 - A3/WP-1.5新增独立批准的受控非root公钥安装，强制helper条目追加保持客户内容，新域钥全新SSH握手查询原回执才写真实互信。unknown保持资源隔离、恢复不重装；安装前或证明后撤销均阻断信任。实际PG/SSH/双人浏览器与全量检查通过，详见§64。
 - 生产worker、真实SSH、主密钥提供者、外部介质获取仍关闭；签名只读挂载保持。无生产域钥生成或真机操作，两份原fabric草稿未跟踪且未构建。
-- 用户两小时开发仍在继续。WP-1.14 OIDC/LDAP已提交发布（§65/66），生产仍关闭；SSH安装后的普通任务域钥绑定已提交发布（§67），资产页普通只读SSH启动入口已提交发布（§68），正在补后续只读repair域钥绑定安全回归；root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、Agent与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
+- 用户两小时开发仍在继续。WP-1.14 OIDC/LDAP已提交发布（§65/66），生产仍关闭；SSH安装后的普通任务域钥绑定已提交发布（§67），资产页普通只读SSH启动入口已提交发布（§68），后续只读repair域钥绑定安全回归及测试顺序修复已完成（§69）；H-1旧执行包的认证/指纹/缺证据假成功路径已改为离线证据校验（§70）；root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、Agent与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
 
 ## 1. 工作区与运行版本（早期快照，当前见上方）
 
@@ -916,3 +916,12 @@ SSH目标可显式选择vault提供者，仍保留原文件兼容；精确版本
 
 
 §69顺序依赖修复后完整真实PG/SSH/HTTP/全部既有及新增浏览器、独立CLI/helper `/tmp/keel-repair-order-fixed-full.log`、`/tmp/keel-ssh-integration-afmy6umt`退出0（race 57.350s）；相关Go vet通过。派发前改回临时凭据后，实际lease到期进入unknown并保留device/SSH两把隔离租约，未制造stop回执。旧失败保留，不以单独用例通过代替完整顺序回归。
+
+
+## 70. P1 H-1执行包纠偏：缺证据拒绝，不授予真机PASS
+
+后续验收入口核查发现原H-1脚本仍用不支持的Bearer Token、root任意命令和accept-new指纹，缺平台读回时能退化SSH探测，缺PXE仍可selfcheck成功；与当前Cookie/keel-ctrl/固定pin/统一Execution边界不一致。已移除该自动真机驱动，改为明确的离线证据一致性校验，不连接任何平台或硬件，也不持有认证材料。十台HGX B300的冻结BOM、完整资产/成功bootstrap请求、确切发布health、独立Ed25519主机公钥、实际host.identity快照与终态command/attempt/fence、UTC窗口及每台boot/key-preservation文件均须在位并一致；sim/legacy、repair替代首次引导、截断分页、跨项目、指纹/hostname/回执不符均拒绝。
+
+新poc/h1提供模板和标准库校验器，逐级openat/O_NOFOLLOW拒绝路径越界/目录链接/特殊文件、单件4MiB限制、严格JSON属性和文件SHA256。poc/selfcheck.sh仅跑明确合成fixture，不证明平台/PXE就绪；run-h1.sh缺参数exit2，缺证据exit1，完整一致只输出READY_FOR_REVIEW，hardware_acceptance始终UNVERIFIED。更新环境/采集/人工审查清单及WP-1.9追踪，不自动更新ACCEPTANCE。历史p1-selfcheck.json保留但明确不作当前证据。
+
+`sh poc/selfcheck.sh`八组测试通过，证据 `/tmp/keel-h1-selfcheck-final.log`；覆盖完整合成包只请求审查、缺引导/自动互信/机器/摘要、sim/跨项目/分页/自批、回执/主机名/指纹/fence/时序、遍历/父子symlink/FIFO/超大文件/重复JSON、版本不符、CLI脱敏失败及空模板。空模板实际 `/tmp/keel-h1-unfilled-template.log`BLOCKED/exit1；sh语法、py_compile、设计/diff通过；同一标准库用例纳入make check/CI。无运行代码/迁移改变，3000仍d208994/schema43，无生产任务/硬件操作。完整WP-1.7自动装机注册未具备，H-1/相关WP/P1仍partial。提交/CI随后按确切SHA补记。

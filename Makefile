@@ -2,6 +2,7 @@ SHELL := /bin/sh
 .PHONY: check build integration dev-api dev-web dev-worker up logs
 check:
 	python3 scripts/check-design.py
+	python3 -m unittest discover -s poc/h1 -p 'test_*.py'
 	go vet ./...
 	go test -race ./...
 	npm run check

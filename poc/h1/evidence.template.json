@@ -1,0 +1,236 @@
+{
+  "schema_version": 1,
+  "item": "H-1",
+  "project_id": "REPLACE_WITH_32_HEX_PROJECT_ID",
+  "platform_revision": "REPLACE_WITH_40_HEX_RELEASE_SHA",
+  "environment": "REPLACE_WITH_CONTROLLED_POC_ID",
+  "operator": "REPLACE_WITH_REVIEWER",
+  "provisioning_release_ref": "REPLACE_WITH_ACTUAL_PXE_RELEASE",
+  "hardware_family": "HGX B300",
+  "started_at": "REPLACE_WITH_UTC_TIME",
+  "finished_at": "REPLACE_WITH_UTC_TIME",
+  "operator_observations": {
+    "http_first_boot": false,
+    "automatic_trust": false,
+    "customer_keys_preserved": false,
+    "existing_dhcp_unaffected": false
+  },
+  "bom": {
+    "path": "evidence/bom.csv",
+    "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+  },
+  "assets": {
+    "path": "evidence/assets.json",
+    "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+  },
+  "trust_requests": {
+    "path": "evidence/trust-requests.json",
+    "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+  },
+  "machines": [
+    {
+      "serial": "B300-POC-0001",
+      "trust_request_id": "REPLACE_WITH_32_HEX_REQUEST_ID",
+      "host_public_key": {
+        "path": "evidence/B300-POC-0001/host-ed25519.pub",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "identity_execution": {
+        "path": "evidence/B300-POC-0001/identity-execution.json",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "boot_log": {
+        "path": "evidence/B300-POC-0001/http-first-boot.log",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "key_preservation": {
+        "path": "evidence/B300-POC-0001/authorized-keys.diff",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      }
+    },
+    {
+      "serial": "B300-POC-0002",
+      "trust_request_id": "REPLACE_WITH_32_HEX_REQUEST_ID",
+      "host_public_key": {
+        "path": "evidence/B300-POC-0002/host-ed25519.pub",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "identity_execution": {
+        "path": "evidence/B300-POC-0002/identity-execution.json",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "boot_log": {
+        "path": "evidence/B300-POC-0002/http-first-boot.log",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "key_preservation": {
+        "path": "evidence/B300-POC-0002/authorized-keys.diff",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      }
+    },
+    {
+      "serial": "B300-POC-0003",
+      "trust_request_id": "REPLACE_WITH_32_HEX_REQUEST_ID",
+      "host_public_key": {
+        "path": "evidence/B300-POC-0003/host-ed25519.pub",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "identity_execution": {
+        "path": "evidence/B300-POC-0003/identity-execution.json",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "boot_log": {
+        "path": "evidence/B300-POC-0003/http-first-boot.log",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "key_preservation": {
+        "path": "evidence/B300-POC-0003/authorized-keys.diff",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      }
+    },
+    {
+      "serial": "B300-POC-0004",
+      "trust_request_id": "REPLACE_WITH_32_HEX_REQUEST_ID",
+      "host_public_key": {
+        "path": "evidence/B300-POC-0004/host-ed25519.pub",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "identity_execution": {
+        "path": "evidence/B300-POC-0004/identity-execution.json",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "boot_log": {
+        "path": "evidence/B300-POC-0004/http-first-boot.log",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "key_preservation": {
+        "path": "evidence/B300-POC-0004/authorized-keys.diff",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      }
+    },
+    {
+      "serial": "B300-POC-0005",
+      "trust_request_id": "REPLACE_WITH_32_HEX_REQUEST_ID",
+      "host_public_key": {
+        "path": "evidence/B300-POC-0005/host-ed25519.pub",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "identity_execution": {
+        "path": "evidence/B300-POC-0005/identity-execution.json",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "boot_log": {
+        "path": "evidence/B300-POC-0005/http-first-boot.log",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "key_preservation": {
+        "path": "evidence/B300-POC-0005/authorized-keys.diff",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      }
+    },
+    {
+      "serial": "B300-POC-0006",
+      "trust_request_id": "REPLACE_WITH_32_HEX_REQUEST_ID",
+      "host_public_key": {
+        "path": "evidence/B300-POC-0006/host-ed25519.pub",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "identity_execution": {
+        "path": "evidence/B300-POC-0006/identity-execution.json",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "boot_log": {
+        "path": "evidence/B300-POC-0006/http-first-boot.log",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "key_preservation": {
+        "path": "evidence/B300-POC-0006/authorized-keys.diff",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      }
+    },
+    {
+      "serial": "B300-POC-0007",
+      "trust_request_id": "REPLACE_WITH_32_HEX_REQUEST_ID",
+      "host_public_key": {
+        "path": "evidence/B300-POC-0007/host-ed25519.pub",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "identity_execution": {
+        "path": "evidence/B300-POC-0007/identity-execution.json",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "boot_log": {
+        "path": "evidence/B300-POC-0007/http-first-boot.log",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "key_preservation": {
+        "path": "evidence/B300-POC-0007/authorized-keys.diff",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      }
+    },
+    {
+      "serial": "B300-POC-0008",
+      "trust_request_id": "REPLACE_WITH_32_HEX_REQUEST_ID",
+      "host_public_key": {
+        "path": "evidence/B300-POC-0008/host-ed25519.pub",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "identity_execution": {
+        "path": "evidence/B300-POC-0008/identity-execution.json",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "boot_log": {
+        "path": "evidence/B300-POC-0008/http-first-boot.log",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "key_preservation": {
+        "path": "evidence/B300-POC-0008/authorized-keys.diff",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      }
+    },
+    {
+      "serial": "B300-POC-0009",
+      "trust_request_id": "REPLACE_WITH_32_HEX_REQUEST_ID",
+      "host_public_key": {
+        "path": "evidence/B300-POC-0009/host-ed25519.pub",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "identity_execution": {
+        "path": "evidence/B300-POC-0009/identity-execution.json",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "boot_log": {
+        "path": "evidence/B300-POC-0009/http-first-boot.log",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "key_preservation": {
+        "path": "evidence/B300-POC-0009/authorized-keys.diff",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      }
+    },
+    {
+      "serial": "B300-POC-0010",
+      "trust_request_id": "REPLACE_WITH_32_HEX_REQUEST_ID",
+      "host_public_key": {
+        "path": "evidence/B300-POC-0010/host-ed25519.pub",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "identity_execution": {
+        "path": "evidence/B300-POC-0010/identity-execution.json",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "boot_log": {
+        "path": "evidence/B300-POC-0010/http-first-boot.log",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      },
+      "key_preservation": {
+        "path": "evidence/B300-POC-0010/authorized-keys.diff",
+        "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+      }
+    }
+  ],
+  "platform_health": {
+    "path": "evidence/platform-health.json",
+    "sha256": "REPLACE_WITH_ACTUAL_FILE_SHA256"
+  }
+}

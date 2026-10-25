@@ -1444,14 +1444,17 @@
         "H-1"
       ],
       "implementation_status": "partial",
-      "evidence": "PoC execution package #P1 produced (H-1): poc/selfcheck.sh (prerequisite self-check against the live platform + tool/key/BOM window assertions), poc/run-h1.sh (real-machine driver asserting the ACCEPTANCE H-1 criteria verbatim: HTTP-first boot observation, hostname-vs-BOM, 100% auto trust via platform readback AND direct keel-ctrl SSH probes, ED25519 fingerprint capture), poc/ENVIRONMENT.md (prerequisites checklist), poc/results/CHECKLIST.md (operator observation template). Scripts are POSIX sh; self-check smoke PASSed against the deployed platform and the driver correctly FAILs without real machines. Real-machine execution and backfill remain with the engineering owner (GA gate).",
+      "evidence": "P1 simulator fan-out evidence remains separate from hardware acceptance. H-1 package was corrected to offline evidence validation: the previous Bearer-token/root/accept-new driver and optional-readback success path were incompatible with current authentication and trust boundaries. The validator now requires exactly ten BOM-matched HGX B300 declarations, full current asset and successful bootstrap-request exports, captured release health, independently collected host public keys, exact SSH identity snapshots and durable receipts, UTC observation bounds, boot logs and customer-key preservation artifacts. File digests, path/symlink/type/size boundaries and identity/project/fence/hostname/pin consistency are checked. Synthetic self-checks do not contact services or prove PXE readiness. Only BLOCKED or READY_FOR_REVIEW is emitted; hardware acceptance remains UNVERIFIED and requires engineering-owner review. Existing historical self-check output is retained solely as an outdated snapshot. WP-1.7/PXE/automatic registration and real H-1 backfill remain incomplete; WP-1.9/P1 stays partial.",
       "evidence_refs": [
         "poc/selfcheck.sh",
         "poc/run-h1.sh",
         "poc/ENVIRONMENT.md",
         "poc/results/CHECKLIST.md",
         "scripts/check-execution-workspace-integration.py",
-        "docs/HANDOFF.md"
+        "docs/HANDOFF.md",
+        "poc/h1/validate.py",
+        "poc/h1/test_validate.py",
+        "poc/h1/evidence.template.json"
       ],
       "implementation_notes": "P1 software fan-out portion has real isolated 2,000/2,000 logical-target evidence, including a concurrent image-build/release-check case; execution controls and unknown-result reconciliation are exercised. Existing H-1 execution materials are retained, but actual SSH/PXE trust, trust-interruption injection, required upstream WP-1.5/WP-1.7 integration and real-machine PoC remain incomplete. Partial work does not satisfy the WP exit, full P1 or the separate 10,000-target x 30s performance tier."
     },
