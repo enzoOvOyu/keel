@@ -675,3 +675,15 @@ WP-1.10接续PRD登记外部引用，复用现有manifest_ref及§53固定绑定
 **§54 发布完成**：功能代码 `cfa89b653a596299444ffd7de56693793a9d76ac` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:d7bd0b9eb2c3e39a43a7b38001efa5ddc7340f1e3c2a605df0aec5dbd55004be`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T03:25:17.032318+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
 
 无迁移，运行库38条迁移记录；保留旧镜像 `keel:974630557b2c746513746e3ce372890851668ca6`。保留兼容旧镜像。不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T032130Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40157910473记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
+
+## 55. A4 兼容矩阵文件导入与完整审核预览（2026-10-25）
+
+继续/opt/keel、dev/p1-network-bom的WP-1.10/1.11，补齐PRD FR-1.8/1.9已有后端兼容矩阵在介质登记/上传入口的使用能力。新增项目/全局POST media/compatibility/validate，沿用会话、Origin/CSRF和管理作用域，复用登记decodeCompatibility规则，不写介质/批准/成功登记审计。契约先行并生成类型，无迁移。
+
+共享组件从≤64KiB JSON导入来源、版本、报告及requires/完整combinations行；无效/过大/校验中阻止提交，明确移除后才允许不带矩阵登记；AbortController+选择序号阻止迟到响应覆盖新选择。登记合并矩阵与固定制品依赖，实际服务端再次校验。校验/独立审批/签名导出弹窗和Viewer只读查看共用来源与完整关联行展示，报告不自动访问；无原生控件或版本输入例外增加。既有精确整行准入/不可变版本规则不变，示例不当作厂商或硬件验证。
+
+§54补记：功能cfa89b6的GitHub Actions run40157910473已实际查询completed/success；交接deb68b9查询时仍in_progress。3000已为cfa89b6/schema38，来源allowlist保持未配置、摄取默认关闭。保留两份既有fabric草稿未暂存。矩阵本步测试与发布结果后补；WP-1.10/1.11、P1仍partial，目标缓存/通道分发/镜像源及硬件/规模验收未完成。
+
+§55定向验证：/tmp/keel-media-matrix-integration-final.log、/tmp/keel-media-3he70cb3退出0，真实PG/MinIO/API/浏览器覆盖项目和全局文件导入→存储→校验→独立审批→Viewer字节/只读查看→签名清单矩阵保留。匿名、Viewer写、非成员项目、CSRF/Origin、未知字段、缺来源、重复值/行、列错位、129行及>64KiB均拒绝，预览不创建介质；损坏JSON/过大文件阻止登记，明确移除恢复，迟到旧响应不能覆盖最新选择。第一次测试把既有非成员项目的404误写为403，按既有防枚举契约修正测试后重跑通过，未放宽服务端权限。受影响httpapi/platform race和vet通过；最终npm build（含契约生成/类型/控件/版本lint）退出0，现有bundle大小提示保留；设计检查通过。完整共享页面回归与发布另记。
+
+§55完整共享回归：/tmp/keel-media-matrix-regression.log的13组HTTP/浏览器全部退出0，包括原有参数、制品、固定依赖、关联行目录/执行冻结、全局管理、过期确认、签名离线CLI、协议故障隔离、受控来源及新矩阵导入。沿用本步定向真实数据库集成与受影响Go race/vet，不重复未改动的容量/硬件测试；准备确切提交镜像和3000候选发布。

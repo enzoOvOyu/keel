@@ -84,6 +84,21 @@ func decodeCompatibility(raw json.RawMessage) (*Compatibility, error) {
 	}
 	return c, nil
 }
+
+// ValidateMediaCompatibility previews the same matrix rules used at registration.
+// It does not register media, approve evidence, or modify a catalog.
+func ValidateMediaCompatibility(input Compatibility) (*Compatibility, error) {
+	raw, err := json.Marshal(catalogDependencies{Compatibility: &input})
+	if err != nil {
+		return nil, apiError(400, "VALIDATION_ERROR", "Invalid compatibility matrix")
+	}
+	matrix, err := decodeCompatibility(raw)
+	if err != nil {
+		return nil, apiError(400, "VALIDATION_ERROR", err.Error())
+	}
+	return matrix, nil
+}
+
 func validateCompatibility(deps map[string]any) error {
 	raw, e := json.Marshal(deps)
 	if e != nil {

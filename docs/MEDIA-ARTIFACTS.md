@@ -99,3 +99,28 @@
 共享登记/列表提供只读来源审核、目标/摘要/长度确认及中英文失败提示；非原登记人/只读成员不显示获取动作。无新增迁移，复用041后的绑定与完整性记录。它是凭据为空的受控HTTP文件摄取，不是apt/yum镜像同步、来源签名、目标端缓存/安装或规模证据。配置与实际发布状态分别留证，未提供受信来源时默认保持关闭。
 
 云元数据拒绝地址根据官方资料核验：[AWS实例身份文档](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/retrieve-iid.html)、[Alibaba Cloud实例元数据](https://www.alibabacloud.com/help/en/ecs/user-guide/view-instance-metadata/)。
+
+## 兼容矩阵文件导入与审核（A4 / WP-1.10、WP-1.11）
+
+项目和全局的登记/上传弹窗可选择一个不超过64 KiB的JSON文件，内容直接是 `CompatibilityMatrix`，不是包含 `compatibility` 的外层依赖对象。例如：
+
+```json
+{
+  "source": "internal-qualified-matrix",
+  "version": "reviewed-1",
+  "report_ref": "report:reviewed-1",
+  "requires": {"cpu.arch": ["amd64", "arm64"]},
+  "combinations": [
+    {"os.kernel": "kernel-a", "runtime.profile": "tool-a"},
+    {"os.kernel": "kernel-b", "runtime.profile": "tool-b"}
+  ]
+}
+```
+
+示例值仅用于说明格式，不声明真实硬件或软件兼容。精确版本来自操作员提供的已复核矩阵，界面不内置厂商组合。必填source/version/report_ref，至少requires或combinations一项；requires最多32键、每键1..256个唯一精确值；combinations最多128行、各行相同1..32列，不允许重复行/未知字段/空值。组合必须整行匹配，不能从不同允许行各取一列拼成未验证组合。报告引用只显示为文字，不作为链接访问或自动取证。
+
+文件发送到受会话、项目管理权限、Origin和CSRF保护的 `POST .../media/compatibility/validate`，复用登记时的同一后端校验器，不创建介质、不推进审批、不写成功登记审计。有效后显示来源、矩阵版本、报告及完整行表；校验中、JSON错误、过大文件或服务端拒绝时阻止登记。操作员可修正文件或显式移除，不能因错误默默丢弃矩阵继续提交。快速更换文件时取消旧请求并按选择序号丢弃过期响应。
+
+确认后与固定制品依赖一起保存在不可变deps中，实际登记仍再次校验全部元数据。校验/审批及签名导出弹窗显示同一矩阵；列表“查看兼容矩阵”允许项目只读成员查看自身和批准的继承全局项，不能编辑版本或批准。矩阵随当前介质版本固定，后续更改必须登记新版本。文件导入本身不证明来源、报告或硬件验证通过，继续需要实际字节校验、独立审批和执行时目录依赖准入。
+
+`python3 scripts/check-media-artifacts-integration.py --matrix-only` 使用隔离PostgreSQL/MinIO/API及真实浏览器验证导入、快速切换、独立审批、Viewer只读及签名保留；完整集成也包含该检查。不把这一步当作完整镜像源、目标安装或P1签署。

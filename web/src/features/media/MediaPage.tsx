@@ -1,3 +1,5 @@
+import { MediaCompatibilityImport, MediaCompatibilitySummary } from './MediaCompatibility';
+import type { MediaCompatibility } from '../../lib/media';
 import { MediaSourceDialog } from './MediaSourceDialog';
 import { MediaManifestDialog } from './MediaManifestDialog';
 import { MediaDependencyPicker, MediaDependencySummary, type MediaDependencyChoice } from './MediaDependencyPicker';
@@ -72,6 +74,8 @@ function RegisterMediaDialog({
     action = useAction(),
     keyFor = useIdempotencyKey();
   const [file, setFile] = useState<File | null>(null);
+  const [compatibility, setCompatibility] = useState<MediaCompatibility>();
+  const [matrixBlocked, setMatrixBlocked] = useState(false);
   const [dependencies, setDependencies] = useState<MediaDependencyChoice[]>([]);
   const [type, setType] = useState<"driver">("driver"),
     [name, setName] = useState(""),
@@ -85,6 +89,7 @@ function RegisterMediaDialog({
     [validation, setValidation] = useState("");
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (matrixBlocked) return;
     const trimmedName = name.trim(),
       trimmedVersion = version.trim();
     if (
@@ -121,7 +126,7 @@ function RegisterMediaDialog({
       os_scope: osScope.trim(),
       hw_scope: hwScope.trim(),
       manifest_ref: manifest.trim(),
-      deps: dependencies.length ? { artifacts: dependencies.map(item => ({ media_id: item.id, sha256: item.sha256 })) } : undefined,
+      deps: dependencies.length || compatibility ? { ...(dependencies.length ? { artifacts: dependencies.map(item => ({ media_id: item.id, sha256: item.sha256 })) } : {}), ...(compatibility ? { compatibility } : {}) } : undefined,
     };
     const result = await action.run(() =>
       upload
@@ -140,6 +145,7 @@ function RegisterMediaDialog({
       title={t(upload ? "mediaUpload" : "mediaCreate")}
       description={t(projectId === null ? "mediaGlobalRegistration" : upload ? "mediaUploadDetail" : "mediaCreateDetail")}
       busy={action.busy}
+      submitDisabled={matrixBlocked}
       confirm={t(action.busy ? "saving" : "mediaCreate")}
       onSubmit={(event) => void submit(event)}
       onClose={onClose}
@@ -261,6 +267,7 @@ function RegisterMediaDialog({
           disabled={action.busy}
         />
       </div>
+      <MediaCompatibilityImport projectId={projectId} disabled={action.busy} value={compatibility} onChange={setCompatibility} onBlocked={setMatrixBlocked} />
       <MediaDependencyPicker projectId={projectId} arch={arch} selected={dependencies} onChange={setDependencies} disabled={action.busy} />
       {!upload && (
         <div className="field">
@@ -370,6 +377,7 @@ function TransitionDialog({
         <dd>{t("media_state_" + item.state)}</dd>
       </dl>
       <MediaDependencySummary refs={item.deps.artifacts} />
+      <MediaCompatibilitySummary matrix={item.deps.compatibility} />
       {target === "retired" && (
         <p className="impact-notice">{t("mediaRetireImpact")}</p>
       )}
@@ -386,6 +394,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
   const { t, i18n } = useTranslation(),
     session = useSession(),
     client = useQueryClient();
+  const [matrixView, setMatrixView] = useState<MediaItemSummary | null>(null);
   const [sourceFetch, setSourceFetch] = useState<MediaItemSummary | null>(null);
   const [manifestExport, setManifestExport] = useState<MediaItemSummary | null>(null);
   const [upload, setUpload] = useState(false),
@@ -459,6 +468,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
         )}
       </div>
       {success && <SuccessNotice>{success}</SuccessNotice>}
+      {matrixView && <ActionDialog title={t("mediaCompatibility")} description={`${matrixView.name} · ${matrixView.version}`} busy={false} confirm={t("mediaMatrixClose")} onClose={() => setMatrixView(null)} onSubmit={event => { event.preventDefault(); setMatrixView(null); }}><MediaCompatibilitySummary matrix={matrixView.deps.compatibility} /></ActionDialog>}
       {sourceFetch && <MediaSourceDialog projectId={projectId} item={sourceFetch} onClose={() => setSourceFetch(null)} onDone={() => done(t("mediaSourceFetched"))} />}
       {manifestExport && <MediaManifestDialog projectId={projectId} item={manifestExport} onClose={() => setManifestExport(null)} onDone={() => { setManifestExport(null); setSuccess(t("mediaManifestDownloaded")); }} />}
       <section className="management-panel" aria-busy={media.isFetching}>
@@ -518,6 +528,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
                         <td>{format(item.created_at)}</td>
                         <td>
                           <div className="table-actions">
+                            {item.deps.compatibility && <Button variant="ghost" size="sm" onClick={() => setMatrixView(item)}>{t("mediaMatrixView")}</Button>}
                             {manage && item.scope_key === (projectId === null ? "global" : "project:" + projectId) &&
                               nextStates[item.state].map((target) => (
                                 <button

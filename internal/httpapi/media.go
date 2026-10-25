@@ -13,6 +13,21 @@ func (a *authAPI) registerMedia(r *gin.Engine) {
 
 func (a *authAPI) registerMediaScope(r *gin.Engine, base string, global bool) {
 	a.registerMediaArtifacts(r, base, global)
+	r.POST(base+"/compatibility/validate", func(c *gin.Context) {
+		if _, _, ok := a.mediaScope(c, true, global); !ok {
+			return
+		}
+		var input platform.Compatibility
+		if !decodeBody(c, &input) {
+			return
+		}
+		matrix, err := platform.ValidateMediaCompatibility(input)
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.JSON(200, matrix)
+	})
 	r.GET(base, func(c *gin.Context) {
 		actor, project, ok := a.mediaScope(c, c.Request.Method != "GET", global)
 		if !ok {

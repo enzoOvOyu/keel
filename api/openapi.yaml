@@ -454,6 +454,62 @@ paths:
         '416': {description: Requested range is not satisfiable}
         '422': {description: Stored object integrity verification failed; no bytes served}
         '503': {description: Pinned object or storage unavailable}
+  /api/v1/projects/{id}/media/compatibility/validate:
+    post:
+      operationId: validateMediaCompatibility
+      tags: [Media]
+      security: [{ sessionCookie: [] }]
+      x-permission: media:manage
+      description: Validate an imported compatibility matrix with the exact registration rules. No media, approval or audit mutation. The imported report reference is metadata, never fetched as a URL.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/Origin' }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompatibilityMatrix' }
+      responses:
+        '200':
+          description: Validated matrix; still requires media verification and independent approval
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompatibilityMatrix' }
+        '400': { description: Invalid JSON, unknown fields or invalid matrix }
+        '401': { description: Authentication required }
+        '403': { description: Manager, scope or CSRF permission denied }
+        '404': { description: Project outside accessible scope }
+        '413': { description: Request exceeds 64 KiB }
+        '415': { description: JSON content type required }
+  /api/v1/admin/media/compatibility/validate:
+    post:
+      operationId: validateGlobalMediaCompatibility
+      x-platform-admin-required: true
+      tags: [Media]
+      security: [{ sessionCookie: [] }]
+      x-permission: media:manage
+      description: Validate an imported compatibility matrix with the exact registration rules. No media, approval or audit mutation. The imported report reference is metadata, never fetched as a URL.
+      parameters:
+        - { $ref: '#/components/parameters/Origin' }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompatibilityMatrix' }
+      responses:
+        '200':
+          description: Validated matrix; still requires media verification and independent approval
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompatibilityMatrix' }
+        '400': { description: Invalid JSON, unknown fields or invalid matrix }
+        '401': { description: Authentication required }
+        '403': { description: Manager, scope or CSRF permission denied }
+        '404': { description: Project outside accessible scope }
+        '413': { description: Request exceeds 64 KiB }
+        '415': { description: JSON content type required }
   /api/v1/projects/{id}/media/{mediaId}/fetch:
     post:
       operationId: fetchMediaSource

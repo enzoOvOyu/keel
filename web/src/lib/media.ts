@@ -124,3 +124,7 @@ export const exportMediaManifest = (projectId: string | null, id: string) =>
 
 export const fetchMediaSource = (projectId: string | null, id: string, csrf: string) =>
   request<MediaItemSummary>(`${mediaBase(projectId)}/${encodeURIComponent(id)}/fetch`, { method: 'POST', headers: { 'X-CSRF-Token': csrf } });
+
+export type MediaCompatibility = components['schemas']['CompatibilityMatrix'];
+export const validateMediaCompatibility = (projectId: string | null, input: unknown, csrf: string, signal: AbortSignal) =>
+ request<MediaCompatibility>(`${mediaBase(projectId)}/compatibility/validate`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: JSON.stringify(input), signal });
