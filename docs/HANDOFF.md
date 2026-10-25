@@ -827,3 +827,14 @@ SSH目标可显式选择vault提供者，仍保留原文件兼容；精确版本
 §63最终增量验证：独立CLI发现首次撤销返回纳秒而DB为微秒，已统一创建/撤销时间精度；定向真实PG/SSH/HTTP/公钥浏览器与独立CLI进程 `/tmp/keel-domain-cli-retry-final.log`、`/tmp/keel-ssh-integration-vvsygfw6`退出0，覆盖master排他创建/原文件保持、公开输出、版本拒绝复用、撤销精确重试响应一致，以及helper跨进程回执保持。最终域PG+vault传输复验 `/tmp/keel-domain-final-pg.log`、`/tmp/keel-domain-key-check-4dijv8ya`退出0。一次并行Vite构建替换dist导致浏览器找不到登录控件，已按构建结束后串行复验，不计该失败为通过；运行库未受影响。配置/设计/diff检查通过。
 
 §63发布：功能提交`336ad9e0fb6fe71defd74bd85116e0b26982275a`已推送，确切提交归档镜像`sha256:644556e4557ef65eca7fba8820fd6520641595cf480b7f65844e506d97c115fb`于`2026-10-25T07:10:04.991318+00:00`发布3000。044已应用，schema40→41备份/隔离恢复演练、新表仅SELECT授权、业务行数/原信任来源保持及审计限制通过。候选和3000八页登录冒烟、新公钥列表/资产页、应用角色API/匿名401/CSRF403/禁用503全部通过，未创建运行环境密钥或业务记录。证据`/home/ubuntu/.local/state/keel/releases/20261025T070606Z`，生产SSH/worker/主密钥提供者均未启用。旧schema40镜像不可直接回切，保留数据修复前进；备份恢复另走批准流程。GitHub功能CI run40171516201已completed/success。两份原草稿仍保留。两小时开发继续下一项受控公钥安装/新钥实际首连验证。
+
+
+## 64. 两小时续开发：受控公钥安装与新钥首连
+
+接续§63，A3/WP-1.5复用已具备的加密域钥、独立批准请求与统一Execution内核，增加可选install_key_id及不可变公开快照（045）。仅经独立批准后，通过运维临时非root凭据和已安装helper执行trust.install，在当前账号authorized_keys同inode追加强制helper/restrict公钥；持久归属记录、flock、过期/路径/UID/权限/symlink/hardlink/客户同钥边界防止重复认领或覆盖客户内容。并发追加不由旧快照覆盖，未知落盘保持unknown。
+
+建立真实信任必须新域钥全新SSH握手并只查询同一安装回执，再在当前授权/资产/期限与域钥行锁下最终投影。新钥拒绝时unknown/两把租约保留；恢复只查询原命令，不能二次安装；新钥证明后控制面撤销竞争阻止信任投影，不伪造目标回滚。资产页提供公开选钥、明确安装边界与原双人批准/执行流程。普通任务仍不允许任意安装。
+
+实际验证：文件系统及保留预打开客户追加FD测试 `/tmp/keel-key-install-append-files.log`；完整真实PG/SSH/HTTP/原有与新双账号审批浏览器/独立CLI-helper进程 `/tmp/keel-key-install-full-integration.log`、`/tmp/keel-ssh-integration-1zmg2eav`退出0；包含安装前撤销零派发、证明后撤销拒绝建立信任、新钥拒绝后原回执恢复。完整overlay make check `/tmp/keel-key-install-make-check.log`通过（现有bundle提示保留）。无真机操作或生产密钥生成，生产SSH/worker/主密钥提供者仍关闭。提交/CI、045备份恢复演练及3000发布随后按实际补记。
+
+边界：运维仍须准备非root临时登录、host pin和helper；不实现root首登、账号创建、PXE、旧钥删除/完整轮换/目标撤销证明、Vault销毁或Agent。普通任务后续需运维将目标绑定切为新vault版本，不自动覆盖配置。schema41→42后旧镜像不能直接回切；两份原fabric草稿继续保留。WP-1.5/1.7、S-3、P1和FR-0保持partial。

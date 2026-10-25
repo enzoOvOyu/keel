@@ -26,15 +26,18 @@ const projectID = "11111111111111111111111111111111"
 const machineID = "22222222222222222222222222222222"
 
 type sshFixture struct {
-	root, configFile string
-	runner           *taskrunner.SSH
-	listener         net.Listener
-	runs             atomic.Int64
-	closed           atomic.Int64
-	drop             atomic.Bool
-	tamper           atomic.Bool
-	mu               sync.Mutex
-	connections      []net.Conn
+	root, configFile  string
+	runner            *taskrunner.SSH
+	listener          net.Listener
+	runs              atomic.Int64
+	closed            atomic.Int64
+	drop              atomic.Bool
+	tamper            atomic.Bool
+	mu                sync.Mutex
+	connections       []net.Conn
+	installedKeysFile string
+	rejectInstalled   atomic.Bool
+	installedAuth     atomic.Int64
 }
 
 func fixture(t *testing.T) *sshFixture {
@@ -82,10 +85,26 @@ func fixtureWithPublicKey(t *testing.T, authorized ssh.PublicKey) *sshFixture {
 		t.Fatal(e)
 	}
 	server := &ssh.ServerConfig{PublicKeyCallback: func(c ssh.ConnMetadata, k ssh.PublicKey) (*ssh.Permissions, error) {
-		if c.User() != "keel-ctrl" || !bytes.Equal(k.Marshal(), authorized.Marshal()) {
+		if c.User() != "keel-ctrl" {
 			return nil, errors.New("rejected")
 		}
-		return nil, nil
+		if bytes.Equal(k.Marshal(), authorized.Marshal()) {
+			return nil, nil
+		}
+		f.mu.Lock()
+		file := f.installedKeysFile
+		f.mu.Unlock()
+		if file != "" && !f.rejectInstalled.Load() {
+			raw, _ := os.ReadFile(file)
+			for _, line := range bytes.Split(raw, []byte{'\n'}) {
+				public, _, _, _, err := ssh.ParseAuthorizedKey(line)
+				if err == nil && bytes.Equal(public.Marshal(), k.Marshal()) {
+					f.installedAuth.Add(1)
+					return nil, nil
+				}
+			}
+		}
+		return nil, errors.New("rejected")
 	}}
 	server.AddHostKey(hostSigner)
 	go func() {
@@ -137,7 +156,10 @@ func fixtureWithPublicKey(t *testing.T, authorized ssh.PublicKey) *sshFixture {
 								f.runs.Add(1)
 							}
 							var wire bytes.Buffer
-							e := (taskrunner.Wrapper{StateDirectory: dir}).Serve(context.Background(), bytes.NewReader(input), &wire)
+							f.mu.Lock()
+							keysFile := f.installedKeysFile
+							f.mu.Unlock()
+							e := (taskrunner.Wrapper{StateDirectory: dir, AuthorizedKeysFile: keysFile}).Serve(context.Background(), bytes.NewReader(input), &wire)
 							var o taskrunner.Observation
 							if e == nil {
 								e = json.Unmarshal(wire.Bytes(), &o)

@@ -63,6 +63,24 @@ type SSHDomainKey struct {
 
 const sshDomainColumns = `id,project_id,credential_ref,credential_version,public_key,expires_at,created_at,revoked_at,revocation_reason,state_version`
 
+func ReadSSHInstallCredential(ctx context.Context, tx *sql.Tx, project string, expected taskrunner.InstallCredential, until time.Time) (*taskrunner.InstallCredential, error) {
+	if !sshTrustIDPattern.MatchString(expected.ID) {
+		return nil, ErrNotFound
+	}
+	key, err := scanSSHDomainKey(tx.QueryRowContext(ctx, `SELECT `+sshDomainColumns+` FROM ssh_domain_keys WHERE project_id=$1 AND id=$2 FOR SHARE`, project, expected.ID))
+	if err != nil {
+		return nil, err
+	}
+	if key.RevokedAt != nil || !key.ExpiresAt.After(time.Now()) || key.ExpiresAt.Before(until) {
+		return nil, apiError(409, "SSH_INSTALL_CREDENTIAL_UNAVAILABLE", "An unrevoked project domain key valid through the request window is required")
+	}
+	current := &taskrunner.InstallCredential{ID: key.ID, Ref: key.Ref, Version: key.Version, ExpiresAt: key.ExpiresAt.UTC(), PublicKey: key.PublicKey}
+	if expected.Ref != "" && (expected.Ref != current.Ref || expected.Version != current.Version || expected.PublicKey != current.PublicKey || !expected.ExpiresAt.Equal(current.ExpiresAt)) {
+		return nil, apiError(409, "SSH_INSTALL_CREDENTIAL_CHANGED", "The frozen domain key identity changed")
+	}
+	return current, nil
+}
+
 // ProjectSSHDomainKeys exposes only public identities to current project
 // operators, including after project closure so retirement evidence remains visible.
 func (s *Store) ProjectSSHDomainKeys(ctx context.Context, a *AuthSession, project string, p Pagination) (Page[SSHDomainKey], error) {

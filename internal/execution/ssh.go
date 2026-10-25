@@ -10,6 +10,7 @@ import (
 
 	"github.com/enzoOvOyu/keel/internal/platform"
 	"github.com/enzoOvOyu/keel/internal/taskrunner"
+	"golang.org/x/crypto/ssh"
 )
 
 type SSHCreateInput struct {
@@ -163,6 +164,9 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 		targetIDs = append(targetIDs, t.ID)
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
+	if requestID != "" && targets[0].SSHInstallKey != nil {
+		in.Operation = "trust.install"
+	}
 	task := Task{ID: "ssh-query", Type: in.Operation, Idempotent: true, Retry: 0, TimeoutMS: in.TimeoutMS, Resources: []string{"device", "ssh"}}
 	def := Definition{APIVersion: "keel.ssh/v1", Inputs: map[string]Input{}, Tasks: []Task{task}}
 	flow := FlowVersion{ID: platform.RandomID(), FlowID: platform.RandomID(), ProjectID: project, Name: "SSH " + in.Operation, Version: 1, Definition: def, ContentHash: hash(jsonBytes(def)), CreatedAt: now}
@@ -178,6 +182,9 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 	x.Snapshot = Snapshot{Mode: "ssh", Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "Read-only allowlisted operation, provisioned project asset, exact operator binding and established pinned host key; not hardware acceptance", FrozenAt: now}
 	if requestID != "" {
 		x.Snapshot.Admission = "Independently approved, time-limited pinned first-connection verification of an already installed platform key/helper; no key installation, password change or arbitrary repair"
+		if targets[0].SSHInstallKey != nil {
+			x.Snapshot.Admission = "Independently approved public key append through a configured temporary non-root SSH channel; fresh SSH handshake using the frozen project-domain key must query the same durable command before trust; customer keys preserved"
+		}
 	}
 	if _, e = tx.ExecContext(ctx, `INSERT INTO exec_executions(id,project_id,flow_version_id,mode,parameters,snapshot,target_set_hash,concurrency,circuit_breaker_percent,created_by,created_at) VALUES($1,$2,$3,'ssh',$4,$5,$6,1,100,$7,$8)`, x.ID, project, flow.ID, jsonBytes(params), jsonBytes(x.Snapshot), x.TargetSetHash, a.User.ID, now); e != nil {
 		return nil, e
@@ -215,7 +222,41 @@ func sshCommand(c *Claim) taskrunner.TaskCommand {
 	case int:
 		wait = v
 	}
-	return taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: c.Target.ProjectID, MachineID: c.Target.ResourceKey, CommandID: c.Attempt.CommandID, AttemptID: c.Attempt.ID, FencingToken: c.Attempt.FencingToken, Operation: c.Task.Type, TimeoutMS: c.Task.TimeoutMS, WaitMS: wait}
+	command := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: c.Target.ProjectID, MachineID: c.Target.ResourceKey, CommandID: c.Attempt.CommandID, AttemptID: c.Attempt.ID, FencingToken: c.Attempt.FencingToken, Operation: c.Task.Type, TimeoutMS: c.Task.TimeoutMS, WaitMS: wait}
+	if c.Target.SSHInstallKey != nil {
+		command.PublicKey = c.Target.SSHInstallKey.PublicKey
+		if c.Target.SSHTrustExpiresAt != nil {
+			command.AuthorizationExpiresAt = c.Target.SSHTrustExpiresAt.UnixMicro()
+		}
+	}
+	return command
+}
+
+func (s *Service) verifySSHInstallation(ctx context.Context, c *Claim, o taskrunner.Observation) (taskrunner.Observation, error) {
+	if c.Target.SSHInstallKey == nil || o.State != "success" {
+		return o, nil
+	}
+	key := *c.Target.SSHInstallKey
+	if c.Target.SSHTrustExpiresAt == nil || !time.Now().Before(*c.Target.SSHTrustExpiresAt) {
+		return taskrunner.Observation{}, taskrunner.ErrUnknown
+	}
+	public, _, _, _, parseErr := ssh.ParseAuthorizedKey([]byte(key.PublicKey))
+	if parseErr != nil || o.Output["public_key_fingerprint"] != ssh.FingerprintSHA256(public) {
+		return taskrunner.Observation{}, taskrunner.ErrUnknown
+	}
+	provider, ok := s.SSHRunner.(interface {
+		QueryInstalledCredential(context.Context, taskrunner.Request, taskrunner.InstallCredential) (taskrunner.Observation, error)
+	})
+	if !ok || o.Output["key_installed"] != true {
+		return taskrunner.Observation{}, taskrunner.ErrUnknown
+	}
+	verified, err := provider.QueryInstalledCredential(ctx, taskrunner.Request{Action: "query", Command: sshCommand(c)}, key)
+	if err != nil || verified.State != "success" || hash(jsonBytes(verified)) != hash(jsonBytes(o)) || !time.Now().Before(*c.Target.SSHTrustExpiresAt) {
+		return taskrunner.Observation{}, taskrunner.ErrUnknown
+	}
+	verified.Output["public_key_verified"] = true
+	verified.Output["verified_credential_id"] = key.ID
+	return verified, nil
 }
 
 func (s *Service) recordSSH(ctx context.Context, o taskrunner.Observation) error {
@@ -254,6 +295,11 @@ func (s *Service) runSSHClaim(ctx context.Context, c *Claim) error {
 	} // No remote work, no fabricated stop proof.
 	work, cancel := context.WithCancel(ctx)
 	defer cancel()
+	if c.Target.SSHInstallKey != nil && c.Target.SSHTrustExpiresAt != nil {
+		var stop context.CancelFunc
+		work, stop = context.WithDeadline(work, *c.Target.SSHTrustExpiresAt)
+		defer stop()
+	}
 	stop := make(chan struct{})
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -303,6 +349,10 @@ func (s *Service) runSSHClaim(ctx context.Context, c *Claim) error {
 	}
 	finish, done := context.WithTimeout(context.Background(), 5*time.Second)
 	defer done()
+	o, e = s.verifySSHInstallation(finish, c, o)
+	if e != nil {
+		return e
+	}
 	if e = s.recordSSH(finish, o); e != nil {
 		return e
 	}
@@ -378,6 +428,10 @@ func (s *Service) FetchSSHReceipt(ctx context.Context, a *Actor, project, id, at
 	o, e := s.SSHRunner.Do(query, taskrunner.Request{Action: "query", Command: sshCommand(c)})
 	if e != nil || !o.Terminal() {
 		return nil, failure(409, "SSH_RECEIPT_PENDING", "No terminal SSH receipt; resource remains quarantined")
+	}
+	o, e = s.verifySSHInstallation(query, c, o)
+	if e != nil {
+		return nil, failure(409, "SSH_INSTALL_VERIFICATION_PENDING", "New key has no verified fresh SSH receipt; resources remain quarantined")
 	}
 	if e = s.recordSSH(ctx, o); e != nil {
 		return nil, e

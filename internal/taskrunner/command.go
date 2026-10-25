@@ -19,22 +19,31 @@ var idPattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
 const APIVersion = "keel.task/v1"
 
 type TaskCommand struct {
-	APIVersion   string `json:"api_version"`
-	ProjectID    string `json:"project_id"`
-	MachineID    string `json:"machine_id"`
-	CommandID    string `json:"command_id"`
-	AttemptID    string `json:"attempt_id"`
-	FencingToken int64  `json:"fencing_token"`
-	Operation    string `json:"operation"`
-	TimeoutMS    int    `json:"timeout_ms"`
-	WaitMS       int    `json:"wait_ms"`
+	APIVersion             string `json:"api_version"`
+	ProjectID              string `json:"project_id"`
+	MachineID              string `json:"machine_id"`
+	CommandID              string `json:"command_id"`
+	AttemptID              string `json:"attempt_id"`
+	FencingToken           int64  `json:"fencing_token"`
+	Operation              string `json:"operation"`
+	TimeoutMS              int    `json:"timeout_ms"`
+	WaitMS                 int    `json:"wait_ms"`
+	PublicKey              string `json:"public_key,omitempty"`
+	AuthorizationExpiresAt int64  `json:"authorization_expires_at,omitempty"`
 }
 
 func (c TaskCommand) Validate() error {
 	if c.APIVersion != APIVersion || !idPattern.MatchString(c.ProjectID) || !idPattern.MatchString(c.MachineID) || !idPattern.MatchString(c.CommandID) || !idPattern.MatchString(c.AttemptID) || c.FencingToken < 1 || c.TimeoutMS < 100 || c.TimeoutMS > 30000 {
 		return ErrRejected
 	}
-	if c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "trust.verify" {
+	if c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "trust.verify" && c.Operation != "trust.install" {
+		return ErrRejected
+	}
+	if c.Operation == "trust.install" {
+		if _, err := installPublicIdentity(c.PublicKey, c.ProjectID); err != nil || c.AuthorizationExpiresAt < 1 {
+			return ErrRejected
+		}
+	} else if c.PublicKey != "" || c.AuthorizationExpiresAt != 0 {
 		return ErrRejected
 	}
 	if (c.Operation != "host.wait" && c.WaitMS != 0) || c.WaitMS < 0 || c.WaitMS > 30000 {

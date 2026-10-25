@@ -61,7 +61,7 @@ Pause停止新派发，当前只读步骤安全完成；Kill需要cancelled/其�
 
 043增加 `ssh_trust_source=legacy|sim|ssh`：旧记录默认legacy，mock投影标sim，只有实际验证回执标ssh。普通SSH拒绝legacy/sim，即使历史状态为established；这类状态可经独立批准的repair补真实验证。revoked不自动恢复；已完成真实验证的established不借repair执行其他动作。资产页区分来源，旧mock动作不能修改当前或历史真实目标。
 
-本增量不安装公钥/helper、不改变客户口令、不实现目标密钥撤销或Vault销毁；一次性指验证授权消费，回执查询不重新执行。授权/凭据到期或绑定轮换后，unknown仍保持隔离，换凭据查询旧命令的恢复治理尚待开发。043要求schema40；备份恢复演练、完整集成/CI、提交和实际运行版本以HANDOFF最新记录为准。
+本节原只读增量不安装公钥/helper、不改变客户口令、不实现目标密钥撤销或Vault销毁；一次性指验证授权消费，回执查询不重新执行。授权/凭据到期或绑定轮换后，unknown仍保持隔离，换凭据查询旧命令的恢复治理尚待开发。043要求schema40；备份恢复演练、完整集成/CI、提交和实际运行版本以HANDOFF最新记录为准。
 
 ## 加密项目域密钥提供者
 
@@ -85,4 +85,17 @@ keel-admin ssh-key-revoke --project PROJECT_ID --id KEY_ID --expected-version 1 
 
 `GET /api/v1/projects/{id}/ssh-domain-keys`与资产页公开密钥列表仅允许当前平台Admin或项目Admin/DL/SRE，分页返回公钥、引用/版本、到期及控制面撤销证据。无私钥/密文/文件路径字段。浏览器无密钥生成、导入或撤销入口；管理动作仅服务器owner CLI。运行角色对新表只授SELECT，禁止INSERT/UPDATE/DELETE/TRUNCATE；`configure-development.py --grant`保留这一限制及原信任请求、审计和迁移证据限制。
 
-本功能不安装目标公钥、不删除authorized_keys条目、不修改客户密码，也不实现目标双钥轮换或Vault密文销毁。控制面已撤销与“新SSH连接被目标拒绝”的撤销证明是两个不同事实；S-3与完整bootstrap/repair仍需后续完成。新增044迁移，部署必须按DEPLOYMENT备份、隔离恢复演练并授新表只读权限；旧schema40镜像不能直接用于新增迁移后的库。
+本节凭据提供者本身不安装目标公钥、不删除authorized_keys条目、不修改客户密码，也不实现目标双钥轮换或Vault密文销毁。控制面已撤销与“新SSH连接被目标拒绝”的撤销证明是两个不同事实；S-3与完整bootstrap/repair仍需后续完成。新增044迁移，部署必须按DEPLOYMENT备份、隔离恢复演练并授新表只读权限；旧schema40镜像不能直接用于新增迁移后的库。
+
+
+## 受控公钥安装与新钥首连证明
+
+在上述同一请求创建接口可选传入 `install_key_id`，只能选择本项目未撤销、有效期覆盖审批窗口的域密钥。创建时冻结公开身份，批准、执行前及最终投影重新核验。资产页展示精确公钥与版本；另一位Admin/DL独立批准后，由原Execution/attempt/outbox/资源租约执行内部 `trust.install`。不选择密钥仍为原只读验证。普通SSH创建接口不接受安装操作或任意公钥。
+
+先决条件是人工核验目标host key、运维配置的临时非root登录凭据，以及已安装的受限helper；目标账号和helper不会由本功能创建。helper默认只在当前账号 `.ssh/authorized_keys` 追加 `restrict,command="/usr/local/libexec/keel-ssh-runner"` 受限公钥；运维可显式配置 `KEEL_SSH_AUTHORIZED_KEYS_FILE`，但必须是绝对路径且文件名为authorized_keys。目录须当前UID所有且0700；文件须当前UID所有、普通单链接、无组/其他写权限。拒绝symlink、hardlink、客户已有同公钥及其他目标登记，不认领客户密钥。独立flock与持久归属记录使相同命令幂等；原文件通过同inode追加保留客户内容，不用旧快照覆盖并发追加。部分写入、文件替换、超时或持久化不确定保持unknown。
+
+安装回执本身不建立真实互信。控制面必须以新域密钥另建实际SSH连接，在相同host pin/账号/地址上只查询原命令，核对同一不可变终态回执，且审批仍有效，才能原子投影 `ssh_trust_source=ssh`。不复用旧登录连接来证明新钥。新钥拒绝、断连或查询不一致保留unknown和资源锁；后续回执获取也必须完成新钥查询，绝不重新run安装。最终写信任前再次锁定并检查域密钥；证明后撤销仍阻止建立信任，不声称能回滚已发生的远端追加。
+
+首次安装后，运维需按公开元数据将目标配置切换为vault精确版本才能使用后续普通SSH操作；不自动改写目标配置或移除临时凭据。045冻结安装快照，schema41→42必须先备份及隔离恢复演练，保留既有运行角色授权，无新增运行时写密钥权限。测试使用真实回环SSH/PG与受控文件夹，覆盖新钥首次握手、拒绝后原回执恢复、撤销竞争、客户文件保持及双账号审批浏览器；不属于真机PoC。
+
+本步不涉及root密码首登、客户口令、PXE/cloud-init、账号/helper安装、旧钥删除、完整双钥轮换、目标撤销证明或Vault销毁，WP-1.5/1.7、S-3和P1仍partial。

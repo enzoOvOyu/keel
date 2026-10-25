@@ -63,10 +63,15 @@ func (s *Service) sshTrustTargetTx(ctx context.Context, tx *sql.Tx, project, req
 	var expectedTrust, pin, configHash, state, trust, currentPin, ref, version, creator, approver string
 	var expires, credentialExpires time.Time
 	var assetVersion int64
-	e := tx.QueryRowContext(ctx, `SELECT machine_id,asset_version,expected_trust,host_key,config_hash,credential_ref,credential_version,credential_expires_at,created_by,COALESCE(approved_by,''),expires_at,state FROM ssh_trust_requests WHERE id=$1 AND project_id=$2 FOR SHARE`, request, project).Scan(&t.ResourceKey, &assetVersion, &expectedTrust, &pin, &configHash, &ref, &version, &credentialExpires, &creator, &approver, &expires, &state)
+	var install []byte
+	e := tx.QueryRowContext(ctx, `SELECT machine_id,asset_version,expected_trust,host_key,config_hash,credential_ref,credential_version,credential_expires_at,created_by,COALESCE(approved_by,''),expires_at,state,install_key_snapshot FROM ssh_trust_requests WHERE id=$1 AND project_id=$2 FOR SHARE`, request, project).Scan(&t.ResourceKey, &assetVersion, &expectedTrust, &pin, &configHash, &ref, &version, &credentialExpires, &creator, &approver, &expires, &state, &install)
 	if errors.Is(e, sql.ErrNoRows) {
 		return t, platform.ErrNotFound
 	}
+	if e != nil {
+		return t, e
+	}
+	t.SSHInstallKey, e = decode[*taskrunner.InstallCredential](install)
 	if e != nil {
 		return t, e
 	}
@@ -116,6 +121,23 @@ func (s *Service) sshTrustTargetTx(ctx context.Context, tx *sql.Tx, project, req
 		return t, conflict("SSH credential version or validity changed")
 	}
 	t.SSH = &b
+	if t.SSHInstallKey != nil {
+		expiry := expires
+		t.SSHTrustExpiresAt = &expiry
+	}
+	if t.SSHInstallKey != nil {
+		key, err := platform.ReadSSHInstallCredential(ctx, tx, project, *t.SSHInstallKey, expires)
+		if err != nil {
+			return t, err
+		}
+		provider, ok := s.SSHRunner.(interface {
+			CheckInstallCredential(string, string, taskrunner.InstallCredential) error
+		})
+		if !ok || provider.CheckInstallCredential(project, t.ResourceKey, *key) != nil {
+			return t, conflict("Approved installation key is unavailable")
+		}
+		t.SSHInstallKey = key
+	}
 	return t, nil
 }
 
@@ -134,7 +156,7 @@ func (s *Service) sshTrustFrozenTx(ctx context.Context, tx *sql.Tx, t Target) er
 	if !executorAllowed {
 		return conflict("SSH trust executor authority changed")
 	}
-	if t.SSH == nil || *t.SSH != *current.SSH || t.Revision != current.Revision || t.ModelVersion != current.ModelVersion || t.ResourceKey != current.ResourceKey {
+	if t.SSH == nil || *t.SSH != *current.SSH || t.Revision != current.Revision || t.ModelVersion != current.ModelVersion || t.ResourceKey != current.ResourceKey || hash(jsonBytes(t.SSHInstallKey)) != hash(jsonBytes(current.SSHInstallKey)) {
 		return conflict("Frozen SSH trust target changed")
 	}
 	return nil
@@ -182,10 +204,18 @@ func (s *Service) applySSHTrustReceipt(ctx context.Context, tx *sql.Tx, a Attemp
 	}
 	valid := state == "consumed" || state == "unknown"
 	valid = valid && r.Result == "success" && r.StartedAt.Before(expires) && !r.StartedAt.Before(created) && !r.FinishedAt.After(expires) && !r.FinishedAt.After(credentialExpires) && pin == t.SSH.HostKey && binding == t.SSH.ConfigHash
-	valid = valid && r.Output["mode"] == "ssh" && r.Output["source"] == "host" && r.Output["operation"] == "trust.verify"
+	operation := "trust.verify"
+	if t.SSHInstallKey != nil {
+		operation = "trust.install"
+	}
+	valid = valid && r.Output["mode"] == "ssh" && r.Output["source"] == "host" && r.Output["operation"] == operation
 	observation, ok := r.Output["observation"].(map[string]any)
 	if !ok {
 		valid = false
+	} else if t.SSHInstallKey != nil {
+		valid = valid && observation["key_installed"] == true && observation["verified_credential_id"] == t.SSHInstallKey.ID && observation["public_key_verified"] == true
+		_, err := platform.ReadSSHInstallCredential(ctx, tx, t.ProjectID, *t.SSHInstallKey, expires)
+		valid = valid && err == nil
 	} else {
 		for _, key := range []string{"hostname", "os", "arch"} {
 			value, ok := observation[key].(string)
@@ -228,8 +258,8 @@ func (s *Service) applySSHTrustReceipt(ctx context.Context, tx *sql.Tx, a Attemp
 	if valid {
 		outcome = "success"
 	}
-	if _, e = tx.ExecContext(ctx, `INSERT INTO trust_logs(id,machine_id,project_id,action,outcome,fingerprint,detail,created_by,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,now())`, platform.RandomID(), t.ResourceKey, t.ProjectID, action, outcome, pin, jsonBytes(map[string]any{"source": "ssh", "request_id": t.SSHTrustRequestID, "execution_id": a.ExecutionID, "command_id": a.CommandID, "receipt_fence": a.FencingToken, "key_installation": false}), creator); e != nil {
+	if _, e = tx.ExecContext(ctx, `INSERT INTO trust_logs(id,machine_id,project_id,action,outcome,fingerprint,detail,created_by,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,now())`, platform.RandomID(), t.ResourceKey, t.ProjectID, action, outcome, pin, jsonBytes(map[string]any{"source": "ssh", "request_id": t.SSHTrustRequestID, "execution_id": a.ExecutionID, "command_id": a.CommandID, "receipt_fence": a.FencingToken, "key_installation": t.SSHInstallKey != nil, "installed_key": t.SSHInstallKey}), creator); e != nil {
 		return e
 	}
-	return audit(ctx, tx, creator, t.ProjectID, "ssh.trust.proof", t.SSHTrustRequestID, "worker", map[string]any{"result": final, "execution_id": a.ExecutionID, "command_id": a.CommandID, "source": "ssh", "key_installation": false})
+	return audit(ctx, tx, creator, t.ProjectID, "ssh.trust.proof", t.SSHTrustRequestID, "worker", map[string]any{"result": final, "execution_id": a.ExecutionID, "command_id": a.CommandID, "source": "ssh", "key_installation": t.SSHInstallKey != nil, "installed_key": t.SSHInstallKey})
 }

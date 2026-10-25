@@ -48,6 +48,73 @@ type CredentialMetadata struct {
 	ExpiresAt *time.Time `json:"credential_expires_at,omitempty"`
 }
 
+// InstallCredential is a public, immutable selection approved for one target.
+type InstallCredential struct {
+	ID        string    `json:"id"`
+	Ref       string    `json:"credential_ref"`
+	Version   string    `json:"credential_version"`
+	ExpiresAt time.Time `json:"expires_at"`
+	PublicKey string    `json:"public_key"`
+}
+
+func (s *SSH) CheckInstallCredential(project, machine string, credential InstallCredential) error {
+	_, _, err := s.installEndpoint(context.Background(), project, machine, credential)
+	return err
+}
+
+func (s *SSH) installEndpoint(ctx context.Context, project, machine string, credential InstallCredential) (endpoint, string, error) {
+	ep, err := s.currentEndpoint(ctx, project+":"+machine)
+	if err != nil {
+		return endpoint{}, "", ErrRejected
+	}
+	public, err := installPublicIdentity(credential.PublicKey, project)
+	if err != nil {
+		return endpoint{}, "", ErrRejected
+	}
+	ep.config.CredentialProvider = "vault"
+	ep.config.PrivateKeyFile = ""
+	ep.config.CredentialRef = credential.Ref
+	ep.config.CredentialVersion = credential.Version
+	ep.config.CredentialExpiresAt = &credential.ExpiresAt
+	signer, err := s.resolveSigner(ctx, ep.config)
+	if err != nil || ssh.FingerprintSHA256(signer.PublicKey()) != ssh.FingerprintSHA256(public) {
+		return endpoint{}, "", ErrRejected
+	}
+	ep.signer = signer
+	raw, _ := json.Marshal(credential)
+	hash := sha256.Sum256(raw)
+	return ep, project + ":" + machine + ":domain:" + hex.EncodeToString(hash[:]), nil
+}
+
+// QueryInstalledCredential always opens a fresh connection using the newly
+// installed key. It can only query an existing install command, never run work.
+func (s *SSH) QueryInstalledCredential(ctx context.Context, r Request, credential InstallCredential) (Observation, error) {
+	if r.Action != "query" || r.Command.Operation != "trust.install" || r.Command.PublicKey != credential.PublicKey {
+		return Observation{}, ErrRejected
+	}
+	ep, id, err := s.installEndpoint(ctx, r.Command.ProjectID, r.Command.MachineID, credential)
+	if err != nil {
+		return Observation{}, ErrRejected
+	}
+	defer func() {
+		s.mu.Lock()
+		if old := s.pool[id]; old != nil {
+			delete(s.pool, id)
+			old.Close()
+		}
+		s.mu.Unlock()
+	}()
+	// Do not reuse an authenticated session: proof requires this key to be
+	// accepted by a new SSH handshake after authorized_keys was updated.
+	s.mu.Lock()
+	if old := s.pool[id]; old != nil {
+		delete(s.pool, id)
+		old.Close()
+	}
+	s.mu.Unlock()
+	return s.doEndpoint(ctx, r, id, ep)
+}
+
 var credentialVersionPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$`)
 
 // IsValidHostKey accepts the canonical OpenSSH SHA256 fingerprint only.
@@ -347,6 +414,14 @@ func (s *SSH) Do(ctx context.Context, r Request) (Observation, error) {
 	id := r.Command.ProjectID + ":" + r.Command.MachineID
 	ep, err := s.currentEndpoint(ctx, id)
 	if err != nil {
+		return zero, ErrRejected
+	}
+	return s.doEndpoint(ctx, r, id, ep)
+}
+
+func (s *SSH) doEndpoint(ctx context.Context, r Request, id string, ep endpoint) (Observation, error) {
+	var zero Observation
+	if r.Command.Validate() != nil || (r.Action != "run" && r.Action != "query" && r.Action != "cancel") {
 		return zero, ErrRejected
 	}
 	work, cancel := context.WithTimeout(ctx, 35*time.Second)

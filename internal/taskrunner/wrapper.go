@@ -16,7 +16,10 @@ import (
 
 // Wrapper is a per-invocation helper, not a persistent agent. StateDirectory is
 // provisioned by the operator for keel-ctrl, mode0700. Never use a shared /tmp.
-type Wrapper struct{ StateDirectory string }
+type Wrapper struct {
+	StateDirectory     string
+	AuthorizedKeysFile string
+}
 
 func privateDirectory(path string) error {
 	s, e := os.Lstat(path)
@@ -175,6 +178,11 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 	}
 	work, cancel := context.WithTimeout(ctx, time.Duration(r.Command.TimeoutMS)*time.Millisecond)
 	defer cancel()
+	if r.Command.Operation == "trust.install" {
+		var stop context.CancelFunc
+		work, stop = context.WithDeadline(work, time.UnixMicro(r.Command.AuthorizationExpiresAt))
+		defer stop()
+	}
 	result, reason := "success", "completed"
 	if r.Command.Operation == "host.wait" {
 		done := time.NewTimer(time.Duration(r.Command.WaitMS) * time.Millisecond)
@@ -195,6 +203,16 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 					break wait
 				}
 			}
+		}
+	} else if r.Command.Operation == "trust.install" {
+		fingerprint, err := installDomainKey(work, w.AuthorizedKeysFile, r.Command)
+		if errors.Is(err, ErrUnknown) {
+			return zero, ErrUnknown
+		}
+		if err != nil {
+			result, reason = "failed", "key_installation_rejected"
+		} else {
+			o.Output = map[string]any{"key_installed": true, "public_key_fingerprint": fingerprint}
 		}
 	} else {
 		host, e := os.Hostname()

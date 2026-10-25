@@ -2165,6 +2165,14 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        SSHInstallCredential: {
+            id: string;
+            credential_ref: string;
+            credential_version: string;
+            public_key: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
         SSHDomainKey: {
             id: string;
             project_id: string;
@@ -2213,6 +2221,7 @@ export interface components {
             state: "pending" | "approved" | "consumed" | "succeeded" | "failed" | "unknown" | "revoked";
             state_version: number;
             execution_id: string;
+            install_key?: components["schemas"]["SSHInstallCredential"];
         };
         SSHTrustRequestPage: {
             items: components["schemas"]["SSHTrustRequest"][];
@@ -2229,6 +2238,8 @@ export interface components {
             reason: string;
             /** @default 900 */
             expires_in_seconds: number;
+            /** @description Optional approved project domain public key to append through the configured temporary non-root SSH channel, then verify with a fresh new-key SSH connection. */
+            install_key_id?: string;
         };
         SSHTrustApproveInput: {
             expected_version: number;

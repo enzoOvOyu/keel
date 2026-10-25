@@ -14,27 +14,29 @@ import (
 )
 
 type SSHTrustRequest struct {
-	ID                  string    `json:"id"`
-	ProjectID           string    `json:"project_id"`
-	MachineID           string    `json:"machine_id"`
-	Action              string    `json:"action"`
-	AssetVersion        int64     `json:"asset_version"`
-	ExpectedTrust       string    `json:"expected_trust"`
-	HostKey             string    `json:"host_key"`
-	ConfigHash          string    `json:"config_hash"`
-	CredentialRef       string    `json:"credential_ref"`
-	CredentialVersion   string    `json:"credential_version"`
-	CredentialExpiresAt time.Time `json:"credential_expires_at"`
-	Reason              string    `json:"reason"`
-	CreatedBy           string    `json:"created_by"`
-	ApprovedBy          string    `json:"approved_by"`
-	CreatedAt           time.Time `json:"created_at"`
-	ExpiresAt           time.Time `json:"expires_at"`
-	State               string    `json:"state"`
-	StateVersion        int64     `json:"state_version"`
-	ExecutionID         string    `json:"execution_id"`
+	InstallKey          *taskrunner.InstallCredential `json:"install_key,omitempty"`
+	ID                  string                        `json:"id"`
+	ProjectID           string                        `json:"project_id"`
+	MachineID           string                        `json:"machine_id"`
+	Action              string                        `json:"action"`
+	AssetVersion        int64                         `json:"asset_version"`
+	ExpectedTrust       string                        `json:"expected_trust"`
+	HostKey             string                        `json:"host_key"`
+	ConfigHash          string                        `json:"config_hash"`
+	CredentialRef       string                        `json:"credential_ref"`
+	CredentialVersion   string                        `json:"credential_version"`
+	CredentialExpiresAt time.Time                     `json:"credential_expires_at"`
+	Reason              string                        `json:"reason"`
+	CreatedBy           string                        `json:"created_by"`
+	ApprovedBy          string                        `json:"approved_by"`
+	CreatedAt           time.Time                     `json:"created_at"`
+	ExpiresAt           time.Time                     `json:"expires_at"`
+	State               string                        `json:"state"`
+	StateVersion        int64                         `json:"state_version"`
+	ExecutionID         string                        `json:"execution_id"`
 }
 type CreateSSHTrustRequestInput struct {
+	InstallKeyID         string `json:"install_key_id,omitempty"`
 	MachineID            string `json:"machine_id"`
 	Action               string `json:"action"`
 	ExpectedAssetVersion int64  `json:"expected_asset_version"`
@@ -49,15 +51,19 @@ type SSHTrustRequestActionInput struct {
 
 var sshTrustIDPattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
 
-const sshTrustColumns = `id,project_id,machine_id,action,asset_version,expected_trust,host_key,config_hash,credential_ref,credential_version,credential_expires_at,reason,created_by,coalesce(approved_by,''),created_at,expires_at,state,state_version,coalesce(execution_id,'')`
+const sshTrustColumns = `id,project_id,machine_id,action,asset_version,expected_trust,host_key,config_hash,credential_ref,credential_version,credential_expires_at,reason,created_by,coalesce(approved_by,''),created_at,expires_at,state,state_version,coalesce(execution_id,''),install_key_snapshot`
 
 type sshTrustScanner interface{ Scan(...any) error }
 
 func scanSSHTrustRequest(row sshTrustScanner) (*SSHTrustRequest, error) {
 	x := &SSHTrustRequest{}
-	e := row.Scan(&x.ID, &x.ProjectID, &x.MachineID, &x.Action, &x.AssetVersion, &x.ExpectedTrust, &x.HostKey, &x.ConfigHash, &x.CredentialRef, &x.CredentialVersion, &x.CredentialExpiresAt, &x.Reason, &x.CreatedBy, &x.ApprovedBy, &x.CreatedAt, &x.ExpiresAt, &x.State, &x.StateVersion, &x.ExecutionID)
+	var install []byte
+	e := row.Scan(&x.ID, &x.ProjectID, &x.MachineID, &x.Action, &x.AssetVersion, &x.ExpectedTrust, &x.HostKey, &x.ConfigHash, &x.CredentialRef, &x.CredentialVersion, &x.CredentialExpiresAt, &x.Reason, &x.CreatedBy, &x.ApprovedBy, &x.CreatedAt, &x.ExpiresAt, &x.State, &x.StateVersion, &x.ExecutionID, &install)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil, ErrNotFound
+	}
+	if e == nil {
+		e = json.Unmarshal(install, &x.InstallKey)
 	}
 	return x, e
 }
@@ -131,6 +137,16 @@ func (s *Store) validateSSHTrustTarget(ctx context.Context, tx *sql.Tx, x *SSHTr
 	x.CredentialRef = meta.Ref
 	x.CredentialVersion = meta.Version
 	x.CredentialExpiresAt = *meta.ExpiresAt
+	if x.InstallKey != nil {
+		key, err := ReadSSHInstallCredential(ctx, tx, x.ProjectID, *x.InstallKey, x.ExpiresAt)
+		if err != nil {
+			return err
+		}
+		if err = s.SSHRunner.CheckInstallCredential(x.ProjectID, x.MachineID, *key); err != nil {
+			return apiError(409, "SSH_INSTALL_CREDENTIAL_UNAVAILABLE", "The selected project domain key is not available to the configured provider")
+		}
+		x.InstallKey = key
+	}
 	return nil
 }
 func trustRequestIdempotency(ctx context.Context, tx *sql.Tx, a *AuthSession, scope, key string, input any) (string, string, *SSHTrustRequest, error) {
@@ -173,6 +189,9 @@ func saveTrustRequestIdempotency(ctx context.Context, tx *sql.Tx, a *AuthSession
 	return e
 }
 func (s *Store) CreateSSHTrustRequest(ctx context.Context, a *AuthSession, project *ProjectSummary, in CreateSSHTrustRequestInput, key, trace string) (*SSHTrustRequest, error) {
+	if in.InstallKeyID != "" && !sshTrustIDPattern.MatchString(in.InstallKeyID) {
+		return nil, apiError(400, "VALIDATION_ERROR", "Invalid project domain key id")
+	}
 	if in.ExpiresInSeconds == 0 {
 		in.ExpiresInSeconds = 900
 	}
@@ -203,10 +222,14 @@ func (s *Store) CreateSSHTrustRequest(ctx context.Context, a *AuthSession, proje
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	x := &SSHTrustRequest{ID: RandomID(), ProjectID: project.ID, MachineID: in.MachineID, Action: in.Action, AssetVersion: in.ExpectedAssetVersion, ExpectedTrust: expected, HostKey: in.HostKey, Reason: in.Reason, CreatedBy: a.User.ID, CreatedAt: now, ExpiresAt: now.Add(time.Duration(in.ExpiresInSeconds) * time.Second), State: "pending", StateVersion: 1}
+	if in.InstallKeyID != "" {
+		x.InstallKey = &taskrunner.InstallCredential{ID: in.InstallKeyID}
+	}
 	if e = s.validateSSHTrustTarget(ctx, tx, x); e != nil {
 		return nil, e
 	}
-	_, e = tx.ExecContext(ctx, `INSERT INTO ssh_trust_requests(id,project_id,machine_id,action,asset_version,expected_trust,host_key,config_hash,credential_ref,credential_version,credential_expires_at,reason,created_by,created_at,expires_at,state,state_version)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'pending',1)`, x.ID, x.ProjectID, x.MachineID, x.Action, x.AssetVersion, x.ExpectedTrust, x.HostKey, x.ConfigHash, x.CredentialRef, x.CredentialVersion, x.CredentialExpiresAt, x.Reason, x.CreatedBy, x.CreatedAt, x.ExpiresAt)
+	install, _ := json.Marshal(x.InstallKey)
+	_, e = tx.ExecContext(ctx, `INSERT INTO ssh_trust_requests(id,project_id,machine_id,action,asset_version,expected_trust,host_key,config_hash,credential_ref,credential_version,credential_expires_at,reason,created_by,created_at,expires_at,state,state_version,install_key_snapshot)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'pending',1,$16)`, x.ID, x.ProjectID, x.MachineID, x.Action, x.AssetVersion, x.ExpectedTrust, x.HostKey, x.ConfigHash, x.CredentialRef, x.CredentialVersion, x.CredentialExpiresAt, x.Reason, x.CreatedBy, x.CreatedAt, x.ExpiresAt, install)
 	if e != nil {
 		return nil, e
 	}

@@ -17,7 +17,7 @@ func main() {
 	if state == "" {
 		state = "/var/lib/keel-ssh/receipts"
 	}
-	if (taskrunner.Wrapper{StateDirectory: state}).Serve(ctx, os.Stdin, os.Stdout) != nil {
+	if (taskrunner.Wrapper{StateDirectory: state, AuthorizedKeysFile: os.Getenv("KEEL_SSH_AUTHORIZED_KEYS_FILE")}).Serve(ctx, os.Stdin, os.Stdout) != nil {
 		os.Exit(1)
 	}
 }
