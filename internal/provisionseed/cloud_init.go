@@ -90,6 +90,9 @@ func Render(template []byte, identity Identity) (*Seed, error) {
 	root := doc.Content[0]
 	for i := 0; i < len(root.Content); i += 2 {
 		field, value := root.Content[i].Value, root.Content[i+1]
+		if err = validateModuleFields(field, value); err != nil {
+			return nil, err
+		}
 		switch field {
 		case "locale", "timezone":
 			if value.Kind != yaml.ScalarNode || value.Tag != "!!str" || len(value.Value) == 0 || len(value.Value) > 256 {
@@ -99,9 +102,9 @@ func Render(template []byte, identity Identity) (*Seed, error) {
 			if value.Kind != yaml.ScalarNode || value.Tag != "!!bool" {
 				return nil, errors.New("cloud-init package flags require booleans")
 			}
-		case "packages", "mounts":
+		case "packages", "mounts", "fs_setup":
 			if value.Kind != yaml.SequenceNode {
-				return nil, errors.New("cloud-init packages/mounts require arrays")
+				return nil, errors.New("cloud-init packages/mounts/fs_setup require arrays")
 			}
 		case "resize_rootfs":
 			if value.Kind != yaml.ScalarNode || (value.Tag != "!!bool" && !(value.Tag == "!!str" && value.Value == "noblock")) {
@@ -140,4 +143,61 @@ func Render(template []byte, identity Identity) (*Seed, error) {
 		return nil, err
 	}
 	return &Seed{UserData: "#cloud-config\n" + string(raw), MetaData: string(metadata)}, nil
+}
+
+// Complex modules may otherwise smuggle inline commands or arbitrary config
+// paths through an apparently declarative top-level key. This is a bounded
+// accepted subset, not a sandbox for approved OS/package code.
+func validateModuleFields(field string, value *yaml.Node) error {
+	allowedFields := func(node *yaml.Node, fields string) error {
+		if node.Kind != yaml.MappingNode {
+			return errors.New("cloud-init module entry requires a mapping")
+		}
+		allowed := map[string]bool{}
+		for _, name := range strings.Fields(fields) {
+			allowed[name] = true
+		}
+		for i := 0; i < len(node.Content); i += 2 {
+			if !allowed[node.Content[i].Value] {
+				return errors.New("unsupported cloud-init module option: " + field + "." + node.Content[i].Value)
+			}
+		}
+		return nil
+	}
+	switch field {
+	case "fs_setup":
+		if value.Kind != yaml.SequenceNode {
+			return errors.New("cloud-init fs_setup requires an array")
+		}
+		for _, entry := range value.Content {
+			if err := allowedFields(entry, "label filesystem device partition overwrite replace_fs"); err != nil {
+				return err
+			}
+		}
+	case "ntp":
+		return allowedFields(value, "enabled servers pools ntp_client")
+	case "apt":
+		if err := allowedFields(value, "preserve_sources_list disable_suites primary security https_proxy http_proxy proxy ftp_proxy sources sources_list"); err != nil {
+			return err
+		}
+		for i := 0; i < len(value.Content); i += 2 {
+			if value.Content[i].Value != "sources" {
+				continue
+			}
+			sources := value.Content[i+1]
+			if sources.Kind != yaml.MappingNode {
+				return errors.New("cloud-init apt.sources requires a mapping")
+			}
+			for j := 0; j < len(sources.Content); j += 2 {
+				name := sources.Content[j].Value
+				if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") || len(name) > 128 {
+					return errors.New("cloud-init apt source identity must be a filename")
+				}
+				if err := allowedFields(sources.Content[j+1], "source keyid key keyserver"); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }

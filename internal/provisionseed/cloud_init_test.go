@@ -72,22 +72,27 @@ func TestCloudInitRestrictedIdentity(t *testing.T) {
 func TestCloudInitRejectsUntrustedSubstitutions(t *testing.T) {
 	id := testIdentity(t)
 	for name, template := range map[string]string{
-		"hostname override":  "hostname: attacker\n",
-		"user override":      "users: [root]\n",
-		"password login":     "ssh_pwauth: true\n",
-		"commands":           "runcmd: [[sh, -c, id]]\n",
-		"file replacement":   "write_files: []\n",
-		"duplicate":          "locale: en_US\nlocale: other\n",
-		"merge":              "apt: &base {primary: []}\nntp: {<<: *base}\n",
-		"alias":              "packages: &x [one]\nmounts: *x\n",
-		"mapping tag":        "apt: !evil {}\n",
-		"root tag":           "!evil {locale: en_US}\n",
-		"invalid packages":   "packages: true\n",
-		"invalid boolean":    "package_upgrade: [true]\n",
-		"custom tag":         "timezone: !shell id\n",
-		"multiple documents": "locale: en_US\n---\nusers: [root]\n",
-		"invalid UTF8":       string([]byte{0xff}),
-		"oversize":           strings.Repeat(" ", MaxTemplateBytes+1),
+		"hostname override":     "hostname: attacker\n",
+		"user override":         "users: [root]\n",
+		"password login":        "ssh_pwauth: true\n",
+		"filesystem command":    "fs_setup: [{device: /dev/sda1, filesystem: ext4, cmd: 'sh -c id'}]\n",
+		"apt inline config":     "apt: {conf: 'DPkg::Post-Invoke {id;};'}\n",
+		"apt filename override": "apt: {sources: {repo: {source: 'deb https://example.test stable main', filename: /etc/ssh/sshd_config}}}\n",
+		"apt source traversal":  "apt: {sources: {'../other': {source: 'deb https://example.test stable main'}}}\n",
+		"ntp config path":       "ntp: {config: {confpath: /etc/ssh/sshd_config}}\n",
+		"commands":              "runcmd: [[sh, -c, id]]\n",
+		"file replacement":      "write_files: []\n",
+		"duplicate":             "locale: en_US\nlocale: other\n",
+		"merge":                 "apt: &base {primary: []}\nntp: {<<: *base}\n",
+		"alias":                 "packages: &x [one]\nmounts: *x\n",
+		"mapping tag":           "apt: !evil {}\n",
+		"root tag":              "!evil {locale: en_US}\n",
+		"invalid packages":      "packages: true\n",
+		"invalid boolean":       "package_upgrade: [true]\n",
+		"custom tag":            "timezone: !shell id\n",
+		"multiple documents":    "locale: en_US\n---\nusers: [root]\n",
+		"invalid UTF8":          string([]byte{0xff}),
+		"oversize":              strings.Repeat(" ", MaxTemplateBytes+1),
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := Render([]byte(template), id); err == nil {
@@ -110,5 +115,12 @@ func TestCloudInitRejectsUntrustedSubstitutions(t *testing.T) {
 				t.Fatal("untrusted identity accepted")
 			}
 		})
+	}
+}
+
+func TestCloudInitAcceptsDeclarativeFilesystemArray(t *testing.T) {
+	seed, err := Render([]byte("fs_setup:\n  - device: /dev/sda1\n    filesystem: ext4\n    label: rootfs\n    overwrite: false\n"), testIdentity(t))
+	if err != nil || !strings.Contains(seed.UserData, "fs_setup:") {
+		t.Fatal("valid filesystem array rejected", err)
 	}
 }
