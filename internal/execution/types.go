@@ -18,15 +18,20 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
 type Service struct {
-	SSHRunner    taskrunner.Runner
-	MediaStore   *platform.Store
-	DB           *sql.DB
-	KeaStore     *platform.Store
-	NetworkStore *platform.Store
+	agentReceiptMu       sync.Mutex
+	agentReceiptCursorAt time.Time
+	agentReceiptCursorID string
+	AgentRunner          taskrunner.Runner
+	SSHRunner            taskrunner.Runner
+	MediaStore           *platform.Store
+	DB                   *sql.DB
+	KeaStore             *platform.Store
+	NetworkStore         *platform.Store
 }
 
 func New(db *sql.DB) *Service { return &Service{DB: db} }
@@ -78,6 +83,7 @@ type FlowVersion struct {
 	CreatedAt   time.Time  `json:"created_at"`
 }
 type Target struct {
+	Agent             *taskrunner.Binding           `json:"agent,omitempty"`
 	SSHInstallKey     *taskrunner.InstallCredential `json:"ssh_install_key,omitempty"`
 	SSHTrustExpiresAt *time.Time                    `json:"ssh_trust_expires_at,omitempty"`
 	SSHTrustRequestID string                        `json:"ssh_trust_request_id,omitempty"`

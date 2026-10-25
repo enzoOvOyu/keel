@@ -25,12 +25,12 @@ try:
     env = {key: value for key, value in os.environ.items() if not key.startswith('KEEL_')}
     env['KEEL_TEST_AGENT_DATABASE_URL'] = 'postgresql://' + urllib.parse.quote(owner, safe='') + ':' + urllib.parse.quote(config['POSTGRES_PASSWORD'], safe='') + '@127.0.0.1:15433/' + database + '?sslmode=disable'
     with (work / 'go-integration.log').open('x') as log:
-        for name in ('admin', 'agent'):
+        for name in ('admin', 'agent', 'worker'):
             binary = work / ('keel-' + name)
             subprocess.run(['go', 'build', '-o', str(binary), './cmd/keel-' + name], env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
             env['KEEL_TEST_AGENT_' + name.upper() + '_BIN'] = str(binary)
-        result = subprocess.run(['go', 'test', '-p=1', '-race', '-count=1', '-v', './internal/agentpki', './internal/agentidentity', './internal/agentclient', './internal/platform', '-run', 'TestAgent|TestProtected|TestWriteNew|TestAuthority|TestIssued|TestCSR'], env=env, stdout=log, stderr=subprocess.STDOUT)
-    (work / 'result.json').write_text(json.dumps({'exit_code': result.returncode, 'real_postgresql': True, 'verified_loopback_tls_grpc': True, 'physical_device_acceptance': False}))
+        result = subprocess.run(['go', 'test', '-p=1', '-race', '-count=1', '-v', './internal/agentpki', './internal/agentidentity', './internal/agentclient', './internal/platform', './internal/execution', './internal/taskrunner', '-run', 'TestAgent|TestProtected|TestWriteNew|TestAuthority|TestIssued|TestCSR'], env=env, stdout=log, stderr=subprocess.STDOUT)
+    (work / 'result.json').write_text(json.dumps({'exit_code': result.returncode, 'real_postgresql': True, 'verified_loopback_tls_grpc': True, 'readonly_tasks_worker_cli': True, 'physical_device_acceptance': False}))
     print('Agent evidence:', work, 'exit:', result.returncode)
     raise SystemExit(result.returncode)
 finally:

@@ -4,6 +4,8 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/enzoOvOyu/keel/internal/agentidentity"
+	"github.com/enzoOvOyu/keel/internal/agentrunner"
 	"github.com/enzoOvOyu/keel/internal/execution"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/platform"
@@ -57,6 +59,15 @@ func main() {
 	if _, e = store.FabricProbes.NetworkClient(); e == nil {
 		service.NetworkStore = store
 	}
+	agentConfig, e := agentidentity.Load(os.Getenv("KEEL_AGENT_WORKER_FILE"))
+	if e != nil || (agentConfig != nil && !agentConfig.TasksEnabled) {
+		fail("Agent worker configuration rejected")
+	}
+	var agentBroker *agentrunner.Broker
+	if agentConfig != nil {
+		agentBroker = agentrunner.New(store)
+		service.AgentRunner = agentBroker
+	}
 	if *health {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
@@ -89,16 +100,33 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	agentDone, e := startAgentWorker(ctx, store, agentConfig, agentBroker)
+	if e != nil {
+		fail("Agent worker listener configuration rejected")
+	}
+	var refreshDone <-chan struct{}
+	if service.AgentRunner != nil {
+		refreshDone = startAgentReceiptRefresh(ctx, service)
+	}
+	listenerFailed := false
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	var jobs sync.WaitGroup
 	var active atomic.Int64
 	lastBeat := time.Time{}
-	slog.Info("keel execution worker started", "worker", id, "kea_enabled", service.KeaStore != nil, "concurrency", concurrency)
+	slog.Info("keel execution worker started", "worker", id, "kea_enabled", service.KeaStore != nil, "agent_enabled", service.AgentRunner != nil, "concurrency", concurrency)
 loop:
 	for {
 		select {
 		case <-ctx.Done():
+			break loop
+		case err := <-agentDone:
+			agentDone = nil
+			if err != nil {
+				slog.Error("Agent task listener failed")
+				listenerFailed = true
+			}
+			stop()
 			break loop
 		case <-ticker.C:
 			if _, e = service.PumpOutbox(ctx, id, 100); e != nil {
@@ -142,6 +170,15 @@ loop:
 	// Stop new claims immediately, continue lease heartbeats until each finite
 	// simulator confirms its stop/safe endpoint. Container stop grace must be 70s.
 	jobs.Wait()
+	if agentDone != nil {
+		<-agentDone
+	}
+	if refreshDone != nil {
+		<-refreshDone
+	}
+	if listenerFailed {
+		fail("Agent task listener stopped unexpectedly")
+	}
 	slog.Info("keel execution worker drained", "worker", id)
 }
 func fail(message string) { slog.Error(message); os.Exit(1) }

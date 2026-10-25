@@ -965,3 +965,13 @@ CI诊断包装复核：ab36da7加入tee时未显式pipefail，可能掩盖make c
 发布证据目录 `/home/ubuntu/.local/state/keel/releases/20261025T104612Z`：pre047.dump（304242字节）已验证格式并在独立恢复库完整恢复，保留原ACL后执行047、核查业务行数/SSH身份/审计限制和新增最小授权；恢复库仅清理自有副本。运行库迁移43→44，三张Agent表均空、未生成生产CA/token。候选3108八页/公开域钥/真实受限应用角色读探针通过，再切3000；3000相同复验及镜像/health精确SHA通过，Agent/SSH/主密钥/介质获取/OIDC/LDAP保持关闭。候选容器和其临时env已移除，旧镜像、数据库卷、备份及回退资料保留，运行.env保持600。数据库迁移后旧schema43镜像不能直接回切，恢复不自动执行。
 
 用户最新追加的shadcn/ui剩余整合和全局等宽字体调整已排入下一次前端改动，记录于当前恢复入口及DEVELOPMENT §2；本轮没有修改字体或组件。当前代码下一实施单元仍为既有Agent身份上的统一Runner只读任务/持久回执及断线对账，前端一旦涉及则先执行上述用户要求。完整P1/FR-0、Agent安装/续签/遥测和真机验收依然不闭环。
+
+## 72. Agent有界只读任务与断线回执恢复（2026-10-25）
+
+- 接续§71，WP-1.5通过mTLS双向Tasks流接入既有Execution/outbox/TaskAttempt；仅host.identity/host.wait，初始入口为owner侧CLI且须本地平台Admin真实登录，退出撤销临时会话。没有新增执行队列或前端入口。
+- 任务池和调度器位于同一worker；无本进程连接的worker不可借数据库在线标记领取。平台/Agent两侧tasks_enabled显式开启；普通API身份listener不派发。Compose可选配置只读挂载，生产默认关闭。
+- 本地持久接收/运行/终态、全局fence及单机flock复用既有Wrapper；同command重投只查询，旧fence拒绝，最高fence缺回执保持unknown。Agent和SSH共享稳定机器资源锁，Agent自身另有独占串行租约。
+- 断线进入unknown/reconciling并保留资源；重连只查询原回执，worker保存真实终态后由当前有权限操作员显式对账。原提交者被禁用仍允许受信worker查询旧任务；凭据撤销与新回执入库同事务串行，撤销前已存历史证明可幂等消费。
+- 实际验证：make check通过；最终go vet ./...与go test -race ./...通过（宿主均带既有overlay/GOMEMLIMIT）。真实PG/TLS/gRPC/三个CLI集成最终证据/tmp/keel-agent-integration-5ygxqroi；受限角色任务流验证/tmp/keel-agent-integration-vewa0d45；SSH实际协议回归/tmp/keel-ssh-integration-ig0ek0h1。双架构构建结果见/tmp/keel-agent-tasks-dualarch.log。上述均为隔离软件验证，无真机/生产CA/令牌。
+- 048仅扩展既有执行模式，049仅增加连接任务流元数据；发布前须完成备份恢复演练和CI，未完成前3000仍是§71镜像/schema44。两份原fabric草稿保留、不编译、不提交。
+- WP-1.5/FR-1/P1仍partial：完整任务目录、媒体传输、自动安装/systemd、续签/CA轮换、遥测、完整bootstrap/repair与硬件PoC仍待后续。下次前端改动须先完成shadcn/ui剩余整合与全局等宽字体。

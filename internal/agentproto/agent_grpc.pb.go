@@ -21,18 +21,21 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	AgentIdentity_Enroll_FullMethodName     = "/keel.agent.v1.AgentIdentity/Enroll"
 	AgentIdentity_Heartbeats_FullMethodName = "/keel.agent.v1.AgentIdentity/Heartbeats"
+	AgentIdentity_Tasks_FullMethodName      = "/keel.agent.v1.AgentIdentity/Tasks"
 )
 
 // AgentIdentityClient is the client API for AgentIdentity service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Identity/liveness increment only. No task execution or telemetry is admitted.
+// Identity, liveness and explicitly enabled bounded read-only task transport.
+// Task payloads use the existing keel.task/v1 contract; no shell or telemetry.
 // Enroll uses verified server TLS and a one-use secret delivered out of band.
 // Heartbeats additionally requires the issued, currently active client cert.
 type AgentIdentityClient interface {
 	Enroll(ctx context.Context, in *EnrollRequest, opts ...grpc.CallOption) (*EnrollResponse, error)
 	Heartbeats(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Heartbeat, HeartbeatAck], error)
+	Tasks(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[TaskReport, TaskRequest], error)
 }
 
 type agentIdentityClient struct {
@@ -66,16 +69,31 @@ func (c *agentIdentityClient) Heartbeats(ctx context.Context, opts ...grpc.CallO
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AgentIdentity_HeartbeatsClient = grpc.BidiStreamingClient[Heartbeat, HeartbeatAck]
 
+func (c *agentIdentityClient) Tasks(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[TaskReport, TaskRequest], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &AgentIdentity_ServiceDesc.Streams[1], AgentIdentity_Tasks_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[TaskReport, TaskRequest]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AgentIdentity_TasksClient = grpc.BidiStreamingClient[TaskReport, TaskRequest]
+
 // AgentIdentityServer is the server API for AgentIdentity service.
 // All implementations must embed UnimplementedAgentIdentityServer
 // for forward compatibility.
 //
-// Identity/liveness increment only. No task execution or telemetry is admitted.
+// Identity, liveness and explicitly enabled bounded read-only task transport.
+// Task payloads use the existing keel.task/v1 contract; no shell or telemetry.
 // Enroll uses verified server TLS and a one-use secret delivered out of band.
 // Heartbeats additionally requires the issued, currently active client cert.
 type AgentIdentityServer interface {
 	Enroll(context.Context, *EnrollRequest) (*EnrollResponse, error)
 	Heartbeats(grpc.BidiStreamingServer[Heartbeat, HeartbeatAck]) error
+	Tasks(grpc.BidiStreamingServer[TaskReport, TaskRequest]) error
 	mustEmbedUnimplementedAgentIdentityServer()
 }
 
@@ -91,6 +109,9 @@ func (UnimplementedAgentIdentityServer) Enroll(context.Context, *EnrollRequest) 
 }
 func (UnimplementedAgentIdentityServer) Heartbeats(grpc.BidiStreamingServer[Heartbeat, HeartbeatAck]) error {
 	return status.Errorf(codes.Unimplemented, "method Heartbeats not implemented")
+}
+func (UnimplementedAgentIdentityServer) Tasks(grpc.BidiStreamingServer[TaskReport, TaskRequest]) error {
+	return status.Errorf(codes.Unimplemented, "method Tasks not implemented")
 }
 func (UnimplementedAgentIdentityServer) mustEmbedUnimplementedAgentIdentityServer() {}
 func (UnimplementedAgentIdentityServer) testEmbeddedByValue()                       {}
@@ -138,6 +159,13 @@ func _AgentIdentity_Heartbeats_Handler(srv interface{}, stream grpc.ServerStream
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AgentIdentity_HeartbeatsServer = grpc.BidiStreamingServer[Heartbeat, HeartbeatAck]
 
+func _AgentIdentity_Tasks_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(AgentIdentityServer).Tasks(&grpc.GenericServerStream[TaskReport, TaskRequest]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AgentIdentity_TasksServer = grpc.BidiStreamingServer[TaskReport, TaskRequest]
+
 // AgentIdentity_ServiceDesc is the grpc.ServiceDesc for AgentIdentity service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -154,6 +182,12 @@ var AgentIdentity_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "Heartbeats",
 			Handler:       _AgentIdentity_Heartbeats_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "Tasks",
+			Handler:       _AgentIdentity_Tasks_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},

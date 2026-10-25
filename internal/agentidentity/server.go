@@ -16,6 +16,7 @@ import (
 
 	"github.com/enzoOvOyu/keel/internal/agentpki"
 	pb "github.com/enzoOvOyu/keel/internal/agentproto"
+	"github.com/enzoOvOyu/keel/internal/agentrunner"
 	"github.com/enzoOvOyu/keel/internal/platform"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -25,6 +26,7 @@ import (
 )
 
 type Config struct {
+	TasksEnabled      bool   `json:"tasks_enabled"`
 	Listen            string `json:"listen"`
 	ServerCertificate string `json:"server_certificate"`
 	ServerKey         string `json:"server_key"`
@@ -33,6 +35,7 @@ type Config struct {
 }
 type Server struct {
 	pb.UnimplementedAgentIdentityServer
+	broker    *agentrunner.Broker
 	store     *platform.Store
 	authority *agentpki.Authority
 	slots     chan struct{}
@@ -66,12 +69,27 @@ func Load(path string) (*Config, error) {
 	return &config, nil
 }
 func New(store *platform.Store, config Config) (*grpc.Server, error) {
+	return NewWithTasks(store, config, nil)
+}
+
+func NewWithTasks(store *platform.Store, config Config, broker *agentrunner.Broker) (*grpc.Server, error) {
+	if !config.TasksEnabled {
+		broker = nil
+	}
+	if config.TasksEnabled && broker == nil {
+		return nil, agentpki.ErrInvalid
+	}
 	if store == nil {
 		return nil, agentpki.ErrInvalid
 	}
 	authority, e := agentpki.Load(config.CACertificate, config.CAKey)
 	if e != nil {
 		return nil, e
+	}
+	if config.TasksEnabled {
+		if e = broker.ConfigureAuthority(authority.ID); e != nil {
+			return nil, e
+		}
 	}
 	public, e := agentpki.ReadFile(config.ServerCertificate, 16384, false)
 	if e != nil {
@@ -92,7 +110,7 @@ func New(store *platform.Store, config Config) (*grpc.Server, error) {
 	pool := x509.NewCertPool()
 	pool.AddCert(authority.Certificate)
 	server := grpc.NewServer(grpc.Creds(credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{pair}, ClientCAs: pool, ClientAuth: tls.VerifyClientCertIfGiven})), grpc.ConnectionTimeout(5*time.Second), grpc.MaxConcurrentStreams(32), grpc.MaxRecvMsgSize(16384), grpc.MaxSendMsgSize(16384), grpc.MaxHeaderListSize(8192))
-	pb.RegisterAgentIdentityServer(server, &Server{store: store, authority: authority, slots: make(chan struct{}, 1024), rates: map[string]rate{}})
+	pb.RegisterAgentIdentityServer(server, &Server{broker: broker, store: store, authority: authority, slots: make(chan struct{}, 1024), rates: map[string]rate{}})
 	return server, nil
 }
 
@@ -283,4 +301,19 @@ func (s *Server) Heartbeats(stream grpc.BidiStreamingServer[pb.Heartbeat, pb.Hea
 			idle.Reset(20 * time.Second)
 		}
 	}
+}
+
+func (s *Server) Tasks(stream grpc.BidiStreamingServer[pb.TaskReport, pb.TaskRequest]) error {
+	if s.broker == nil {
+		return status.Error(codes.Unimplemented, "Agent tasks are disabled")
+	}
+	if !s.reserve() {
+		return status.Error(codes.ResourceExhausted, "Agent connection capacity reached")
+	}
+	defer func() { <-s.slots }()
+	cert, e := certificate(stream.Context())
+	if e != nil {
+		return denied
+	}
+	return s.broker.Serve(stream, cert, s.authority.ID)
 }

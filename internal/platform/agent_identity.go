@@ -28,17 +28,18 @@ type AgentEnrollment struct {
 	ExpiresAt    time.Time `json:"expires_at"`
 }
 type AgentCredential struct {
-	ID             string     `json:"id"`
-	ProjectID      string     `json:"project_id"`
-	MachineID      string     `json:"machine_id"`
-	Serial         string     `json:"serial_number"`
-	AssetVersion   int64      `json:"asset_version"`
-	AuthorityID    string     `json:"authority_id"`
-	CertificatePEM string     `json:"certificate_pem"`
-	AgentVersion   string     `json:"agent_version"`
-	ExpiresAt      time.Time  `json:"expires_at"`
-	RevokedAt      *time.Time `json:"revoked_at"`
-	StateVersion   int64      `json:"state_version"`
+	ID              string     `json:"id"`
+	ProjectID       string     `json:"project_id"`
+	MachineID       string     `json:"machine_id"`
+	Serial          string     `json:"serial_number"`
+	AssetVersion    int64      `json:"asset_version"`
+	AuthorityID     string     `json:"authority_id"`
+	CertificateHash string     `json:"certificate_hash"`
+	CertificatePEM  string     `json:"certificate_pem"`
+	AgentVersion    string     `json:"agent_version"`
+	ExpiresAt       time.Time  `json:"expires_at"`
+	RevokedAt       *time.Time `json:"revoked_at"`
+	StateVersion    int64      `json:"state_version"`
 }
 
 func agentTokenHash(token string) string { return digest("keel-agent-enrollment-v1:" + token) }
@@ -166,7 +167,7 @@ func (s *Store) EnrollAgent(ctx context.Context, a *agentpki.Authority, project,
 	if e != nil {
 		return nil, ErrAgentDenied
 	}
-	out := &AgentCredential{ID: id, ProjectID: project, MachineID: machine, Serial: serial, AssetVersion: assetVersion, AuthorityID: authority, CertificatePEM: string(public), AgentVersion: version, ExpiresAt: expires, StateVersion: 1}
+	out := &AgentCredential{ID: id, ProjectID: project, MachineID: machine, Serial: serial, AssetVersion: assetVersion, AuthorityID: authority, CertificatePEM: string(public), CertificateHash: agentpki.Hash(certificate.Raw), AgentVersion: version, ExpiresAt: expires, StateVersion: 1}
 	_, e = tx.ExecContext(ctx, `INSERT INTO agent_credentials(id,enrollment_id,project_id,machine_id,asset_version,serial_number,authority_id,certificate_pem,certificate_hash,agent_version,created_at,expires_at)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, id, grant, project, machine, assetVersion, serial, authority, string(public), agentpki.Hash(certificate.Raw), version, now, expires)
 	if e != nil {
 		return nil, ErrAgentDenied
@@ -197,6 +198,7 @@ func agentCredential(ctx context.Context, tx *sql.Tx, cert *x509.Certificate, au
 	if out.RevokedAt != nil || out.AuthorityID != authority || !out.ExpiresAt.After(time.Now()) || len(cert.URIs) != 1 || cert.URIs[0].String() != agentpki.URI(out.ProjectID, out.MachineID, out.ID).String() {
 		return nil, ErrAgentDenied
 	}
+	out.CertificateHash = agentpki.Hash(cert.Raw)
 	serial, version, e := agentTarget(ctx, tx, out.ProjectID, out.MachineID)
 	if e != nil {
 		return nil, e

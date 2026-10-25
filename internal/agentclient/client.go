@@ -1,4 +1,4 @@
-// Package agentclient implements enrollment and authenticated liveness only.
+// Package agentclient implements enrollment, authenticated liveness and opt-in read-only tasks.
 package agentclient
 
 import (
@@ -25,6 +25,7 @@ import (
 )
 
 type Config struct {
+	TasksEnabled   bool   `json:"tasks_enabled"`
 	Endpoint       string `json:"endpoint"`
 	ServerName     string `json:"server_name"`
 	ServerCA       string `json:"server_ca"`
@@ -60,6 +61,9 @@ func Load(path string) (Config, error) {
 	return c, c.Validate()
 }
 func (c Config) Validate() error {
+	if c.TasksEnabled && os.Geteuid() == 0 {
+		return ErrIdentity
+	}
 	host, port, e := net.SplitHostPort(c.Endpoint)
 	number, pe := strconv.Atoi(port)
 	if e != nil || pe != nil || number < 1 || number > 65535 || host == "" || c.ServerName == "" || strings.ContainsAny(c.Endpoint+c.ServerName, "\x00\r\n/") || !filepath.IsAbs(c.StateDirectory) {
@@ -171,9 +175,29 @@ func Enroll(ctx context.Context, c Config, version string) (Identity, error) {
 	}
 	return identity, nil
 }
-func Stream(ctx context.Context, c Config, version string, observe func(*pb.HeartbeatAck)) error {
+func Stream(ctx context.Context, c Config, version string, observe func(*pb.HeartbeatAck)) (result error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
+	taskErrors := make(chan error, 1)
+	taskDone := make(chan struct{})
+	tasksStarted := false
+	defer func() {
+		if tasksStarted {
+			// Preserve the cause that ended the streams. Our own shutdown cancellation
+			// must not mask a real heartbeat authorization or storage failure.
+			select {
+			case err := <-taskErrors:
+				if err != nil {
+					result = err
+				}
+			default:
+			}
+		}
+		cancel()
+		if tasksStarted {
+			<-taskDone
+		}
+	}()
 	if c.Validate() != nil {
 		return ErrIdentity
 	}
@@ -216,8 +240,17 @@ func Stream(ctx context.Context, c Config, version string, observe func(*pb.Hear
 		if e != nil {
 			return e
 		}
-		if ack.GetSequence() != sequence || len(ack.GetConnectionId()) != 32 || ack.GetNextHeartbeatSeconds() < 1 || ack.GetNextHeartbeatSeconds() > 10 {
+		if ack.GetSequence() != sequence || !identityID.MatchString(ack.GetConnectionId()) || ack.GetNextHeartbeatSeconds() < 1 || ack.GetNextHeartbeatSeconds() > 10 {
 			return ErrIdentity
+		}
+		if c.TasksEnabled && !tasksStarted {
+			tasksStarted = true
+			go func(connectionID string) {
+				defer close(taskDone)
+				err := c.taskStream(ctx, pair, connectionID)
+				taskErrors <- err
+				cancel()
+			}(ack.GetConnectionId())
 		}
 		if observe != nil {
 			observe(ack)

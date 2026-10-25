@@ -70,9 +70,11 @@ jobs:
           trap 'rm -rf "$keel_agent_test_dir"' EXIT
           export KEEL_TEST_AGENT_ADMIN_BIN="$keel_agent_test_dir/keel-admin"
           export KEEL_TEST_AGENT_AGENT_BIN="$keel_agent_test_dir/keel-agent"
+          export KEEL_TEST_AGENT_WORKER_BIN="$keel_agent_test_dir/keel-worker"
           go build -o "$KEEL_TEST_AGENT_ADMIN_BIN" ./cmd/keel-admin
           go build -o "$KEEL_TEST_AGENT_AGENT_BIN" ./cmd/keel-agent
-          go test -p=1 -race -count=1 -v ./internal/agentidentity ./internal/platform -run '^TestAgent'
+          go build -o "$KEEL_TEST_AGENT_WORKER_BIN" ./cmd/keel-worker
+          go test -p=1 -race -count=1 -v ./internal/agentidentity ./internal/platform ./internal/execution -run '^TestAgent'
       - name: PostgreSQL authentication, authorization, and browser integration
         env:
           KEEL_ADMIN_BINARY: /tmp/keel-ci-admin

@@ -219,7 +219,11 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 
 func sshCommand(c *Claim) taskrunner.TaskCommand {
 	wait := 0
-	switch v := c.Parameters["ssh_wait_ms"].(type) {
+	parameter := "ssh_wait_ms"
+	if c.Target.Mode == "agent" {
+		parameter = "agent_wait_ms"
+	}
+	switch v := c.Parameters[parameter].(type) {
 	case float64:
 		wait = int(v)
 	case int:
@@ -266,12 +270,29 @@ func (s *Service) recordSSH(ctx context.Context, o taskrunner.Observation) error
 	if !o.Terminal() {
 		return taskrunner.ErrUnknown
 	}
-	output := map[string]any{"mode": "ssh", "source": "host", "transport": "ssh", "hardware_evidence": false, "operation": o.Command.Operation, "observation": o.Output}
+	return s.recordHost(ctx, "ssh", o)
+}
+
+func (s *Service) recordHost(ctx context.Context, mode string, o taskrunner.Observation) error {
+	if !o.Terminal() {
+		return taskrunner.ErrUnknown
+	}
+	output := map[string]any{"mode": mode, "source": "host", "transport": mode, "hardware_evidence": false, "operation": o.Command.Operation, "observation": o.Output}
 	return s.RecordReceipt(ctx, Receipt{CommandID: o.Command.CommandID, AttemptID: o.Command.AttemptID, FencingToken: o.Command.FencingToken, Result: o.State, StartedAt: o.StartedAt, FinishedAt: o.FinishedAt, Output: output})
 }
 
 func (s *Service) runSSHClaim(ctx context.Context, c *Claim) error {
-	if s.SSHRunner == nil {
+	return s.runHostClaim(ctx, c, "ssh")
+}
+
+// Both host transports share lease renewal, cancellation, one query-only recovery
+// and immutable execution receipts; transport choice cannot bypass the kernel.
+func (s *Service) runHostClaim(ctx context.Context, c *Claim, mode string) error {
+	runner := s.SSHRunner
+	if mode == "agent" {
+		runner = s.AgentRunner
+	}
+	if runner == nil {
 		return taskrunner.ErrRejected
 	}
 	// Recheck current submitter, membership, project, binding and host trust at
@@ -283,7 +304,11 @@ func (s *Service) runSSHClaim(ctx context.Context, c *Claim) error {
 	var creator string
 	e = tx.QueryRowContext(ctx, `SELECT created_by FROM exec_executions WHERE id=$1`, c.Attempt.ExecutionID).Scan(&creator)
 	if e == nil {
-		e = s.sshFrozenTx(ctx, tx, c.Target)
+		if mode == "agent" {
+			e = s.agentFrozenTx(ctx, tx, c.Target)
+		} else {
+			e = s.sshFrozenTx(ctx, tx, c.Target)
+		}
 	}
 	if e == nil {
 		var ok bool
@@ -327,7 +352,7 @@ func (s *Service) runSSHClaim(ctx context.Context, c *Claim) error {
 	}()
 	defer func() { close(stop); wg.Wait() }()
 	command := sshCommand(c)
-	o, e := s.SSHRunner.Do(work, taskrunner.Request{Action: "run", Command: command})
+	o, e := runner.Do(work, taskrunner.Request{Action: "run", Command: command})
 	if e != nil || !o.Terminal() {
 		// One bounded status/cancel query, never a second run. Terminal proof can
 		// arrive after the worker's cancellation but before lease reconciliation.
@@ -337,14 +362,14 @@ func (s *Service) runSSHClaim(ctx context.Context, c *Claim) error {
 		if work.Err() != nil {
 			action = "cancel"
 		}
-		o, e = s.SSHRunner.Do(query, taskrunner.Request{Action: action, Command: command})
+		o, e = runner.Do(query, taskrunner.Request{Action: action, Command: command})
 		for e == nil && !o.Terminal() && action == "cancel" {
 			select {
 			case <-query.Done():
 				return taskrunner.ErrUnknown
 			case <-time.After(50 * time.Millisecond):
 			}
-			o, e = s.SSHRunner.Do(query, taskrunner.Request{Action: "query", Command: command})
+			o, e = runner.Do(query, taskrunner.Request{Action: "query", Command: command})
 		}
 	}
 	if e != nil || !o.Terminal() {
@@ -352,11 +377,16 @@ func (s *Service) runSSHClaim(ctx context.Context, c *Claim) error {
 	}
 	finish, done := context.WithTimeout(context.Background(), 5*time.Second)
 	defer done()
-	o, e = s.verifySSHInstallation(finish, c, o)
-	if e != nil {
-		return e
+	if o.Validate(command) != nil {
+		return taskrunner.ErrRejected
 	}
-	if e = s.recordSSH(finish, o); e != nil {
+	if mode == "ssh" {
+		o, e = s.verifySSHInstallation(finish, c, o)
+		if e != nil {
+			return e
+		}
+	}
+	if e = s.recordHost(finish, mode, o); e != nil {
 		return e
 	}
 	return s.Complete(finish, c)

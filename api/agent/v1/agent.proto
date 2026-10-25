@@ -2,12 +2,14 @@ syntax = "proto3";
 package keel.agent.v1;
 option go_package = "github.com/enzoOvOyu/keel/internal/agentproto;agentproto";
 
-// Identity/liveness increment only. No task execution or telemetry is admitted.
+// Identity, liveness and explicitly enabled bounded read-only task transport.
+// Task payloads use the existing keel.task/v1 contract; no shell or telemetry.
 // Enroll uses verified server TLS and a one-use secret delivered out of band.
 // Heartbeats additionally requires the issued, currently active client cert.
 service AgentIdentity {
   rpc Enroll(EnrollRequest) returns (EnrollResponse);
   rpc Heartbeats(stream Heartbeat) returns (stream HeartbeatAck);
+  rpc Tasks(stream TaskReport) returns (stream TaskRequest);
 }
 message EnrollRequest {
   string project_id = 1;
@@ -36,4 +38,19 @@ message HeartbeatAck {
   uint64 sequence = 2;
   string received_at = 3;
   uint32 next_heartbeat_seconds = 4;
+}
+
+// First report is an empty hello carrying the active heartbeat connection_id.
+// Server acknowledges with an empty TaskRequest; later frames carry matching
+// request IDs and bounded strict keel.task/v1 JSON. No persisted delivery queue.
+message TaskRequest {
+  string request_id = 1;
+  bytes request_json = 2;
+  int64 expires_at_unix_milli = 3; // delivery admission deadline, not task timeout
+}
+message TaskReport {
+  string connection_id = 1;
+  string request_id = 2;
+  bytes observation_json = 3;
+  string error = 4; // empty, rejected, unknown
 }

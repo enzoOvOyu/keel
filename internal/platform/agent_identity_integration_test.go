@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/pem"
+	"errors"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -139,6 +140,22 @@ func TestAgentRuntimePermissions(t *testing.T) {
 	}
 	if e = runtime.AgentHeartbeat(ctx, certificate, authority.ID, conn, 1); e != nil {
 		t.Fatal(e)
+	}
+	session := RandomID()
+	if _, e = runtime.OpenAgentTaskSession(ctx, certificate, authority.ID, conn, session); e != nil {
+		t.Fatal("restricted worker could not open task stream", e)
+	}
+	if binding, connection, err := runtime.ActiveAgentTaskBinding(ctx, project.ID, machine); err != nil || connection != conn || binding.ID != credential.ID {
+		t.Fatal("restricted worker could not read current task binding", err)
+	}
+	if _, e = runtime.OpenAgentTaskSession(ctx, certificate, authority.ID, conn, RandomID()); !errors.Is(e, ErrAgentConnectionBusy) {
+		t.Fatal("concurrent task stream was not rejected", e)
+	}
+	if e = runtime.CloseAgentTaskSession(ctx, conn, session); e != nil {
+		t.Fatal(e)
+	}
+	if _, _, e = runtime.ActiveAgentTaskBinding(ctx, project.ID, machine); !errors.Is(e, ErrAgentDenied) {
+		t.Fatal("closed task stream remained dispatchable", e)
 	}
 	if e = runtime.AgentHeartbeat(ctx, certificate, authority.ID, conn, 1); e == nil {
 		t.Fatal("duplicate heartbeat accepted")

@@ -82,7 +82,7 @@ func (s *Service) Claim(ctx context.Context, worker string, lease time.Duration)
 	cursorTime := time.Unix(0, 0)
 	cursorID := ""
 	for {
-		rows, e := s.DB.QueryContext(ctx, "SELECT id,created_at FROM exec_executions WHERE desired_state='running' AND state IN('scheduled','dispatching','running') AND (created_at,id)>($1,$2) AND (mode='sim' OR ($3 AND mode='kea') OR ($4 AND mode='fabric') OR ($5 AND mode='ssh')) ORDER BY created_at,id LIMIT 64", cursorTime, cursorID, s.KeaStore != nil, s.NetworkStore != nil, s.SSHRunner != nil)
+		rows, e := s.DB.QueryContext(ctx, "SELECT id,created_at FROM exec_executions WHERE desired_state='running' AND state IN('scheduled','dispatching','running') AND (created_at,id)>($1,$2) AND (mode='sim' OR ($3 AND mode='kea') OR ($4 AND mode='fabric') OR ($5 AND mode='ssh') OR ($6 AND mode='agent')) ORDER BY created_at,id LIMIT 64", cursorTime, cursorID, s.KeaStore != nil, s.NetworkStore != nil, s.SSHRunner != nil, s.AgentRunner != nil)
 		if e != nil {
 			return nil, e
 		}
@@ -138,6 +138,9 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 	if e != nil {
 		return nil, e
 	}
+	if executionMode == "agent" && s.AgentRunner == nil {
+		return nil, nil
+	}
 	if executionMode == "ssh" && s.SSHRunner == nil {
 		return nil, nil
 	}
@@ -164,7 +167,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 		if e != nil && !errors.Is(e, sql.ErrNoRows) {
 			return nil, e
 		}
-		allowed = allowed && (role == "Admin" || ((executionMode == "kea" || executionMode == "fabric") && role == "NDE") || ((executionMode == "sim" || executionMode == "ssh") && (role == "DE" || role == "DL" || role == "SRE")))
+		allowed = allowed && (role == "Admin" || ((executionMode == "kea" || executionMode == "fabric") && role == "NDE") || ((executionMode == "sim" || executionMode == "ssh" || executionMode == "agent") && (role == "DE" || role == "DL" || role == "SRE")))
 	}
 	x, e := scanExecution(tx.QueryRowContext(ctx, "SELECT "+executionColumns+" FROM exec_executions WHERE id=$1 AND desired_state='running' AND state IN('scheduled','dispatching','running') FOR UPDATE SKIP LOCKED", id))
 	if errors.Is(e, sql.ErrNoRows) {
@@ -258,6 +261,29 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 					return nil, tx.Commit()
 				}
 			}
+			if x.Mode == "agent" {
+				if e = s.agentFrozenTx(ctx, tx, target); e != nil {
+					var blocked *platform.Error
+					if !errors.As(e, &blocked) {
+						return nil, e
+					}
+					// A transport gap leaves the same pending command untouched.
+					// Actual binding/asset revocation requires an explicit resume.
+					if blocked.Code == "AGENT_OFFLINE" {
+						continue
+					}
+					if _, e = tx.ExecContext(ctx, "UPDATE exec_executions SET desired_state='paused',state_version=state_version+1 WHERE id=$1", id); e != nil {
+						return nil, e
+					}
+					if e = settle(ctx, tx, id); e != nil {
+						return nil, e
+					}
+					if e = event(ctx, tx, id, "execution.authorization_blocked", map[string]string{"reason": "agent_identity_or_asset_changed"}); e != nil {
+						return nil, e
+					}
+					return nil, tx.Commit()
+				}
+			}
 			if x.Mode == "fabric" {
 				job, _ := x.Parameters["network_push_id"].(string)
 				phase, _ := x.Parameters["network_phase"].(string)
@@ -271,7 +297,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 			}
 			resources := []string{}
 			for _, kind := range task.Resources {
-				if x.Mode == "ssh" {
+				if x.Mode == "ssh" || x.Mode == "agent" {
 					resources = append(resources, kind+":machine:"+target.ResourceKey)
 				} else if x.Mode == "fabric" {
 					resources = append(resources, kind+":switch:"+target.ResourceKey)
@@ -283,7 +309,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 			}
 			sort.Strings(resources)
 			mode := "exclusive"
-			if task.Type == "sim.read" || x.Mode == "ssh" {
+			if task.Type == "sim.read" || x.Mode == "ssh" || x.Mode == "agent" {
 				mode = "shared"
 			}
 			if _, e = tx.ExecContext(ctx, "SAVEPOINT resource_candidate"); e != nil {
@@ -299,7 +325,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 					return nil, e
 				}
 				var conflict bool
-				e = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM exec_resource_leases WHERE resource_id=$1 AND state IN('held','reconciling') AND ($2='exclusive' OR mode='exclusive' OR state='reconciling'))", resource, mode).Scan(&conflict)
+				e = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM exec_resource_leases WHERE resource_id=$1 AND state IN('held','reconciling') AND ($2='exclusive' OR mode='exclusive' OR state='reconciling'))", resource, hostResourceLeaseMode(x.Mode, resource, mode)).Scan(&conflict)
 				if e != nil {
 					return nil, e
 				}
@@ -324,7 +350,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 			now := time.Now().UTC().Truncate(time.Microsecond)
 			until := now.Add(lease)
 			for _, resource := range resources {
-				if _, e = tx.ExecContext(ctx, "INSERT INTO exec_resource_leases VALUES($1,$2,$3,$4,'held',$5)", resource, attempt.ID, mode, fence, until); e != nil {
+				if _, e = tx.ExecContext(ctx, "INSERT INTO exec_resource_leases VALUES($1,$2,$3,$4,'held',$5)", resource, attempt.ID, hostResourceLeaseMode(x.Mode, resource, mode), fence, until); e != nil {
 					return nil, e
 				}
 			}
@@ -403,6 +429,22 @@ func (s *Service) RecordReceipt(ctx context.Context, r Receipt) error {
 	}
 	if !valid {
 		return failure(409, "STALE_FENCE", "receipt does not match claimed attempt")
+	}
+	// A durable proof remains historical fact after credential revocation. Only
+	// new Agent proofs must serialize against revocation in this transaction.
+	var existing string
+	e = tx.QueryRowContext(ctx, "SELECT digest FROM exec_runner_receipts WHERE command_id=$1", r.CommandID).Scan(&existing)
+	if e == nil {
+		if existing != digest {
+			return failure(409, "RECEIPT_CONFLICT", "command receipt is immutable")
+		}
+		return tx.Commit()
+	}
+	if !errors.Is(e, sql.ErrNoRows) {
+		return e
+	}
+	if e = s.agentReceiptAllowedTx(ctx, tx, r); e != nil {
+		return e
 	}
 	_, e = tx.ExecContext(ctx, "INSERT INTO exec_runner_receipts VALUES($1,$2,$3,$4,$5,$6,now()) ON CONFLICT(command_id) DO NOTHING", r.CommandID, r.AttemptID, r.FencingToken, r.Result, data, digest)
 	if e != nil {
@@ -645,7 +687,7 @@ func (s *Service) Reconcile(ctx context.Context, a *Actor, projectID, id, attemp
 }
 func (s *Service) WorkerHeartbeat(ctx context.Context, id string, active int) error {
 	mode := "sim"
-	if s.KeaStore != nil || s.NetworkStore != nil || s.SSHRunner != nil {
+	if s.KeaStore != nil || s.NetworkStore != nil || s.SSHRunner != nil || s.AgentRunner != nil {
 		mode = "mixed"
 	}
 	_, e := s.DB.ExecContext(ctx, "INSERT INTO exec_worker_heartbeats(id,mode,active_count,observed_at) VALUES($1,$2,$3,now()) ON CONFLICT(id) DO UPDATE SET mode=EXCLUDED.mode,active_count=EXCLUDED.active_count,observed_at=EXCLUDED.observed_at", id, mode, active)
@@ -654,7 +696,7 @@ func (s *Service) WorkerHeartbeat(ctx context.Context, id string, active int) er
 func (s *Service) WorkerHealthy(ctx context.Context, id string) error {
 	var yes bool
 	mode := "sim"
-	if s.KeaStore != nil || s.NetworkStore != nil || s.SSHRunner != nil {
+	if s.KeaStore != nil || s.NetworkStore != nil || s.SSHRunner != nil || s.AgentRunner != nil {
 		mode = "mixed"
 	}
 	e := s.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM exec_worker_heartbeats WHERE id=$1 AND mode=$2 AND observed_at>now()-interval '10 seconds')", id, mode).Scan(&yes)
@@ -668,3 +710,12 @@ func (s *Service) WorkerHealthy(ctx context.Context, id string) error {
 }
 
 var _ = json.Valid
+
+// Agent currently accepts one local run at a time. Serialize only that channel;
+// the common read-only device lease remains shared with SSH/BMC readers.
+func hostResourceLeaseMode(executionMode, resource, defaultMode string) string {
+	if executionMode == "agent" && strings.HasPrefix(resource, "agent:machine:") {
+		return "exclusive"
+	}
+	return defaultMode
+}

@@ -27,6 +27,7 @@ import (
 	"github.com/enzoOvOyu/keel/internal/agentidentity"
 	"github.com/enzoOvOyu/keel/internal/agentpki"
 	pb "github.com/enzoOvOyu/keel/internal/agentproto"
+	"github.com/enzoOvOyu/keel/internal/agentrunner"
 	"github.com/enzoOvOyu/keel/internal/platform"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -35,6 +36,9 @@ import (
 )
 
 type identityFixture struct {
+	actor                     *platform.AuthSession
+	broker                    *agentrunner.Broker
+	config                    agentidentity.Config
 	store                     *platform.Store
 	authority                 *agentpki.Authority
 	project, endpoint, caPath string
@@ -56,7 +60,7 @@ func privateDirectory(t *testing.T) string {
 }
 
 // These are isolated software identities, not PXE, installation or hardware evidence.
-func newIdentityFixture(t *testing.T) *identityFixture {
+func newIdentityFixture(t *testing.T, tasks ...bool) *identityFixture {
 	t.Helper()
 	dsn := os.Getenv("KEEL_TEST_AGENT_DATABASE_URL")
 	if dsn == "" {
@@ -104,7 +108,13 @@ func newIdentityFixture(t *testing.T) *identityFixture {
 	serverCert, serverKey := filepath.Join(dir, "server.pem"), filepath.Join(dir, "server-key.pem")
 	requireNoError(t, agentpki.WriteNew(serverCert, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})))
 	requireNoError(t, agentpki.WriteNew(serverKey, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})))
-	server, err := agentidentity.New(s, agentidentity.Config{ServerCertificate: serverCert, ServerKey: serverKey, CACertificate: caPath, CAKey: keyPath})
+	config := agentidentity.Config{ServerCertificate: serverCert, ServerKey: serverKey, CACertificate: caPath, CAKey: keyPath}
+	var broker *agentrunner.Broker
+	if len(tasks) > 0 && tasks[0] {
+		config.TasksEnabled = true
+		broker = agentrunner.New(s)
+	}
+	server, err := agentidentity.NewWithTasks(s, config, broker)
 	requireNoError(t, err)
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	requireNoError(t, err)
@@ -113,7 +123,7 @@ func newIdentityFixture(t *testing.T) *identityFixture {
 	t.Cleanup(func() { server.Stop(); <-done })
 	roots := x509.NewCertPool()
 	roots.AddCert(authority.Certificate)
-	return &identityFixture{store: s, authority: authority, project: project.ID, endpoint: listener.Addr().String(), caPath: caPath, roots: roots}
+	return &identityFixture{actor: admin, broker: broker, config: config, store: s, authority: authority, project: project.ID, endpoint: listener.Addr().String(), caPath: caPath, roots: roots}
 }
 
 func (f *identityFixture) target(t *testing.T) (machine, serial string) {

@@ -26,9 +26,12 @@ func main() {
 }
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: keel-admin agent-ca-init|agent-enrollment-create|agent-enrollment-cancel|agent-revoke|credential-master-keygen|ssh-key-create|ssh-key-list|ssh-key-revoke|media-init|media-signing-keygen|media-manifest-verify|media-bundle-create|media-bundle-verify|migrate|init-admin|user-create|user-disable|user-unlock|user-password|member-grant|member-revoke [flags]")
+		return errors.New("usage: keel-admin agent-task-create|agent-task-status|agent-task-action|agent-task-reconcile|agent-ca-init|agent-enrollment-create|agent-enrollment-cancel|agent-revoke|credential-master-keygen|ssh-key-create|ssh-key-list|ssh-key-revoke|media-init|media-signing-keygen|media-manifest-verify|media-bundle-create|media-bundle-verify|migrate|init-admin|user-create|user-disable|user-unlock|user-password|member-grant|member-revoke [flags]")
 	}
 	command := args[0]
+	if command == "agent-task-create" || command == "agent-task-status" || command == "agent-task-action" || command == "agent-task-reconcile" {
+		return runAgentTasks(command, args[1:])
+	}
 	if command == "agent-ca-init" || command == "agent-enrollment-create" || command == "agent-enrollment-cancel" || command == "agent-revoke" {
 		return runAgentIdentity(command, args[1:])
 	}

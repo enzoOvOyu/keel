@@ -1,4 +1,4 @@
-// keel-agent's first increment performs identity and liveness only.
+// keel-agent performs identity, liveness and explicitly enabled read-only tasks.
 package main
 
 import (
@@ -22,13 +22,13 @@ var version = "development"
 
 func main() {
 	if run(os.Args[1:]) != nil {
-		fmt.Fprintln(os.Stderr, "keel-agent: identity/liveness unavailable; inspect operator records; no task was dispatched")
+		fmt.Fprintln(os.Stderr, "keel-agent: identity/task transport unavailable; inspect durable operator records")
 		os.Exit(1)
 	}
 }
 func run(args []string) error {
 	if len(args) == 1 && args[0] == "version" {
-		return json.NewEncoder(os.Stdout).Encode(map[string]any{"version": version, "capabilities": []string{"enrollment", "mtls-heartbeat"}})
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"version": version, "capabilities": []string{"enrollment", "mtls-heartbeat", "readonly-tasks"}})
 	}
 	if len(args) == 0 || (args[0] != "enroll" && args[0] != "run") {
 		return agentclient.ErrIdentity

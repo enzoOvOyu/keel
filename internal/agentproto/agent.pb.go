@@ -325,6 +325,137 @@ func (x *HeartbeatAck) GetNextHeartbeatSeconds() uint32 {
 	return 0
 }
 
+// First report is an empty hello carrying the active heartbeat connection_id.
+// Server acknowledges with an empty TaskRequest; later frames carry matching
+// request IDs and bounded strict keel.task/v1 JSON. No persisted delivery queue.
+type TaskRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	RequestId          string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	RequestJson        []byte                 `protobuf:"bytes,2,opt,name=request_json,json=requestJson,proto3" json:"request_json,omitempty"`
+	ExpiresAtUnixMilli int64                  `protobuf:"varint,3,opt,name=expires_at_unix_milli,json=expiresAtUnixMilli,proto3" json:"expires_at_unix_milli,omitempty"` // delivery admission deadline, not task timeout
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *TaskRequest) Reset() {
+	*x = TaskRequest{}
+	mi := &file_api_agent_v1_agent_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskRequest) ProtoMessage() {}
+
+func (x *TaskRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_agent_v1_agent_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskRequest.ProtoReflect.Descriptor instead.
+func (*TaskRequest) Descriptor() ([]byte, []int) {
+	return file_api_agent_v1_agent_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *TaskRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *TaskRequest) GetRequestJson() []byte {
+	if x != nil {
+		return x.RequestJson
+	}
+	return nil
+}
+
+func (x *TaskRequest) GetExpiresAtUnixMilli() int64 {
+	if x != nil {
+		return x.ExpiresAtUnixMilli
+	}
+	return 0
+}
+
+type TaskReport struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ConnectionId    string                 `protobuf:"bytes,1,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	RequestId       string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	ObservationJson []byte                 `protobuf:"bytes,3,opt,name=observation_json,json=observationJson,proto3" json:"observation_json,omitempty"`
+	Error           string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"` // empty, rejected, unknown
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *TaskReport) Reset() {
+	*x = TaskReport{}
+	mi := &file_api_agent_v1_agent_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskReport) ProtoMessage() {}
+
+func (x *TaskReport) ProtoReflect() protoreflect.Message {
+	mi := &file_api_agent_v1_agent_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskReport.ProtoReflect.Descriptor instead.
+func (*TaskReport) Descriptor() ([]byte, []int) {
+	return file_api_agent_v1_agent_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *TaskReport) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
+}
+
+func (x *TaskReport) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *TaskReport) GetObservationJson() []byte {
+	if x != nil {
+		return x.ObservationJson
+	}
+	return nil
+}
+
+func (x *TaskReport) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
 var File_api_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_api_agent_v1_agent_proto_rawDesc = "" +
@@ -359,11 +490,24 @@ const file_api_agent_v1_agent_proto_rawDesc = "" +
 	"\bsequence\x18\x02 \x01(\x04R\bsequence\x12\x1f\n" +
 	"\vreceived_at\x18\x03 \x01(\tR\n" +
 	"receivedAt\x124\n" +
-	"\x16next_heartbeat_seconds\x18\x04 \x01(\rR\x14nextHeartbeatSeconds2\x9f\x01\n" +
+	"\x16next_heartbeat_seconds\x18\x04 \x01(\rR\x14nextHeartbeatSeconds\"\x82\x01\n" +
+	"\vTaskRequest\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12!\n" +
+	"\frequest_json\x18\x02 \x01(\fR\vrequestJson\x121\n" +
+	"\x15expires_at_unix_milli\x18\x03 \x01(\x03R\x12expiresAtUnixMilli\"\x91\x01\n" +
+	"\n" +
+	"TaskReport\x12#\n" +
+	"\rconnection_id\x18\x01 \x01(\tR\fconnectionId\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x02 \x01(\tR\trequestId\x12)\n" +
+	"\x10observation_json\x18\x03 \x01(\fR\x0fobservationJson\x12\x14\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error2\xe3\x01\n" +
 	"\rAgentIdentity\x12E\n" +
 	"\x06Enroll\x12\x1c.keel.agent.v1.EnrollRequest\x1a\x1d.keel.agent.v1.EnrollResponse\x12G\n" +
 	"\n" +
-	"Heartbeats\x12\x18.keel.agent.v1.Heartbeat\x1a\x1b.keel.agent.v1.HeartbeatAck(\x010\x01B:Z8github.com/enzoOvOyu/keel/internal/agentproto;agentprotob\x06proto3"
+	"Heartbeats\x12\x18.keel.agent.v1.Heartbeat\x1a\x1b.keel.agent.v1.HeartbeatAck(\x010\x01\x12B\n" +
+	"\x05Tasks\x12\x19.keel.agent.v1.TaskReport\x1a\x1a.keel.agent.v1.TaskRequest(\x010\x01B:Z8github.com/enzoOvOyu/keel/internal/agentproto;agentprotob\x06proto3"
 
 var (
 	file_api_agent_v1_agent_proto_rawDescOnce sync.Once
@@ -377,20 +521,24 @@ func file_api_agent_v1_agent_proto_rawDescGZIP() []byte {
 	return file_api_agent_v1_agent_proto_rawDescData
 }
 
-var file_api_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_api_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_api_agent_v1_agent_proto_goTypes = []any{
 	(*EnrollRequest)(nil),  // 0: keel.agent.v1.EnrollRequest
 	(*EnrollResponse)(nil), // 1: keel.agent.v1.EnrollResponse
 	(*Heartbeat)(nil),      // 2: keel.agent.v1.Heartbeat
 	(*HeartbeatAck)(nil),   // 3: keel.agent.v1.HeartbeatAck
+	(*TaskRequest)(nil),    // 4: keel.agent.v1.TaskRequest
+	(*TaskReport)(nil),     // 5: keel.agent.v1.TaskReport
 }
 var file_api_agent_v1_agent_proto_depIdxs = []int32{
 	0, // 0: keel.agent.v1.AgentIdentity.Enroll:input_type -> keel.agent.v1.EnrollRequest
 	2, // 1: keel.agent.v1.AgentIdentity.Heartbeats:input_type -> keel.agent.v1.Heartbeat
-	1, // 2: keel.agent.v1.AgentIdentity.Enroll:output_type -> keel.agent.v1.EnrollResponse
-	3, // 3: keel.agent.v1.AgentIdentity.Heartbeats:output_type -> keel.agent.v1.HeartbeatAck
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	5, // 2: keel.agent.v1.AgentIdentity.Tasks:input_type -> keel.agent.v1.TaskReport
+	1, // 3: keel.agent.v1.AgentIdentity.Enroll:output_type -> keel.agent.v1.EnrollResponse
+	3, // 4: keel.agent.v1.AgentIdentity.Heartbeats:output_type -> keel.agent.v1.HeartbeatAck
+	4, // 5: keel.agent.v1.AgentIdentity.Tasks:output_type -> keel.agent.v1.TaskRequest
+	3, // [3:6] is the sub-list for method output_type
+	0, // [0:3] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -407,7 +555,7 @@ func file_api_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_agent_v1_agent_proto_rawDesc), len(file_api_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
