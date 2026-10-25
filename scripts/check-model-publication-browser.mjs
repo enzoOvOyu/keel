@@ -46,6 +46,37 @@ try {
   assert.equal(await page.locator('.slot-row').count(), 2)
  }
  await openReview()
+ // Reject ambiguous PCIe/slot aliases before sending a publication request.
+ let publicationRequests = 0
+ const trackPublication = request => { if (request.method() === 'POST' && request.url().endsWith(modelPath + '/versions')) publicationRequests++ }
+ page.on('request', trackPublication)
+ for (const location of ['PCIe-2', '2']) {
+  await page.getByRole('textbox', { name: 'PCIe 槽', exact: true }).first().fill(location)
+  await page.locator('.action-dialog button[type=submit]').click()
+  const conflict = page.getByRole('alert').filter({ hasText: '指向多个槽位' })
+  await conflict.waitFor()
+  assert(await conflict.evaluate(element => document.activeElement === element))
+  const box = await conflict.boundingBox(); assert(box && box.y >= 0 && box.y + box.height <= 1080)
+  assert.equal(publicationRequests, 0)
+ }
+ await page.screenshot({ path: process.env.KEEL_WORKSPACE_EVIDENCE_DIR + '/model-slot-conflict.png', fullPage: true })
+ await page.getByRole('textbox', { name: 'PCIe 槽', exact: true }).first().fill('PCIe-1')
+ page.off('request', trackPublication)
+ for (const scopeBase of [base, '/admin/models']) {
+  const invalidName = 'Invalid-slot-' + suffix + (scopeBase === base ? '-project' : '-global')
+  const isolated = await call('POST', scopeBase, { name: invalidName, kind: 'server' }, 201)
+  for (const location of ['PCIe-2', '2', ' PCIe-1 ']) {
+   const invalid = { ...payload, slots: payload.slots.map((slot, i) => i === 0 ? { ...slot, pcie_slot: location } : slot) }
+   await call('POST', scopeBase + '/import', { ...invalid, source_host: 'invalid-slot-fixture', model_name: invalidName }, 400)
+   await call('POST', scopeBase + '/' + isolated.id + '/versions', { ...invalid, expected_version: 0 }, 400)
+   await call('POST', scopeBase + '/import', { ...invalid, source_host: 'invalid-auto-create-fixture', model_name: invalidName + '-auto' }, 400)
+  }
+  assert.equal((await call('GET', scopeBase + '/' + isolated.id + '/drafts')).items.length, 0)
+  assert.equal((await call('GET', scopeBase + '/' + isolated.id + '/versions')).items.length, 0)
+  const identities = await call('GET', scopeBase)
+  assert(!identities.items.some(model => model.name === invalidName + '-auto'))
+ }
+ console.log('PASS slot identity collisions blocked before UI publication and by project/global publish/import APIs; no automatic identity, draft or version left behind')
  // Another editor publishes while this review is open; the stale form cannot append.
  await call('POST', modelPath + '/versions', { ...payload, hw_spec: { ...payload.hw_spec, gpu_count: '2' }, expected_version: 0 }, 400)
  const v1 = await call('POST', modelPath + '/versions', { ...payload, expected_version: 0 }, 201)

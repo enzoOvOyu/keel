@@ -3424,6 +3424,7 @@ export interface components {
             page: number;
             page_size: number;
         };
+        /** @description Each slot number and PCIe location must uniquely identify one slot within the version. PCIe locations cannot repeat, collide with another slot number, or contain surrounding whitespace. A slot may use its own decimal number as its PCIe location. */
         ModelSlot: {
             slot_no: number;
             pcie_slot: string;

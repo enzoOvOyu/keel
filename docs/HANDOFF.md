@@ -471,3 +471,14 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 **§40 发布完成**：功能代码 `f9e4f53f181ab949aa8e61b1b43d4998c57d4c44` 已正常推送GitHub，从确切SHA的git archive构建，镜像ID `sha256:54c2394b6b63484c44d2220ee2dd78c4bc1320d95d0bf1727564f51ad1a2646b`。候选3108真实登录、参数/型号/介质/执行/Flow和全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及浏览器控制台检查通过。于 `2026-10-25T00:06:42.861866+00:00` 更新3000且healthy，同套八页/API/版本/控制台检查再次通过，healthz返回上述功能SHA。
 
 无数据库迁移，schema实际仍37条，保留兼容旧4b76052镜像；不改运行库数据卷、worker范围或其他服务。.env仍600，切换前配置、私有发布状态与截图在 `/home/ubuntu/.local/state/keel/releases/20261025T000513Z`；候选容器与临时配置已清理，原两份草稿未暂存。GitHub Actions run40145313377记录时 in_progress/尚无结论，仅据实际状态报告；上一4b76052已completed/success。后续交接文档提交不改变3000所运行的功能SHA。FR-14/WP-1.12/P1仍partial，下一步按现有依赖推进剩余硬件/布局与角色约束。
+
+
+## 41. A4 / WP-1.12：槽位标识唯一性与编辑冲突拦截（2026-10-25）
+
+继续 `/opt/keel`、`dev/p1-network-bom`，依据PRD FR-14.1/14.3、DS 4.12d冲突拦截与既有BOM槽号/PCIe双标识解析，补齐每个版本内槽位地址唯一性。发布和扫描导入共用校验，拒绝重复PCIe位置、跨槽位的PCIe/十进制槽号别名碰撞和PCIe首尾空白；自身数字别名与01等不透明标签保持兼容，不限制同型号或同角色复用。项目与全局接口均返回400 VALIDATION_ERROR，失败不创建自动型号/草稿/版本、不消费已有草稿；旧版本和设备绑定保持不变。编辑器给双语具体标识提示，在发出请求前拦截，长表单错误获得焦点并滚入视口，保留用户输入。OpenAPI和生成类型同步；无迁移，不扩展G1/项目角色覆盖/图形面板等后置能力。
+
+新增TestModelSlotIdentifiers覆盖正反行序、重复位置、两个方向的数字别名、空白、合法自身别名与原样字符串。实际Go单测和 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json go vet ./internal/platform ./internal/httpapi`退出0（vet日志 `/tmp/keel-slot-vet.log`）。完整隔离命令 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py` 证据 `/tmp/keel-models-lrewldsd`，PG/race18.022s及原HTTP/扫描HTTP/扫描浏览器七组/发布/托盘/全局浏览器回归全部通过。新增数据库断言非法扫描不留自动型号、原草稿与零版本保持；浏览器项目/全局发布与导入API拒绝非法地址，UI零发布请求，修正后原完整发布/陈旧编辑/历史不可变流程仍通过。
+
+截图复核发现原长表单错误提示在视口外，补焦点定位及实际焦点/视口断言后仅重跑受影响构建和publication-only；最终证据后补。保留旧fabric_precheck/026草稿，Go继续沿用隔离overlay；独立fixture不是硬件验收。上一f9e4f53的GitHub Actions run40145313377已查询completed/success。本轮提交和3000发布结果后补；FR-14/WP-1.12/P1仍partial，继续按依赖补齐剩余硬件和布局能力。
+
+§41提交前补记：最终根 `npm run build`退出0（`/tmp/keel-slot-build.log`，含契约生成/TypeScript/UI边界/版本lint/Vite）；仅受影响的 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-model-workspace-integration.py --publication-only`退出0，证据 `/tmp/keel-models-hbngcgj1`，实际错误焦点与视口断言、零发布请求、原完整审核/不可变历史/权限/差异导出回归通过。最终model-slot-conflict.png再次视觉复核，错误位于可见区域。设计/Node语法/diff检查通过，GitHub SSH认证成功，远端无待同步提交。

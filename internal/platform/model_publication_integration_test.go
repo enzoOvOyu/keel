@@ -24,6 +24,44 @@ func TestModelPublicationPreservesAndSeals(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	// Invalid slot identities must not create an automatic model, a draft,
+	// or a published version, in either project or global scope.
+	for _, scope := range []*ProjectSummary{p, nil} {
+		name := "Invalid slot identity"
+		if scope == nil {
+			name += " global"
+		}
+		for _, location := range []string{"PCIe-2", "2", " PCIe-1 "} {
+			invalid := in
+			invalid.ModelName = name
+			invalid.Slots = append([]ModelSlot{}, in.Slots...)
+			invalid.Slots[1].PcieSlot = location
+			if _, err := s.ImportModelScan(ctx, a, scope, invalid, "test"); err == nil {
+				t.Fatal("ambiguous scan created a draft")
+			} else {
+				assertErrorCode(t, err, "VALIDATION_ERROR")
+			}
+			if _, err := s.PublishModelVersion(ctx, a, p, d.ModelID, invalid.payload(), "test"); err == nil {
+				t.Fatal("ambiguous slots published")
+			} else {
+				assertErrorCode(t, err, "VALIDATION_ERROR")
+			}
+		}
+		var count int
+		if err := s.DB.QueryRowContext(ctx, "SELECT count(*) FROM device_models WHERE name=$1", name).Scan(&count); err != nil || count != 0 {
+			t.Fatalf("invalid scan left model identity: %d %v", count, err)
+		}
+	}
+	for _, table := range []string{"device_model_versions", "device_model_drafts"} {
+		var count int
+		want := 0
+		if table == "device_model_drafts" {
+			want = 1
+		}
+		if err := s.DB.QueryRowContext(ctx, "SELECT count(*) FROM "+table+" WHERE model_id=$1", d.ModelID).Scan(&count); err != nil || count != want {
+			t.Fatalf("invalid slots modified %s: %d %v", table, count, err)
+		}
+	}
 	again := in
 	again.Slots = []ModelSlot{in.Slots[1], in.Slots[0]}
 	reuse, e := s.ImportModelScan(ctx, a, p, again, "test")

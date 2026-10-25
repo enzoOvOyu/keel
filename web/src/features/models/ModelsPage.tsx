@@ -71,6 +71,8 @@ function PublishVersionDialog({ projectId, model, seed, onClose, onDone }: { pro
     bom_expect: JSON.stringify(seed?.bom_expect ?? {}, null, 2),
     default_role_plan: JSON.stringify(seed?.default_role_plan ?? {}, null, 2),
   }))
+  const validationRef = useRef<HTMLParagraphElement>(null)
+  useEffect(() => { if (validation) validationRef.current?.focus() }, [validation])
   function update(index: number, patch: Partial<SlotDraft>) {
     setSlots((current) => current.map((slot, i) => i === index ? { ...slot, ...patch } : slot))
   }
@@ -91,11 +93,16 @@ function PublishVersionDialog({ projectId, model, seed, onClose, onDone }: { pro
     } catch { setValidation(t('modelReviewInvalid')); return }
     const cleaned: ModelSlot[] = []
     const seen = new Set<number>()
+    const aliases = new Map<string, number>()
     for (const slot of slots) {
       const no = Number(slot.slot_no)
       if (!Number.isSafeInteger(no) || no < 1 || no > 1024 || seen.has(no)) { setValidation(t('modelSlotInvalid')); return }
       seen.add(no)
       if (!slot.pcie_slot.trim() || !slot.expect_nic_model.trim() || !slot.panel_port.trim()) { setValidation(t('modelSlotInvalid')); return }
+      for (const alias of [String(no), slot.pcie_slot.trim()]) {
+        if (aliases.has(alias) && aliases.get(alias) !== no) { setValidation(t('modelSlotConflict', { alias })); return }
+        aliases.set(alias, no)
+      }
       cleaned.push({ slot_no: no, pcie_slot: slot.pcie_slot.trim(), expect_nic_model: slot.expect_nic_model.trim(), panel_port: slot.panel_port.trim(), default_role: slot.default_role })
     }
     setValidation('')
@@ -104,7 +111,7 @@ function PublishVersionDialog({ projectId, model, seed, onClose, onDone }: { pro
     if (result.ok) await onDone()
   }
   return <ActionDialog title={t('modelsPublish')} description={t('modelsPublishDetail')} busy={action.busy} confirm={t(action.busy ? 'saving' : 'modelsPublish')} onSubmit={(event) => void submit(event)} onClose={onClose}>
-    {action.error && 'code' in action.error && ['MODEL_VERSION_CONFLICT', 'MODEL_DRAFT_NOT_FOUND'].includes(String(action.error.code)) ? <p role="alert" className="field-error">{t(action.error.code === 'MODEL_VERSION_CONFLICT' ? 'modelPublicationConflict' : 'modelDraftGone')}</p> : <ActionError error={action.error} />}{validation && <p className="field-error" role="alert">{validation}</p>}
+    {action.error && 'code' in action.error && ['MODEL_VERSION_CONFLICT', 'MODEL_DRAFT_NOT_FOUND'].includes(String(action.error.code)) ? <p role="alert" className="field-error">{t(action.error.code === 'MODEL_VERSION_CONFLICT' ? 'modelPublicationConflict' : 'modelDraftGone')}</p> : <ActionError error={action.error} />}{validation && <p ref={validationRef} tabIndex={-1} className="field-error" role="alert">{validation}</p>}
     <dl className="action-target"><dt>{t('modelName')}</dt><dd>{model.name}</dd><dt>{t('recordVersion')}</dt><dd>v{model.latest_version}</dd>{seed && <><dt>{t('modelsDraftSource')}</dt><dd>{seed.source_host}</dd></>}</dl>
     <div className="field"><label htmlFor="hw-spec">{t('modelHwSpec')}</label><textarea id="hw-spec" value={hwSpec} onChange={(event) => setHwSpec(event.target.value)} rows={4} disabled={action.busy} className="mono-value" /><span className="field-hint">{t('modelHwSpecHint')}</span></div>
     {<div className="field"><label htmlFor="capability-matrix">{t('modelField_capability_matrix')}</label><textarea id="capability-matrix" value={capabilityMatrix} onChange={(event) => setCapabilityMatrix(event.target.value)} rows={6} disabled={action.busy} className="mono-value" /><span className="field-hint">{t('modelCapabilityHint')}</span></div>}

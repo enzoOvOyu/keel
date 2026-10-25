@@ -4280,6 +4280,7 @@ components:
         page: { type: integer }
         page_size: { type: integer }
     ModelSlot:
+      description: Each slot number and PCIe location must uniquely identify one slot within the version. PCIe locations cannot repeat, collide with another slot number, or contain surrounding whitespace. A slot may use its own decimal number as its PCIe location.
       type: object
       additionalProperties: false
       required: [slot_no, pcie_slot, expect_nic_model, panel_port, default_role]

@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -320,6 +321,7 @@ func validateModelPayload(input PublishModelVersionInput) error {
 		}
 	}
 	seen := map[int]bool{}
+	aliases := map[string]int{}
 	for _, slot := range input.Slots {
 		if slot.SlotNo < 1 || slot.SlotNo > 1024 {
 			return apiError(400, "VALIDATION_ERROR", "Slot numbers must be 1-1024")
@@ -336,6 +338,17 @@ func validateModelPayload(input PublishModelVersionInput) error {
 			if utf8.RuneCountInString(strings.TrimSpace(text)) < 1 || utf8.RuneCountInString(text) > limit {
 				return apiError(400, "VALIDATION_ERROR", "Slot "+field+" must be 1-120 characters")
 			}
+		}
+		// BOM accepts either slot_no or pcie_slot. Both identifiers must point
+		// to one physical slot, including collisions across the two fields.
+		if slot.PcieSlot != strings.TrimSpace(slot.PcieSlot) {
+			return apiError(400, "VALIDATION_ERROR", "Slot pcie_slot must not have surrounding whitespace")
+		}
+		for _, alias := range []string{strconv.Itoa(slot.SlotNo), slot.PcieSlot} {
+			if owner, exists := aliases[alias]; exists && owner != slot.SlotNo {
+				return apiError(400, "VALIDATION_ERROR", "Slot identifier "+alias+" conflicts between slots "+strconv.Itoa(owner)+" and "+strconv.Itoa(slot.SlotNo))
+			}
+			aliases[alias] = slot.SlotNo
 		}
 		if slot.DefaultRole != "management" && slot.DefaultRole != "storage" && slot.DefaultRole != "compute" && slot.DefaultRole != "oob" && slot.DefaultRole != "unused" {
 			return apiError(400, "VALIDATION_ERROR", "Slot default role must be management, storage, compute, oob or unused")
