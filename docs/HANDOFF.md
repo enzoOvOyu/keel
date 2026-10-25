@@ -1,8 +1,15 @@
 # 当前开发状态
 
-更新：2026-10-24；最新开发事实见末尾增量记录，早期表格为对应批次快照。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～58。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
-## 1. 工作区与运行版本
+## 当前恢复入口（2026-10-25 04:17 UTC）
+
+- 唯一工作区 `/opt/keel`，分支 `dev/p1-network-bom`。3000运行功能提交 `76ef23b0955ba6d98a4fbe3c2ccc776ad8248bdc`，镜像 `sha256:63f571d85fece7561a4e9a239b407cdd4ef35c2746e1f44e8af6589db336cdad`，健康检查与真实登录冒烟通过；随后文档提交不改变服务功能SHA。运行库38条迁移记录，041已应用，不能直接回滚到只认识37条迁移的旧镜像。
+- 本次两小时继续A4/WP-1.10、1.11，已交付平台签名清单、离线精确制品归档、有限读取重试/持久隔离及证据查看、受控来源获取、矩阵JSON导入审核、作用域筛选与分页前候选过滤。实际证据见§52～58；P1、FR-0和相关WP仍为partial。
+- 签名私钥在仓库外只读挂载，可信公钥独立保管；来源获取运行配置保持关闭，需操作员提供批准origin后才启用；生产worker保持关闭。未运行真机安装/厂商签名或大规模目标分发。两份原fabric草稿仍未跟踪，未纳入镜像。
+- 后续顺序：先按实施计划A3/WP-1.4→1.5复核并补齐服务器TaskCommand/SSH Runner与凭据、主机密钥、回执/取消/unknown契约，复用既有Execution/outbox/租约，不另起执行队列。当前 `internal/execution/worker.go`只认sim/kea/fabric，`internal/platform/ssh_trust.go`仍明确是mock互信动作；已有网络HTTP适配器不能算完整服务器SSH通道。以隔离SSH协议环境证明软件链，真机PoC另记。目标缓存/传输消费该通道后再按WP-1.10和ADR-07接入，不能反过来假定Agent/PXE已完成；包管理镜像源、清理保留制度及其验收仍分别待开发，不必为任一单项强行补齐后续阶段。
+
+## 1. 工作区与运行版本（早期快照，当前见上方）
 
 | 项目 | 当前记录 |
 |---|---|
@@ -736,3 +743,9 @@ WP-1.10接续PRD登记外部引用，复用现有manifest_ref及§53固定绑定
 §58实际证据：/tmp/keel-media-quarantine-evidence-integration.log、/tmp/keel-media-udn4yuup及最终/tmp/keel-media-quarantine-evidence-review-integration.log、/tmp/keel-media-2iplabt8均退出0，真实PG platform race14.280s/manifest1.347s。受控HTTP故障注入的观测SHA与首字节翻转后的精确摘要一致，长度/固定版本/3次/时间/原因/状态均核对；读取证据和UI明确重试没有增加源GET。项目/全局、Viewer继承、匿名/非成员项目/平台入口权限、无隔离404、退役后不变记录均通过，Go另把MediaObjects设nil仍能读同一记录。前端对403刷新另用明确负例响应注入，已有缓存观测被隐藏，撤销负例并明确重试后由真实API恢复；该UI故障注入不冒充真实后台撤权，实际作用域API拒绝单独通过。
 
 最终前端构建（契约/类型/控件/版本lint）退出0，受影响host Go race/httpapi2.306s/platform2.387s与vet、设计检查通过。复查§57还发现长度检查原在trim之后，现改为原始搜索先验证，补121空白查询拒绝；/tmp/keel-media-query-boundary-final.log、/tmp/keel-media-4scsif_q实际PG6.248s与筛选完整浏览器退出0。未重复未变容量/硬件或整组昂贵测试。准备无迁移候选和3000验证，原两草稿未暂存。
+
+**§58 发布完成**：功能代码 `76ef23b0955ba6d98a4fbe3c2ccc776ad8248bdc` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:63f571d85fece7561a4e9a239b407cdd4ef35c2746e1f44e8af6589db336cdad`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T04:17:02.255407+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
+
+无迁移，运行库38条迁移记录；保留旧镜像 `keel:6a534b019e18f1badc47e4b9eaef2a110308897d`。保留兼容旧镜像。不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T041048Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40160935174记录时 completed/success，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
+
+§58运行账号复核：候选3108与已发布3000均使用真实会话及受限应用数据库账号检查；隔离证据路由匿名401、认证后不存在记录404、121空白原始搜索400，批准/已存储/未隔离/架构及全局目录查询200全部通过。证据为本次发布目录下media-read-probe-3108.json和media-read-probe-3000.json，未向运行库制造隔离业务记录；隔离阳性证明仍为前述一次性真实PG/MinIO环境。查询GitHub确认§57功能6a534b0/run40160202413、交接e9b65e9/run40160433457、§58功能76ef23b/run40160935174均completed/success。候选容器及临时配置已清理。

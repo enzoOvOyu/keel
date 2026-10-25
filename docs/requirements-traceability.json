@@ -2465,7 +2465,7 @@
     }
   ],
   "implementation_checkpoint": {
-    "stage": "Current development is in ready P1/A3 execution and P1/A4 media/catalog/model increments. Logical fan-out, pinned media dependencies and shared catalog contracts have bounded software evidence; incomplete SSH/Agent/PXE, signature/mirror/cache/distribution and real hardware evidence keep the current P1 work packages partial. Historical p1-complete did not close the v3.0.3 scope.",
+    "stage": "Current development is in ready P1/A3 execution and P1/A4 media/catalog/model increments. Logical fan-out, pinned dependencies, platform-signed manifests, independent-trust offline artifact bundles, bounded retries/quarantine, controlled source fetching, matrix review and scoped filters have bounded software evidence (HANDOFF sections48-58). A real 500,000,000-byte artifact path is recorded separately from target scale. Incomplete server SSH/Agent/PXE, vendor source signatures, apt/yum repositories, target cache/distribution and real hardware acceptance keep P1 work packages partial. Historical p1-complete did not close the v3.0.3 scope.",
     "scope": "Development is active only in the remote /opt/keel Git workspace. FR-0 remains partial; health and physical-diagnostic evidence and remaining scope are recorded in docs/HANDOFF.md.",
     "runtime": "Runtime versions, migrations and backup references are maintained in docs/HANDOFF.md; source verification does not imply deployment."
   },
