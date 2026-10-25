@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～58。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～59。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-25 04:17 UTC）
 
@@ -757,3 +757,5 @@ WP-1.10接续PRD登记外部引用，复用现有manifest_ref及§53固定绑定
 本地实际执行同一四程序go build，使用既有overlay排除两份原草稿，退出0；逐个检查ELF64/e_machine=183，全部为AArch64。构建日志/tmp/keel-media-arm64-build.log、私有产物与SHA256证明/home/ubuntu/.local/state/keel/evidence/arm64-20261025/build-proof.json。CI YAML解析、提取步骤bash -n及diff检查通过。这是arm64交叉编译证明，不是arm64运行、Agent双架构、多架构容器发布或真机验收；本次不为CI/文档变更重建3000。CI实际执行结论后补。
 
 发布后私有配置证明在§58发布目录post-release-config-check.json：API healthy/镜像SHA一致、.env600、签名目录只读且私钥配置正确、来源allowlist空、worker未运行、候选已删除均通过。下一次恢复首先读本文件顶部入口，再按A3/WP-1.4→1.5现有内核接通服务器SSH契约，不把当前介质归档当作已完成目标缓存/安装。P1/FR-0维持partial。
+
+§59两小时最终交接（2026-10-25T04:28:27.488095+00:00）：本轮持续窗口始于2026-10-25 02:28:11 UTC，现已超过04:28:11 UTC。工作区仍/opt/keel、dev/p1-network-bom；功能76ef23b的run40160935174、交接da13662的run40161443174及arm64 CI增量936b7a0的run40161575505均实际查询completed/success，后者包含新增arm64步骤及原完整流程。3000保持76ef23b/schema38；最后交接文档提交不会重建服务，其新CI结论须单独查询，不从前述成功外推。私钥权限复核通过（宿主700目录的属主隔离使开发用户不能直接检查内部文件，改以容器API用户仅stat元数据确认400/UID65532，未读取/输出私钥）；证据signer-permissions-check.json。15份非空日志存在性索引two-hour-evidence-index.json仅证明证据保留，实际测试结论仍以各节明确结果为准。原两草稿未暂存；平台阶段与真机/规模剩余验收未升级。
