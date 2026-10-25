@@ -4,6 +4,8 @@
 
 ## 当前恢复入口（2026-10-25 14:08 UTC）
 
+用户已于2026-10-25 15:36 UTC恢复两小时开发，当前开发窗口至17:36 UTC。最新偏好：单Agent、不主动启动子代理；先推进P1剩余实现，P1实现完成后集中联调/全量测试/浏览器验证/镜像发布，开发中只保留必要编译与凭据/迁移等关键检查。不再按每个小增量重建镜像或重复全套验证。后续收工记录仅描述此前快照，已被本次恢复覆盖。
+
 - **Agent网页只读链路已发布（§74）**：既有mTLS任务通过认证API/资产页启动并进入原执行五Tab，unknown由当前操作员凭worker查询的真实回执显式对账；实际HTTP/Agent/浏览器和完整CI通过。生产HTTP任务准入、listener及worker继续关闭。
 
 - **用户UI要求已落实（2026-10-25，§73）**：既有旧页面原生业务控件全部接入共享shadcn/ui，预算清零；全局采用本地JetBrains Mono v2.304四字重，包含Monaco/DDM及中文回退，正式DS/令牌/授权同步。登录字段保持16px（含移动端），当前3000字体与浏览器已实测；不把控件迁移等同完整UX/无障碍或P1验收。
@@ -1032,3 +1034,23 @@ CI诊断包装复核：ab36da7加入tee时未显式pipefail，可能掩盖make c
 §74发布补记（2026-10-25 14:08 UTC）：功能提交`6668a72c1adaeb2444b8c28a3f4db4f038db49dd`已推送，[GitHub CI/run40199976376](https://github.com/enzoOvOyu/keel/actions/runs/40199976376) completed/success，包含完整工程检查、实际PG/HTTP/Agent身份与任务/CLI/受限角色、Agent浏览器真实unknown对账及原有认证/SSH/OIDC/LDAP浏览器与容器健康。精确git archive镜像`sha256:c6fbfd82912588f0f428a18440761ac6146a9c8b4e7db8de83c48e5adf79bdae`候选3108和运行3000均通过实际登录八页工作台/应用角色读探针；新Agent端点匿名401、认证空列表enabled=false、提交AGENT_DISABLED/503实测，未生成生产任务/CA/token。发布证据目录`/home/ubuntu/.local/state/keel/releases/20261025T135722Z`保留source.tar、构建日志、ci-verified、candidate/runtime-verified和浏览器日志截图。
 
 运行库仍46迁移，Agent三表为空，全部真实通道/组织认证维持默认关闭；本轮无迁移或业务写入。候选容器及临时env已移除，.env保持600，旧镜像/数据库卷/备份与两份原fabric草稿保留。当前镜像仅用于已实现范围的开发预览，WP-1.5/P1/FR-0仍partial。
+
+## 75. 接续开发：Agent 同密钥续签与 OS 引导介质组合（2026-10-25，进行中）
+
+用户15:36 UTC重新启动两小时单 Agent 开发，预计17:36停止；后续要求P1实现完成再集中测试。保留该时间窗，完整测试/浏览器/镜像构建/发布均不逐增量执行；当前3000仍为§74功能提交6668a72/schema46。
+
+WP-1.5补齐同CA/同私钥叶证书续签：默认关闭的mTLS Renew RPC、050只追加证书链、前驱幂等/撤销串行、具体叶证书绑定连接；稳定credential及原证书摘要保持任务快照身份。客户端显式renew或opt-in运行窗口间自动续签，受保护本地锁+CAS原子落盘，丢响应/落盘失败重取同一证书，过期不绕过。owner侧agent-credential-status读取绑定、有效期、最近续签及连接证据，不含密钥/PEM/token/session。详见AGENT-IDENTITY。此前一次必要安全验证已通过：带overlay/GOMEMLIMIT运行check-agent-integration.py --run 'TestAgentRenewal|TestAgentIdentityAtomicState'，证据/tmp/keel-agent-integration-d_bdqdt9，退出0。该证据早于后续状态CLI用例，不能计为后续改动全部通过。
+
+WP-1.10→WP-1.7补齐OS引导角色：os rootfs及直接固定的kernel/initrd/config安装模板，绑定已有依赖/摘要/架构/作用域/独立审批；签名清单保留角色，实际读取、审批、下载与准入统一校验。新增只读boot-profile API及介质登记/核对界面，不启动装机。工程契约见MEDIA-ARTIFACTS。源码47条迁移（新050，不含原026草稿），生产仍46；不迁移生产、不生成生产CA/令牌、不启用worker/listener或硬件操作。
+
+本批必要编译：宿主overlay/GOMEMLIMIT/GOMAXPROCS=2的定向go test -run '^$'退出0，日志/tmp/keel-p1-renewal-boot-compile.log（只编译，无测试用例运行）；前端仅api:generate及tsc --noEmit退出0，/tmp/keel-p1-boot-types.log。新增OS角色数据库/签名/拒绝路径用例尚未运行，完整验证按当前用户要求集中进行。两份原fabric草稿保留且不提交。当前仍在继续开发，尚未形成P1闭环或发布声明。
+
+§75装机准备续记：资产页已接BOM驱动配置预览：冻结资产版本、发布型号cpu_arch、显式物理引导口、审批OS组合与本项目至少再有效一小时的公钥。同事务检查当前作用域/角色、资产版本、介质实际字节、架构及密钥撤销；结构化cloud-init模板禁身份覆盖/任意脚本/别名/多文档，生成受限keel-ctrl公钥配置与独立预览摘要。没有创建Execution、回调令牌、DHCP配置或改变互信。新增boot_only筛选避免把OS组件误列为完整镜像。详见PROVISIONING；新用例尚未运行。必要编译退出0：/tmp/keel-p1-provision-compile.log；前端生成+tsc日志/tmp/keel-p1-provision-types.log，最终进程结果另核实后记录。完整测试/浏览器/镜像仍按用户要求延后，3000不变。
+
+§75编译进程最终结果：Go定向编译与前端生成/tsc均退出0。后续继续WP-1.6的owner侧主密钥重包裹维护；只改源码，不对生产库/主密钥执行轮换。该能力不依赖后续P2/P4产物；PXE完整安装仍按PROVISIONING列明的顺序待接。
+
+## 76. owner侧SSH主密钥重包裹（2026-10-25，源码待集中验证）
+
+接续P1/WP-1.6既有独立主密钥与不可变项目域钥。新增owner CLI credential-master-inspect/rewrap，带域指纹、精确数量/来源指纹、稳定操作ID、全记录认证/全事务重加密、逐条摘要证据/单审计、代际建钥约束及历史主密钥禁复用。公钥/任务身份/有效期/撤销保持，历史过期/撤销只认证存储不获得签名能力。051维护表及更新触发器保持应用角色只读；部署仍需明确维护窗口和双文件保留，命令不改.env、不重启/清理服务。工程契约及恢复顺序见CREDENTIAL-MASTER-ROTATION。
+
+本批只做源码开发；没有读取/轮换生产主密钥、迁移运行库或执行维护命令。源迁移现为48条（新增050/051，不含原026草稿），运行3000仍6668a72/schema46。新增crypto/PostgreSQL/回滚/权限用例已写入待集中运行；必要Go编译日志/tmp/keel-p1-master-compile.log退出0。后续源审查收紧cloud-init容器tag及字段类型，并将OS核对根的排他读锁改为共享锁以允许并发预览，生命周期写仍串行；这些后续变更待下一批编译及最终集中验证。P1/相关WP/FR-0仍partial。

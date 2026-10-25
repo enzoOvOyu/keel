@@ -26,6 +26,7 @@ import (
 )
 
 type Config struct {
+	RenewalEnabled    bool   `json:"renewal_enabled"`
 	TasksEnabled      bool   `json:"tasks_enabled"`
 	Listen            string `json:"listen"`
 	ServerCertificate string `json:"server_certificate"`
@@ -35,12 +36,13 @@ type Config struct {
 }
 type Server struct {
 	pb.UnimplementedAgentIdentityServer
-	broker    *agentrunner.Broker
-	store     *platform.Store
-	authority *agentpki.Authority
-	slots     chan struct{}
-	mu        sync.Mutex
-	rates     map[string]rate
+	broker         *agentrunner.Broker
+	store          *platform.Store
+	authority      *agentpki.Authority
+	renewalEnabled bool
+	slots          chan struct{}
+	mu             sync.Mutex
+	rates          map[string]rate
 }
 type rate struct {
 	since time.Time
@@ -110,7 +112,7 @@ func NewWithTasks(store *platform.Store, config Config, broker *agentrunner.Brok
 	pool := x509.NewCertPool()
 	pool.AddCert(authority.Certificate)
 	server := grpc.NewServer(grpc.Creds(credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{pair}, ClientCAs: pool, ClientAuth: tls.VerifyClientCertIfGiven})), grpc.ConnectionTimeout(5*time.Second), grpc.MaxConcurrentStreams(32), grpc.MaxRecvMsgSize(16384), grpc.MaxSendMsgSize(16384), grpc.MaxHeaderListSize(8192))
-	pb.RegisterAgentIdentityServer(server, &Server{broker: broker, store: store, authority: authority, slots: make(chan struct{}, 1024), rates: map[string]rate{}})
+	pb.RegisterAgentIdentityServer(server, &Server{broker: broker, store: store, authority: authority, renewalEnabled: config.RenewalEnabled, slots: make(chan struct{}, 1024), rates: map[string]rate{}})
 	return server, nil
 }
 

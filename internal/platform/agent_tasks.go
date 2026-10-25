@@ -19,7 +19,7 @@ func (s *Store) ActiveAgentIdentityTx(ctx context.Context, tx *sql.Tx, project, 
 		return nil, e
 	}
 	out := &AgentCredential{}
-	e = tx.QueryRowContext(ctx, `SELECT id,project_id,machine_id,serial_number,asset_version,authority_id,certificate_pem,certificate_hash,agent_version,expires_at,revoked_at,state_version FROM agent_credentials WHERE project_id=$1 AND machine_id=$2 AND revoked_at IS NULL AND expires_at>now() FOR SHARE`, project, machine).Scan(&out.ID, &out.ProjectID, &out.MachineID, &out.Serial, &out.AssetVersion, &out.AuthorityID, &out.CertificatePEM, &out.CertificateHash, &out.AgentVersion, &out.ExpiresAt, &out.RevokedAt, &out.StateVersion)
+	e = tx.QueryRowContext(ctx, `SELECT c.id,c.project_id,c.machine_id,c.serial_number,c.asset_version,c.authority_id,c.certificate_pem,c.certificate_hash,c.agent_version,`+agentCredentialExpirySQL+`,c.revoked_at,c.state_version FROM agent_credentials c WHERE c.project_id=$1 AND c.machine_id=$2 AND c.revoked_at IS NULL AND `+agentCredentialExpirySQL+`>now() FOR SHARE OF c`, project, machine).Scan(&out.ID, &out.ProjectID, &out.MachineID, &out.Serial, &out.AssetVersion, &out.AuthorityID, &out.CertificatePEM, &out.CertificateHash, &out.AgentVersion, &out.ExpiresAt, &out.RevokedAt, &out.StateVersion)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil, ErrAgentDenied
 	}
@@ -91,7 +91,7 @@ func (s *Store) VerifyAgentTaskConnection(ctx context.Context, cert *x509.Certif
 		return nil, e
 	}
 	var exists bool
-	e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM agent_connections WHERE id=$1 AND credential_id=$2 AND disconnected_at IS NULL AND last_seen_at>now()-interval '30 seconds')`, connection, out.ID).Scan(&exists)
+	e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM agent_connections WHERE id=$1 AND credential_id=$2 AND certificate_hash=$3 AND disconnected_at IS NULL AND last_seen_at>now()-interval '30 seconds')`, connection, out.ID, agentpki.Hash(cert.Raw)).Scan(&exists)
 	if e != nil {
 		return nil, e
 	}
@@ -113,7 +113,7 @@ func (s *Store) OpenAgentTaskSession(ctx context.Context, cert *x509.Certificate
 	if e != nil {
 		return nil, e
 	}
-	result, e := tx.ExecContext(ctx, `UPDATE agent_connections SET task_session_id=$3,task_connected_at=now(),task_disconnected_at=NULL WHERE id=$1 AND credential_id=$2 AND disconnected_at IS NULL AND last_seen_at>now()-interval '30 seconds' AND (task_session_id IS NULL OR task_disconnected_at IS NOT NULL)`, connection, out.ID, session)
+	result, e := tx.ExecContext(ctx, `UPDATE agent_connections SET task_session_id=$3,task_connected_at=now(),task_disconnected_at=NULL WHERE id=$1 AND credential_id=$2 AND certificate_hash=$4 AND disconnected_at IS NULL AND last_seen_at>now()-interval '30 seconds' AND (task_session_id IS NULL OR task_disconnected_at IS NOT NULL)`, connection, out.ID, session, agentpki.Hash(cert.Raw))
 	if e != nil {
 		return nil, e
 	}

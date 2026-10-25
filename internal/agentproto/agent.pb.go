@@ -21,6 +21,50 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type RenewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CsrPem        []byte                 `protobuf:"bytes,1,opt,name=csr_pem,json=csrPem,proto3" json:"csr_pem,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenewRequest) Reset() {
+	*x = RenewRequest{}
+	mi := &file_api_agent_v1_agent_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenewRequest) ProtoMessage() {}
+
+func (x *RenewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_agent_v1_agent_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenewRequest.ProtoReflect.Descriptor instead.
+func (*RenewRequest) Descriptor() ([]byte, []int) {
+	return file_api_agent_v1_agent_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *RenewRequest) GetCsrPem() []byte {
+	if x != nil {
+		return x.CsrPem
+	}
+	return nil
+}
+
 type EnrollRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	ProjectId       string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
@@ -35,7 +79,7 @@ type EnrollRequest struct {
 
 func (x *EnrollRequest) Reset() {
 	*x = EnrollRequest{}
-	mi := &file_api_agent_v1_agent_proto_msgTypes[0]
+	mi := &file_api_agent_v1_agent_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -47,7 +91,7 @@ func (x *EnrollRequest) String() string {
 func (*EnrollRequest) ProtoMessage() {}
 
 func (x *EnrollRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_agent_v1_agent_proto_msgTypes[0]
+	mi := &file_api_agent_v1_agent_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -60,7 +104,7 @@ func (x *EnrollRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnrollRequest.ProtoReflect.Descriptor instead.
 func (*EnrollRequest) Descriptor() ([]byte, []int) {
-	return file_api_agent_v1_agent_proto_rawDescGZIP(), []int{0}
+	return file_api_agent_v1_agent_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *EnrollRequest) GetProjectId() string {
@@ -117,7 +161,7 @@ type EnrollResponse struct {
 
 func (x *EnrollResponse) Reset() {
 	*x = EnrollResponse{}
-	mi := &file_api_agent_v1_agent_proto_msgTypes[1]
+	mi := &file_api_agent_v1_agent_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -129,7 +173,7 @@ func (x *EnrollResponse) String() string {
 func (*EnrollResponse) ProtoMessage() {}
 
 func (x *EnrollResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_agent_v1_agent_proto_msgTypes[1]
+	mi := &file_api_agent_v1_agent_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -142,7 +186,7 @@ func (x *EnrollResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnrollResponse.ProtoReflect.Descriptor instead.
 func (*EnrollResponse) Descriptor() ([]byte, []int) {
-	return file_api_agent_v1_agent_proto_rawDescGZIP(), []int{1}
+	return file_api_agent_v1_agent_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *EnrollResponse) GetCredentialId() string {
@@ -187,7 +231,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_api_agent_v1_agent_proto_msgTypes[2]
+	mi := &file_api_agent_v1_agent_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -199,7 +243,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_api_agent_v1_agent_proto_msgTypes[2]
+	mi := &file_api_agent_v1_agent_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -212,7 +256,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_api_agent_v1_agent_proto_rawDescGZIP(), []int{2}
+	return file_api_agent_v1_agent_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Heartbeat) GetProjectId() string {
@@ -269,7 +313,7 @@ type HeartbeatAck struct {
 
 func (x *HeartbeatAck) Reset() {
 	*x = HeartbeatAck{}
-	mi := &file_api_agent_v1_agent_proto_msgTypes[3]
+	mi := &file_api_agent_v1_agent_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -281,7 +325,7 @@ func (x *HeartbeatAck) String() string {
 func (*HeartbeatAck) ProtoMessage() {}
 
 func (x *HeartbeatAck) ProtoReflect() protoreflect.Message {
-	mi := &file_api_agent_v1_agent_proto_msgTypes[3]
+	mi := &file_api_agent_v1_agent_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -294,7 +338,7 @@ func (x *HeartbeatAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatAck.ProtoReflect.Descriptor instead.
 func (*HeartbeatAck) Descriptor() ([]byte, []int) {
-	return file_api_agent_v1_agent_proto_rawDescGZIP(), []int{3}
+	return file_api_agent_v1_agent_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *HeartbeatAck) GetConnectionId() string {
@@ -339,7 +383,7 @@ type TaskRequest struct {
 
 func (x *TaskRequest) Reset() {
 	*x = TaskRequest{}
-	mi := &file_api_agent_v1_agent_proto_msgTypes[4]
+	mi := &file_api_agent_v1_agent_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -351,7 +395,7 @@ func (x *TaskRequest) String() string {
 func (*TaskRequest) ProtoMessage() {}
 
 func (x *TaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_agent_v1_agent_proto_msgTypes[4]
+	mi := &file_api_agent_v1_agent_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -364,7 +408,7 @@ func (x *TaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskRequest.ProtoReflect.Descriptor instead.
 func (*TaskRequest) Descriptor() ([]byte, []int) {
-	return file_api_agent_v1_agent_proto_rawDescGZIP(), []int{4}
+	return file_api_agent_v1_agent_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *TaskRequest) GetRequestId() string {
@@ -400,7 +444,7 @@ type TaskReport struct {
 
 func (x *TaskReport) Reset() {
 	*x = TaskReport{}
-	mi := &file_api_agent_v1_agent_proto_msgTypes[5]
+	mi := &file_api_agent_v1_agent_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -412,7 +456,7 @@ func (x *TaskReport) String() string {
 func (*TaskReport) ProtoMessage() {}
 
 func (x *TaskReport) ProtoReflect() protoreflect.Message {
-	mi := &file_api_agent_v1_agent_proto_msgTypes[5]
+	mi := &file_api_agent_v1_agent_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -425,7 +469,7 @@ func (x *TaskReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskReport.ProtoReflect.Descriptor instead.
 func (*TaskReport) Descriptor() ([]byte, []int) {
-	return file_api_agent_v1_agent_proto_rawDescGZIP(), []int{5}
+	return file_api_agent_v1_agent_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *TaskReport) GetConnectionId() string {
@@ -460,7 +504,9 @@ var File_api_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_api_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x18api/agent/v1/agent.proto\x12\rkeel.agent.v1\"\xdb\x01\n" +
+	"\x18api/agent/v1/agent.proto\x12\rkeel.agent.v1\"'\n" +
+	"\fRenewRequest\x12\x17\n" +
+	"\acsr_pem\x18\x01 \x01(\fR\x06csrPem\"\xdb\x01\n" +
 	"\rEnrollRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1d\n" +
@@ -502,9 +548,10 @@ const file_api_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
 	"request_id\x18\x02 \x01(\tR\trequestId\x12)\n" +
 	"\x10observation_json\x18\x03 \x01(\fR\x0fobservationJson\x12\x14\n" +
-	"\x05error\x18\x04 \x01(\tR\x05error2\xe3\x01\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error2\xa8\x02\n" +
 	"\rAgentIdentity\x12E\n" +
-	"\x06Enroll\x12\x1c.keel.agent.v1.EnrollRequest\x1a\x1d.keel.agent.v1.EnrollResponse\x12G\n" +
+	"\x06Enroll\x12\x1c.keel.agent.v1.EnrollRequest\x1a\x1d.keel.agent.v1.EnrollResponse\x12C\n" +
+	"\x05Renew\x12\x1b.keel.agent.v1.RenewRequest\x1a\x1d.keel.agent.v1.EnrollResponse\x12G\n" +
 	"\n" +
 	"Heartbeats\x12\x18.keel.agent.v1.Heartbeat\x1a\x1b.keel.agent.v1.HeartbeatAck(\x010\x01\x12B\n" +
 	"\x05Tasks\x12\x19.keel.agent.v1.TaskReport\x1a\x1a.keel.agent.v1.TaskRequest(\x010\x01B:Z8github.com/enzoOvOyu/keel/internal/agentproto;agentprotob\x06proto3"
@@ -521,24 +568,27 @@ func file_api_agent_v1_agent_proto_rawDescGZIP() []byte {
 	return file_api_agent_v1_agent_proto_rawDescData
 }
 
-var file_api_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_api_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_api_agent_v1_agent_proto_goTypes = []any{
-	(*EnrollRequest)(nil),  // 0: keel.agent.v1.EnrollRequest
-	(*EnrollResponse)(nil), // 1: keel.agent.v1.EnrollResponse
-	(*Heartbeat)(nil),      // 2: keel.agent.v1.Heartbeat
-	(*HeartbeatAck)(nil),   // 3: keel.agent.v1.HeartbeatAck
-	(*TaskRequest)(nil),    // 4: keel.agent.v1.TaskRequest
-	(*TaskReport)(nil),     // 5: keel.agent.v1.TaskReport
+	(*RenewRequest)(nil),   // 0: keel.agent.v1.RenewRequest
+	(*EnrollRequest)(nil),  // 1: keel.agent.v1.EnrollRequest
+	(*EnrollResponse)(nil), // 2: keel.agent.v1.EnrollResponse
+	(*Heartbeat)(nil),      // 3: keel.agent.v1.Heartbeat
+	(*HeartbeatAck)(nil),   // 4: keel.agent.v1.HeartbeatAck
+	(*TaskRequest)(nil),    // 5: keel.agent.v1.TaskRequest
+	(*TaskReport)(nil),     // 6: keel.agent.v1.TaskReport
 }
 var file_api_agent_v1_agent_proto_depIdxs = []int32{
-	0, // 0: keel.agent.v1.AgentIdentity.Enroll:input_type -> keel.agent.v1.EnrollRequest
-	2, // 1: keel.agent.v1.AgentIdentity.Heartbeats:input_type -> keel.agent.v1.Heartbeat
-	5, // 2: keel.agent.v1.AgentIdentity.Tasks:input_type -> keel.agent.v1.TaskReport
-	1, // 3: keel.agent.v1.AgentIdentity.Enroll:output_type -> keel.agent.v1.EnrollResponse
-	3, // 4: keel.agent.v1.AgentIdentity.Heartbeats:output_type -> keel.agent.v1.HeartbeatAck
-	4, // 5: keel.agent.v1.AgentIdentity.Tasks:output_type -> keel.agent.v1.TaskRequest
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
+	1, // 0: keel.agent.v1.AgentIdentity.Enroll:input_type -> keel.agent.v1.EnrollRequest
+	0, // 1: keel.agent.v1.AgentIdentity.Renew:input_type -> keel.agent.v1.RenewRequest
+	3, // 2: keel.agent.v1.AgentIdentity.Heartbeats:input_type -> keel.agent.v1.Heartbeat
+	6, // 3: keel.agent.v1.AgentIdentity.Tasks:input_type -> keel.agent.v1.TaskReport
+	2, // 4: keel.agent.v1.AgentIdentity.Enroll:output_type -> keel.agent.v1.EnrollResponse
+	2, // 5: keel.agent.v1.AgentIdentity.Renew:output_type -> keel.agent.v1.EnrollResponse
+	4, // 6: keel.agent.v1.AgentIdentity.Heartbeats:output_type -> keel.agent.v1.HeartbeatAck
+	5, // 7: keel.agent.v1.AgentIdentity.Tasks:output_type -> keel.agent.v1.TaskRequest
+	4, // [4:8] is the sub-list for method output_type
+	0, // [0:4] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -555,7 +605,7 @@ func file_api_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_agent_v1_agent_proto_rawDesc), len(file_api_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

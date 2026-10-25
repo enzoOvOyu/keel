@@ -52,6 +52,22 @@ func mediaDeadline(c *gin.Context) context.CancelFunc {
 }
 func (a *authAPI) registerMediaArtifacts(r *gin.Engine, base string, global bool) {
 	a.registerMediaQuarantineEvidence(r, base, global)
+	r.GET(base+"/:mediaId/boot-profile", func(c *gin.Context) {
+		actor, project, ok := a.mediaScope(c, false, global)
+		if !ok {
+			return
+		}
+		cancel := mediaDeadline(c)
+		defer cancel()
+		plan, err := a.store.ResolveMediaBootPlan(c.Request.Context(), actor, project, c.Param("mediaId"), c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.Header("Cache-Control", "private, no-store")
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.JSON(http.StatusOK, plan)
+	})
 	r.GET(base+"/:mediaId/manifest", func(c *gin.Context) {
 		actor, project, ok := a.mediaScope(c, false, global)
 		if !ok {

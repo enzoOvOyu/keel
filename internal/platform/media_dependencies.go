@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/enzoOvOyu/keel/internal/mediaboot"
 	"sort"
 )
 
@@ -116,6 +117,9 @@ func mediaDependencyClosure(ctx context.Context, tx *sql.Tx, root *MediaItemSumm
 				return err
 			}
 		}
+		if err := validateMediaBootRoles(parent, refs, records); err != nil {
+			return err
+		}
 		for _, ref := range refs {
 			if height := heights[ref.MediaID] + 1; height > heights[parent.ID] {
 				heights[parent.ID] = height
@@ -170,4 +174,25 @@ func canonicalMediaDependencies(ctx context.Context, tx *sql.Tx, m *MediaItemSum
 	document["artifacts"] = refs
 	m.Deps, err = json.Marshal(document)
 	return err
+}
+
+// Role validation is shared by registration, lifecycle, download and admission
+// through the existing bounded dependency closure, including nested OS roots.
+func validateMediaBootRoles(root *MediaItemSummary, refs []MediaArtifactDependency, records map[string]MediaItemSummary) error {
+	var document catalogDependencies
+	if len(root.Deps) == 0 {
+		return nil
+	}
+	if err := json.Unmarshal(root.Deps, &document); err != nil {
+		return apiError(422, "MEDIA_BOOT_INVALID", "Invalid OS boot metadata")
+	}
+	direct := make(map[string]mediaboot.Node, len(refs))
+	for _, ref := range refs {
+		child := records[ref.MediaID]
+		direct[child.ID] = mediaboot.Node{ID: child.ID, Type: child.Type, Arch: child.Arch}
+	}
+	if err := document.OSBoot.ValidateRoles(mediaboot.Node{ID: root.ID, Type: root.Type, Arch: root.Arch}, direct); err != nil {
+		return apiError(422, "MEDIA_BOOT_INVALID", err.Error())
+	}
+	return nil
 }

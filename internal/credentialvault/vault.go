@@ -9,8 +9,10 @@ import (
 	"crypto/cipher"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/x509"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -40,7 +42,10 @@ func (i Identity) Valid() bool {
 	return projectID.MatchString(i.ProjectID) && identifier.MatchString(i.Ref) && identifier.MatchString(i.Version) && !i.ExpiresAt.IsZero()
 }
 
-type Vault struct{ aead cipher.AEAD }
+type Vault struct {
+	aead  cipher.AEAD
+	keyID string
+}
 
 // Load accepts exactly 32 random bytes in an owner-only regular file. Empty
 // configuration disables the provider; malformed configuration fails closed.
@@ -74,7 +79,10 @@ func Load(path string) (*Vault, error) {
 	if err != nil {
 		return nil, ErrUnavailable
 	}
-	return &Vault{aead: aead}, nil
+	h := sha256.New()
+	h.Write([]byte("keel.credential-master/v1\x00"))
+	h.Write(key)
+	return &Vault{aead: aead, keyID: hex.EncodeToString(h.Sum(nil))}, nil
 }
 
 // GenerateMaster creates a new file exclusively, never replacing an existing key.

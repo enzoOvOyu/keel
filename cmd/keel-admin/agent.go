@@ -31,7 +31,7 @@ func runAgentIdentity(command string, args []string) error {
 	if f.NArg() != 0 {
 		return errors.New("unexpected Agent positional arguments")
 	}
-	allowed := map[string]map[string]bool{"agent-ca-init": {"directory": true}, "agent-enrollment-create": {"ca-certificate": true, "project": true, "machine": true, "reason": true, "expires-in": true, "token-output": true}, "agent-enrollment-cancel": {"project": true, "id": true, "reason": true}, "agent-revoke": {"project": true, "id": true, "reason": true, "expected-version": true}}
+	allowed := map[string]map[string]bool{"agent-ca-init": {"directory": true}, "agent-enrollment-create": {"ca-certificate": true, "project": true, "machine": true, "reason": true, "expires-in": true, "token-output": true}, "agent-enrollment-cancel": {"project": true, "id": true, "reason": true}, "agent-revoke": {"project": true, "id": true, "reason": true, "expected-version": true}, "agent-credential-status": {"project": true, "id": true}}
 	invalid := false
 	f.Visit(func(field *flag.Flag) {
 		if !allowed[command][field.Name] {
@@ -88,6 +88,12 @@ func runAgentIdentity(command string, args []string) error {
 		return e
 	}
 	switch command {
+	case "agent-credential-status":
+		status, e := store.AgentCredentialStatus(ctx, *project, *id)
+		if e != nil {
+			return e
+		}
+		return json.NewEncoder(os.Stdout).Encode(status)
 	case "agent-enrollment-create":
 		raw, e := agentpki.ReadFile(*caFile, 16384, false)
 		if e != nil {

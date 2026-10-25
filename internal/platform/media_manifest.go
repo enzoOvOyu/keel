@@ -60,6 +60,13 @@ func (s *Store) ExportMediaManifest(ctx context.Context, a *AuthSession, project
 		for _, ref := range refs {
 			node.Dependencies = append(node.Dependencies, mediamanifest.Dependency{MediaID: ref.MediaID, SHA256: ref.SHA256})
 		}
+		var document catalogDependencies
+		if len(record.Deps) > 0 {
+			if e = json.Unmarshal(record.Deps, &document); e != nil {
+				return nil, e
+			}
+		}
+		node.OSBoot = document.OSBoot
 		if compatibility != nil {
 			node.Compatibility, e = json.Marshal(compatibility)
 			if e != nil {

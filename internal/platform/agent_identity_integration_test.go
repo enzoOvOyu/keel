@@ -90,7 +90,7 @@ func TestAgentRuntimePermissions(t *testing.T) {
 		t.Fatal(e)
 	}
 	role := "keel_test_agent_" + suffix
-	if _, e = owner.DB.ExecContext(ctx, `CREATE ROLE `+role+`; GRANT USAGE ON SCHEMA public TO `+role+`; GRANT SELECT ON projects,project_assets,machines,agent_enrollments,agent_credentials,agent_connections TO `+role+`; GRANT UPDATE(version) ON projects,project_assets TO `+role+`; GRANT UPDATE(updated_at) ON machines TO `+role+`; GRANT UPDATE(consumed_at,certificate_id) ON agent_enrollments TO `+role+`; GRANT INSERT,UPDATE(state_version) ON agent_credentials TO `+role+`; GRANT INSERT,UPDATE ON agent_connections TO `+role+`; GRANT INSERT ON audits TO `+role); e != nil {
+	if _, e = owner.DB.ExecContext(ctx, `CREATE ROLE `+role+`; GRANT USAGE ON SCHEMA public TO `+role+`; GRANT SELECT ON projects,project_assets,machines,agent_enrollments,agent_credentials,agent_connections,agent_certificate_renewals TO `+role+`; GRANT INSERT ON agent_certificate_renewals TO `+role+`; GRANT UPDATE(version) ON projects,project_assets TO `+role+`; GRANT UPDATE(updated_at) ON machines TO `+role+`; GRANT UPDATE(consumed_at,certificate_id) ON agent_enrollments TO `+role+`; GRANT INSERT,UPDATE(state_version) ON agent_credentials TO `+role+`; GRANT INSERT,UPDATE ON agent_connections TO `+role+`; GRANT INSERT ON audits TO `+role); e != nil {
 		t.Fatal(e)
 	}
 	defer func() {

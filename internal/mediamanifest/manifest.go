@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/enzoOvOyu/keel/internal/mediaboot"
 	"io"
 	"net/url"
 	"regexp"
@@ -33,20 +34,21 @@ type Dependency struct {
 	SHA256  string `json:"sha256"`
 }
 type Artifact struct {
-	MediaID       string          `json:"media_id"`
-	ScopeKey      string          `json:"scope_key"`
-	URI           string          `json:"uri"`
-	Type          string          `json:"type"`
-	Name          string          `json:"name"`
-	Version       string          `json:"version"`
-	Arch          string          `json:"arch"`
-	SHA256        string          `json:"sha256"`
-	Size          int64           `json:"size"`
-	ObjectVersion string          `json:"object_version"`
-	ApprovedBy    string          `json:"approved_by"`
-	ApprovedAt    time.Time       `json:"approved_at"`
-	Dependencies  []Dependency    `json:"dependencies"`
-	Compatibility json.RawMessage `json:"compatibility,omitempty"`
+	OSBoot        *mediaboot.Profile `json:"os_boot,omitempty"`
+	MediaID       string             `json:"media_id"`
+	ScopeKey      string             `json:"scope_key"`
+	URI           string             `json:"uri"`
+	Type          string             `json:"type"`
+	Name          string             `json:"name"`
+	Version       string             `json:"version"`
+	Arch          string             `json:"arch"`
+	SHA256        string             `json:"sha256"`
+	Size          int64              `json:"size"`
+	ObjectVersion string             `json:"object_version"`
+	ApprovedBy    string             `json:"approved_by"`
+	ApprovedAt    time.Time          `json:"approved_at"`
+	Dependencies  []Dependency       `json:"dependencies"`
+	Compatibility json.RawMessage    `json:"compatibility,omitempty"`
 }
 type Payload struct {
 	Schema     string     `json:"schema"`
@@ -174,6 +176,15 @@ func validate(payload Payload) error {
 				heights[id] = height
 			}
 		}
+
+		direct := make(map[string]mediaboot.Node, len(node.Dependencies))
+		for _, edge := range node.Dependencies {
+			child := nodes[edge.MediaID]
+			direct[child.MediaID] = mediaboot.Node{ID: child.MediaID, Type: child.Type, Arch: child.Arch}
+		}
+		if err := node.OSBoot.ValidateRoles(mediaboot.Node{ID: node.MediaID, Type: node.Type, Arch: node.Arch}, direct); err != nil {
+			return err
+		}
 		delete(active, id)
 		visited[id] = true
 		return nil
@@ -206,7 +217,8 @@ func identityError(id string) error {
 var manifestJSONFields = map[string]map[string]string{
 	"envelope":   {"algorithm": "", "payload": "payload", "signature": ""},
 	"payload":    {"schema": "", "key_id": "", "root_id": "", "exported_at": "", "artifacts": "artifact"},
-	"artifact":   {"media_id": "", "scope_key": "", "uri": "", "type": "", "name": "", "version": "", "arch": "", "sha256": "", "size": "", "object_version": "", "approved_by": "", "approved_at": "", "dependencies": "dependency", "compatibility": ""},
+	"artifact":   {"media_id": "", "scope_key": "", "uri": "", "type": "", "name": "", "version": "", "arch": "", "sha256": "", "size": "", "object_version": "", "approved_by": "", "approved_at": "", "dependencies": "dependency", "compatibility": "", "os_boot": "os_boot"},
+	"os_boot":    {"schema": "", "installer": "", "kernel_media_id": "", "initrd_media_id": "", "template_media_id": ""},
 	"dependency": {"media_id": "", "sha256": ""},
 }
 

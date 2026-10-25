@@ -25,6 +25,7 @@ import (
 )
 
 type Config struct {
+	RenewalEnabled bool   `json:"renewal_enabled"`
 	TasksEnabled   bool   `json:"tasks_enabled"`
 	Endpoint       string `json:"endpoint"`
 	ServerName     string `json:"server_name"`

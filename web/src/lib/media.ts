@@ -49,7 +49,7 @@ const write = <T>(
     return value as T;
   });
 
-export type MediaListFilter = Pick<NonNullable<paths["/api/v1/projects/{id}/media"]["get"]["parameters"]["query"]>, "search" | "type" | "state" | "compatible_arch" | "stored_only">;
+export type MediaListFilter = Pick<NonNullable<paths["/api/v1/projects/{id}/media"]["get"]["parameters"]["query"]>, "search" | "type" | "state" | "compatible_arch" | "stored_only" | "boot_only">;
 
 export const listMedia = (
   projectId: string | null,
@@ -134,3 +134,5 @@ export const validateMediaCompatibility = (projectId: string | null, input: unkn
 
 export const getMediaQuarantineEvidence = (projectId: string | null, id: string, signal: AbortSignal) =>
  request<components['schemas']['MediaQuarantineEvidence']>(`${mediaBase(projectId)}/${encodeURIComponent(id)}/quarantine-evidence`, { signal });
+
+export const resolveMediaBootPlan = (projectId: string | null, id: string, signal: AbortSignal) => read<components["schemas"]["MediaBootPlan"]>(`${mediaBase(projectId)}/${encodeURIComponent(id)}/boot-profile`, signal);

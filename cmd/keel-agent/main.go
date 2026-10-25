@@ -28,9 +28,9 @@ func main() {
 }
 func run(args []string) error {
 	if len(args) == 1 && args[0] == "version" {
-		return json.NewEncoder(os.Stdout).Encode(map[string]any{"version": version, "capabilities": []string{"enrollment", "mtls-heartbeat", "readonly-tasks"}})
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"version": version, "capabilities": []string{"enrollment", "mtls-heartbeat", "readonly-tasks", "mtls-renewal"}})
 	}
-	if len(args) == 0 || (args[0] != "enroll" && args[0] != "run") {
+	if len(args) == 0 || (args[0] != "enroll" && args[0] != "run" && args[0] != "renew") {
 		return agentclient.ErrIdentity
 	}
 	f := flag.NewFlagSet(args[0], flag.ContinueOnError)
@@ -55,7 +55,19 @@ func run(args []string) error {
 	delay := time.Second
 	for {
 		received := false
-		e = agentclient.Stream(ctx, config, version, func(_ *agentproto.HeartbeatAck) { received = true })
+		if config.RenewalEnabled || args[0] == "renew" {
+			var renewed bool
+			renewed, e = agentclient.RenewIfDue(ctx, config, version)
+			if args[0] == "renew" {
+				if e != nil {
+					return e
+				}
+				return json.NewEncoder(os.Stdout).Encode(map[string]any{"status": "ready", "renewed": renewed})
+			}
+		}
+		if e == nil {
+			e = agentclient.Stream(ctx, config, version, func(_ *agentproto.HeartbeatAck) { received = true })
+		}
 		if received {
 			delay = time.Second
 		}
@@ -72,6 +84,7 @@ func run(args []string) error {
 			return nil
 		case <-timer.C:
 		}
+		e = nil
 		if delay < 30*time.Second {
 			delay *= 2
 		}

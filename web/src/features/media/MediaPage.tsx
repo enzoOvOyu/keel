@@ -1,3 +1,4 @@
+import { MediaBootProfileEditor, MediaBootProfileSummary, MediaBootPlanDialog, type MediaOSBootProfile } from './MediaBootProfile';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { MediaQuarantineDialog } from './MediaQuarantineDialog';
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
@@ -81,7 +82,8 @@ function RegisterMediaDialog({
   const [compatibility, setCompatibility] = useState<MediaCompatibility>();
   const [matrixBlocked, setMatrixBlocked] = useState(false);
   const [dependencies, setDependencies] = useState<MediaDependencyChoice[]>([]);
-  const [type, setType] = useState<"driver">("driver"),
+  const [bootProfile, setBootProfile] = useState<MediaOSBootProfile>();
+  const [type, setType] = useState<(typeof types)[number]>("driver"),
     [name, setName] = useState(""),
     [version, setVersion] = useState("");
   const [sha256, setSha256] = useState(""),
@@ -119,6 +121,10 @@ function RegisterMediaDialog({
       return;
     }
     if (dependencies.some(item => item.arch !== 'noarch' && item.arch !== arch)) { setValidation(t('mediaDependencyArchMismatch')); return; }
+    if (type === 'os' && bootProfile) {
+      const entries = [bootProfile.kernel_media_id, bootProfile.initrd_media_id, bootProfile.template_media_id];
+      if (arch === 'noarch' || new Set(entries).size !== 3 || entries.some(id => !id || !dependencies.some(item => item.id === id))) { setValidation(t('mediaBootInvalid')); return; }
+    }
     setValidation("");
     const body = {
       type,
@@ -130,7 +136,7 @@ function RegisterMediaDialog({
       os_scope: osScope.trim(),
       hw_scope: hwScope.trim(),
       manifest_ref: manifest.trim(),
-      deps: dependencies.length || compatibility ? { ...(dependencies.length ? { artifacts: dependencies.map(item => ({ media_id: item.id, sha256: item.sha256 })) } : {}), ...(compatibility ? { compatibility } : {}) } : undefined,
+      deps: dependencies.length || compatibility || (type === "os" && bootProfile) ? { ...(type === "os" && bootProfile ? { os_boot: bootProfile } : {}), ...(dependencies.length ? { artifacts: dependencies.map(item => ({ media_id: item.id, sha256: item.sha256 })) } : {}), ...(compatibility ? { compatibility } : {}) } : undefined,
     };
     const result = await action.run(() =>
       upload
@@ -273,6 +279,7 @@ function RegisterMediaDialog({
       </div>
       <MediaCompatibilityImport projectId={projectId} disabled={action.busy} value={compatibility} onChange={setCompatibility} onBlocked={setMatrixBlocked} />
       <MediaDependencyPicker projectId={projectId} arch={arch} selected={dependencies} onChange={setDependencies} disabled={action.busy} />
+      {type === "os" && <MediaBootProfileEditor value={bootProfile} onChange={setBootProfile} dependencies={dependencies} arch={arch} disabled={action.busy} />}
       {!upload && (
         <div className="field">
           <Label htmlFor="media-manifest">{t("mediaManifest")}</Label>
@@ -381,6 +388,7 @@ function TransitionDialog({
         <dd>{t("media_state_" + item.state)}</dd>
       </dl>
       <MediaDependencySummary refs={item.deps.artifacts} />
+      <MediaBootProfileSummary profile={item.deps.os_boot} />
       <MediaCompatibilitySummary matrix={item.deps.compatibility} />
       {target === "retired" && (
         <p className="impact-notice">{t("mediaRetireImpact")}</p>
@@ -404,6 +412,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
   const [quarantineView, setQuarantineView] = useState<MediaItemSummary | null>(null);
   const [matrixView, setMatrixView] = useState<MediaItemSummary | null>(null);
   const [sourceFetch, setSourceFetch] = useState<MediaItemSummary | null>(null);
+  const [bootView, setBootView] = useState<MediaItemSummary | null>(null);
   const [manifestExport, setManifestExport] = useState<MediaItemSummary | null>(null);
   const [upload, setUpload] = useState(false),
     [attach, setAttach] = useState<MediaItemSummary | null>(null);
@@ -487,6 +496,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
       {quarantineView && <MediaQuarantineDialog projectId={projectId} item={quarantineView} onClose={() => setQuarantineView(null)} />}
       {matrixView && <ActionDialog title={t("mediaCompatibility")} description={`${matrixView.name} · ${matrixView.version}`} busy={false} confirm={t("mediaMatrixClose")} onClose={() => setMatrixView(null)} onSubmit={event => { event.preventDefault(); setMatrixView(null); }}><MediaCompatibilitySummary matrix={matrixView.deps.compatibility} /></ActionDialog>}
       {sourceFetch && <MediaSourceDialog projectId={projectId} item={sourceFetch} onClose={() => setSourceFetch(null)} onDone={() => done(t("mediaSourceFetched"))} />}
+      {bootView && <MediaBootPlanDialog projectId={projectId} item={bootView} onClose={() => setBootView(null)} />}
       {manifestExport && <MediaManifestDialog projectId={projectId} item={manifestExport} onClose={() => setManifestExport(null)} onDone={() => { setManifestExport(null); setSuccess(t("mediaManifestDownloaded")); }} />}
       <section className="management-panel" aria-busy={media.isFetching}>
         <ActionError error={media.error} />
@@ -546,6 +556,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
                         <TableCell className="ui:whitespace-normal ui:align-top ui:p-4">
                           <div className="table-actions">
                             {item.artifact_quarantined && <Button variant="ghost" size="sm" onClick={() => setQuarantineView(item)}>{t("mediaQuarantineView")}</Button>}
+                            {item.deps.os_boot && item.state === "approved" && <Button variant="outline" size="sm" onClick={() => setBootView(item)}>{t("mediaBootResolve")}</Button>}
                             {item.deps.compatibility && <Button variant="ghost" size="sm" onClick={() => setMatrixView(item)}>{t("mediaMatrixView")}</Button>}
                             {manage && item.scope_key === (projectId === null ? "global" : "project:" + projectId) &&
                               nextStates[item.state].map((target) => (

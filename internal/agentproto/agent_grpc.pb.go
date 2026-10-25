@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	AgentIdentity_Enroll_FullMethodName     = "/keel.agent.v1.AgentIdentity/Enroll"
+	AgentIdentity_Renew_FullMethodName      = "/keel.agent.v1.AgentIdentity/Renew"
 	AgentIdentity_Heartbeats_FullMethodName = "/keel.agent.v1.AgentIdentity/Heartbeats"
 	AgentIdentity_Tasks_FullMethodName      = "/keel.agent.v1.AgentIdentity/Tasks"
 )
@@ -34,6 +35,9 @@ const (
 // Heartbeats additionally requires the issued, currently active client cert.
 type AgentIdentityClient interface {
 	Enroll(ctx context.Context, in *EnrollRequest, opts ...grpc.CallOption) (*EnrollResponse, error)
+	// Opt-in, mTLS-only certificate extension using the registered private key.
+	// One immutable successor per presented certificate makes retries idempotent.
+	Renew(ctx context.Context, in *RenewRequest, opts ...grpc.CallOption) (*EnrollResponse, error)
 	Heartbeats(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Heartbeat, HeartbeatAck], error)
 	Tasks(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[TaskReport, TaskRequest], error)
 }
@@ -50,6 +54,16 @@ func (c *agentIdentityClient) Enroll(ctx context.Context, in *EnrollRequest, opt
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(EnrollResponse)
 	err := c.cc.Invoke(ctx, AgentIdentity_Enroll_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentIdentityClient) Renew(ctx context.Context, in *RenewRequest, opts ...grpc.CallOption) (*EnrollResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EnrollResponse)
+	err := c.cc.Invoke(ctx, AgentIdentity_Renew_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -92,6 +106,9 @@ type AgentIdentity_TasksClient = grpc.BidiStreamingClient[TaskReport, TaskReques
 // Heartbeats additionally requires the issued, currently active client cert.
 type AgentIdentityServer interface {
 	Enroll(context.Context, *EnrollRequest) (*EnrollResponse, error)
+	// Opt-in, mTLS-only certificate extension using the registered private key.
+	// One immutable successor per presented certificate makes retries idempotent.
+	Renew(context.Context, *RenewRequest) (*EnrollResponse, error)
 	Heartbeats(grpc.BidiStreamingServer[Heartbeat, HeartbeatAck]) error
 	Tasks(grpc.BidiStreamingServer[TaskReport, TaskRequest]) error
 	mustEmbedUnimplementedAgentIdentityServer()
@@ -106,6 +123,9 @@ type UnimplementedAgentIdentityServer struct{}
 
 func (UnimplementedAgentIdentityServer) Enroll(context.Context, *EnrollRequest) (*EnrollResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Enroll not implemented")
+}
+func (UnimplementedAgentIdentityServer) Renew(context.Context, *RenewRequest) (*EnrollResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Renew not implemented")
 }
 func (UnimplementedAgentIdentityServer) Heartbeats(grpc.BidiStreamingServer[Heartbeat, HeartbeatAck]) error {
 	return status.Errorf(codes.Unimplemented, "method Heartbeats not implemented")
@@ -152,6 +172,24 @@ func _AgentIdentity_Enroll_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AgentIdentity_Renew_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RenewRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentIdentityServer).Renew(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentIdentity_Renew_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentIdentityServer).Renew(ctx, req.(*RenewRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AgentIdentity_Heartbeats_Handler(srv interface{}, stream grpc.ServerStream) error {
 	return srv.(AgentIdentityServer).Heartbeats(&grpc.GenericServerStream[Heartbeat, HeartbeatAck]{ServerStream: stream})
 }
@@ -176,6 +214,10 @@ var AgentIdentity_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Enroll",
 			Handler:    _AgentIdentity_Enroll_Handler,
+		},
+		{
+			MethodName: "Renew",
+			Handler:    _AgentIdentity_Renew_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

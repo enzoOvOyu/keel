@@ -107,6 +107,7 @@ type MediaListFilter struct {
 	Type           string
 	State          string
 	CompatibleArch string
+	BootOnly       bool
 	StoredOnly     bool
 }
 
@@ -174,6 +175,9 @@ func (s *Store) ListMediaFiltered(ctx context.Context, a *AuthSession, project *
 	}
 	if criteria.CompatibleArch != "" {
 		add("(arch = $%d OR arch = 'noarch')", criteria.CompatibleArch)
+	}
+	if criteria.BootOnly {
+		filter += " AND type='os' AND arch IN('amd64','arm64') AND jsonb_typeof(deps->'os_boot')='object'"
 	}
 	if criteria.StoredOnly {
 		filter += " AND EXISTS(SELECT 1 FROM media_artifacts ma WHERE ma.media_id=media_items.id) AND NOT EXISTS(SELECT 1 FROM media_artifact_integrity mi WHERE mi.media_id=media_items.id AND mi.quarantined_at IS NOT NULL)"
@@ -319,11 +323,19 @@ func (s *Store) TransitionMediaChecked(ctx context.Context, a *AuthSession, proj
 }
 
 func mediaForScope(ctx context.Context, tx *sql.Tx, mediaID, scope string) (*MediaItemSummary, error) {
+	return mediaForScopeLocked(ctx, tx, mediaID, scope, false)
+}
+
+func mediaForScopeLocked(ctx context.Context, tx *sql.Tx, mediaID, scope string, shared bool) (*MediaItemSummary, error) {
 	if !modelIDPattern.MatchString(mediaID) {
 		return nil, apiError(404, "MEDIA_NOT_FOUND", "Media not found")
 	}
 	var m MediaItemSummary
-	e := tx.QueryRowContext(ctx, "SELECT id,scope_key,type,name,version,sha256,size,arch,os_scope,hw_scope,deps,manifest_ref,state,uploaded_by,coalesce(approved_by,''),created_at,updated_at,EXISTS(SELECT 1 FROM media_artifacts ma WHERE ma.media_id=media_items.id),EXISTS(SELECT 1 FROM media_artifact_integrity mi WHERE mi.media_id=media_items.id AND mi.quarantined_at IS NOT NULL) FROM media_items WHERE id=$1 FOR UPDATE", mediaID).
+	lockClause := " FOR UPDATE"
+	if shared {
+		lockClause = " FOR SHARE"
+	}
+	e := tx.QueryRowContext(ctx, "SELECT id,scope_key,type,name,version,sha256,size,arch,os_scope,hw_scope,deps,manifest_ref,state,uploaded_by,coalesce(approved_by,''),created_at,updated_at,EXISTS(SELECT 1 FROM media_artifacts ma WHERE ma.media_id=media_items.id),EXISTS(SELECT 1 FROM media_artifact_integrity mi WHERE mi.media_id=media_items.id AND mi.quarantined_at IS NOT NULL) FROM media_items WHERE id=$1"+lockClause, mediaID).
 		Scan(&m.ID, &m.ScopeKey, &m.Type, &m.Name, &m.Version, &m.Sha256, &m.Size, &m.Arch, &m.OsScope, &m.HwScope, &m.Deps, &m.ManifestRef, &m.State, &m.UploadedBy, &m.ApprovedBy, &m.CreatedAt, &m.UpdatedAt, &m.ArtifactStored, &m.ArtifactQuarantined)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil, apiError(404, "MEDIA_NOT_FOUND", "Media not found")

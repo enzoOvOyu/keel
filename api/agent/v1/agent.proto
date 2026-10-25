@@ -8,8 +8,14 @@ option go_package = "github.com/enzoOvOyu/keel/internal/agentproto;agentproto";
 // Heartbeats additionally requires the issued, currently active client cert.
 service AgentIdentity {
   rpc Enroll(EnrollRequest) returns (EnrollResponse);
+  // Opt-in, mTLS-only certificate extension using the registered private key.
+  // One immutable successor per presented certificate makes retries idempotent.
+  rpc Renew(RenewRequest) returns (EnrollResponse);
   rpc Heartbeats(stream Heartbeat) returns (stream HeartbeatAck);
   rpc Tasks(stream TaskReport) returns (stream TaskRequest);
+}
+message RenewRequest {
+  bytes csr_pem = 1;
 }
 message EnrollRequest {
   string project_id = 1;

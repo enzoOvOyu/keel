@@ -38,7 +38,7 @@ func (a *authAPI) registerMediaScope(r *gin.Engine, base string, global bool) {
 			return
 		}
 		var filter platform.MediaListFilter
-		for _, key := range []string{"search", "type", "state", "compatible_arch", "stored_only"} {
+		for _, key := range []string{"search", "type", "state", "compatible_arch", "stored_only", "boot_only"} {
 			if len(c.Request.URL.Query()[key]) > 1 {
 				failure(c, 400, "VALIDATION_ERROR", "Media filters must be single values")
 				return
@@ -49,7 +49,12 @@ func (a *authAPI) registerMediaScope(r *gin.Engine, base string, global bool) {
 			failure(c, 400, "VALIDATION_ERROR", "stored_only must be true or false")
 			return
 		}
-		filter = platform.MediaListFilter{Search: c.Query("search"), Type: c.Query("type"), State: c.Query("state"), CompatibleArch: c.Query("compatible_arch"), StoredOnly: stored == "true"}
+		boot := c.Query("boot_only")
+		if boot != "" && boot != "true" && boot != "false" {
+			failure(c, 400, "VALIDATION_ERROR", "boot_only must be true or false")
+			return
+		}
+		filter = platform.MediaListFilter{BootOnly: boot == "true", Search: c.Query("search"), Type: c.Query("type"), State: c.Query("state"), CompatibleArch: c.Query("compatible_arch"), StoredOnly: stored == "true"}
 		result, e := a.store.ListMediaFiltered(c.Request.Context(), actor, project, p, filter)
 		if e != nil {
 			a.respondError(c, e)

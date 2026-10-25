@@ -144,6 +144,16 @@ func (s *Store) CreateSSHDomainKey(ctx context.Context, vault *credentialvault.V
 		return nil, err
 	}
 	defer tx.Rollback()
+	if err = lockKey(ctx, tx, "ssh.master.lifecycle"); err != nil {
+		return nil, err
+	}
+	registered, _, err := masterGeneration(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	if registered != "" && registered != vault.KeyID() {
+		return nil, credentialvault.ErrUnavailable
+	}
 	if err = lockKey(ctx, tx, "ssh.domain.key:"+i.ProjectID+":"+i.Ref+":"+i.Version); err != nil {
 		return nil, err
 	}

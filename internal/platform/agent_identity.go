@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
 	"database/sql"
@@ -188,17 +189,23 @@ func agentCredential(ctx context.Context, tx *sql.Tx, cert *x509.Certificate, au
 		return nil, ErrAgentDenied
 	}
 	out := &AgentCredential{}
-	e := tx.QueryRowContext(ctx, `SELECT id,project_id,machine_id,serial_number,asset_version,authority_id,certificate_pem,agent_version,expires_at,revoked_at,state_version FROM agent_credentials WHERE certificate_hash=$1 FOR SHARE`, agentpki.Hash(cert.Raw)).Scan(&out.ID, &out.ProjectID, &out.MachineID, &out.Serial, &out.AssetVersion, &out.AuthorityID, &out.CertificatePEM, &out.AgentVersion, &out.ExpiresAt, &out.RevokedAt, &out.StateVersion)
+	e := tx.QueryRowContext(ctx, `SELECT c.id,c.project_id,c.machine_id,c.serial_number,c.asset_version,c.authority_id,c.certificate_pem,c.certificate_hash,c.agent_version,c.expires_at,c.revoked_at,c.state_version FROM agent_credentials c WHERE c.certificate_hash=$1 OR EXISTS(SELECT 1 FROM agent_certificate_renewals r WHERE r.credential_id=c.id AND r.certificate_hash=$1) FOR SHARE OF c`, agentpki.Hash(cert.Raw)).Scan(&out.ID, &out.ProjectID, &out.MachineID, &out.Serial, &out.AssetVersion, &out.AuthorityID, &out.CertificatePEM, &out.CertificateHash, &out.AgentVersion, &out.ExpiresAt, &out.RevokedAt, &out.StateVersion)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil, ErrAgentDenied
 	}
 	if e != nil {
 		return nil, e
 	}
-	if out.RevokedAt != nil || out.AuthorityID != authority || !out.ExpiresAt.After(time.Now()) || len(cert.URIs) != 1 || cert.URIs[0].String() != agentpki.URI(out.ProjectID, out.MachineID, out.ID).String() {
+	if out.RevokedAt != nil || out.AuthorityID != authority || len(cert.URIs) != 1 || cert.URIs[0].String() != agentpki.URI(out.ProjectID, out.MachineID, out.ID).String() {
 		return nil, ErrAgentDenied
 	}
-	out.CertificateHash = agentpki.Hash(cert.Raw)
+	// The original enrolled leaf remains the stable public key/identity pin in
+	// frozen task snapshots. A renewal cannot replace its private key or CA.
+	original, err := agentpki.Certificate([]byte(out.CertificatePEM))
+	if err != nil || !bytes.Equal(original.RawSubjectPublicKeyInfo, cert.RawSubjectPublicKeyInfo) {
+		return nil, ErrAgentDenied
+	}
+	out.ExpiresAt = cert.NotAfter
 	serial, version, e := agentTarget(ctx, tx, out.ProjectID, out.MachineID)
 	if e != nil {
 		return nil, e
@@ -250,7 +257,7 @@ func (s *Store) OpenAgentConnection(ctx context.Context, cert *x509.Certificate,
 		return "", e
 	}
 	id := RandomID()
-	if _, e = tx.ExecContext(ctx, `INSERT INTO agent_connections(id,credential_id,boot_id,agent_version,connected_at,last_seen_at)VALUES($1,$2,$3,$4,now(),now())`, id, out.ID, boot, version); e != nil {
+	if _, e = tx.ExecContext(ctx, `INSERT INTO agent_connections(id,credential_id,boot_id,agent_version,connected_at,last_seen_at,certificate_hash)VALUES($1,$2,$3,$4,now(),now(),$5)`, id, out.ID, boot, version, agentpki.Hash(cert.Raw)); e != nil {
 		return "", e
 	}
 	if e = appendAudit(ctx, tx, "", project, "agent.connected", id, "agent", map[string]any{"credential_id": out.ID, "machine_id": machine}); e != nil {
@@ -271,7 +278,7 @@ func (s *Store) AgentHeartbeat(ctx context.Context, cert *x509.Certificate, auth
 	if e != nil {
 		return e
 	}
-	result, e := tx.ExecContext(ctx, `UPDATE agent_connections SET sequence=$3,last_seen_at=now() WHERE id=$1 AND credential_id=$2 AND disconnected_at IS NULL AND sequence=$3-1 AND last_seen_at>now()-interval '30 seconds'`, connection, out.ID, int64(sequence))
+	result, e := tx.ExecContext(ctx, `UPDATE agent_connections SET sequence=$3,last_seen_at=now() WHERE id=$1 AND credential_id=$2 AND certificate_hash=$4 AND disconnected_at IS NULL AND sequence=$3-1 AND last_seen_at>now()-interval '30 seconds'`, connection, out.ID, int64(sequence), agentpki.Hash(cert.Raw))
 	if e != nil {
 		return e
 	}

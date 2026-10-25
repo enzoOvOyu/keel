@@ -77,9 +77,9 @@ keel-agent run --config /protected/agent/config.json
 
 响应丢失或本地 identity.json 未持久化时，已写 agent-key.pem 保留，拒绝重新生成私钥或自动重试注册。运维先核对对应 enrollment 是否已消费、其 certificate_id 和公开审计；若已消费，撤销该证书；若未消费，取消该令牌。之后用新令牌及新的私有 state 目录重新注册，旧材料按运维制度保留/销毁。不能通过删除 key 文件盲目重复注册。
 
-证书过期会停止心跳，目前没有自动续签、CA 双根轮换或CRL/OCSP分发；须 owner 显式撤销旧证书并重新注册。资产版本或SN改变、项目进入 delivered/archived 立即失效，不能靠重连沿用旧身份。此保守生命周期适合当前隔离开发增量，尚不足以声称完整生产 Agent 生命周期闭环。
+原始身份阶段证书过期会停止心跳；050新增下文默认关闭的同密钥续签。没有有效后继时仍须owner复核、撤销旧身份并重新注册；CA双根轮换和CRL/OCSP分发尚未实现。资产版本或SN改变、项目进入 delivered/archived 立即失效，不能靠重连沿用旧身份。此保守生命周期适合当前隔离开发增量，尚不足以声称完整生产 Agent 生命周期闭环。
 
-本阶段在此身份基础上接入下文的既有 Runner 和 Execution/TaskAttempt/outbox/资源锁/fencing/持久回执，提供有界只读任务及断线对账。后续再按前置推进 FR-5.7 的审批介质/G3安装与 systemd 服务、续签/轮换和监控策略/指标；不得另建队列，不得用心跳代替 CollectPolicy/mon-svc 或假定 PXE 已实现。
+本阶段在此身份基础上接入下文的既有 Runner 和 Execution/TaskAttempt/outbox/资源锁/fencing/持久回执，提供有界只读任务及断线对账。后续再按前置推进 FR-5.7 的审批介质/G3安装与 systemd 服务、CA轮换和监控策略/指标；不得另建队列，不得用心跳代替 CollectPolicy/mon-svc 或假定 PXE 已实现。
 
 ## 可复现验证
 
@@ -126,7 +126,7 @@ keel-admin agent-task-reconcile --username LOCAL_ADMIN --password-file /protecte
 
 create成功后由既有outbox调度，无单独start命令；action仅支持pause/resume/cancel。status展示原有执行和回执状态，不将正在排队解释为完成。worker后台对unknown只query并持久化真实终态，CLI reconcile只能消费已经匹配command/attempt/fence的真实回执；没有回执则拒绝并保留隔离。CLI不从独立进程伪造跨worker恢复或另发run。
 
-身份凭据仍只有一小时有效期，自动安装、续签/CA轮换及完整任务/进程管理留后续，不能将本阶段运行作为真机安装或硬件健康验收。
+单张叶证书仍只有一小时有效期；同密钥续签见下文050，自动安装、CA轮换及完整任务/进程管理留后续，不能将本阶段运行作为真机安装或硬件健康验收。
 
 ### 认证 API 与网页只读入口
 
@@ -138,3 +138,16 @@ create成功后由既有outbox调度，无单独start命令；action仅支持pau
 - 创建后进入原执行列表及五 Tab。断线后的 unknown 不自动解锁；worker 重连只查询原 command 的本地回执并保存真实证明。当前 Admin/DL/SRE 在尝试详情核对 command/attempt/fence 与证明、填写依据，调用既有 `/reconcile` 消费已保存的终态。没有证明不可手工指定成功，也没有新增 API 远程执行/重放入口。
 
 实际隔离数据库/HTTP/mTLS/浏览器验证入口：先构建 web，再执行 `python3 scripts/check-agent-integration.py --browser`；普通模式不运行浏览器。证据由 runner 输出到私有目录；生产能力与真实硬件验收另行记录。
+
+
+### 同密钥证书续签与身份连续性（WP-1.5，050）
+
+服务端受保护配置增加 `renewal_enabled:true` 才开放mTLS `Renew`，默认false；目标配置的同名开关只控制run在两分钟传输窗口之间调用续签，不开启listener或任务。原证书剩余有效期≤20分钟时服务端允许追加一小时同密钥后继；客户端在≤15分钟时请求。不能用过期/撤销/未登记证书、其他私钥、失配资产/SN或不同CA续签。CA剩余有效期不足一小时则拒绝，双根CA轮换仍待单独实现。
+
+050新增只追加的agent_certificate_renewals，按credential_id+前驱DER摘要唯一；同一前驱重试返回同一证书和单条审计。数据库约束核查前驱/有效窗口及到期延长，更新/删除被拒绝；撤销仍锁定原credential，覆盖所有后继。原credential、注册公钥与原DER摘要是稳定身份锚，不是当前传输叶证书；Execution冻结绑定/command/fence及已有回执保持不变。连接另绑定实际叶证书摘要，后继不能借用前驱的心跳connection_id。历史原证书到期不撤销仍有效的后继，也不让旧叶继续认证。
+
+客户端复用本地私钥生成CSR，验证返回身份/CA/密钥/有效期后，以私有目录锁、内容/文件身份校验、临时文件fsync、原子rename及目录fsync更新identity.json。失败保留原记录和私钥；响应丢失或本地提交失败时，持原前驱重试可取同一后继，不重新注册、不自动换钥。前驱已过期且后继未持久化时停止并交owner复核恢复，不突破过期身份授权。run只在连接之间续签，不中断活跃任务或改变unknown隔离；显式 `keel-agent renew --config /protected/agent.json` 可执行同样的到期检查，未到窗口返回renewed=false。
+
+050需在P1集中发布里程碑前进行隔离迁移验证及运行库备份/恢复演练；本段实现不表示已经迁移或发布3000。真实软件测试使用受控短期初始证书避免等待45分钟，不是生产注册或真机验收。续签、CA轮换、私钥轮换、软件升级和自动安装是不同能力，不能互相代替。
+
+owner复核可用 `keel-admin agent-credential-status --project PROJECT_ID --id CREDENTIAL_ID`：返回原始身份锚、初始/有效到期时间、撤销版本、当前资产绑定、最近10条续签与5条连接（含各自实际叶摘要）；不输出PEM、注册令牌、私钥或任务session handle。active指当前登记身份可用，heartbeat_connected/tasks_connected单列，不等于设备健康。已过期或撤销的历史身份仍可查询，读请求严格限定项目。该命令使用已有受控数据库配置，不是公共HTTP查询接口。

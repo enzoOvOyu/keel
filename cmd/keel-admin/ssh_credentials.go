@@ -22,7 +22,11 @@ func runSSHCredentials(command string, args []string) error {
 	expires := flags.String("expires-at", "", "RFC3339 expiration")
 	id := flags.String("id", "", "domain key id")
 	expected := flags.Int64("expected-version", 0, "key state version for revocation")
-	reason := flags.String("reason", "", "revocation reason")
+	reason := flags.String("reason", "", "revocation or maintenance reason")
+	rotationID := flags.String("rotation-id", "", "stable 32-character rotation ID for safe retry")
+	sourceID := flags.String("expected-source-key-id", "", "inspected current master fingerprint")
+	nextMaster := flags.String("new-master-key-file", "", "independent protected new master file")
+	expectedKeys := flags.Int("expected-keys", -1, "inspected exact stored key count")
 	limit := flags.Int("limit", 50, "page size, 1..100")
 	offset := flags.Int("offset", 0, "page offset")
 	if err := flags.Parse(args); err != nil {
@@ -32,10 +36,12 @@ func runSSHCredentials(command string, args []string) error {
 		return errors.New("unexpected positional arguments")
 	}
 	allowed := map[string]map[string]bool{
-		"credential-master-keygen": {"output": true},
-		"ssh-key-create":           {"project": true, "ref": true, "version": true, "expires-at": true},
-		"ssh-key-list":             {"project": true, "limit": true, "offset": true},
-		"ssh-key-revoke":           {"project": true, "id": true, "expected-version": true, "reason": true},
+		"credential-master-keygen":  {"output": true},
+		"credential-master-inspect": {},
+		"credential-master-rewrap":  {"rotation-id": true, "expected-source-key-id": true, "new-master-key-file": true, "expected-keys": true, "reason": true},
+		"ssh-key-create":            {"project": true, "ref": true, "version": true, "expires-at": true},
+		"ssh-key-list":              {"project": true, "limit": true, "offset": true},
+		"ssh-key-revoke":            {"project": true, "id": true, "expected-version": true, "reason": true},
 	}
 	invalid := false
 	flags.Visit(func(f *flag.Flag) {
@@ -50,12 +56,20 @@ func runSSHCredentials(command string, args []string) error {
 		if err := credentialvault.GenerateMaster(*path); err != nil {
 			return err
 		}
-		return json.NewEncoder(os.Stdout).Encode(map[string]string{"status": "ok", "operation": command})
+		vault, e := credentialvault.Load(*path)
+		if e != nil {
+			return e
+		}
+		return json.NewEncoder(os.Stdout).Encode(map[string]string{"status": "ok", "operation": command, "key_id": vault.KeyID()})
 	}
-	if *project == "" {
+	if *project == "" && command != "credential-master-inspect" && command != "credential-master-rewrap" {
 		return errors.New("--project is required")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	timeout := 30 * time.Second
+	if command == "credential-master-rewrap" {
+		timeout = 3 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	dsn := os.Getenv("KEEL_DATABASE_URL")
 	if dsn == "" {
@@ -71,6 +85,20 @@ func runSSHCredentials(command string, args []string) error {
 	}
 	var result any
 	switch command {
+	case "credential-master-inspect", "credential-master-rewrap":
+		previous, e := credentialvault.Load(os.Getenv("KEEL_CREDENTIAL_MASTER_KEY_FILE"))
+		if e != nil || previous == nil {
+			return errors.New("protected current credential master file is required")
+		}
+		if command == "credential-master-inspect" {
+			result, err = store.InspectCredentialMaster(ctx, previous)
+		} else {
+			next, e := credentialvault.Load(*nextMaster)
+			if e != nil || next == nil {
+				return errors.New("protected independent new credential master file is required")
+			}
+			result, err = store.RewrapCredentialMaster(ctx, previous, next, platform.CredentialMasterRewrapInput{ID: *rotationID, ExpectedSourceKeyID: *sourceID, ExpectedKeys: *expectedKeys, Reason: *reason})
+		}
 	case "ssh-key-create":
 		vault, e := credentialvault.Load(os.Getenv("KEEL_CREDENTIAL_MASTER_KEY_FILE"))
 		if e != nil {

@@ -4,6 +4,74 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{id}/assets/{assetId}/provision/target": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Admin/DL/SRE read-only provisioning preparation from current BOM, pinned published model, approved OS boot media and active project public key. Does not create an execution, issue callback credentials, start installation or establish SSH trust. Preview snapshot SHA256 is calculated with snapshot_sha256 set to the empty string. */
+        get: operations["getProvisionTarget"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/provision/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Admin/DL/SRE read-only provisioning preparation from current BOM, pinned published model, approved OS boot media and active project public key. Does not create an execution, issue callback credentials, start installation or establish SSH trust. Preview snapshot SHA256 is calculated with snapshot_sha256 set to the empty string. */
+        post: operations["previewProvisionSeed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/media/{mediaId}/boot-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Read-only resolution of four immutable OS roles with current approval, scope, complete DAG integrity and architecture checks. Does not start installation or grant anonymous download. Platform admin only for global route; authorized project member for project route. */
+        get: operations["resolveProjectMediaBootPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/{mediaId}/boot-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Read-only resolution of four immutable OS roles with current approval, scope, complete DAG integrity and architecture checks. Does not start installation or grant anonymous download. Platform admin only for global route; authorized project member for project route. */
+        get: operations["resolveGlobalMediaBootPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -2385,6 +2453,7 @@ export interface components {
             artifacts: components["schemas"]["MediaManifestArtifact"][];
         };
         MediaManifestArtifact: {
+            os_boot?: components["schemas"]["MediaOSBootProfile"];
             media_id: string;
             scope_key: string;
             uri: string;
@@ -2413,7 +2482,73 @@ export interface components {
             readonly version?: string;
             readonly arch?: string;
         };
+        ProvisionBootPort: {
+            id: string;
+            name: string;
+            mac: string;
+        };
+        ProvisionTarget: {
+            project_id: string;
+            asset_id: string;
+            machine_id: string;
+            model_version_id: string;
+            asset_version: number;
+            serial_number: string;
+            hostname: string;
+            state: string;
+            model_content_hash: string;
+            /** @enum {string} */
+            arch: "amd64" | "arm64";
+            ports: components["schemas"]["ProvisionBootPort"][];
+        };
+        ProvisionPreviewInput: {
+            asset_version: number;
+            boot_port_id: string;
+            media_id: string;
+            domain_key_id: string;
+        };
+        ProvisionSeed: {
+            user_data: string;
+            meta_data: string;
+        };
+        ProvisionPreview: {
+            /** @constant */
+            schema: "keel.provision-preview/v1";
+            snapshot_sha256: string;
+            target: components["schemas"]["ProvisionTarget"];
+            boot_port: components["schemas"]["ProvisionBootPort"];
+            domain_key: components["schemas"]["SSHInstallCredential"];
+            media: components["schemas"]["MediaBootPlan"];
+            seed: components["schemas"]["ProvisionSeed"];
+        };
+        MediaOSBootProfile: {
+            /** @constant */
+            schema: "keel.os-boot/v1";
+            /** @constant */
+            installer: "cloud-init";
+            kernel_media_id: string;
+            initrd_media_id: string;
+            template_media_id: string;
+        };
+        MediaBootArtifact: {
+            /** @enum {string} */
+            role: "rootfs" | "kernel" | "initrd" | "template";
+            media_id: string;
+            scope_key: string;
+            name: string;
+            version: string;
+            sha256: string;
+            arch: string;
+            object_version: string;
+            size: number;
+        };
+        MediaBootPlan: {
+            root_id: string;
+            profile: components["schemas"]["MediaOSBootProfile"];
+            artifacts: components["schemas"]["MediaBootArtifact"][];
+        };
         MediaDependencies: {
+            os_boot?: components["schemas"]["MediaOSBootProfile"];
             compatibility?: components["schemas"]["CompatibilityMatrix"];
             /** @description Exact approved artifact identities. Server records canonical labels; no latest-version lookup. Closure is bounded to 128 dependencies and 16 edges deep. */
             artifacts?: components["schemas"]["MediaArtifactDependency"][];
@@ -4331,6 +4466,31 @@ export interface components {
             selection_hash: string;
             change_reason: string;
         };
+        "schemas-MediaDependencies": {
+            compatibility?: components["schemas"]["CompatibilityMatrix"];
+            /** @description Exact approved artifact identities. Server records canonical labels; no latest-version lookup. Closure is bounded to 128 dependencies and 16 edges deep. */
+            artifacts?: components["schemas"]["MediaArtifactDependency"][];
+        };
+        "schemas-CatalogMedia": {
+            id: string;
+            uri: string;
+            version: string;
+            arch: string;
+            hw_scope: string;
+            os_scope: string;
+            sha256: string;
+            object_version: string;
+            deps: components["schemas"]["schemas-MediaDependencies"];
+        };
+        "schemas-CatalogSelection": {
+            key_id: string;
+            key: string;
+            value: string;
+            /** Format: date-time */
+            updated_at: string;
+            deps: components["schemas"]["CatalogDependencies"];
+            media?: components["schemas"]["schemas-CatalogMedia"];
+        };
         /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
         ExecutionSnapshot: {
             /** @enum {string} */
@@ -4346,7 +4506,7 @@ export interface components {
             /** Format: date-time */
             frozen_at: string;
             rerun_source?: components["schemas"]["RerunSource"];
-            catalog?: components["schemas"]["CatalogSelection"][];
+            catalog?: components["schemas"]["schemas-CatalogSelection"][];
         };
         Execution: {
             id: string;
@@ -4477,6 +4637,152 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getProvisionTarget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Validated preparation metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionTarget"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Missing or invalid BOM, boot profile, architecture or safe cloud-init template */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    previewProvisionSeed: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionPreviewInput"];
+            };
+        };
+        responses: {
+            /** @description Validated preparation metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionPreview"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Missing or invalid BOM, boot profile, architecture or safe cloud-init template */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    resolveProjectMediaBootPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Verified boot media roles */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaBootPlan"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Missing or invalid boot profile, dependency or artifact integrity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    resolveGlobalMediaBootPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Verified boot media roles */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaBootPlan"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Missing or invalid boot profile, dependency or artifact integrity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     health: {
         parameters: {
             query?: never;
@@ -4812,6 +5118,8 @@ export interface operations {
                 state?: "uploaded" | "verified" | "approved" | "retired";
                 /** @description Include this architecture and noarch; noarch includes only noarch */
                 compatible_arch?: "amd64" | "arm64" | "noarch";
+                /** @description OS roots with concrete architecture and boot-role metadata; launch revalidates the complete pinned closure */
+                boot_only?: boolean;
                 /** @description Root has stored bytes and is not quarantined; does not attest to the transitive closure */
                 stored_only?: boolean;
             };
@@ -9038,6 +9346,8 @@ export interface operations {
                 state?: "uploaded" | "verified" | "approved" | "retired";
                 /** @description Include this architecture and noarch; noarch includes only noarch */
                 compatible_arch?: "amd64" | "arm64" | "noarch";
+                /** @description OS roots with concrete architecture and boot-role metadata; launch revalidates the complete pinned closure */
+                boot_only?: boolean;
                 /** @description Root has stored bytes and is not quarantined; does not attest to the transitive closure */
                 stored_only?: boolean;
             };

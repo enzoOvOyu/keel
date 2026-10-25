@@ -204,3 +204,18 @@ func (s *Store) hashForRequest(password string) (string, error) {
 	}
 	return HashPassword(password)
 }
+
+// beginPinnedRead holds current identity/session row locks for a verified media
+// preparation read. It does not acquire the platform-admin mutation mutex, so
+// large pinned reads cannot serialize unrelated operators or initialization.
+func (s *Store) beginPinnedRead(ctx context.Context, a *AuthSession) (*sql.Tx, error) {
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err = RecheckSessionTx(ctx, tx, a); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	return tx, nil
+}
