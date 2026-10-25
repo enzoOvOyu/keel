@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/enzoOvOyu/keel/internal/platform"
+	"github.com/enzoOvOyu/keel/internal/taskrunner"
 	"gopkg.in/yaml.v3"
 	"io"
 	"regexp"
@@ -21,6 +22,7 @@ import (
 )
 
 type Service struct {
+	SSHRunner    taskrunner.Runner
 	MediaStore   *platform.Store
 	DB           *sql.DB
 	KeaStore     *platform.Store
@@ -76,15 +78,16 @@ type FlowVersion struct {
 	CreatedAt   time.Time  `json:"created_at"`
 }
 type Target struct {
-	ResourceKey  string    `json:"resource_key,omitempty"`
-	ID           string    `json:"id"`
-	ProjectID    string    `json:"project_id"`
-	Name         string    `json:"name"`
-	Seed         int64     `json:"seed"`
-	Revision     int64     `json:"revision"`
-	ModelVersion string    `json:"model_version"`
-	CreatedAt    time.Time `json:"created_at"`
-	Mode         string    `json:"mode"`
+	SSH          *taskrunner.Binding `json:"ssh,omitempty"`
+	ResourceKey  string              `json:"resource_key,omitempty"`
+	ID           string              `json:"id"`
+	ProjectID    string              `json:"project_id"`
+	Name         string              `json:"name"`
+	Seed         int64               `json:"seed"`
+	Revision     int64               `json:"revision"`
+	ModelVersion string              `json:"model_version"`
+	CreatedAt    time.Time           `json:"created_at"`
+	Mode         string              `json:"mode"`
 }
 type SimTarget = Target
 

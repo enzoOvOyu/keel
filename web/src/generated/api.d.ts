@@ -4065,7 +4065,7 @@ export interface components {
         FlowTask: {
             id: string;
             /** @enum {string} */
-            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push";
+            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait";
             depends_on?: string[];
             retry: number;
             idempotent: boolean;
@@ -4075,7 +4075,7 @@ export interface components {
         };
         FlowDefinition: {
             /** @enum {string} */
-            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1";
+            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1" | "keel.ssh/v1";
             inputs: {
                 [key: string]: components["schemas"]["FlowInput"];
             };
@@ -4093,6 +4093,10 @@ export interface components {
             /** Format: date-time */
             created_at: string;
         };
+        SSHBinding: {
+            host_key: string;
+            config_hash: string;
+        };
         SimTarget: {
             id: string;
             project_id: string;
@@ -4100,14 +4104,15 @@ export interface components {
             /** Format: int64 */
             seed: number;
             revision: number;
-            /** @enum {string} */
-            model_version: "sim-model-v1";
+            /** @description Frozen model version identity; simulation uses sim-model-v1. */
+            model_version: string;
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric";
-            /** @description Shared controller resource key; present for Kea control targets only. */
+            mode: "sim" | "kea" | "fabric" | "ssh";
+            /** @description Stable controller/device identity for non-simulation targets. */
             resource_key?: string;
+            ssh?: components["schemas"]["SSHBinding"];
         };
         RerunSource: {
             execution_id: string;
@@ -4120,7 +4125,7 @@ export interface components {
         /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
         ExecutionSnapshot: {
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric";
+            mode: "sim" | "kea" | "fabric" | "ssh";
             flow: components["schemas"]["FlowVersion"];
             targets: components["schemas"]["SimTarget"][];
             /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
@@ -4139,7 +4144,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric";
+            mode: "sim" | "kea" | "fabric" | "ssh";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;

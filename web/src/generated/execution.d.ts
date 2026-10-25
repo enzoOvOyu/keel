@@ -388,6 +388,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/ssh-executions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Opt-in server read-only SSH execution through the existing outbox, attempt, lease and receipt kernel. Timeout/disconnect without terminal proof remains unknown; no blind replay. */
+        post: operations["createSSHExecution"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/executions/{executionId}/attempts/{attemptId}/ssh-receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Query an existing SSH command receipt, then apply the existing authorized reconciliation transaction. Does not submit or retry work. No terminal proof keeps the resource quarantined. */
+        post: operations["fetchSSHReceipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -414,7 +448,7 @@ export interface components {
         FlowTask: {
             id: string;
             /** @enum {string} */
-            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push";
+            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait";
             depends_on?: string[];
             retry: number;
             idempotent: boolean;
@@ -424,7 +458,7 @@ export interface components {
         };
         FlowDefinition: {
             /** @enum {string} */
-            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1";
+            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1" | "keel.ssh/v1";
             inputs: {
                 [key: string]: components["schemas"]["FlowInput"];
             };
@@ -464,14 +498,15 @@ export interface components {
             /** Format: int64 */
             seed: number;
             revision: number;
-            /** @enum {string} */
-            model_version: "sim-model-v1";
+            /** @description Frozen model version identity; simulation uses sim-model-v1. */
+            model_version: string;
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric";
-            /** @description Shared controller resource key; present for Kea control targets only. */
+            mode: "sim" | "kea" | "fabric" | "ssh";
+            /** @description Stable controller/device identity for non-simulation targets. */
             resource_key?: string;
+            ssh?: components["schemas"]["SSHBinding"];
         };
         RegisterSimTargetsResponse: {
             items: components["schemas"]["SimTarget"][];
@@ -496,7 +531,7 @@ export interface components {
         /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
         ExecutionSnapshot: {
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric";
+            mode: "sim" | "kea" | "fabric" | "ssh";
             flow: components["schemas"]["FlowVersion"];
             targets: components["schemas"]["SimTarget"][];
             /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
@@ -515,7 +550,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric";
+            mode: "sim" | "kea" | "fabric" | "ssh";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -542,7 +577,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric";
+            mode: "sim" | "kea" | "fabric" | "ssh";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -640,7 +675,7 @@ export interface components {
             /** Format: int64 */
             next_cursor: number;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric";
+            mode: "sim" | "kea" | "fabric" | "ssh";
         };
         SimTargetPage: {
             items: components["schemas"]["SimTarget"][];
@@ -724,7 +759,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric";
+            mode: "sim" | "kea" | "fabric" | "ssh";
             resource_key?: string;
         };
         TaskTimeline: {
@@ -953,6 +988,23 @@ export interface components {
             compatibility?: components["schemas"]["CompatibilityMatrix"];
             /** @description Exact approved artifact identities. Server records canonical labels; no latest-version lookup. Closure is bounded to 128 dependencies and 16 edges deep. */
             artifacts?: components["schemas"]["MediaArtifactDependency"][];
+        };
+        SSHBinding: {
+            host_key: string;
+            config_hash: string;
+        };
+        /** @description No arbitrary commands, network addresses, credentials or files. identity requires wait_ms=0. Assets must be provisioned, project-bound and established with the exact operator-pinned host key. */
+        SSHCreateInput: {
+            machine_ids: string[];
+            /** @enum {string} */
+            operation: "host.identity" | "host.wait";
+            /** @default 5000 */
+            timeout_ms: number;
+            /** @default 0 */
+            wait_ms: number;
+        };
+        SSHReceiptInput: {
+            expected_version: number;
         };
     };
     responses: {
@@ -1910,6 +1962,90 @@ export interface operations {
         responses: {
             /** @description New execution with immutable source lineage */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createSSHExecution: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SSHCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Created immutable SSH execution */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    fetchSSHReceipt: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+                executionId: string;
+                attemptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SSHReceiptInput"];
+            };
+        };
+        responses: {
+            /** @description Simulation-only result */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

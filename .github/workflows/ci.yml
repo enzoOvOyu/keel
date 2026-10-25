@@ -18,6 +18,7 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 20
     env:
       KEEL_TEST_DATABASE_URL: postgresql://keel_test:isolated-ci-only@127.0.0.1:15433/keel_test_auth?sslmode=disable
+      KEEL_TEST_SSH_DATABASE_URL: postgresql://keel_test:isolated-ci-only@127.0.0.1:15433/keel_test_ssh?sslmode=disable
       KEEL_TEST_EXECUTION_DATABASE_URL: postgresql://keel_test:isolated-ci-only@127.0.0.1:15433/keel_test_execution?sslmode=disable
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +32,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: docker exec '${{ job.services.postgres.id }}' createdb -U keel_test keel_test_execution
+      - run: docker exec '${{ job.services.postgres.id }}' createdb -U keel_test keel_test_ssh
       - run: make check
       - name: Compile Linux arm64 control-plane binaries
         env:
@@ -40,7 +42,7 @@ jobs:
         run: |
           keel_arm64_build_dir="$(mktemp -d /tmp/keel-arm64-build.XXXXXXXX)"
           trap 'rm -rf "$keel_arm64_build_dir"' EXIT
-          go build -trimpath -o "$keel_arm64_build_dir/" ./cmd/keel-api ./cmd/keel-admin ./cmd/keel-worker ./cmd/keel-sim
+          go build -trimpath -o "$keel_arm64_build_dir/" ./cmd/keel-api ./cmd/keel-admin ./cmd/keel-worker ./cmd/keel-sim ./cmd/keel-ssh-runner
       - name: PostgreSQL authentication, authorization, and browser integration
         env:
           KEEL_ADMIN_BINARY: /tmp/keel-ci-admin

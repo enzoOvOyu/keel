@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "keel simulated execution API",
+    "title": "Keel execution API",
     "version": "0.1.0",
-    "description": "Simulated execution contracts for flows, immutable flow versions, logical simulation targets, executions, task attempts, run control and reconciliation. The worker runs only explicitly simulated adapters: there is no device transport, so these contracts are not hardware acceptance. State-changing requests require an exact configured Origin, a session-bound X-CSRF-Token and an Idempotency-Key. Responses never include credential values or infrastructure secrets."
+    "description": "Durable simulation, Kea, fabric and opt-in bounded server SSH execution. SSH operations are allowlisted read-only queries, with operator-owned target/credential binding and pinned host keys. Simulation and isolated protocol evidence do not prove hardware acceptance. Mutations require exact Origin, session CSRF and Idempotency-Key; responses contain no credentials."
   },
   "tags": [
     {
@@ -1883,6 +1883,188 @@
           }
         }
       }
+    },
+    "/api/v1/projects/{id}/ssh-executions": {
+      "post": {
+        "operationId": "createSSHExecution",
+        "tags": [
+          "SSH execution"
+        ],
+        "x-permission": "execution:create",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created immutable SSH execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Execution"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Opt-in server read-only SSH execution through the existing outbox, attempt, lease and receipt kernel. Timeout/disconnect without terminal proof remains unknown; no blind replay.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SSHCreateInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/attempts/{attemptId}/ssh-receipt": {
+      "post": {
+        "operationId": "fetchSSHReceipt",
+        "tags": [
+          "SSH execution"
+        ],
+        "x-permission": "execution:reconcile",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "attemptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Simulation-only result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Execution"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Query an existing SSH command receipt, then apply the existing authorized reconciliation transaction. Does not submit or retry work. No terminal proof keeps the resource quarantined.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SSHReceiptInput"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2151,7 +2333,9 @@
               "sim.write",
               "kea.apply",
               "fabric.prepare",
-              "fabric.push"
+              "fabric.push",
+              "host.identity",
+              "host.wait"
             ]
           },
           "depends_on": {
@@ -2213,7 +2397,8 @@
             "enum": [
               "keel.sim/v1",
               "keel.kea/v1",
-              "keel.fabric/v1"
+              "keel.fabric/v1",
+              "keel.ssh/v1"
             ]
           },
           "inputs": {
@@ -2368,9 +2553,7 @@
           },
           "model_version": {
             "type": "string",
-            "enum": [
-              "sim-model-v1"
-            ]
+            "description": "Frozen model version identity; simulation uses sim-model-v1."
           },
           "created_at": {
             "type": "string",
@@ -2381,12 +2564,16 @@
             "enum": [
               "sim",
               "kea",
-              "fabric"
+              "fabric",
+              "ssh"
             ]
           },
           "resource_key": {
             "type": "string",
-            "description": "Shared controller resource key; present for Kea control targets only."
+            "description": "Stable controller/device identity for non-simulation targets."
+          },
+          "ssh": {
+            "$ref": "#/components/schemas/SSHBinding"
           }
         },
         "required": [
@@ -2495,7 +2682,8 @@
             "enum": [
               "sim",
               "kea",
-              "fabric"
+              "fabric",
+              "ssh"
             ]
           },
           "flow": {
@@ -2579,7 +2767,8 @@
             "enum": [
               "sim",
               "kea",
-              "fabric"
+              "fabric",
+              "ssh"
             ]
           },
           "state": {
@@ -2709,7 +2898,8 @@
             "enum": [
               "sim",
               "kea",
-              "fabric"
+              "fabric",
+              "ssh"
             ]
           },
           "state": {
@@ -3113,7 +3303,8 @@
             "enum": [
               "sim",
               "kea",
-              "fabric"
+              "fabric",
+              "ssh"
             ]
           }
         },
@@ -3468,7 +3659,8 @@
             "enum": [
               "sim",
               "kea",
-              "fabric"
+              "fabric",
+              "ssh"
             ]
           },
           "resource_key": {
@@ -4408,6 +4600,77 @@
             }
           }
         }
+      },
+      "SSHBinding": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "host_key": {
+            "type": "string",
+            "pattern": "^SHA256:[A-Za-z0-9+/]{43}$"
+          },
+          "config_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "host_key",
+          "config_hash"
+        ]
+      },
+      "SSHCreateInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "machine_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "host.identity",
+              "host.wait"
+            ]
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 30000,
+            "default": 5000
+          },
+          "wait_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30000,
+            "default": 0
+          }
+        },
+        "required": [
+          "machine_ids",
+          "operation"
+        ],
+        "description": "No arbitrary commands, network addresses, credentials or files. identity requires wait_ms=0. Assets must be provisioned, project-bound and established with the exact operator-pinned host key."
+      },
+      "SSHReceiptInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "expected_version"
+        ]
       }
     }
   }

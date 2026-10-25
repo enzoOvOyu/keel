@@ -14,6 +14,7 @@ import (
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/mediamanifest"
 	"github.com/enzoOvOyu/keel/internal/mediasource"
+	"github.com/enzoOvOyu/keel/internal/taskrunner"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"io"
 	"time"
@@ -25,6 +26,7 @@ type MediaObjectStore interface {
 }
 
 type Store struct {
+	SSHRunner           *taskrunner.SSH
 	MediaObjects        MediaObjectStore
 	MediaSources        *mediasource.Fetcher
 	MediaManifestSigner *mediamanifest.Signer
@@ -54,7 +56,12 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 	}
 	return &Store{DB: db, Ent: ent.NewClient(ent.Driver(entsql.OpenDB(dialect.Postgres, db))), passwordSlots: make(chan struct{}, 2), dummyHash: h}, nil
 }
-func (s *Store) Close() error { return s.Ent.Close() }
+func (s *Store) Close() error {
+	if s.SSHRunner != nil {
+		s.SSHRunner.Close()
+	}
+	return s.Ent.Close()
+}
 func RandomID() string {
 	var b [16]byte
 	if _, e := rand.Read(b[:]); e != nil {

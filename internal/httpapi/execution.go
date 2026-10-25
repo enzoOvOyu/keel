@@ -56,10 +56,14 @@ func (a *authAPI) executionProject(c *gin.Context, write bool) (*platform.AuthSe
 	}
 	service := execution.New(a.store.DB)
 	service.MediaStore = a.store
+	if a.store.SSHRunner != nil {
+		service.SSHRunner = a.store.SSHRunner
+	}
 	return actor, service, true
 }
 func (a *authAPI) registerExecution(r *gin.Engine) {
 	base := "/api/v1/projects/:id"
+	a.registerSSHExecution(r, base)
 	r.GET(base+"/sim-targets", func(c *gin.Context) {
 		_, s, ok := a.executionProject(c, false)
 		if !ok {

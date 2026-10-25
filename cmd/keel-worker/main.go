@@ -7,6 +7,7 @@ import (
 	"github.com/enzoOvOyu/keel/internal/execution"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/platform"
+	"github.com/enzoOvOyu/keel/internal/taskrunner"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -38,11 +39,19 @@ func main() {
 		fail("worker database unavailable")
 	}
 	defer store.Close()
+	store.SSHRunner, e = taskrunner.Load(os.Getenv("KEEL_SSH_RUNNER_FILE"))
+	if e != nil {
+		slog.Error("SSH runner configuration rejected")
+		os.Exit(1)
+	}
 	store.FabricProbes, e = fabricboot.LoadProbeSuite(os.Getenv("KEEL_FABRIC_PROBES_FILE"))
 	if e != nil {
 		fail("fabric probe configuration rejected")
 	}
 	service := execution.New(store.DB)
+	if store.SSHRunner != nil {
+		service.SSHRunner = store.SSHRunner
+	}
 	if _, _, e = store.FabricProbes.DeploymentControl(); e == nil {
 		service.KeaStore = store
 	}

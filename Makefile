@@ -15,6 +15,7 @@ build:
 	go build -trimpath -o bin/keel-admin ./cmd/keel-admin
 	go build -trimpath -o bin/keel-worker ./cmd/keel-worker
 	go build -trimpath -o bin/keel-sim ./cmd/keel-sim
+	go build -trimpath -o bin/keel-ssh-runner ./cmd/keel-ssh-runner
 dev-api:
 	sh scripts/dev-api.sh
 dev-worker:

@@ -521,7 +521,7 @@ export function ExecutionWorkspace({
   }
   const canControl = Boolean(
     current &&
-      (current.execution.mode === "sim"
+      ((current.execution.mode === "sim" || current.execution.mode === "ssh")
         ? session.user.is_admin ||
           ["Admin", "SRE", "DE", "DL"].includes(project.role)
         : session.user.is_admin || ["Admin", "NDE"].includes(project.role)),
@@ -566,7 +566,9 @@ export function ExecutionWorkspace({
       </header>
       <p className="impact-notice">
         {t(
-          current.execution.mode === "fabric"
+          current.execution.mode === "ssh"
+            ? "sshExecutionNotice"
+            : current.execution.mode === "fabric"
             ? "networkExecutionDetail"
             : current.execution.mode === "kea"
               ? "keaControlDetail"

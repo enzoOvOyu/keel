@@ -19,6 +19,7 @@ import (
 	"github.com/enzoOvOyu/keel/internal/mediamanifest"
 	"github.com/enzoOvOyu/keel/internal/mediasource"
 	"github.com/enzoOvOyu/keel/internal/platform"
+	"github.com/enzoOvOyu/keel/internal/taskrunner"
 )
 
 var version = "development"
@@ -59,6 +60,11 @@ func main() {
 		cancel()
 		if err != nil {
 			slog.Error("database schema rejected", "error", err)
+			os.Exit(1)
+		}
+		store.SSHRunner, err = taskrunner.Load(os.Getenv("KEEL_SSH_RUNNER_FILE"))
+		if err != nil {
+			slog.Error("SSH runner configuration rejected")
 			os.Exit(1)
 		}
 		store.FabricProbes, err = fabricboot.LoadProbeSuite(os.Getenv("KEEL_FABRIC_PROBES_FILE"))

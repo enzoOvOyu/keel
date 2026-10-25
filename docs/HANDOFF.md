@@ -759,3 +759,17 @@ WP-1.10接续PRD登记外部引用，复用现有manifest_ref及§53固定绑定
 发布后私有配置证明在§58发布目录post-release-config-check.json：API healthy/镜像SHA一致、.env600、签名目录只读且私钥配置正确、来源allowlist空、worker未运行、候选已删除均通过。下一次恢复首先读本文件顶部入口，再按A3/WP-1.4→1.5现有内核接通服务器SSH契约，不把当前介质归档当作已完成目标缓存/安装。P1/FR-0维持partial。
 
 §59两小时最终交接（2026-10-25T04:28:27.488095+00:00）：本轮持续窗口始于2026-10-25 02:28:11 UTC，现已超过04:28:11 UTC。工作区仍/opt/keel、dev/p1-network-bom；功能76ef23b的run40160935174、交接da13662的run40161443174及arm64 CI增量936b7a0的run40161575505均实际查询completed/success，后者包含新增arm64步骤及原完整流程。3000保持76ef23b/schema38；最后交接文档提交不会重建服务，其新CI结论须单独查询，不从前述成功外推。私钥权限复核通过（宿主700目录的属主隔离使开发用户不能直接检查内部文件，改以容器API用户仅stat元数据确认400/UID65532，未读取/输出私钥）；证据signer-permissions-check.json。15份非空日志存在性索引two-hour-evidence-index.json仅证明证据保留，实际测试结论仍以各节明确结果为准。原两草稿未暂存；平台阶段与真机/规模剩余验收未升级。
+
+## 60. A3 受限服务器SSH任务、持久回执和对账（2026-10-25）
+
+继续/opt/keel、dev/p1-network-bom，沿现有Execution/outbox/TaskAttempt/资源租约增加SSH mode与稳定machine目标；042只扩展mode/kind/runner约束，无新秘密表/执行队列。正式API支持Admin/DE/DL/SRE创建host.identity或host.wait，只接受已有provisioned项目资产、established互信和操作员精确绑定/主机密钥。快照冻结资产版本与无秘密绑定摘要，claim/打开SSH前复核当前权限/互信；角色或绑定改变暂停待派发。只读任务共用device:machine/ssh:machine共享锁，独占设备锁仍冲突。
+
+TaskCommand版本keel.task/v1；SSH只发送常量helper入口与受限stdin JSON。配置/Ed25519域私钥为当前用户私有普通文件，拒绝root账号/UID0 helper、未知或变更host key、任意shell/来源地址/凭据请求。按目标复用连接，握手上限5秒/请求35秒，慢目标不串行阻塞其他目标，取消可中断握手。目标helper按次运行，在工作前持久化accepted，再原子持久化running/终态；已有相同命令只读原记录，accepted/running也不重放。取消须有终态证明，丢响应只查询，拿不到则保留unknown及待对账租约。授权ssh-receipt API验证真实终态后复用原对账事务，相同幂等key重试不再次连接/执行。
+
+已有执行工作台支持SSH角色控制、只读边界说明与结构化输出；本步启动入口为正式API，未新增目标选择启动向导。Compose有仓库外只读配置挂载和空禁用占位，默认不启用SSH或生产worker；helper随镜像/Makefile/arm64 CI构建，目标端由操作员受控安装，不自动修改客户账号/authorized_keys。详细契约、配置与限制见SSH-RUNNER.md。bootstrap/repair、完整脚本/Agent双通道、缓存/分发/真机及完整P1仍partial。
+
+实际证据：/tmp/keel-ssh-integration-reviewed.log与/tmp/keel-ssh-integration-2l11fil0通过真实PG+loopback SSH/HTTP，覆盖角色、CSRF/匿名/非成员、禁用配置、重复提交、回执恢复幂等、共享/独占锁、撤权/撤互信；/tmp/keel-ssh-integration-browser.log与/tmp/keel-ssh-integration-hgl7lmk0增加真实浏览器登录/SSH详情/输出无错误及独立CLI进程run/query/重复run回执完全一致。测试资产provisioned/互信为显式软件fixture，不冒充PXE、真实首登或硬件验收。首轮仅测试指针/值编译错误，修正测试后通过；未放松业务规则。最后协议版本/连接池取消修正的实际结果随后补记。
+
+全仓Go race（无数据库项按规范skip，/tmp/keel-ssh-all-go.log）、受影响vet、前端正式契约生成/类型/UI版本lint与构建（/tmp/keel-ssh-frontend-build.log，保留现有bundle提示）、Compose配置、设计检查通过。042尚未迁移运行库，3000此时仍76ef23b/schema38；发布需先备份/恢复演练，保留原两草稿未暂存。
+
+§60最终验证补记：/tmp/keel-ssh-admission-final.log、/tmp/keel-ssh-integration-u2qrh1mg退出0，含最终协议版本/连接池并行与握手取消、严格指纹和机器ID验证后的真实PG+SSH+HTTP+浏览器、独立helper进程证明。完整overlay make check退出0（/tmp/keel-ssh-final-check.log），设计首次发现需求追踪中的裸SSH-RUNNER.md路径，改为docs/SSH-RUNNER.md后检查通过；未为此重跑设备/容量测试。四个原控制面程序及新增helper已交叉编译arm64（/tmp/keel-ssh-arm64.log）；仅编译，不宣称arm64运行。042运行库迁移与正式发布结果随后记录。

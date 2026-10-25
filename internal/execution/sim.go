@@ -13,6 +13,9 @@ import (
 // maximum 60s run; cancellation waits for that operation's real completion.
 // Persisting a simulator receipt and applying it are separate fault boundaries.
 func (s *Service) RunClaim(ctx context.Context, c *Claim) error {
+	if c.Target.Mode == "ssh" {
+		return s.runSSHClaim(ctx, c)
+	}
 	if c.Target.Mode == "fabric" {
 		return s.runNetworkClaim(ctx, c)
 	}

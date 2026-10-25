@@ -1,5 +1,6 @@
 export const executionViewsTranslations = {
   zh: {
+    sshExecutionNotice: "受限 SSH 只读任务；请求仅使用已登记目标和固定主机密钥。断线或超时没有终态回执时保留结果未知，不代表真机验收通过。",
     executionViewTabs: "执行详情视图",
     executionViewTab_overview: "概览",
     executionViewTab_targets: "目标",
@@ -51,6 +52,7 @@ export const executionViewsTranslations = {
       "按当前状态版本 {{version}} 提交控制请求；冲突后刷新，不自动重试。",
   },
   en: {
+    sshExecutionNotice: "Bounded read-only SSH task using registered targets and pinned host keys. Disconnects without terminal receipts remain unknown. This is not hardware acceptance.",
     executionViewTabs: "Execution views",
     executionViewTab_overview: "Overview",
     executionViewTab_targets: "Targets",

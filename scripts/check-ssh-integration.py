@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+"""Run the SSH/Execution contract on an owned disposable PostgreSQL database.
+
+The Go test owns loopback SSH + HTTP listeners and private ephemeral keys. It
+seeds a software target identity; it does not bootstrap or contact real devices.
+"""
+import json
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+import urllib.parse
+import uuid
+import shutil
+
+os.umask(0o077)
+root = Path(__file__).resolve().parents[1]
+os.chdir(root)
+work = Path(tempfile.mkdtemp(prefix='keel-ssh-integration-'))
+container = 'keel-auth-test-postgres'
+database = 'keel_test_ssh_' + uuid.uuid4().hex[:12]
+created = False
+owner = None
+try:
+    record = json.loads(subprocess.check_output(['docker', 'inspect', container]))[0]
+    assert record['Config'].get('Labels', {}).get('io.keel.test-environment') == 'disposable', 'Disposable database label required'
+    config = dict(value.split('=', 1) for value in record['Config']['Env'] if '=' in value)
+    owner = config['POSTGRES_USER']
+    subprocess.run(['docker', 'exec', container, 'createdb', '-U', owner, database], check=True, capture_output=True)
+    created = True
+    env = {key: value for key, value in os.environ.items() if not key.startswith('KEEL_')}
+    env['KEEL_TEST_SSH_DATABASE_URL'] = 'postgresql://' + urllib.parse.quote(owner, safe='') + ':' + urllib.parse.quote(config['POSTGRES_PASSWORD'], safe='') + '@127.0.0.1:15433/' + database + '?sslmode=disable'
+    env['KEEL_TEST_SSH_STATIC_DIR'] = str(root / 'web/dist')
+    env['KEEL_TEST_SSH_BROWSER_SCRIPT'] = str(root / 'scripts/check-ssh-browser.mjs')
+    assert (root / 'web/dist/index.html').is_file(), 'Build the current frontend first'
+    with (work / 'go-integration.log').open('w') as log:
+        result = subprocess.run(['go', 'test', '-race', '-count=1', '-v', './internal/taskrunner'], env=env, stdout=log, stderr=subprocess.STDOUT)
+    if result.returncode == 0:
+        binaries = Path.home() / '.local/state/keel/evidence/ssh' / work.name
+        binaries.mkdir(mode=0o700, parents=True)
+        binary = binaries / 'keel-ssh-runner'
+        with (work / 'build-wrapper.log').open('w') as log:
+            subprocess.run(['go', 'build', '-trimpath', '-o', str(binary), './cmd/keel-ssh-runner'], env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
+        receipts = work / 'cli-receipts'
+        receipts.mkdir(mode=0o700)
+        cli_env = dict(env, KEEL_SSH_RECEIPT_DIRECTORY=str(receipts))
+        command = dict(api_version='keel.task/v1', project_id=uuid.uuid4().hex, machine_id=uuid.uuid4().hex, command_id=uuid.uuid4().hex, attempt_id=uuid.uuid4().hex, fencing_token=1, operation='host.identity', timeout_ms=5000, wait_ms=0)
+        def invoke(action):
+            process = subprocess.run([str(binary)], input=json.dumps(dict(action=action, command=command)), text=True, capture_output=True, env=cli_env, timeout=10, check=True)
+            return json.loads(process.stdout)
+        first, second, third = invoke('run'), invoke('query'), invoke('run')
+        assert first == second == third and first['state'] == 'success', 'Separate wrapper processes must reuse the exact persisted receipt'
+        (work / 'wrapper-process-proof.json').write_text(json.dumps(first, indent=2) + '\n')
+        shutil.rmtree(receipts)  # Only this invocation's explicitly owned fixture directory.
+    proof = {'source_revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(), 'tracked_changes': bool(subprocess.check_output(['git', 'diff', 'HEAD', '--name-only'])), 'scope': 'real PostgreSQL + loopback SSH/HTTP protocol; seeded software identity, not real device/trust bootstrap', 'exit_code': result.returncode}
+    (work / 'report.json').write_text(json.dumps(proof, indent=2) + '\n')
+    if result.returncode:
+        raise SystemExit('FAIL: inspect private evidence ' + str(work))
+    print('PASS actual PostgreSQL/SSH/HTTP contract; evidence ' + str(work))
+finally:
+    if created:
+        subprocess.run(['docker', 'exec', container, 'dropdb', '-U', owner, database], check=True, capture_output=True)
