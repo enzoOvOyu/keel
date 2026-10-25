@@ -637,3 +637,7 @@ keel-admin新增不依赖DB的media-signing-keygen和media-manifest-verify；私
 实际验证：/tmp/keel-manifest-integration-final.log、/tmp/keel-media-mps4sxn1，隔离真实PG/race（platform7.345s、mediamanifest1.177s）以及真实MinIO/API/浏览器退出0；测传递闭包、批准来源、固定新旧版本、损坏字节、依赖退役/失败无成功审计、Viewer/匿名/全局管理员/跨项目边界。离线CLI清除数据库环境，独立公钥、完整下载文件、错误公钥/篡改载荷/错字节均验证。临时服务/DB/私钥/凭据已清理，保留公钥和签名证据；对象传输Go层mock与实际MinIO结果分别留证。单元race、前端npm run check/build、Compose配置已通过，静态/设计检查与发布结果随后补记。用户原fabric_precheck.go与026草稿保持原样且不参与构建/提交。
 
 §52静态补记：全仓go test -race ./...退出0（/tmp/keel-manifest-go-all.log，无DB环境的集成项依规范skip，PG证据以前述隔离运行计）；受影响包go vet退出0；设计/64WP/引用检查通过。发布私钥已在仓库外以API UID65532、目录700/文件400安装，公钥独立保存在操作员700目录；当前主机uutils install拒绝不存在账号名的数字UID，因此用root受控Python数值chown完成同一权限设置，未输出密钥。3000切换及实际CI另记。
+
+**§52 发布完成**：功能代码 `b60eb1d82587297d81714f301b1cb08c1676750f` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:b2acda1f1f05eaacb616147210f11a8b17cd80e855a59dfdbe6b8913582b1c3e`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T02:47:33.120160+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
+
+无迁移，运行库仍37条迁移记录；保留兼容旧镜像 `keel:293e82cd1d9fde2c973788f7da256efdd041d35f`，不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T024533Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40155675776记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
