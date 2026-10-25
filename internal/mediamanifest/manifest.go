@@ -80,6 +80,9 @@ func (s *Signer) Sign(payload Payload) (*Envelope, error) {
 	if err != nil || len(data) > MaxBytes {
 		return nil, errors.New("manifest payload exceeds its encoding limit")
 	}
+	if err = validateManifestJSONKeys(data, "payload"); err != nil {
+		return nil, err
+	}
 	signature := ed25519.Sign(s.private, append([]byte(signingDomain), data...))
 	return &Envelope{Algorithm: "ed25519", Payload: payload, Signature: base64.StdEncoding.EncodeToString(signature)}, nil
 }
@@ -198,13 +201,27 @@ func identityError(id string) error {
 	return fmt.Errorf("artifact bytes do not match manifest identity %s", id)
 }
 
-// Reject ambiguous duplicate object keys before typed decoding. In particular,
-// every verifier must see the same object values before signature validation.
-func uniqueJSONKeys(raw []byte) error {
+// Exact schema field names avoid encoding/json's case-insensitive struct aliases.
+// Arbitrary compatibility metadata keys remain case-sensitive and signed as given.
+var manifestJSONFields = map[string]map[string]string{
+	"envelope":   {"algorithm": "", "payload": "payload", "signature": ""},
+	"payload":    {"schema": "", "key_id": "", "root_id": "", "exported_at": "", "artifacts": "artifact"},
+	"artifact":   {"media_id": "", "scope_key": "", "uri": "", "type": "", "name": "", "version": "", "arch": "", "sha256": "", "size": "", "object_version": "", "approved_by": "", "approved_at": "", "dependencies": "dependency", "compatibility": ""},
+	"dependency": {"media_id": "", "sha256": ""},
+}
+
+// Reject duplicate or aliased schema keys before typed decoding. Every verifier
+// must see the same object values before signature validation.
+func uniqueJSONKeys(raw []byte) error { return validateManifestJSONKeys(raw, "envelope") }
+
+func validateManifestJSONKeys(raw []byte, rootShape string) error {
+	if !utf8.Valid(raw) {
+		return errors.New("manifest JSON must be valid UTF-8")
+	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.UseNumber()
-	var value func(int) error
-	value = func(depth int) error {
+	var value func(int, string) error
+	value = func(depth int, shape string) error {
 		if depth > 64 {
 			return errors.New("manifest JSON nesting exceeds its limit")
 		}
@@ -231,14 +248,22 @@ func uniqueJSONKeys(raw []byte) error {
 				if seen[name] {
 					return errors.New("duplicate manifest JSON key")
 				}
+				childShape := ""
+				if fields, strict := manifestJSONFields[shape]; strict {
+					var allowed bool
+					childShape, allowed = fields[name]
+					if !allowed {
+						return errors.New("unknown or noncanonical manifest field name")
+					}
+				}
 				seen[name] = true
-				if err = value(depth + 1); err != nil {
+				if err = value(depth+1, childShape); err != nil {
 					return err
 				}
 			}
 		case '[':
 			for decoder.More() {
-				if err = value(depth + 1); err != nil {
+				if err = value(depth+1, shape); err != nil {
 					return err
 				}
 			}
@@ -248,7 +273,7 @@ func uniqueJSONKeys(raw []byte) error {
 		_, err = decoder.Token()
 		return err
 	}
-	if err := value(0); err != nil {
+	if err := value(0, rootShape); err != nil {
 		return err
 	}
 	if _, err := decoder.Token(); err != io.EOF {

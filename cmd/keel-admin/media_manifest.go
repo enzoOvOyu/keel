@@ -41,18 +41,9 @@ func runMediaManifest(command string, args []string) error {
 	if err != nil {
 		return err
 	}
-	file, err := os.OpenFile(*manifest, os.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0)
+	raw, err := readManifestFile(*manifest)
 	if err != nil {
-		return errors.New("cannot open manifest file")
-	}
-	defer file.Close()
-	info, err := file.Stat()
-	if err != nil || !info.Mode().IsRegular() {
-		return errors.New("manifest must be a regular file")
-	}
-	raw, err := io.ReadAll(io.LimitReader(file, mediamanifest.MaxBytes+1))
-	if err != nil {
-		return errors.New("cannot read manifest file")
+		return err
 	}
 	verified, err := mediamanifest.Verify(raw, key)
 	if err != nil {
@@ -64,4 +55,21 @@ func runMediaManifest(command string, args []string) error {
 		}
 	}
 	return json.NewEncoder(os.Stdout).Encode(map[string]any{"status": "ok", "operation": command, "key_id": verified.Payload.KeyID, "root_id": verified.Payload.RootID, "artifact_count": len(verified.Payload.Artifacts), "artifact_bytes_verified": *directory != "", "attestation": "platform approval metadata at export time; not vendor signing or live authorization"})
+}
+
+func readManifestFile(path string) ([]byte, error) {
+	file, err := os.OpenFile(path, os.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0)
+	if err != nil {
+		return nil, errors.New("cannot open manifest file")
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		return nil, errors.New("manifest must be a regular file")
+	}
+	raw, err := io.ReadAll(io.LimitReader(file, mediamanifest.MaxBytes+1))
+	if err != nil {
+		return nil, errors.New("cannot read manifest file")
+	}
+	return raw, nil
 }

@@ -57,3 +57,30 @@ Schema 为 `keel.media-manifest/v1`，外层 `algorithm=ed25519`、`payload`、`
 ## 验证
 
 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json GOMEMLIMIT=768MiB python3 scripts/check-media-artifacts-integration.py --manifest-only` 使用明确标记 disposable 的 PostgreSQL、独立 MinIO、真实会话/API和浏览器；overlay 仅为当前用户原有026草稿隔离。完整集成模式也包含签名检查。测试生成的私钥在 finally 清理，凭据不进入证据或 Git；保留公钥、签名清单及测试结果以便核验。Go 对象传输 mock、真实 MinIO 与浏览器结果分别留证，均不等同硬件或规模性能验收。
+
+## 离线制品归档
+
+可将已验签清单和完整制品文件集合封装到单个归档，转移到无数据库、无网络环境后再次验签和验文件：
+
+```sh
+mkdir -m 700 ./offline-delivery
+keel-admin media-bundle-create \
+  --manifest-file ./keel-media-ROOT_ID.manifest.json \
+  --public-key-file /trusted/manifest-public.pem \
+  --artifact-directory ./artifacts \
+  --output-file ./offline-delivery/approved-media.tar
+
+keel-admin media-bundle-verify \
+  --bundle-file ./offline-delivery/approved-media.tar \
+  --public-key-file /trusted/manifest-public.pem
+```
+
+输出目录必须由当前操作员拥有且不允许组/其他用户写入，最后一级目录不允许符号链接；推荐700目录。生成器先校验独立可信公钥与签名，再逐文件从普通文件读取、流式核对实际写入归档的大小/SHA256，拒绝最终符号链接/FIFO/目录。不采用“先校验再重新打开未校验文件复制”的路径。归档暂存在目标文件系统的600随机临时文件，全部通过且完成文件同步后以不覆盖的硬链接发布；已有文件、目录或符号链接均拒绝，失败清理本次临时文件。归档只收录签名闭包中的文件，不把目录里其他文件一并打包。
+
+当前格式为固定USTAR：第一个普通文件 `manifest.json` 原样保留已验签输入，后续按签名节点顺序保存 `<media_id>.bin`，所有条目600、uid/gid为0。验证器逐个检查物理512字节USTAR头，再解码头字段，拒绝自动隐藏的PAX/GNU扩展、路径越界、绝对路径、链接、目录、条目乱序/重复/缺失/额外、大小不符、非零填充、损坏尾块、拼接或附加数据。总归档长度必须等于签名完整文件集合及固定头/填充/两个尾块的准确总长；单文件≤1GiB、最多129节点，验证全程流式处理制品，不把完整归档读进内存。成功输出 `artifact_bytes_verified: true`；错公钥、改签名或改字节返回非零。
+
+两个命令不读取数据库/对象存储配置，不访问URL，不解包或执行任何归档内容，也不安装软件、建立apt/yum仓库或登记目标缓存归属。可信公钥须独立提供，归档内不能自带公钥建立信任。历史归档验签只证明导出时平台批准事实，不能据此绕过当前退役/权限/执行准入。当前平台签名与制品归档仍不等同厂商来源签名或完整离线包管理镜像源。
+
+验签JSON字段名按契约大小写精确匹配，拒绝Go解码器通常接受的大小写别名（含与正确字段共存的别名）、重复键、未知字段和无效UTF-8；兼容元数据中的任意业务键保留大小写含义。签名生成也执行相同重复键/深度约束，不能生成配套验证器会拒绝的模糊元数据。
+
+可选大文件验证：`python3 scripts/check-media-artifacts-integration.py --large-artifact-only` 在隔离数据库/MinIO/API中生成一个500,000,000字节可重复合成制品，流式绑定、独立审批、完整/Range下载、签名导出，再用实际下载文件封装/离线验包。预检磁盘和可用内存，数据暂存在私有磁盘目录，结束清理本次大文件并保留摘要/时长/API进程峰值RSS报告。该项默认不加入每次完整浏览器回归，避免重复产生大流量。它只证明单个合成制品的实际字节路径，不证明厂商来源、目标硬件、10k分发或缓存性能。

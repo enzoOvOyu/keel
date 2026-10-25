@@ -691,3 +691,19 @@ WP-1.10接续PRD登记外部引用，复用现有manifest_ref及§53固定绑定
 **§55 发布完成**：功能代码 `b20b7c4b92f37ade60aad27c59a063492456908d` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:f4c111f54c3278110b0e5f296e52367a027908efbc31ff0eab9e056845391bc1`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T03:34:54.697384+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
 
 无迁移，运行库38条迁移记录；保留旧镜像 `keel:cfa89b653a596299444ffd7de56693793a9d76ac`。保留兼容旧镜像。不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T033200Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40158562223记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
+
+## 56. A4 离线制品归档与验签解析一致性（2026-10-25）
+
+接续§52签名清单与已交付闭包，增加无数据库/网络的keel-admin media-bundle-create/media-bundle-verify。先验证独立信任签名，生成时逐文件计算实际写入归档的SHA/大小，600临时文件同步后不覆盖发布；已存在输出或损坏/缺失/链接/特殊文件失败不发布部分结果。输出目录要求当前操作员拥有、无组/其他写权限且最终目录非符号链接，避免不可信目录替换暂存路径。只封装已签名闭包，不引入后置Agent/PXE假设或用户目录中额外文件。
+
+固定USTAR中manifest.json原样在前，按签名排序的ID.bin紧随。校验直接检查每个物理USTAR头，不能让通用tar.Reader自动跳过PAX/GNU扩展；拒绝路径/类型/顺序/大小/字节/额外条目、非零填充、尾块缺失及拼接/附加数据。精确长度从签名集合推导，流式SHA不全量读制品进内存；命令不解包/执行/安装。独立公钥不能从归档自建信任，历史归档不冒充实时批准。单文件/节点数沿用1GiB/129限制，完整包管理仓库/厂商签名/目标缓存与分发验收仍待后续，P1/WP-1.10保持partial。
+
+补验签解析一致性：已存在DisallowUnknownFields会接受大小写别名，现对Envelope/Payload/Artifact/Dependency按契约精确字段名校验，拒绝别名/重复键/无效UTF-8，兼容元数据的任意业务键保持原有大小写含义；签名端复用相同JSON键/深度检查，避免生成验证端拒绝的模糊兼容元数据。不改变签名域、schema或可信密钥。
+
+§55实际CI补记：b20b7c4 run40158562223已查询completed/success，来源交接deb68b9 run40158190235同为success；矩阵发布交接332a6cd查询时仍进行中。3000现运行b20b7c4/schema38，来源摄取仍默认关闭，两份fabric草稿未暂存。
+
+§56实际验证：完整Go race ./...退出0（/tmp/keel-media-bundle-go-all.log，无DB项按规范skip）；定向真实PG/MinIO/API/浏览器/离线CLI退出0（/tmp/keel-media-bundle-final-integration.log、/tmp/keel-media-rjmmufqq，platform13.259s，manifest1.268s），真实下载的3节点闭包能封装/验包，已有输出不覆盖，错公钥、改字节和截断尾块拒绝，退役后仍仅为历史收据。最终目录保护修改另跑race单元/CLI编译并用上述保留真实清单/字节、仅PATH环境再次执行最终二进制封装和验证，final-bundle-cli-proof.json记录通过。当前umask0002下Go测试临时目录可组写，测试明确chmod700后满足保护约束，未放宽产品规则。
+
+验签解析模糊测试 `GOMAXPROCS=2 go test ./internal/mediamanifest -run '^$' -fuzz '^FuzzSignedManifestParser$' -fuzztime=120s -parallel=2` 实际121.038s、1,069,175次输入、通过（/tmp/keel-media-bundle-fuzz.log）；有效输入还须在正式类型编码下验签往返一致。单元涵盖空制品、原样清单、路径/链接/PAX/乱序/大小/内容/填充/尾块、FIFO与不可信输出目录，受影响vet及设计检查通过；本步无前端实现变化，沿用§55最终前端构建和13组共享回归。
+
+§56新增单个大制品实际证明：`--large-artifact-only` /tmp/keel-media-large-artifact.log、/tmp/keel-media-2ie40vim/large-artifact-report.json退出0；500,000,000字节SHA ff5935cae16508fe425be3f5ec80416b0951bfcefbfde1523ab2cbfb20b982b8，归档500,003,328字节。实际上传固定6.945s、校验2.493s、独立审批2.427s、完整下载4.691s、Range2.452s、签名导出2.328s、归档生成5.776s、离线验包1.645s。API进程VmHWM164,852KiB（不含MinIO/内核页缓存），观察值而非全系统上限/性能SLO。本次合成大文件结束删除，仅保留私有报告/清单；仅单制品真实PG/MinIO/HTTP/CLI，不冒充10k目标、厂商、缓存或真机验收。无迁移，发布结果另记。

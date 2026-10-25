@@ -52,9 +52,26 @@ try {
  offline(manifestPath, artifactDirectory)
  await writeFile(artifactDirectory + '/' + leaf.id + '.bin', 'tampered'); offline(manifestPath, artifactDirectory, publicKey, 1)
  await writeFile(artifactDirectory + '/' + leaf.id + '.bin', contents.get(leaf.id)); offline(manifestPath, artifactDirectory)
+ // Package the real platform receipt and actual downloaded fixed bytes for offline transport.
+ const bundlePath = work + '/approved-media.tar'
+ function bundle(command, args, expected = 0) {
+  const result = spawnSync(binary, [command, '--public-key-file', publicKey, ...args], { encoding: 'utf8', env: { PATH: process.env.PATH } })
+  assert.equal(result.status, expected, result.stderr)
+  if (expected === 0) { const output = JSON.parse(result.stdout); assert.equal(output.artifact_bytes_verified, true); assert.equal(output.root_id, root.id); return output }
+ }
+ bundle('media-bundle-create', ['--manifest-file', manifestPath, '--artifact-directory', artifactDirectory, '--output-file', bundlePath])
+ assert.equal((await stat(bundlePath)).mode & 0o777, 0o600)
+ const originalBundle = await readFile(bundlePath)
+ bundle('media-bundle-verify', ['--bundle-file', bundlePath])
+ bundle('media-bundle-create', ['--manifest-file', manifestPath, '--artifact-directory', artifactDirectory, '--output-file', bundlePath], 1)
+ assert.deepEqual(await readFile(bundlePath), originalBundle)
+ const corruptBundle = Buffer.from(originalBundle), offset = corruptBundle.indexOf(contents.get(leaf.id)); assert(offset > 0); corruptBundle[offset] ^= 1
+ await writeFile(work + '/corrupt-media.tar', corruptBundle, { mode: 0o600 }); bundle('media-bundle-verify', ['--bundle-file', work + '/corrupt-media.tar'], 1)
+ await writeFile(work + '/truncated-media.tar', originalBundle.subarray(0, originalBundle.length - 512), { mode: 0o600 }); bundle('media-bundle-verify', ['--bundle-file', work + '/truncated-media.tar'], 1)
  const wrongPrivate = work + '/wrong-private.pem', wrongPublic = work + '/wrong-public.pem'
  assert.equal(spawnSync(binary, ['media-signing-keygen', '--private-key-file', wrongPrivate, '--public-key-file', wrongPublic], { env: { PATH: process.env.PATH } }).status, 0)
  offline(manifestPath, undefined, wrongPublic, 1)
+ const untrustedBundle = spawnSync(binary, ['media-bundle-verify', '--bundle-file', bundlePath, '--public-key-file', wrongPublic], { encoding: 'utf8', env: { PATH: process.env.PATH } }); assert.equal(untrustedBundle.status, 1)
  const altered = structuredClone(manifest); altered.payload.artifacts[0].version = 'forged'
  await writeFile(work + '/tampered-manifest.json', JSON.stringify(altered), { mode: 0o600 }); offline(work + '/tampered-manifest.json', undefined, publicKey, 1)
  assert.equal((await anonymous.request.get('/api/v1' + endpoint)).status(), 401)
@@ -87,11 +104,13 @@ try {
  await call('POST', globalBase + '/' + leaf.id + '/transition', { state: 'retired' }, 200, reviewer, reviewToken)
  const blocked = await call('GET', endpoint, undefined, 422); assert.equal(blocked.code, 'MEDIA_DEPENDENCY_UNAVAILABLE')
  offline(manifestPath, artifactDirectory)
+ bundle('media-bundle-verify', ['--bundle-file', bundlePath])
  await page.goto(`/p/${project.id}/media`, { waitUntil: 'networkidle' }); await page.getByRole('row').filter({ hasText: root.name }).getByRole('button', { name: '导出签名清单', exact: true }).click(); await page.locator('.action-dialog button[type=submit]').click()
  await page.getByText('固定依赖校验失败：请检查依赖是否仍已批准、有文件、摘要一致且架构兼容。', { exact: true }).waitFor()
  await page.screenshot({ path: work + '/manifest-retired-dependency.png', fullPage: true })
  assert.deepEqual(errors, [])
  console.log('PASS signed project/global manifests, transitive pinned approvals and real MinIO byte downloads; Viewer/inherited-global scope, anonymous/admin/cross-project boundaries')
  console.log('PASS offline CLI without database environment, independent public trust, metadata and full-byte validation, wrong key/payload/bytes rejection, historical receipt after retirement')
+ console.log('PASS actual signed platform/MinIO bytes packaged to owner-only atomic offline archive and verified without database/network environment; no overwrite, wrong trust, corruption and truncated markers rejected; historical archive remains a receipt after retirement')
  console.log('PASS shared browser review and CSP-compatible JSON downloads; retired dependency blocks fresh export without rewriting prior receipt')
 } finally { await browser.close() }
