@@ -2,12 +2,12 @@
 
 更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～70。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
-## 当前恢复入口（2026-10-25 08:35 UTC）
+## 当前恢复入口（2026-10-25 08:44 UTC）
 
 - 唯一工作区`/opt/keel`，分支`dev/p1-network-bom`。3000运行`d20899486e1220ec016f1fbfc1e0c058471fd514`，镜像`sha256:1b3821ff8745921497bcd2b932ec8f2fab2b63fc75b0b0b82cfca18d559d94a6`，健康及八页真实登录/公钥列表/受限角色API复验通过。046已应用，运行库43条迁移；旧schema42镜像不可直接回切，备份恢复另走批准流程。
 - A3/WP-1.5新增独立批准的受控非root公钥安装，强制helper条目追加保持客户内容，新域钥全新SSH握手查询原回执才写真实互信。unknown保持资源隔离、恢复不重装；安装前或证明后撤销均阻断信任。实际PG/SSH/双人浏览器与全量检查通过，详见§64。
 - 生产worker、真实SSH、主密钥提供者、外部介质获取仍关闭；签名只读挂载保持。无生产域钥生成或真机操作，两份原fabric草稿未跟踪且未构建。
-- 用户两小时开发仍在继续。WP-1.14 OIDC/LDAP已提交发布（§65/66），生产仍关闭；SSH安装后的普通任务域钥绑定已提交发布（§67），资产页普通只读SSH启动入口已提交发布（§68），后续只读repair域钥绑定安全回归及测试顺序修复已完成（§69）；H-1旧执行包的认证/指纹/缺证据假成功路径已改为离线证据校验（§70）；root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、Agent与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
+- 本轮两小时开发的功能与修正均已提交推送，最终有效CI通过。WP-1.14 OIDC/LDAP已提交发布（§65/66），生产仍关闭；SSH安装后的普通任务域钥绑定已提交发布（§67），资产页普通只读SSH启动入口已提交发布（§68），后续只读repair域钥绑定安全回归及测试顺序修复已完成（§69）；H-1旧执行包的认证/指纹/缺证据假成功路径已改为离线证据校验（§70）；root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、Agent与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
 
 ## 1. 工作区与运行版本（早期快照，当前见上方）
 
@@ -925,3 +925,17 @@ SSH目标可显式选择vault提供者，仍保留原文件兼容；精确版本
 新poc/h1提供模板和标准库校验器，逐级openat/O_NOFOLLOW拒绝路径越界/目录链接/特殊文件、单件4MiB限制、严格JSON属性和文件SHA256。poc/selfcheck.sh仅跑明确合成fixture，不证明平台/PXE就绪；run-h1.sh缺参数exit2，缺证据exit1，完整一致只输出READY_FOR_REVIEW，hardware_acceptance始终UNVERIFIED。更新环境/采集/人工审查清单及WP-1.9追踪，不自动更新ACCEPTANCE。历史p1-selfcheck.json保留但明确不作当前证据。
 
 `sh poc/selfcheck.sh`八组测试通过，证据 `/tmp/keel-h1-selfcheck-final.log`；覆盖完整合成包只请求审查、缺引导/自动互信/机器/摘要、sim/跨项目/分页/自批、回执/主机名/指纹/fence/时序、遍历/父子symlink/FIFO/超大文件/重复JSON、版本不符、CLI脱敏失败及空模板。空模板实际 `/tmp/keel-h1-unfilled-template.log`BLOCKED/exit1；sh语法、py_compile、设计/diff通过；同一标准库用例纳入make check/CI。无运行代码/迁移改变，3000仍d208994/schema43，无生产任务/硬件操作。完整WP-1.7自动装机注册未具备，H-1/相关WP/P1仍partial。提交/CI随后按确切SHA补记。
+
+
+§70版本与资产身份增量：992b79e进一步拒绝缺稳定资产ID、缺版本或布尔版本；`/tmp/keel-h1-identities-selfcheck.log`八组自检退出0。c241edb及992b79e已推送，未改3000运行镜像。
+
+CI诊断包装复核：ab36da7加入tee时未显式pipefail，可能掩盖make check退出码，该包装缺陷不能用于宣称检查通过。99f9625已显式set -euo pipefail；受控失败子命令退出17通过tee后仍退出17，证据 `/tmp/keel-ci-pipefail-proof.txt`。修正前CI不作为最终通过门禁；最终以修正后确切SHA结果另记。原2a67c0c失败与本地完整复现保留，相关测试顺序已由9bee8a2修正。
+
+
+下一实施单元按IMPLEMENTATION-PLAN A3/WP-1.5及ARCHITECTURE §6推进Agent注册基础：短期一次性enrollment token绑定既有项目/机器，先验证重放/错项目拒绝，再签发mTLS、注册和心跳；后续任务仍复用Execution/TaskAttempt/租约/fencing/持久回执。开发时使用隔离软件设备与明确运维预配，不假定尚未交付的PXE/cloud-init或完整旧钥删除已存在；不跳过注册身份边界，也不另建执行队列。SSH root首登/完整轮换与WP-1.7依然列为独立未完成项，不借H-1包修正提前签署。
+
+
+最终本地全量检查：99f9625当前代码下 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json GOMEMLIMIT=768MiB make check` 已退出0，证据 `/tmp/keel-twohour-final-make-check.log`，含八组H-1校验器测试、Go vet/race、正式契约、共享UI、类型及前端生产构建，现有bundle体积提示保留。此前完整实际PG/SSH/HTTP/所有浏览器回归以§69最终57.350s记录为准；无新运行逻辑变化，不额外重复生产发布。最终GitHub门禁仍待99f9625/run40177456628完成，不以未显式pipefail的中间CI成功代替。
+
+
+最终GitHub门禁：功能/测试/执行包及显式pipefail均在`99f9625bb2d22eb6e6b99f8e863f4ed3e01f4db5`下，run40177456628已实际核验completed/success，覆盖全量检查、真实认证/浏览器、域钥SSH启动、OIDC/LDAP以及Compose容器构建/启动/健康。确切版本证据 `/tmp/keel-twohour-final-ci-proof.json`。3000继续运行已验证发布功能d208994，后续提交仅测试/执行包/CI/交接，无新运行逻辑或数据库迁移；不为文档重建镜像。原草稿保持未跟踪，真实SSH/worker/组织认证/外部介质获取仍关闭，P1/FR-0及相关缺口保持partial。
