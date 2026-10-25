@@ -143,3 +143,10 @@ BOM 的 NIC 槽位支持槽号或 PCIe 位置两种引用，因此每个版本�
 资产列表正式返回model_id、model_version_id和绑定版本号，资产记录version单独保留。`GET /api/v1/projects/{id}/assets/{assetId}/model`按资产主键及项目同时定位，只读返回完整不可变版本和槽位；退役历史仍可读，库内新版本只提示可见的新版本号，不替换绑定。查询不读取Machine当前型号投影，不回退latest。
 
 项目成员可从资产页“查看绑定型号”读取固定布局、规格和版本摘要；全局共享型号通过项目授权边界读取，项目私有型号不得跨scope泄露。缺失绑定、不匹配的型号/版本、异项目资产或无权项目均不可读取；列表对不合法scope不暴露型号详情并显示未绑定已发布型号。弹窗只读，按用户/项目/资产/版本隔离缓存，项目切换销毁原资产弹窗状态。完整型号JSON是独立期望，不是G1或真实链路结果；没有新增绑定修改、门禁或迁移流程。
+
+
+## 从历史版本修订
+
+有管理权限且属于当前可写scope的active型号，在版本历史可选择“基于 vN 修订”。载入所选版本的hw_spec、expected_topology、capability_matrix、panel_layout、bom_expect、default_role_plan和完整槽位（含unused）；不会改用latest内容，不把版本ID当成source_draft_id。弹窗明确来源版本与打开时观察到的最新版本，编辑核对后才发布。新版本沿用现有expected_version并发保护与幂等请求，旧版本/内容摘要/设备绑定不变。
+
+Viewer、项目内全局共享型号与退役型号无此入口；扫描草稿发布仍独立带真实source_draft_id。不是设备重绑定、角色覆盖或门禁迁移入口。无新API或迁移。

@@ -2,14 +2,14 @@
 """Isolated real PostgreSQL/API/browser model publication verification."""
 import argparse,json,os,secrets,socket,subprocess,tempfile,time,urllib.parse,urllib.request,uuid
 from pathlib import Path
-parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--global-models-only',action='store_true',help='Run only the global-model browser check in a fresh isolated API database');parser.add_argument('--publication-only',action='store_true',help='Run only the complete-publication browser check in a fresh isolated API database');parser.add_argument('--asset-models-only',action='store_true',help='Run only the pinned asset model browser check');args=parser.parse_args();assert sum([args.global_models_only,args.publication_only,args.asset_models_only])<=1, 'Choose one focused browser check'
+parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--global-models-only',action='store_true',help='Run only the global-model browser check in a fresh isolated API database');parser.add_argument('--publication-only',action='store_true',help='Run only the complete-publication browser check in a fresh isolated API database');parser.add_argument('--asset-models-only',action='store_true',help='Run only the pinned asset model browser check');parser.add_argument('--revision-only',action='store_true',help='Run only historical version revision browser checks');parser.add_argument('--browser-only',action='store_true',help='Reuse current Go evidence and run all HTTP/browser checks in a fresh API database');args=parser.parse_args();assert sum([args.global_models_only,args.publication_only,args.asset_models_only,args.revision_only])<=1, 'Choose one focused browser check'
 os.umask(0o077);root=Path(__file__).resolve().parents[1];os.chdir(root)
 probe=socket.socket();probe.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);probe.bind(('127.0.0.1',3102));probe.close()
 record=json.loads(subprocess.check_output(['docker','inspect','keel-auth-test-postgres']))[0]
 assert record['Config']['Labels'].get('io.keel.test-environment')=='disposable'
 config=dict(v.split('=',1) for v in record['Config']['Env'] if '=' in v);owner,password=config['POSTGRES_USER'],config['POSTGRES_PASSWORD']
 database='keel_test_models_'+uuid.uuid4().hex[:12];unit_database=database+'_unit';work=Path(tempfile.mkdtemp(prefix='keel-models-'));api=None
-databases=[database] if (args.publication_only or args.global_models_only or args.asset_models_only) else [database,unit_database]
+databases=[database] if (args.publication_only or args.global_models_only or args.asset_models_only or args.revision_only or args.browser_only) else [database,unit_database]
 print('Model evidence directory: '+str(work),flush=True)
 def checked(command,env=None):
  result=subprocess.run(command,env=env,text=True,capture_output=True)
@@ -22,7 +22,7 @@ try:
  dsn='postgresql://'+urllib.parse.quote(owner,safe='')+':'+urllib.parse.quote(password,safe='')+'@127.0.0.1:15433/'
  env=os.environ.copy();env.update(KEEL_DATABASE_URL=dsn+database+'?sslmode=disable',KEEL_TEST_DATABASE_URL=dsn+unit_database+'?sslmode=disable',KEEL_ENV='development',KEEL_INSECURE_DEV_COOKIE='true',KEEL_PUBLIC_ORIGINS='http://127.0.0.1:3102',KEEL_LISTEN_ADDR='127.0.0.1:3102',KEEL_STATIC_DIR=str(root/'web/dist'))
  for target in ['api','admin']:checked(['go','build','-o',str(work/('keel-'+target)),'./cmd/keel-'+target],env)
- if not (args.publication_only or args.global_models_only or args.asset_models_only):
+ if not (args.publication_only or args.global_models_only or args.asset_models_only or args.revision_only or args.browser_only):
   output=checked(['go','test','-race','./internal/platform','-run','TestBOMResolvedComponentMACs|TestBOMComponentSummary|TestAssetModelBinding|TestModelPanelLayout|TestModelSlotIdentifiers|TestModelGlobalScope|TestModelPayloadCanonicalHash|TestModelPublicationPreservesAndSeals|TestServerModelHardware|TestModelNICCount|TestModelMACPrefix|TestModelGPU|TestServerGPU|TestBOMPackage|TestLegacyBOMAtomic|TestSwitchModel','-count=1'],env);(work/'go-integration.log').write_text(output);print(output,flush=True)
  checked([str(work/'keel-admin'),'migrate'],env)
  pw=secrets.token_urlsafe(28);secret=work/'password';secret.write_text(pw)
@@ -36,10 +36,11 @@ try:
  credentials=work/'credentials.json';credentials.write_text(json.dumps(dict(base_url='http://127.0.0.1:3102',username='modeladmin',password=pw)))
  env.update(KEEL_AUTH_BROWSER_CREDENTIALS_FILE=str(credentials),KEEL_WORKSPACE_EVIDENCE_DIR=str(work))
  checks=[(['python3','scripts/check-model-integration.py'],'model-http'),(['python3','scripts/check-model-import.py'],'import-http'),(['node','scripts/check-model-import-browser.mjs'],'import-browser'),(['node','scripts/check-model-publication-browser.mjs'],'publication-browser')]
+ checks.append((['node','scripts/check-model-revision-browser.mjs'],'revision-browser'))
  checks.append((['node','scripts/check-asset-model-browser.mjs'],'asset-models-browser'))
  checks.append((['node','scripts/check-compute-tray-browser.mjs'],'compute-tray-browser'))
  checks.append((['node','scripts/check-global-models-browser.mjs'],'global-models-browser'))
- focus='global-models-browser' if args.global_models_only else 'publication-browser' if args.publication_only else 'asset-models-browser' if args.asset_models_only else None
+ focus='global-models-browser' if args.global_models_only else 'publication-browser' if args.publication_only else 'asset-models-browser' if args.asset_models_only else 'revision-browser' if args.revision_only else None
  for command,name in checks:
   if focus and name!=focus:continue
   output=checked(command,env);(work/(name+'.log')).write_text(output);print(output,flush=True)
