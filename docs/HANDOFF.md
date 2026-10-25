@@ -1,16 +1,14 @@
 # 当前开发状态
 
-更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～60。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～62。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
-## 当前恢复入口（2026-10-25 05:32 UTC）
+## 当前恢复入口（2026-10-25 06:31 UTC）
 
-- 唯一工作区 `/opt/keel`，分支 `dev/p1-network-bom`。3000运行功能提交 `b946f3446091123d3edcb0a86b73d588ba9e1d48`，镜像 `sha256:df9575d5cc8d681ed9785a9f874a796f970c4c6d81c561d0246d9cfcc8c8dfb6`，健康检查、真实登录八页冒烟与应用角色接口检查通过；随后文档提交不改变服务功能SHA。运行库39条迁移记录，042已应用；schema38旧镜像不能直接回切，须修复前进，备份恢复另走批准流程。
-- A4/WP-1.10、1.11最近交付签名清单、离线制品归档、读取重试/隔离证据、受控获取、矩阵导入审核及候选筛选，见§52～59。本次A3/WP-1.4→1.5已交付受限TaskCommand/服务器SSH最小只读执行闭环，复用Execution/outbox/租约/fencing及对账；只支持host.identity/host.wait，正式API启动、现有执行详情查看与控制，见§60。相关WP、P1及FR-0仍为partial。
-- 最终实际PG+loopback SSH+HTTP+浏览器、独立helper持久回执、make check、Kea/网络共享执行器回归均通过；功能提交GitHub Actions run40165569843 completed/success。042从生产备份恢复到隔离库演练通过，业务行数保持，再应用运行库；不将协议fixture当作真机引导或硬件验收。
-- 签名私钥仍在仓库外只读挂载，可信公钥独立保管；来源获取批准origin为空。生产SSH配置与worker保持关闭；3000接口实测匿名401、缺CSRF403、授权调用503 SSH_DISABLED，没有创建业务记录。两份原fabric草稿保持未跟踪，未纳入提交或镜像。
-- 后续按A3/WP-1.5及其WP-1.6前置继续：先复核凭据引用、受限bootstrap/repair与主机信任生命周期的最小契约，再开发同一执行器上的受控操作；现有mock互信不能当作真实首连证明。脚本任务、Agent gRPC/mTLS、目标缓存/分发、PXE及真机PoC均未交付，不反向假定这些依赖已完成；目标缓存按WP-1.10/ADR-07在通道能力满足后接入。不因单项未闭环强行实现后续阶段。
-
-- **续开发记录**：§61保留用户要求累计10分钟暂停时的工作区快照；用户随后继续，当前验证/交付进展见§62。发布完成前3000仍为上述b946f34/schema39。
+- 唯一工作区 `/opt/keel`，分支 `dev/p1-network-bom`。3000运行功能提交 `efaf0ac43af1d46dab46af3d1f698c15e7069848`，镜像 `sha256:0309f4c12b5e1fd4127387d2b3fc67bd7a6699e31b73e8bc053829ff6dac3299`，健康检查、真实登录八页冒烟、新信任验证资产页及应用角色API复验通过；后续文档提交不改变功能SHA。043已应用，运行库40条迁移记录；schema39旧镜像不能直接回切，保留数据修复前进，备份恢复另走批准流程。
+- A3/WP-1.4→1.5现有host.identity/host.wait最小SSH执行闭环之上，已交付单目标限时验证请求、独立审批、一次性凭据版本消费、只读trust.verify与真实回执原子投影。legacy/sim互信不能用于普通SSH；资产页区分来源并提供创建/批准/执行/撤销及原Execution证据链接。§61为用户要求暂停时的快照，继续后的交付/证据在§62。A4近期介质能力见§52～59；各WP、P1和FR-0仍partial。
+- 完整make check、真实PG/SSH/HTTP/双账号浏览器、域并发撤权与原Kea/网络共享内核回归均通过；隔离恢复演练保持业务行数、原状态/指纹，原记录来源标legacy而不提升为真实信任；生产新表仅授权SELECT/INSERT/UPDATE，保留审计限制。功能GitHub Actions run40169168724已completed/success，含完整检查、arm64编译、认证浏览器和容器启动；不把协议fixture冒充硬件验收。
+- 生产worker、真实SSH配置及外部介质来源仍关闭，签名私钥只读挂载不变。3000信任列表/资产来源/新UI与匿名401、缺CSRF403、授权调用503 SSH_DISABLED已实测，未创建业务记录。两份原fabric草稿仍未跟踪，未纳入提交/镜像。
+- 下一步沿WP-1.5及WP-1.6凭据前置补受控公钥安装/提供者、真实broken信任处置与轮换，不另建执行队列。本次仅验证已经安装的公钥/helper，尚无真实root首登、安装公钥、目标密钥撤销或Vault销毁；完整bootstrap/repair/Agent、目标缓存/分发、PXE与真机PoC均未闭环。到期或绑定轮换后的unknown继续隔离，恢复治理单独实施；后续消费方不能假定这些能力已存在。
 
 ## 1. 工作区与运行版本（早期快照，当前见上方）
 
@@ -808,3 +806,9 @@ TaskCommand版本keel.task/v1；SSH只发送常量helper入口与受限stdin JSO
 浏览器两真实账号验证禁止自批/独立批准、错误host pin真实409、中英、实际success/failed/unknown及证据链接；列表403为明确前端故障注入，撤销注入后从真实API刷新恢复，不冒称实际后台撤权。实际后台审批人/第三执行者撤权由独立PG事务测试证明，域并发race4.206s `/tmp/keel-ssh-trust-domain-review-pg.log`，含审批等待行锁时角色撤销与approve/revoke仅一次提交。原Kea/网络共享内核及真实配置页回归 `/tmp/keel-trust-network-regression.log`、`/tmp/keel-shell-_qk31uab`退出0，自有临时数据库/API/MinIO/凭据均已清理。
 
 043尚未应用运行库，发布先做schema39→40备份/隔离恢复及新表应用角色SELECT/INSERT/UPDATE授权，不授予证据DELETE，保留审计/迁移限制。worker和真实SSH仍默认关闭。此交付仅验证已由运维安装的平台公钥/helper；无公钥注入、root首登、目标密钥撤销、Vault销毁或Agent。legacy/sim established可独立批准补真验证，revoked不自动恢复；真实SSH信任变更/完整repair/轮换及到期换凭据查询旧unknown的恢复治理仍待开发。WP-1.4/1.5、FR-1、P1及FR-0均保持partial。功能提交、CI、镜像、迁移与3000结果随后按实际记录。
+
+**§62 发布完成**：功能代码 `efaf0ac43af1d46dab46af3d1f698c15e7069848` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:0309f4c12b5e1fd4127387d2b3fc67bd7a6699e31b73e8bc053829ff6dac3299`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T06:31:19.467291+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
+
+043信任请求/来源迁移已应用，schema39→40备份/隔离恢复、既有身份保持与新表受限授权已验证；运行库40条迁移记录；保留旧镜像 `keel:b946f3446091123d3edcb0a86b73d588ba9e1d48`。旧镜像不兼容新增迁移，不可直接回切；须修复前进，备份恢复另走批准流程。不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T062805Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40169168724已completed/success；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
+
+§62生产复验：`/tmp/keel-trust-candidate-app-role.log`、`/tmp/keel-trust-3000-app-role.log`均退出0；候选/3000使用受限应用角色查询新信任表和资产来源，新资产页显示正确，无浏览器错误；信任创建接口匿名401/CSRF403/配置缺失503，无业务记录创建。迁移演练与应用证据在私有发布目录 migration-rehearsal.json / migration-applied.json，包含新表受限授权与既有审计限制；生产SSH与worker未开启。
