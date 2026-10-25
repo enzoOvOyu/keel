@@ -1,13 +1,14 @@
 # 当前开发状态
 
-更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～59。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～60。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
-## 当前恢复入口（2026-10-25 04:17 UTC）
+## 当前恢复入口（2026-10-25 05:32 UTC）
 
-- 唯一工作区 `/opt/keel`，分支 `dev/p1-network-bom`。3000运行功能提交 `76ef23b0955ba6d98a4fbe3c2ccc776ad8248bdc`，镜像 `sha256:63f571d85fece7561a4e9a239b407cdd4ef35c2746e1f44e8af6589db336cdad`，健康检查与真实登录冒烟通过；随后文档提交不改变服务功能SHA。运行库38条迁移记录，041已应用，不能直接回滚到只认识37条迁移的旧镜像。
-- 本次两小时继续A4/WP-1.10、1.11，已交付平台签名清单、离线精确制品归档、有限读取重试/持久隔离及证据查看、受控来源获取、矩阵JSON导入审核、作用域筛选与分页前候选过滤。实际证据见§52～58；P1、FR-0和相关WP仍为partial。
-- 签名私钥在仓库外只读挂载，可信公钥独立保管；来源获取运行配置保持关闭，需操作员提供批准origin后才启用；生产worker保持关闭。未运行真机安装/厂商签名或大规模目标分发。两份原fabric草稿仍未跟踪，未纳入镜像。
-- 后续顺序：先按实施计划A3/WP-1.4→1.5复核并补齐服务器TaskCommand/SSH Runner与凭据、主机密钥、回执/取消/unknown契约，复用既有Execution/outbox/租约，不另起执行队列。当前 `internal/execution/worker.go`只认sim/kea/fabric，`internal/platform/ssh_trust.go`仍明确是mock互信动作；已有网络HTTP适配器不能算完整服务器SSH通道。以隔离SSH协议环境证明软件链，真机PoC另记。目标缓存/传输消费该通道后再按WP-1.10和ADR-07接入，不能反过来假定Agent/PXE已完成；包管理镜像源、清理保留制度及其验收仍分别待开发，不必为任一单项强行补齐后续阶段。
+- 唯一工作区 `/opt/keel`，分支 `dev/p1-network-bom`。3000运行功能提交 `b946f3446091123d3edcb0a86b73d588ba9e1d48`，镜像 `sha256:df9575d5cc8d681ed9785a9f874a796f970c4c6d81c561d0246d9cfcc8c8dfb6`，健康检查、真实登录八页冒烟与应用角色接口检查通过；随后文档提交不改变服务功能SHA。运行库39条迁移记录，042已应用；schema38旧镜像不能直接回切，须修复前进，备份恢复另走批准流程。
+- A4/WP-1.10、1.11最近交付签名清单、离线制品归档、读取重试/隔离证据、受控获取、矩阵导入审核及候选筛选，见§52～59。本次A3/WP-1.4→1.5已交付受限TaskCommand/服务器SSH最小只读执行闭环，复用Execution/outbox/租约/fencing及对账；只支持host.identity/host.wait，正式API启动、现有执行详情查看与控制，见§60。相关WP、P1及FR-0仍为partial。
+- 最终实际PG+loopback SSH+HTTP+浏览器、独立helper持久回执、make check、Kea/网络共享执行器回归均通过；功能提交GitHub Actions run40165569843 completed/success。042从生产备份恢复到隔离库演练通过，业务行数保持，再应用运行库；不将协议fixture当作真机引导或硬件验收。
+- 签名私钥仍在仓库外只读挂载，可信公钥独立保管；来源获取批准origin为空。生产SSH配置与worker保持关闭；3000接口实测匿名401、缺CSRF403、授权调用503 SSH_DISABLED，没有创建业务记录。两份原fabric草稿保持未跟踪，未纳入提交或镜像。
+- 后续按A3/WP-1.5及其WP-1.6前置继续：先复核凭据引用、受限bootstrap/repair与主机信任生命周期的最小契约，再开发同一执行器上的受控操作；现有mock互信不能当作真实首连证明。脚本任务、Agent gRPC/mTLS、目标缓存/分发、PXE及真机PoC均未交付，不反向假定这些依赖已完成；目标缓存按WP-1.10/ADR-07在通道能力满足后接入。不因单项未闭环强行实现后续阶段。
 
 ## 1. 工作区与运行版本（早期快照，当前见上方）
 
@@ -773,3 +774,9 @@ TaskCommand版本keel.task/v1；SSH只发送常量helper入口与受限stdin JSO
 全仓Go race（无数据库项按规范skip，/tmp/keel-ssh-all-go.log）、受影响vet、前端正式契约生成/类型/UI版本lint与构建（/tmp/keel-ssh-frontend-build.log，保留现有bundle提示）、Compose配置、设计检查通过。042尚未迁移运行库，3000此时仍76ef23b/schema38；发布需先备份/恢复演练，保留原两草稿未暂存。
 
 §60最终验证补记：/tmp/keel-ssh-admission-final.log、/tmp/keel-ssh-integration-u2qrh1mg退出0，含最终协议版本/连接池并行与握手取消、严格指纹和机器ID验证后的真实PG+SSH+HTTP+浏览器、独立helper进程证明。完整overlay make check退出0（/tmp/keel-ssh-final-check.log），设计首次发现需求追踪中的裸SSH-RUNNER.md路径，改为docs/SSH-RUNNER.md后检查通过；未为此重跑设备/容量测试。四个原控制面程序及新增helper已交叉编译arm64（/tmp/keel-ssh-arm64.log）；仅编译，不宣称arm64运行。042运行库迁移与正式发布结果随后记录。
+
+**§60 发布完成**：功能代码 `b946f3446091123d3edcb0a86b73d588ba9e1d48` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:df9575d5cc8d681ed9785a9f874a796f970c4c6d81c561d0246d9cfcc8c8dfb6`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T05:32:28.714899+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
+
+042约束迁移已应用，schema38→39备份/隔离恢复与既有授权已验证；运行库39条迁移记录；保留旧镜像 `keel:76ef23b0955ba6d98a4fbe3c2ccc776ad8248bdc`。旧镜像不兼容新增迁移，不可直接回切；须修复前进，备份恢复另走批准流程。不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T052751Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40165569843已 completed/success；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
+
+§60发布后补证：现有Kea/网络协议、审批撤销、共享执行器unknown/隔离租约及真实浏览器回归退出0，日志 `/tmp/keel-ssh-existing-network-regression.log`，证据 `/tmp/keel-shell-kky9z_3u`；临时数据库、API及测试凭据已清理。3108及3000应用角色接口检查均通过，包括SSH匿名401/CSRF403/默认禁用503、既有介质查询与隔离证据权限，未创建业务记录，日志 `/tmp/keel-ssh-candidate-app-role.log`、`/tmp/keel-ssh-3000-app-role.log`。042备份格式检查、隔离恢复、迁移及业务行数保持证据在本次私有发布目录 migration-rehearsal.json；生产应用与既有应用角色授权检查见 migration-applied.json。功能CI完整成功，生产worker未启动、SSH配置仍为空。
