@@ -32,6 +32,15 @@ jobs:
       - run: npm ci
       - run: docker exec '${{ job.services.postgres.id }}' createdb -U keel_test keel_test_execution
       - run: make check
+      - name: Compile Linux arm64 control-plane binaries
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: arm64
+        run: |
+          keel_arm64_build_dir="$(mktemp -d /tmp/keel-arm64-build.XXXXXXXX)"
+          trap 'rm -rf "$keel_arm64_build_dir"' EXIT
+          go build -trimpath -o "$keel_arm64_build_dir/" ./cmd/keel-api ./cmd/keel-admin ./cmd/keel-worker ./cmd/keel-sim
       - name: PostgreSQL authentication, authorization, and browser integration
         env:
           KEEL_ADMIN_BINARY: /tmp/keel-ci-admin

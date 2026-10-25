@@ -749,3 +749,11 @@ WP-1.10接续PRD登记外部引用，复用现有manifest_ref及§53固定绑定
 无迁移，运行库38条迁移记录；保留旧镜像 `keel:6a534b019e18f1badc47e4b9eaef2a110308897d`。保留兼容旧镜像。不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T041048Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40160935174记录时 completed/success，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
 
 §58运行账号复核：候选3108与已发布3000均使用真实会话及受限应用数据库账号检查；隔离证据路由匿名401、认证后不存在记录404、121空白原始搜索400，批准/已存储/未隔离/架构及全局目录查询200全部通过。证据为本次发布目录下media-read-probe-3108.json和media-read-probe-3000.json，未向运行库制造隔离业务记录；隔离阳性证明仍为前述一次性真实PG/MinIO环境。查询GitHub确认§57功能6a534b0/run40160202413、交接e9b65e9/run40160433457、§58功能76ef23b/run40160935174均completed/success。候选容器及临时配置已清理。
+
+## 59. 架构编译检查与本轮恢复边界（2026-10-25）
+
+按ARCHITECTURE §2的linux/amd64和linux/arm64覆盖要求复查发布链：现有CI仅在宿主amd64上make check/构建，不能推断arm64已构建。新增独立CI步骤，以CGO_ENABLED=0、GOOS=linux、GOARCH=arm64编译api/admin/worker/sim四个控制面程序；临时输出目录由mktemp独立创建并在步骤退出时清理，环境不传播至后续amd64 API/Compose检查。不引入新依赖或改变业务代码/数据库/运行镜像。
+
+本地实际执行同一四程序go build，使用既有overlay排除两份原草稿，退出0；逐个检查ELF64/e_machine=183，全部为AArch64。构建日志/tmp/keel-media-arm64-build.log、私有产物与SHA256证明/home/ubuntu/.local/state/keel/evidence/arm64-20261025/build-proof.json。CI YAML解析、提取步骤bash -n及diff检查通过。这是arm64交叉编译证明，不是arm64运行、Agent双架构、多架构容器发布或真机验收；本次不为CI/文档变更重建3000。CI实际执行结论后补。
+
+发布后私有配置证明在§58发布目录post-release-config-check.json：API healthy/镜像SHA一致、.env600、签名目录只读且私钥配置正确、来源allowlist空、worker未运行、候选已删除均通过。下一次恢复首先读本文件顶部入口，再按A3/WP-1.4→1.5现有内核接通服务器SSH契约，不把当前介质归档当作已完成目标缓存/安装。P1/FR-0维持partial。
