@@ -25,3 +25,7 @@ v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud
 代码包含模板安全、真实数据库/BOM/介质审批/公钥生命周期及无执行副作用用例；按用户要求，留待 P1 集中运行。当前仅有 Go 编译和生成后 TypeScript 静态检查，不声称新增场景通过。
 
 下一步按可用依赖补齐：共享 Execution 下的冻结装机请求/重装权限与资源占用 → 显式受控网络范围中的 ProxyDHCP/iPXE/HTTP 引导和实际硬件预检 → 同请求/SN/MAC/项目的一次性回调（DHCP 指纹仅辅助）→ 新主机密钥绑定及 SSH 首连/修复队列 → 七阶段页面与200台并行装机验收。网络域的Kea配置不得被服务器ProxyDHCP覆盖或无边界争用。安装脚本必须来自批准介质，不以预览代替下一环。
+
+## 集中浏览器验证准备
+
+`python3 scripts/check-media-artifacts-integration.py --provision-only` 已接入实际隔离 PostgreSQL/MinIO/API 和真实 owner CLI 的装机准备场景：项目/全局上传固定引导角色、实际存储核对、BOM/型号/公钥预览、撤销拒绝和无装机副作用；仅使用测试生成的小字节 fixture，不是真实可启动镜像。新增浏览器场景尚未运行。配置查询失权/失败时页面清除旧预览并禁用提交，OS 核对弹窗不显示已失败请求的缓存字节证据。

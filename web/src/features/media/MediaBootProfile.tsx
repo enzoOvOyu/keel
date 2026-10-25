@@ -51,6 +51,6 @@ export function MediaBootPlanDialog({ projectId, item, onClose }: { projectId: s
   <p className="impact-notice">{t('mediaBootResolveHint')}</p>
   {query.isPending && <p role="status">{t('loadingRecords')}</p>}
   <ActionError error={query.error} />
-  {query.data?.artifacts.map(artifact => <div className="field" key={artifact.role}><Label>{t('mediaBootRole_' + artifact.role)}</Label><strong>{artifact.name} · {artifact.version} · {artifact.arch}</strong><span className="cell-subtitle mono-value ui:break-all">{artifact.media_id} · {artifact.sha256}</span><span className="cell-subtitle">{artifact.size} B · {artifact.scope_key}</span></div>)}
+  {!query.error && query.data?.artifacts.map(artifact => <div className="field" key={artifact.role}><Label>{t('mediaBootRole_' + artifact.role)}</Label><strong>{artifact.name} · {artifact.version} · {artifact.arch}</strong><span className="cell-subtitle mono-value ui:break-all">{artifact.media_id} · {artifact.sha256}</span><span className="cell-subtitle">{artifact.size} B · {artifact.scope_key}</span></div>)}
  </ActionDialog>
 }

@@ -55,7 +55,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/media/{mediaId}/boot-profile": {
+    "/api/v1/admin/media/{mediaId}/boot-profile": {
         parameters: {
             query?: never;
             header?: never;
