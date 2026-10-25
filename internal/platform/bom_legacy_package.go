@@ -99,7 +99,7 @@ func analyzeLegacyBOMTx(ctx context.Context, tx *sql.Tx, project *ProjectSummary
 			pkg.Rows["server/server_ports.csv"] = append(pkg.Rows["server/server_ports.csv"], BOMPackageRow{File: "legacy/wide.csv", Line: line, Values: v})
 		}
 	}
-	hardwareIssues, hardwareErr := validateServerModelHardware(ctx, tx, project.ID, pkg)
+	hardwareIssues, hardwareErr := validateServerModelHardware(ctx, tx, project.ID, pkg, nil)
 	if hardwareErr != nil {
 		return nil, nil, nil, hardwareErr
 	}

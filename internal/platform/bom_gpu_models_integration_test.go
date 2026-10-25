@@ -96,6 +96,43 @@ func testBOMPackageGPUInventory(t *testing.T, rootKind string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// SN 20 belongs to line 1, while reference 20 must resolve to the other
+	// server on line 20. Hardware grouping must follow the writer's precedence.
+	collisionFiles := func() map[string][]byte {
+		files := makeFiles("1", ids["gpu"], "fixture-gpu", 1)
+		files["server/servers.csv"] = bytes.ReplaceAll(files["server/servers.csv"], []byte("1,SN-1,"), []byte("1,20,"))
+		files["server/server_components.csv"] = bytes.ReplaceAll(files["server/server_components.csv"], []byte("2,SN-1,"), []byte("2,1,"))
+		files["server/servers.csv"] = append(files["server/servers.csv"], []byte(fmt.Sprintf("20,SN-SECOND,srv-second,%s,R01,2,B300,design_bom\n", newer.ID))...)
+		files["server/server_components.csv"] = append(files["server/server_components.csv"], []byte(fmt.Sprintf("21,20,nic,CX8,1,NIC-SECOND,%s,aa:bb:cc:dd:ee:02\n22,20,gpu,fixture-gpu,1,GPU-SECOND-1,%s,\n24,20,gpu,fixture-gpu,2,GPU-SECOND-2,%s,\n", ids["nic"], ids["gpu"], ids["gpu"]))...)
+		files["server/server_ports.csv"] = append(files["server/server_ports.csv"], []byte("23,NIC-SECOND,1,compute,aa:bb:cc:dd:ee:02,0\n")...)
+		var manifest BOMPackageManifest
+		json.Unmarshal(files["manifest.json"], &manifest)
+		manifest.RowCount += 5
+		files["manifest.json"], _ = json.Marshal(manifest)
+		rehashBOMFixture(t, files)
+		return files
+	}
+	if checked, e := s.PreviewBOMPackage(ctx, actor, project, collisionFiles()); e != nil || !checked.CanCommit {
+		t.Fatalf("numeric SN/line identity confused %s: %+v %v", rootKind, checked, e)
+	}
+	badIdentity := collisionFiles()
+	badIdentity["server/server_components.csv"] = bytes.ReplaceAll(badIdentity["server/server_components.csv"], []byte("GPU-SECOND-1,"+ids["gpu"]), []byte("GPU-SECOND-1,"+ids["other-gpu"]))
+	rehashBOMFixture(t, badIdentity)
+	checked, identityErr := s.PreviewBOMPackage(ctx, actor, project, badIdentity)
+	identityFound := false
+	if checked != nil {
+		for _, issue := range checked.Issues {
+			if issue.Code == "model_gpu_type_mismatch" && issue.ModelVersionRef == newer.ID && issue.BOMLineNo == 22 {
+				identityFound = true
+			}
+		}
+	}
+	if identityErr != nil || !identityFound || checked.CanCommit || checked.PreviewToken != "" {
+		t.Fatalf("wrong resolved hardware owner: %+v %v", checked, identityErr)
+	}
+	if _, e := s.CommitBOMPackage(ctx, actor, project, badIdentity, bomPreviewToken(actor, project.ID, badIdentity), "test"); e == nil {
+		t.Fatal("wrong resolved owner bypassed commit")
+	}
 	// A compute tray is still a physical machine, never a rack aggregate.
 	for _, kind := range []string{"rack", "switch"} {
 		wrong, e := s.CreateDeviceModel(ctx, actor, project, CreateDeviceModelInput{Name: "Invalid-root-" + kind, Kind: kind}, "test")
@@ -199,13 +236,17 @@ func testBOMPackageGPUInventory(t *testing.T, rootKind string) {
 		t.Fatalf("blocked GPU writes: %d %v", writes, err)
 	}
 	// Positive commit persists the real component and exact server version.
-	files := makeFiles(machine, ids["gpu"], "untrusted-label", 1)
+	files := collisionFiles()
 	preview, err := s.PreviewBOMPackage(ctx, actor, project, files)
 	if err != nil || !preview.CanCommit {
 		t.Fatalf("valid GPU preview: %+v %v", preview, err)
 	}
 	if _, err = s.CommitBOMPackage(ctx, actor, project, files, preview.PreviewToken, "test"); err != nil {
 		t.Fatal(err)
+	}
+	var secondVersion string
+	if err = s.DB.QueryRowContext(ctx, `SELECT a.model_version_id FROM project_assets a JOIN components c ON c.machine_id=a.machine_id WHERE a.project_id=$1 AND c.serial_number='GPU-SECOND-1'`, project.ID).Scan(&secondVersion); err != nil || secondVersion != newer.ID {
+		t.Fatalf("second GPU assigned to wrong machine: %s %v", secondVersion, err)
 	}
 	var actual, version string
 	if err = s.DB.QueryRowContext(ctx, `SELECT a.model_version_id,i.model_version_id FROM project_assets a JOIN components c ON c.machine_id=a.machine_id JOIN bom_items i ON i.item_uid=c.id WHERE a.project_id=$1 AND c.serial_number='GPU-1'`, project.ID).Scan(&version, &actual); err != nil || version != ids["server"] || actual != ids["gpu"] {

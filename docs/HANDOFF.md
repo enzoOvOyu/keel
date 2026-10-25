@@ -499,3 +499,10 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 **§42 发布完成**：功能代码 `ceeaaa8d9f4ef66b4e39d66e71b11e482066790d` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:a528a4e7f107e775e7304a4dd665e93186d3561692f7038dae526769a0c36254`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T00:33:31.076818+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
 
 无迁移，运行库仍37条迁移记录；保留兼容旧镜像 `keel:768965ff3c13af11c9c819c017ea80ec0280e148`，不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T003019Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40146941962记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
+
+
+## 43. B / WP-1.15 × WP-1.12：BOM硬件校验采用写入归属（2026-10-25）
+
+持续开发第二块，沿用 `/opt/keel`、`dev/p1-network-bom`。按PRD附录A的item_uid > 包内bom_line_no > 业务码优先级，修复GPU/NIC校验另行聚合SN/行号/UID而与物料写入归属不同的问题。标准包先完成结构/引用检查和物料解析，再按解析后的machineUID对比固定型号GPU/NIC期望；复用已生成的物料列表，减少重复查机器。原MAC前缀规则已使用同一解析结果。宽表只校验独立声明的库存期望，不能由MAC模拟库存，保留原CSV源行及BLOCK。无新接口/迁移。
+
+真实PG/race回归23.272s通过，证据 `/tmp/keel-models-pv7hp9js`，命令为既有overlay下完整check-model-workspace-integration.py。新增server/compute-tray两种夹具：第一台SN=20/行1，第二台行20且固定GPU数2；NIC与GPU按包行引用各归其主，合法预检及实际提交成功，落库明确两台GPU对应各自版本。第二台GPU型号造假仍在行22、第二台绑定版本下BLOCK，伪造令牌提交拒绝、失败无包落库。原型号/扫描/完整发布/布局/托盘/全局HTTP和浏览器回归全部通过。单测与vet退出0，日志 `/tmp/keel-identity-unit.log`、`/tmp/keel-identity-vet.log`；前端和契约没有改变，复用§42已通过的构建。Go继续overlay排除原fabric_precheck/026草稿，原样未暂存，不冒充真实硬件证据。FR-14/WP-1.12/WP-1.15/P1仍partial，发布结果后补。

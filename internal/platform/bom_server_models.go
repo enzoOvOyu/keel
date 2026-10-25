@@ -10,12 +10,18 @@ import (
 
 // Server hardware is checked against the exact published version in this
 // package, never the latest version or a component's user supplied sub_type.
-func validateServerModelHardware(ctx context.Context, tx *sql.Tx, projectID string, pkg *BOMPackage) ([]BOMPackageIssue, error) {
+func validateServerModelHardware(ctx context.Context, tx *sql.Tx, projectID string, pkg *BOMPackage, materials []*bomMaterial) ([]BOMPackageIssue, error) {
 	issues := []BOMPackageIssue{}
+	// Use the writer's resolved identity and reference precedence, not a second
+	// SN/line/UID guess. In particular, numeric serials may match another line.
 	components := map[string][]BOMPackageRow{}
-	for _, row := range pkg.Rows["server/server_components.csv"] {
-		if row.Values["category"] == "nic" || row.Values["category"] == "gpu" {
-			components[row.Values["parent_sn"]] = append(components[row.Values["parent_sn"]], row)
+	machines := map[int]string{}
+	for _, material := range materials {
+		if material.category == "server" {
+			machines[material.row.Line] = material.machineUID
+		}
+		if material.category == "nic" || material.category == "gpu" {
+			components[material.machineUID] = append(components[material.machineUID], material.row)
 		}
 	}
 	type expectation struct {
@@ -59,19 +65,7 @@ func validateServerModelHardware(ctx context.Context, tx *sql.Tx, projectID stri
 		if !fact.found {
 			continue
 		} // Existing model validation reports inadmissible references.
-		hardware := append([]BOMPackageRow{}, components[server.Values["sn"]]...)
-		if line := strconv.Itoa(server.Line); line != server.Values["sn"] {
-			hardware = append(hardware, components[line]...)
-		}
-		// The existing resolver also accepts an already registered machine UID.
-		var uid string
-		err := tx.QueryRowContext(ctx, `SELECT id FROM machines WHERE serial_number=$1`, server.Values["sn"]).Scan(&uid)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return nil, err
-		}
-		if uid != "" && uid != server.Values["sn"] && uid != strconv.Itoa(server.Line) {
-			hardware = append(hardware, components[uid]...)
-		}
+		hardware := components[machines[server.Line]]
 		nics, gpus := []BOMPackageRow{}, []BOMPackageRow{}
 		for _, component := range hardware {
 			if component.Values["category"] == "nic" {
@@ -86,7 +80,7 @@ func validateServerModelHardware(ctx context.Context, tx *sql.Tx, projectID stri
 				continue
 			}
 			var name string
-			err = tx.QueryRowContext(ctx, `SELECT m.name FROM device_model_versions v JOIN device_models m ON m.id=v.model_id WHERE v.id=$1 AND m.kind=$3 AND (m.scope_key='global' OR m.scope_key=$2)`, modelRef, "project:"+projectID, component.Values["category"]).Scan(&name)
+			err := tx.QueryRowContext(ctx, `SELECT m.name FROM device_model_versions v JOIN device_models m ON m.id=v.model_id WHERE v.id=$1 AND m.kind=$3 AND (m.scope_key='global' OR m.scope_key=$2)`, modelRef, "project:"+projectID, component.Values["category"]).Scan(&name)
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return nil, err
 			}
