@@ -15,8 +15,16 @@ services:
       KEEL_MEDIA_ACCESS_KEY: ${KEEL_MEDIA_ACCESS_KEY:-}
       KEEL_MEDIA_SECRET_KEY: ${KEEL_MEDIA_SECRET_KEY:-}
       KEEL_MEDIA_BUCKET: ${KEEL_MEDIA_BUCKET:-media}
+      KEEL_MEDIA_SIGNING_KEY_FILE: ${KEEL_MEDIA_SIGNING_KEY_FILE:-}
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-3000}:3000"
+    volumes:
+      - type: bind
+        source: ${KEEL_MEDIA_SIGNING_DIRECTORY:-./infra/media-signing-disabled}
+        target: /run/keel/media-signing
+        read_only: true
+        bind:
+          create_host_path: false
     read_only: true
     tmpfs:
       - /tmp

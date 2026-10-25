@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"sort"
 )
 
 // A dependency pins an immutable registry identity and digest. Display metadata
@@ -41,9 +42,9 @@ func mediaArtifactDependencies(raw json.RawMessage) ([]MediaArtifactDependency, 
 
 func mediaDependencyRecord(ctx context.Context, tx *sql.Tx, id string) (MediaItemSummary, error) {
 	var out MediaItemSummary
-	err := tx.QueryRowContext(ctx, `SELECT id,scope_key,type,name,version,sha256,size,arch,deps,state,
+	err := tx.QueryRowContext(ctx, `SELECT id,scope_key,type,name,version,sha256,size,arch,deps,state,coalesce(approved_by,''),updated_at,
  EXISTS(SELECT 1 FROM media_artifacts a WHERE a.media_id=m.id)
- FROM media_items m WHERE id=$1 FOR SHARE`, id).Scan(&out.ID, &out.ScopeKey, &out.Type, &out.Name, &out.Version, &out.Sha256, &out.Size, &out.Arch, &out.Deps, &out.State, &out.ArtifactStored)
+ FROM media_items m WHERE id=$1 FOR SHARE`, id).Scan(&out.ID, &out.ScopeKey, &out.Type, &out.Name, &out.Version, &out.Sha256, &out.Size, &out.Arch, &out.Deps, &out.State, &out.ApprovedBy, &out.UpdatedAt, &out.ArtifactStored)
 	if errors.Is(err, sql.ErrNoRows) {
 		return out, apiError(422, "MEDIA_DEPENDENCY_UNAVAILABLE", "A pinned media dependency is unavailable")
 	}
@@ -53,7 +54,7 @@ func mediaDependencyRecord(ctx context.Context, tx *sql.Tx, id string) (MediaIte
 // The legitimate registry is a DAG: immutable metadata can only point to
 // already registered, approved identities. Bounds/cycle checks also reject
 // malformed historical data without recursively trusting it.
-func validateMediaDependencyTree(ctx context.Context, tx *sql.Tx, root *MediaItemSummary, reader *Store) error {
+func mediaDependencyClosure(ctx context.Context, tx *sql.Tx, root *MediaItemSummary, reader *Store) ([]MediaItemSummary, error) {
 	records := map[string]MediaItemSummary{root.ID: *root}
 	visiting := map[string]bool{}
 	complete := map[string]bool{}
@@ -121,7 +122,19 @@ func validateMediaDependencyTree(ctx context.Context, tx *sql.Tx, root *MediaIte
 		complete[parent.ID] = true
 		return nil
 	}
-	return visit(root, 0)
+	if err := visit(root, 0); err != nil {
+		return nil, err
+	}
+	out := make([]MediaItemSummary, 0, len(records))
+	for _, record := range records {
+		out = append(out, record)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
+}
+func validateMediaDependencyTree(ctx context.Context, tx *sql.Tx, root *MediaItemSummary, reader *Store) error {
+	_, err := mediaDependencyClosure(ctx, tx, root, reader)
+	return err
 }
 
 func checkPinnedMediaDependencies(ctx context.Context, tx *sql.Tx, id string, reader *Store) error {

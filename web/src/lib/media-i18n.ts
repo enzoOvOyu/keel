@@ -1,5 +1,11 @@
 export const mediaTranslations = {
   zh: {
+    mediaManifestExport: "导出签名清单",
+    mediaManifestExportDetail: "重新核对批准状态及全部依赖的实际文件，导出含固定版本、架构、摘要与审批记录的平台签名清单。",
+    mediaManifestDownload: "验证并下载清单",
+    mediaManifestTrust: "请使用单独分发的可信公钥离线校验。平台签名证明导出时的批准元数据，不代表厂商来源签名，也不替代当前执行准入。",
+    mediaSigningUnavailable: "平台签名尚未配置，无法生成可信清单。请联系管理员配置签名密钥。",
+    mediaManifestDownloaded: "平台签名清单已下载；离线使用前请校验可信公钥、签名和制品文件。",
     mediaArtifactDependencies: "固定版本制品依赖",
     mediaArtifactDependenciesHint: "从已批准且已存文件的介质中选择，按当前CPU架构筛选。登记固定身份与摘要；最多32个直接依赖。",
     mediaSelectDependency: "选择并添加依赖",
@@ -75,6 +81,12 @@ export const mediaTranslations = {
     mediaExists: "同类型、名称与版本的介质已存在。",
   },
   en: {
+    mediaManifestExport: "Export signed manifest",
+    mediaManifestExportDetail: "Recheck current approval and every pinned artifact, then export platform-signed versions, architectures, digests and approval records.",
+    mediaManifestDownload: "Verify and download manifest",
+    mediaManifestTrust: "Verify offline with an independently provisioned trusted public key. A platform signature attests to approval metadata at export, not vendor authenticity or current execution authorization.",
+    mediaSigningUnavailable: "Platform signing is not configured. Ask an administrator to provision a signing key.",
+    mediaManifestDownloaded: "Platform-signed manifest downloaded. Verify the trusted key, signature and artifact bytes before offline use.",
     mediaArtifactDependencies: "Pinned artifact dependencies",
     mediaArtifactDependenciesHint: "Choose approved, stored artifacts compatible with this CPU architecture. Identities and digests are pinned; up to 32 direct dependencies.",
     mediaSelectDependency: "Choose a dependency to add",

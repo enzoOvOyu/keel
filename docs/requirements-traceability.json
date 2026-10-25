@@ -1433,7 +1433,7 @@
         "F-1.8"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Current A4 media capability: scoped unique immutable registrations; actual private versioned MinIO artifacts with server-computed SHA256/size; independent approval and one-way retirement; authorized verified Range downloads with audits; global management and inherited project reads; stale lifecycle confirmations rejected. Compatibility matrices coexist with pinned media-ID/SHA artifact dependencies, canonical metadata and bounded transitive DAG validation. Scope, approval, stored bytes, architecture, cycles/depth and current pinned-object integrity are checked through verification, approval, download and execution admission. Concurrent retirement cannot pass the enclosing admission lock. Actual project/global Flow creation freezes dependency identities; retirement blocks new execution without partial rows or rewriting history. Formal platform/execution schemas and generated types agree. See HANDOFF sections49-50 and MEDIA-ARTIFACTS for evidence and the deployed feature release. Source signatures, signed offline repository manifests, package mirror sources, target cache/distribution, finite retry/quarantine and scale/hardware acceptance remain incomplete; WP and P1 stay partial.",
+      "implementation_notes": "Current A4 media capability: scoped unique immutable registrations; actual private versioned MinIO artifacts with server-computed SHA256/size; independent approval and one-way retirement; authorized verified Range downloads with audits; global management and inherited project reads; stale lifecycle confirmations rejected. Compatibility matrices coexist with pinned media-ID/SHA artifact dependencies, canonical metadata and bounded transitive DAG validation. Scope, approval, stored bytes, architecture, cycles/depth and current pinned-object integrity are checked through verification, approval, download and execution admission. Concurrent retirement cannot pass the enclosing admission lock. Actual project/global Flow creation freezes dependency identities; retirement blocks new execution without partial rows or rewriting history. Formal platform/execution schemas and generated types agree. See HANDOFF sections49-50 and MEDIA-ARTIFACTS for evidence and the deployed feature release. Platform-signed approved artifact manifests and an independent-trust offline signature/full-byte CLI are implemented and verified; complete offline apt/yum repositories remain separate. See HANDOFF section52 and MEDIA-MANIFESTS. Vendor source signatures, package mirror sources, target cache/distribution, finite retry/quarantine and scale/hardware acceptance remain incomplete; WP and P1 stay partial.",
       "evidence_refs": [
         "scripts/check-media-integration.py",
         "internal/platform/media.go",
@@ -1445,7 +1445,12 @@
         "internal/platform/media_dependencies.go",
         "internal/platform/media_dependencies_integration_test.go",
         "scripts/check-media-dependencies-browser.mjs",
-        "internal/httpapi/catalog_contract_test.go"
+        "internal/httpapi/catalog_contract_test.go",
+        "internal/mediamanifest/manifest.go",
+        "internal/platform/media_manifest.go",
+        "internal/platform/media_manifest_integration_test.go",
+        "scripts/check-media-manifest-browser.mjs",
+        "docs/MEDIA-MANIFESTS.md"
       ]
     },
     {

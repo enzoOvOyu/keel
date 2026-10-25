@@ -168,3 +168,5 @@ origin 使用服务器已配置的仓库身份。GitHub 操作前检查认证，
 API inline上传上限1 GiB，使用600权限临时文件和5分钟请求期限；tmpfs/磁盘容量及代理body/超时需按部署资源设置。下载先校验整个固定版本，再提供Range，不据此承诺分发吞吐。实际能力与未完成项见 [MEDIA-ARTIFACTS](MEDIA-ARTIFACTS.md)。
 
 独立软件集成：`GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json python3 scripts/check-media-artifacts-integration.py`；该overlay仅用于当前既有026草稿的隔离，正式干净代码不需要。脚本使用带disposable标签的测试PostgreSQL及新建的临时MinIO，不连接运行库/桶，完成后清理自己的服务、数据库与凭据。未验证发布镜像、规模或真机不能记PASS。
+
+平台签名清单是可选的独立密钥配置：`KEEL_MEDIA_SIGNING_DIRECTORY` 只读挂载宿主私有目录，`KEEL_MEDIA_SIGNING_KEY_FILE` 指向容器内PKCS8 Ed25519私钥。默认关闭，不影响已批准制品现有读取；已配置的非法私钥导致API启动失败。私钥须由API实际用户拥有且仅属主可读，公钥独立可信分发；配置、轮换、离线命令及平台签名边界见 [MEDIA-MANIFESTS](MEDIA-MANIFESTS.md)。本功能无新迁移。

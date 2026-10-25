@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"github.com/enzoOvOyu/keel/ent"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
+	"github.com/enzoOvOyu/keel/internal/mediamanifest"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"io"
 	"time"
@@ -23,12 +24,13 @@ type MediaObjectStore interface {
 }
 
 type Store struct {
-	MediaObjects  MediaObjectStore
-	FabricProbes  *fabricboot.ProbeSuite
-	DB            *sql.DB
-	Ent           *ent.Client
-	passwordSlots chan struct{}
-	dummyHash     string
+	MediaObjects        MediaObjectStore
+	MediaManifestSigner *mediamanifest.Signer
+	FabricProbes        *fabricboot.ProbeSuite
+	DB                  *sql.DB
+	Ent                 *ent.Client
+	passwordSlots       chan struct{}
+	dummyHash           string
 }
 
 func Open(ctx context.Context, dsn string) (*Store, error) {

@@ -625,3 +625,15 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 对照本轮实际产物修正requirements-traceability的陈旧实施描述：WP-1.2已具有持久化2,000逻辑目标和资源/故障证据，WP-1.9已交付软件扇出部分及既有H-1材料，因此从planned改为partial；SSH/Agent/PXE/互信中断、所需上游联合证据与真机未具备，不改为完成，不提前签署P1。WP-1.4区分空载130.464s/构建负载164.857s与10ms模拟口径；WP-1.10移除“实际文件仍计划中/未部署”的失效描述，保留签名、离线仓库、镜像源、目标缓存与隔离分发缺口；WP-1.11同步已验证关联行、固定制品准入及共享契约检查，完整治理/其他消费者继续partial。日期更新至2026-10-25，checkpoint明确P1/A3+A4，FR-0与阶段状态不因局部产物改变。
 
 证据引用须为文件，首次目录引用被check-design拒绝，已指向实际executions.go；最后设计/依赖/64WP/引用映射检查退出0（/tmp/keel-current-checkpoint-design.log）。§50新增httpapi vet、Python语法与浏览器脚本语法检查退出0；02a98f9已正常推送，3000仍293e82c健康。只文档进度变更，不重复构建/发布相同运行行为。
+
+## 52. A4 平台签名介质清单与独立信任离线验签（2026-10-25）
+
+继续在/opt/keel、dev/p1-network-bom推进WP-1.10，前提复用§49已交付的批准文件及固定依赖闭包，未补造后置Agent/PXE依赖。本步增加Ed25519平台元数据证明：项目成员含Viewer可导出本项目/继承全局，平台全局入口仅管理员；签名前再次校验根与全体传递节点当前批准、作用域/架构/ID/SHA、固定对象版本真实字节，生命周期锁持有至提交，成功才审计media.manifest.export。清单包含批准人/时间、版本/架构/摘要/固定对象版本与依赖/兼容元数据，不包含对象key、凭据或私钥。新版本不升级既有引用，退役阻止新导出但不使历史收据冒充当前准入。
+
+keel-admin新增不依赖DB的media-signing-keygen和media-manifest-verify；私钥PKCS8、公钥PKIX、O_EXCL/600生成，加载要求当前API属主/owner-only/普通文件，拒绝最终符号链接；默认未配置时签名503，错误配置启动失败。独立可信公钥必须另外分发，不能信任清单自带指纹；离线命令分别明确metadata-only与完整<media_id>.bin长度/SHA验证，无网络/状态改写。严格schema、域分隔、重复JSON键/超深嵌套/有界闭包/错误签名与缺失文件失败关闭。Compose只读挂载仓库外私钥目录，默认空目录关闭功能；无新迁移。
+
+共享介质页新增带目标/摘要/依赖/信任边界的审核导出对话框，实际Blob下载在现有CSP下通过，Viewer只读导出及中英文均通过。OpenAPI先行并更新生成类型，未加原生控件例外。详见MEDIA-MANIFESTS/DEPLOYMENT，平台批准证明不等同厂商签名、apt/yum离线镜像源、目标缓存或硬件分发，WP-1.10/FR-1/P1仍partial。
+
+实际验证：/tmp/keel-manifest-integration-final.log、/tmp/keel-media-mps4sxn1，隔离真实PG/race（platform7.345s、mediamanifest1.177s）以及真实MinIO/API/浏览器退出0；测传递闭包、批准来源、固定新旧版本、损坏字节、依赖退役/失败无成功审计、Viewer/匿名/全局管理员/跨项目边界。离线CLI清除数据库环境，独立公钥、完整下载文件、错误公钥/篡改载荷/错字节均验证。临时服务/DB/私钥/凭据已清理，保留公钥和签名证据；对象传输Go层mock与实际MinIO结果分别留证。单元race、前端npm run check/build、Compose配置已通过，静态/设计检查与发布结果随后补记。用户原fabric_precheck.go与026草稿保持原样且不参与构建/提交。
+
+§52静态补记：全仓go test -race ./...退出0（/tmp/keel-manifest-go-all.log，无DB环境的集成项依规范skip，PG证据以前述隔离运行计）；受影响包go vet退出0；设计/64WP/引用检查通过。发布私钥已在仓库外以API UID65532、目录700/文件400安装，公钥独立保存在操作员700目录；当前主机uutils install拒绝不存在账号名的数字UID，因此用root受控Python数值chown完成同一权限设置，未输出密钥。3000切换及实际CI另记。

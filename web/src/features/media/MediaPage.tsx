@@ -1,3 +1,4 @@
+import { MediaManifestDialog } from './MediaManifestDialog';
 import { MediaDependencyPicker, MediaDependencySummary, type MediaDependencyChoice } from './MediaDependencyPicker';
 import { Workspace } from "../../components/Workspace";
 import { Button } from "@/components/ui/button";
@@ -384,6 +385,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
   const { t, i18n } = useTranslation(),
     session = useSession(),
     client = useQueryClient();
+  const [manifestExport, setManifestExport] = useState<MediaItemSummary | null>(null);
   const [upload, setUpload] = useState(false),
     [attach, setAttach] = useState<MediaItemSummary | null>(null);
   const [page, setPage] = useState(1),
@@ -454,6 +456,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
         )}
       </div>
       {success && <SuccessNotice>{success}</SuccessNotice>}
+      {manifestExport && <MediaManifestDialog projectId={projectId} item={manifestExport} onClose={() => setManifestExport(null)} onDone={() => { setManifestExport(null); setSuccess(t("mediaManifestDownloaded")); }} />}
       <section className="management-panel" aria-busy={media.isFetching}>
         <ActionError error={media.error} />
         {media.isPending ? (
@@ -546,9 +549,9 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
                               )}
                             {item.state === "approved" &&
                               item.artifact_stored && (
-                                <a href={mediaDownloadURL(projectId, item.id)}>
+                                <><a href={mediaDownloadURL(projectId, item.id)}>
                                   {t("mediaDownload")}
-                                </a>
+                                </a><Button variant="ghost" size="sm" onClick={() => setManifestExport(item)}>{t("mediaManifestExport")}</Button></>
                               )}
                           </div>
                         </td>

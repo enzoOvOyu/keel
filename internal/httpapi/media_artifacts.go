@@ -51,6 +51,23 @@ func mediaDeadline(c *gin.Context) context.CancelFunc {
 	return cancel
 }
 func (a *authAPI) registerMediaArtifacts(r *gin.Engine, base string, global bool) {
+	r.GET(base+"/:mediaId/manifest", func(c *gin.Context) {
+		actor, project, ok := a.mediaScope(c, false, global)
+		if !ok {
+			return
+		}
+		cancel := mediaDeadline(c)
+		defer cancel()
+		manifest, err := a.store.ExportMediaManifest(c.Request.Context(), actor, project, c.Param("mediaId"), c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.Header("Cache-Control", "private, no-store")
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": "keel-media-" + manifest.Payload.RootID + ".manifest.json"}))
+		c.JSON(200, manifest)
+	})
 	r.POST(base+"/upload", func(c *gin.Context) {
 		actor, project, ok := a.mediaScope(c, true, global)
 		if !ok {

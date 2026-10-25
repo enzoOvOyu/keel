@@ -32,7 +32,7 @@ export function MediaDependencyPicker({ projectId, arch, selected, disabled, onC
     {!options.isPending && !eligible.length && <p className="field-hint">{t('mediaNoDependenciesOnPage')}</p>}
     {options.data && <Pagination offset={(page - 1) * options.data.page_size} limit={options.data.page_size} total={options.data.total} busy={disabled || options.isFetching} onChange={offset => setPage(offset / options.data!.page_size + 1)} />}
     <div role="list" aria-label={t('mediaSelectedDependencies')}>
-      {selected.map(item => <div role="listitem" key={item.id}>
+      {selected.map(item => <div role="listitem" className="ui:break-words" key={item.id}>
         <strong>{item.name} · {item.version} · {item.arch}</strong>
         <span className="cell-subtitle mono-value">{item.sha256}</span>
         {item.arch !== 'noarch' && item.arch !== arch && <p role="alert" className="field-error">{t('mediaDependencyArchMismatch')}</p>}
@@ -49,7 +49,7 @@ export function MediaDependencySummary({ refs }: { refs?: components['schemas'][
     <Label>{t('mediaArtifactDependencies')}</Label>
     <p className="field-hint">{t('mediaDependencyReview')}</p>
     <div role="list" aria-label={t('mediaSelectedDependencies')}>
-      {refs.map(ref => <div role="listitem" key={ref.media_id}>
+      {refs.map(ref => <div role="listitem" className="ui:break-words" key={ref.media_id}>
         <strong>{ref.name ?? ref.media_id} · {ref.version ?? t('mediaDependencyUnknown')} · {ref.arch ?? t('mediaDependencyUnknown')}</strong>
         <span className="cell-subtitle mono-value">{ref.media_id} · {ref.sha256}</span>
       </div>)}

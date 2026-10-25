@@ -186,6 +186,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/media/{mediaId}/manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Export a platform-signed dependency manifest after current authorization, approval and actual-byte verification of the entire pinned closure. A historical manifest does not replace live admission or vendor source signatures. */
+        get: operations["exportMediaManifest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/media/{mediaId}/manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Platform administrators export approved global media only, with the same byte and dependency checks as the project endpoint. */
+        get: operations["exportGlobalMediaManifest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/media/{mediaId}/transition": {
         parameters: {
             query?: never;
@@ -2014,6 +2048,45 @@ export interface components {
             combinations?: {
                 [key: string]: string;
             }[];
+        };
+        SignedMediaManifest: {
+            /** @constant */
+            algorithm: "ed25519";
+            /** @description Ed25519 signature over the domain-separated compact Go encoding of the typed payload; verify with keel-admin and an independent trusted PKIX key. */
+            signature: string;
+            payload: components["schemas"]["MediaManifestPayload"];
+        };
+        MediaManifestPayload: {
+            /** @constant */
+            schema: "keel.media-manifest/v1";
+            /** @description SHA256 of the trusted raw Ed25519 public key. */
+            key_id: string;
+            root_id: string;
+            /** Format: date-time */
+            exported_at: string;
+            /** @description Exact reachable closure, sorted by media_id; dependencies are sorted by media_id. All states and bytes were checked at export time. */
+            artifacts: components["schemas"]["MediaManifestArtifact"][];
+        };
+        MediaManifestArtifact: {
+            media_id: string;
+            scope_key: string;
+            uri: string;
+            type: string;
+            name: string;
+            version: string;
+            /** @enum {string} */
+            arch: "amd64" | "arm64" | "noarch";
+            sha256: string;
+            size: number;
+            object_version: string;
+            approved_by: string;
+            /** Format: date-time */
+            approved_at: string;
+            dependencies: {
+                media_id: string;
+                sha256: string;
+            }[];
+            compatibility?: components["schemas"]["CompatibilityMatrix"];
         };
         MediaArtifactDependency: {
             media_id: string;
@@ -4612,6 +4685,97 @@ export interface operations {
                 content?: never;
             };
             /** @description Versioned storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exportMediaManifest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ed25519 platform attestation; verify with an independently provisioned trusted key. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignedMediaManifest"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description Media is not approved. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Signing key or pinned object storage unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exportGlobalMediaManifest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signed global artifact closure. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignedMediaManifest"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description Media is not approved. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dependency or integrity validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Signing or storage unavailable. */
             503: {
                 headers: {
                     [name: string]: unknown;

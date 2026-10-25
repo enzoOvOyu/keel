@@ -118,3 +118,6 @@ export const attachMedia = (
   );
 export const mediaDownloadURL = (projectId: string | null, id: string) =>
   `/api/v1${mediaBase(projectId)}/${encodeURIComponent(id)}/content`;
+
+export const exportMediaManifest = (projectId: string | null, id: string) =>
+  request<components['schemas']['SignedMediaManifest']>(`${mediaBase(projectId)}/${encodeURIComponent(id)}/manifest`);

@@ -454,6 +454,46 @@ paths:
         '416': {description: Requested range is not satisfiable}
         '422': {description: Stored object integrity verification failed; no bytes served}
         '503': {description: Pinned object or storage unavailable}
+  /api/v1/projects/{id}/media/{mediaId}/manifest:
+    get:
+      operationId: exportMediaManifest
+      tags: [Media]
+      security: [{ sessionCookie: [] }]
+      description: Export a platform-signed dependency manifest after current authorization, approval and actual-byte verification of the entire pinned closure. A historical manifest does not replace live admission or vendor source signatures.
+      parameters:
+      - { name: id, in: path, required: true, schema: { type: string, pattern: '^[a-f0-9]{32}$' } }
+      - { name: mediaId, in: path, required: true, schema: { type: string, pattern: '^[a-f0-9]{32}$' } }
+      responses:
+        '200':
+          description: Ed25519 platform attestation; verify with an independently provisioned trusted key.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SignedMediaManifest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Media is not approved. }
+        '422': { description: Invalid, retired, missing or corrupt pinned dependency closure. }
+        '503': { description: Signing key or pinned object storage unavailable. }
+  /api/v1/admin/media/{mediaId}/manifest:
+    get:
+      operationId: exportGlobalMediaManifest
+      tags: [Media]
+      security: [{ sessionCookie: [] }]
+      x-platform-admin-required: true
+      description: Platform administrators export approved global media only, with the same byte and dependency checks as the project endpoint.
+      parameters:
+      - { name: mediaId, in: path, required: true, schema: { type: string, pattern: '^[a-f0-9]{32}$' } }
+      responses:
+        '200':
+          description: Signed global artifact closure.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SignedMediaManifest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Media is not approved. }
+        '422': { description: Dependency or integrity validation failed. }
+        '503': { description: Signing or storage unavailable. }
   /api/v1/projects/{id}/media/{mediaId}/transition:
     post:
       operationId: transitionMedia
@@ -3238,6 +3278,57 @@ components:
             minProperties: 1
             maxProperties: 32
             additionalProperties: { type: string, minLength: 1, maxLength: 120 }
+    SignedMediaManifest:
+      type: object
+      additionalProperties: false
+      required: [algorithm, payload, signature]
+      properties:
+        algorithm: { type: string, const: ed25519 }
+        signature: { type: string, contentEncoding: base64, description: Ed25519 signature over the domain-separated compact Go encoding of the typed payload; verify with keel-admin and an independent trusted PKIX key. }
+        payload: { $ref: '#/components/schemas/MediaManifestPayload' }
+    MediaManifestPayload:
+      type: object
+      additionalProperties: false
+      required: [schema, key_id, root_id, exported_at, artifacts]
+      properties:
+        schema: { type: string, const: keel.media-manifest/v1 }
+        key_id: { type: string, pattern: '^[a-f0-9]{64}$', description: SHA256 of the trusted raw Ed25519 public key. }
+        root_id: { type: string, pattern: '^[a-f0-9]{32}$' }
+        exported_at: { type: string, format: date-time }
+        artifacts:
+          type: array
+          minItems: 1
+          maxItems: 129
+          description: Exact reachable closure, sorted by media_id; dependencies are sorted by media_id. All states and bytes were checked at export time.
+          items: { $ref: '#/components/schemas/MediaManifestArtifact' }
+    MediaManifestArtifact:
+      type: object
+      additionalProperties: false
+      required: [media_id, scope_key, uri, type, name, version, arch, sha256, size, object_version, approved_by, approved_at, dependencies]
+      properties:
+        media_id: { type: string, pattern: '^[a-f0-9]{32}$' }
+        scope_key: { type: string, pattern: '^(global|project:[a-f0-9]{32})$' }
+        uri: { type: string }
+        type: { type: string }
+        name: { type: string }
+        version: { type: string }
+        arch: { type: string, enum: [amd64, arm64, noarch] }
+        sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        size: { type: integer, minimum: 0, maximum: 1073741824 }
+        object_version: { type: string, minLength: 1 }
+        approved_by: { type: string, pattern: '^[a-f0-9]{32}$' }
+        approved_at: { type: string, format: date-time }
+        dependencies:
+          type: array
+          maxItems: 32
+          items:
+            type: object
+            additionalProperties: false
+            required: [media_id, sha256]
+            properties:
+              media_id: { type: string, pattern: '^[a-f0-9]{32}$' }
+              sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        compatibility: { $ref: '#/components/schemas/CompatibilityMatrix' }
     MediaArtifactDependency:
       type: object
       additionalProperties: false
