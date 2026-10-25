@@ -2080,10 +2080,125 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/ssh-trust-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listSSHTrustRequests"];
+        put?: never;
+        post: operations["createSSHTrustRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ssh-trust-requests/{requestId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approveSSHTrustRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ssh-trust-requests/{requestId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["revokeSSHTrustRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ssh-trust-requests/{requestId}/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["executeSSHTrustRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Non-secret, immutable reviewed binding. Real handshake evidence is required before trust is established; this request does not install keys. Approved requests require an independent Admin/DL and one versioned expiring credential can be consumed once per target. */
+        SSHTrustRequest: {
+            id: string;
+            project_id: string;
+            machine_id: string;
+            /** @enum {string} */
+            action: "trust.bootstrap" | "trust.repair";
+            asset_version: number;
+            /** @enum {string} */
+            expected_trust: "unverified" | "broken" | "established";
+            host_key: string;
+            config_hash: string;
+            credential_ref: string;
+            credential_version: string;
+            /** Format: date-time */
+            credential_expires_at: string;
+            reason: string;
+            created_by: string;
+            approved_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @enum {string} */
+            state: "pending" | "approved" | "consumed" | "succeeded" | "failed" | "unknown" | "revoked";
+            state_version: number;
+            execution_id: string;
+        };
+        SSHTrustRequestPage: {
+            items: components["schemas"]["SSHTrustRequest"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        CreateSSHTrustRequestInput: {
+            machine_id: string;
+            /** @enum {string} */
+            action: "trust.bootstrap" | "trust.repair";
+            expected_asset_version: number;
+            host_key: string;
+            reason: string;
+            /** @default 900 */
+            expires_in_seconds: number;
+        };
+        SSHTrustApproveInput: {
+            expected_version: number;
+        };
+        SSHTrustRevokeInput: {
+            expected_version: number;
+            reason: string;
+        };
         /** @description One-way lifecycle transition. Interactive clients send the observed updated_at; mismatch returns 409 MEDIA_CONFLICT without changing state or adding a success audit. Omission preserves legacy callers. */
         MediaTransitionInput: {
             /** @enum {string} */
@@ -3673,6 +3788,8 @@ export interface components {
             rack: string;
             unit_position: string;
             ssh_trust: string;
+            /** @enum {string} */
+            ssh_trust_source: "legacy" | "sim" | "ssh";
             model_id: string;
             model_version_id: string;
             model_version: number;
@@ -4065,7 +4182,7 @@ export interface components {
         FlowTask: {
             id: string;
             /** @enum {string} */
-            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait";
+            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify";
             depends_on?: string[];
             retry: number;
             idempotent: boolean;
@@ -4113,6 +4230,8 @@ export interface components {
             /** @description Stable controller/device identity for non-simulation targets. */
             resource_key?: string;
             ssh?: components["schemas"]["SSHBinding"];
+            /** @description Frozen approved one-time first-connection verification request; absent for ordinary queries. */
+            ssh_trust_request_id?: string;
         };
         RerunSource: {
             execution_id: string;
@@ -9253,6 +9372,226 @@ export interface operations {
                 };
             };
             403: components["responses"]["Forbidden"];
+        };
+    };
+    listSSHTrustRequests: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped SSH trust authorization */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SSHTrustRequestPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description SSH transport disabled */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createSSHTrustRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSSHTrustRequestInput"];
+            };
+        };
+        responses: {
+            /** @description Scoped SSH trust authorization */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SSHTrustRequest"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description SSH transport disabled */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    approveSSHTrustRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SSHTrustApproveInput"];
+            };
+        };
+        responses: {
+            /** @description Scoped SSH trust authorization */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SSHTrustRequest"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description SSH transport disabled */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    revokeSSHTrustRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SSHTrustRevokeInput"];
+            };
+        };
+        responses: {
+            /** @description Scoped SSH trust authorization */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SSHTrustRequest"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description SSH transport disabled */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    executeSSHTrustRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SSHTrustApproveInput"];
+            };
+        };
+        responses: {
+            /** @description Existing execution kernel accepted one approved verification */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description SSH transport disabled */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
 }

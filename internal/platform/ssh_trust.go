@@ -2,8 +2,8 @@ package platform
 
 import (
 	"context"
-	"errors"
 	"database/sql"
+	"errors"
 	"time"
 )
 
@@ -30,6 +30,7 @@ type TrustActionResult struct {
 	Outcome     string    `json:"outcome"`
 	Reason      string    `json:"reason,omitempty"`
 	CheckedAt   time.Time `json:"checked_at"`
+	Source      string    `json:"source"`
 }
 
 func (s *Store) RunTrustAction(ctx context.Context, a *AuthSession, project *ProjectSummary, input TrustActionInput, trace string) ([]TrustActionResult, error) {
@@ -49,10 +50,21 @@ func (s *Store) RunTrustAction(ctx context.Context, a *AuthSession, project *Pro
 	if e := requireProjectAdmin(ctx, tx, a, project.ID); e != nil {
 		return nil, e
 	}
+	// A mock transition must never authorize the real transport, including
+	// configured targets whose credentials are currently expired.
+	for _, machineID := range input.MachineIDs {
+		var realTarget bool
+		if e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM ssh_trust_requests WHERE project_id=$1 AND machine_id=$2) OR EXISTS(SELECT 1 FROM exec_targets WHERE project_id=$1 AND kind='machine' AND resource_key=$2) OR EXISTS(SELECT 1 FROM machines m JOIN project_assets a ON a.machine_id=m.id WHERE a.project_id=$1 AND m.id=$2 AND m.ssh_trust_source='ssh')`, project.ID, machineID).Scan(&realTarget); e != nil {
+			return nil, e
+		}
+		if realTarget || (s.SSHRunner != nil && s.SSHRunner.HasTarget(project.ID, machineID)) {
+			return nil, apiError(409, "SSH_TRUST_REAL_VERIFICATION_REQUIRED", "Configured or historical SSH targets require approved, evidence-backed verification")
+		}
+	}
 	results := []TrustActionResult{}
 	now := time.Now().UTC()
 	for _, machineID := range input.MachineIDs {
-		result := TrustActionResult{MachineID: machineID, Outcome: "success", CheckedAt: now}
+		result := TrustActionResult{MachineID: machineID, Outcome: "success", CheckedAt: now, Source: "sim"}
 		var serial, trust, fingerprint string
 		e := tx.QueryRowContext(ctx, `SELECT m.serial_number, m.ssh_trust, m.host_key_fingerprint
 			FROM machines m JOIN project_assets pa ON pa.machine_id=m.id
@@ -78,7 +90,7 @@ func (s *Store) RunTrustAction(ctx context.Context, a *AuthSession, project *Pro
 				result.Outcome, result.Reason = "failure", "fingerprint required for bootstrap"
 				break
 			}
-			if _, e = tx.ExecContext(ctx, "UPDATE machines SET ssh_trust='established', host_key_fingerprint=$2, trust_updated_at=$3 WHERE id=$1", machineID, input.Fingerprint, now); e != nil {
+			if _, e = tx.ExecContext(ctx, "UPDATE machines SET ssh_trust='established', ssh_trust_source='sim', host_key_fingerprint=$2, trust_updated_at=$3 WHERE id=$1", machineID, input.Fingerprint, now); e != nil {
 				return nil, e
 			}
 			result.AfterState = "established"
@@ -103,7 +115,7 @@ func (s *Store) RunTrustAction(ctx context.Context, a *AuthSession, project *Pro
 				}
 				newFingerprint = input.Fingerprint
 			}
-			if _, e = tx.ExecContext(ctx, "UPDATE machines SET ssh_trust='established', host_key_fingerprint=$2, trust_updated_at=$3 WHERE id=$1", machineID, newFingerprint, now); e != nil {
+			if _, e = tx.ExecContext(ctx, "UPDATE machines SET ssh_trust='established', ssh_trust_source='sim', host_key_fingerprint=$2, trust_updated_at=$3 WHERE id=$1", machineID, newFingerprint, now); e != nil {
 				return nil, e
 			}
 			result.AfterState = "established"
@@ -114,7 +126,7 @@ func (s *Store) RunTrustAction(ctx context.Context, a *AuthSession, project *Pro
 				result.Outcome, result.Reason = "failure", "fingerprint required for repair"
 				break
 			}
-			if _, e = tx.ExecContext(ctx, "UPDATE machines SET ssh_trust='established', host_key_fingerprint=$2, trust_updated_at=$3 WHERE id=$1", machineID, input.Fingerprint, now); e != nil {
+			if _, e = tx.ExecContext(ctx, "UPDATE machines SET ssh_trust='established', ssh_trust_source='sim', host_key_fingerprint=$2, trust_updated_at=$3 WHERE id=$1", machineID, input.Fingerprint, now); e != nil {
 				return nil, e
 			}
 			result.AfterState = "established"
@@ -126,7 +138,7 @@ func (s *Store) RunTrustAction(ctx context.Context, a *AuthSession, project *Pro
 				result.Outcome, result.Reason = "failure", "trust already revoked"
 				break
 			}
-			if _, e = tx.ExecContext(ctx, "UPDATE machines SET ssh_trust='revoked', trust_updated_at=$2 WHERE id=$1", machineID, now); e != nil {
+			if _, e = tx.ExecContext(ctx, "UPDATE machines SET ssh_trust='revoked', ssh_trust_source='sim', trust_updated_at=$2 WHERE id=$1", machineID, now); e != nil {
 				return nil, e
 			}
 			result.AfterState = "revoked"
@@ -134,7 +146,7 @@ func (s *Store) RunTrustAction(ctx context.Context, a *AuthSession, project *Pro
 		if _, e = tx.ExecContext(ctx, `INSERT INTO trust_logs(id,machine_id,project_id,action,outcome,fingerprint,detail,created_by,created_at)
 			VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
 			RandomID(), machineID, project.ID, input.Action, result.Outcome, input.Fingerprint,
-			map[string]any{"reason": result.Reason, "before": result.BeforeState, "after": result.AfterState},
+			map[string]any{"reason": result.Reason, "before": result.BeforeState, "after": result.AfterState, "source": "sim", "hardware_verified": false},
 			a.User.ID, now); e != nil {
 			return nil, e
 		}

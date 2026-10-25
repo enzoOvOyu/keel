@@ -6,6 +6,24 @@ import (
 )
 
 func (a *authAPI) registerSSHExecution(r *gin.Engine, base string) {
+	r.POST(base+"/ssh-trust-requests/:requestId/execute", func(c *gin.Context) {
+		actor, s, ok := a.executionProject(c, true)
+		if !ok {
+			return
+		}
+		var in struct {
+			ExpectedVersion int64 `json:"expected_version"`
+		}
+		if !decodeExecutionBody(c, &in) {
+			return
+		}
+		x, e := s.CreateSSHTrustVerification(c.Request.Context(), actor, c.Param("id"), c.Param("requestId"), in.ExpectedVersion, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(201, x)
+	})
 	r.POST(base+"/ssh-executions", func(c *gin.Context) {
 		actor, s, ok := a.executionProject(c, true)
 		if !ok {

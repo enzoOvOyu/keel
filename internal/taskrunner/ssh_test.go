@@ -30,6 +30,7 @@ type sshFixture struct {
 	runner           *taskrunner.SSH
 	listener         net.Listener
 	runs             atomic.Int64
+	closed           atomic.Int64
 	drop             atomic.Bool
 	tamper           atomic.Bool
 	mu               sync.Mutex
@@ -96,6 +97,7 @@ func fixture(t *testing.T) *sshFixture {
 					return
 				}
 				defer conn.Close()
+				defer f.closed.Add(1)
 				go ssh.DiscardRequests(requests)
 				for ch := range channels {
 					if ch.ChannelType() != "session" {

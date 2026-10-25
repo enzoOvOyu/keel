@@ -10,6 +10,8 @@
 - 签名私钥仍在仓库外只读挂载，可信公钥独立保管；来源获取批准origin为空。生产SSH配置与worker保持关闭；3000接口实测匿名401、缺CSRF403、授权调用503 SSH_DISABLED，没有创建业务记录。两份原fabric草稿保持未跟踪，未纳入提交或镜像。
 - 后续按A3/WP-1.5及其WP-1.6前置继续：先复核凭据引用、受限bootstrap/repair与主机信任生命周期的最小契约，再开发同一执行器上的受控操作；现有mock互信不能当作真实首连证明。脚本任务、Agent gRPC/mTLS、目标缓存/分发、PXE及真机PoC均未交付，不反向假定这些依赖已完成；目标缓存按WP-1.10/ADR-07在通道能力满足后接入。不因单项未闭环强行实现后续阶段。
 
+- **续开发记录**：§61保留用户要求累计10分钟暂停时的工作区快照；用户随后继续，当前验证/交付进展见§62。发布完成前3000仍为上述b946f34/schema39。
+
 ## 1. 工作区与运行版本（早期快照，当前见上方）
 
 | 项目 | 当前记录 |
@@ -780,3 +782,29 @@ TaskCommand版本keel.task/v1；SSH只发送常量helper入口与受限stdin JSO
 042约束迁移已应用，schema38→39备份/隔离恢复与既有授权已验证；运行库39条迁移记录；保留旧镜像 `keel:76ef23b0955ba6d98a4fbe3c2ccc776ad8248bdc`。旧镜像不兼容新增迁移，不可直接回切；须修复前进，备份恢复另走批准流程。不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T052751Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40165569843已 completed/success；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
 
 §60发布后补证：现有Kea/网络协议、审批撤销、共享执行器unknown/隔离租约及真实浏览器回归退出0，日志 `/tmp/keel-ssh-existing-network-regression.log`，证据 `/tmp/keel-shell-kky9z_3u`；临时数据库、API及测试凭据已清理。3108及3000应用角色接口检查均通过，包括SSH匿名401/CSRF403/默认禁用503、既有介质查询与隔离证据权限，未创建业务记录，日志 `/tmp/keel-ssh-candidate-app-role.log`、`/tmp/keel-ssh-3000-app-role.log`。042备份格式检查、隔离恢复、迁移及业务行数保持证据在本次私有发布目录 migration-rehearsal.json；生产应用与既有应用角色授权检查见 migration-applied.json。功能CI完整成功，生产worker未启动、SSH配置仍为空。
+
+## 61. 四agent开发后按用户要求累计10分钟暂停（2026-10-25）
+
+开始06:08:35 UTC，用户改为06:18:35 UTC暂停。root负责Execution/集成，另三agent分别负责SSH凭据协议、信任请求领域/API、资产页与执行UI。唯一工作区/分支延续，原fabric Go/026 SQL草稿保持未跟踪。此节记录尚未提交和未发布的源码；运行3000仍b946f34/schema39，生产SSH和worker继续关闭。
+
+已落盘：凭据引用版本与UTC微秒有效期、到期连接隔离、只读trust.verify；043包含不可变单目标限时请求/独立批准/撤销/一次性凭据消费索引及legacy/sim/ssh信任来源；普通SSH拒绝模拟或legacy互信，旧mock不能修改当前/历史真实目标，legacy/sim established可经批准repair补真实验证。execute复用原Execution/outbox/权威资源锁/fencing，真实终态证明与当前权限/资产/绑定/有效期通过才原子投影信任。补稳定目标消费锁、审批主体Share锁与Admin/DL/SRE执行控制；UI可创建/批准/执行/撤销、分页查看与证据链接，中英/来源/错误处理遵循既有组件。
+
+已实际通过：纯传输race（/tmp/keel-ssh-credential-protocol.log，2.301s）、独立真实PG领域race（/tmp/keel-ssh-trust-domain-final-pg.log，4.880s）、前端正式类型tsc（/tmp/keel-ssh-trust-ui-types.log）、设计检查。统一集成首轮因测试试图重复初始化管理员失败，改为普通创建测试管理员；第二轮实际暴露创建后修改不可变execution snapshot的问题，已改为INSERT前冻结完整snapshot，保留不可变保护。第三轮统一PG/SSH/HTTP/浏览器及最终前端构建/受影响vet结果随后补记，未完成的项目不能记PASS。
+
+未做：043运行库迁移、备份恢复演练、完整make check/功能CI、提交推送或3000发布；不得直接部署工作区（含原草稿）。目标公钥/helper安装、真实密码首登、Vault销毁、目标密钥撤销、Agent/真机PoC及完整P1仍未完成。临时凭据到期/绑定轮换后的unknown保持隔离，恢复治理待开发，不能称完整bootstrap/repair或凭据全生命周期闭环。恢复时先检查此轮最后日志和git diff，再补并发消费、撤权/未知恢复等必要集成负例，验证完整后显式纳入本轮文件提交，从确切提交归档构建，做043备份/恢复/授权后才发布。
+
+§61暂停前补证：第三轮 `/tmp/keel-trust-integration-third.log`、`/tmp/keel-ssh-integration-4wquauct` 已退出0，真实PG+SSH+HTTP协议及两账号浏览器通过（新信任批准→Execution→终态→source=ssh，禁止自批/mock旁路，错误host pin真实409、中英UI、实际证据链接），Go race 13.222s，跨进程CLI回执亦通过。临时数据库和凭据已清理。最终前端构建 `/tmp/keel-trust-frontend-final-build.log` 退出0，保留现有bundle体积提示；受影响vet `/tmp/keel-trust-final-vet.log`退出0，设计/diff检查通过。最后一次make check采用65秒上限以遵守用户暂停时间，结果见 `/tmp/keel-trust-pause-check.log`，若被超时终止不得算通过。源码均保持未暂存，043未应用，尚未提交/推送/发布。本轮暂停不等于相关WP完成。
+
+§61最终暂停检查：限时make check在06:18 UTC以124退出，Go全仓vet/race与前端类型/UI/版本检查已通过，第二次Vite构建transforming阶段达到65秒上限而终止，不能记完整make check通过；独立最终前端构建已通过并有单独证据。所有测试脚本已结束，自有临时数据库/凭据已清理，三子agent均已停止。HEAD仍41cc39c，原两草稿和本轮源码均未暂存；3000实测仍b946f34 healthy，schema39及生产配置未修改。恢复优先补信任执行并发消费、第三执行者降权、unknown回执对账等专门集成负例，再完成检查与发布流程。
+
+## 62. 续开发：独立批准的SSH首连验证
+
+延续§61与原四agent职责，未重写既有执行器或越过Agent/PXE依赖。域凭据元数据绑定版本/到期时间，一次性授权冻结单目标/资产版本/可信指纹/凭据引用及有效期，独立Admin/DL批准后由Admin/DL/SRE通过原Execution发起只读trust.verify。真实回执落库时复核当前审批和执行主体权限、项目/资产/绑定/时间窗口，原子更新trust与source=ssh；资产变化即使远端返回成功也拒绝建立信任。普通SSH拒绝legacy/sim来源，旧mock不能改当前或历史真实目标。
+
+补齐同目标消费advisory锁/已消费version唯一索引、审批主体共享锁及第三执行者降权复核，信任执行控制排除DE，未派发取消不悬挂consumed请求。资产页完整创建/独立批准/执行/撤销/分页与证据链接；真实failed/unknown保留原Execution且不自动重跑。列表/写入权限拒绝会清空已打开目标弹窗，执行概览/输出/关联/回执拒绝会隐藏旧缓存，精确到期与确认提交均检查有效期。
+
+实际验证：完整overlay make check `/tmp/keel-trust-resume-check.log`退出0，包含全仓vet/race、正式契约生成/类型/UI/版本检查与前端构建（现有bundle提示保留）。统一真实PG+回环SSH+HTTP+浏览器 `/tmp/keel-trust-resume-integration.log`、`/tmp/keel-ssh-integration-lou_vbtq`退出0，taskrunner race27.205s；独立helper CLI进程仍复用完全相同持久回执。覆盖并发两个批准请求同版本仅一个执行/一次run、第三执行者SRE→DE在claim及transport前拒绝、实际丢响应unknown/隔离锁、无回执不能人工宣称成功、原终态授权对账幂等恢复且不二次run、真实Load凭据轮换保留unknown。自然到期传输由真实SSH短期限测试覆盖；DB授权到期场景为明确expiredRunner故障注入，不伪称等待5分钟自然授权过期。
+
+浏览器两真实账号验证禁止自批/独立批准、错误host pin真实409、中英、实际success/failed/unknown及证据链接；列表403为明确前端故障注入，撤销注入后从真实API刷新恢复，不冒称实际后台撤权。实际后台审批人/第三执行者撤权由独立PG事务测试证明，域并发race4.206s `/tmp/keel-ssh-trust-domain-review-pg.log`，含审批等待行锁时角色撤销与approve/revoke仅一次提交。原Kea/网络共享内核及真实配置页回归 `/tmp/keel-trust-network-regression.log`、`/tmp/keel-shell-_qk31uab`退出0，自有临时数据库/API/MinIO/凭据均已清理。
+
+043尚未应用运行库，发布先做schema39→40备份/隔离恢复及新表应用角色SELECT/INSERT/UPDATE授权，不授予证据DELETE，保留审计/迁移限制。worker和真实SSH仍默认关闭。此交付仅验证已由运维安装的平台公钥/helper；无公钥注入、root首登、目标密钥撤销、Vault销毁或Agent。legacy/sim established可独立批准补真验证，revoked不自动恢复；真实SSH信任变更/完整repair/轮换及到期换凭据查询旧unknown的恢复治理仍待开发。WP-1.4/1.5、FR-1、P1及FR-0均保持partial。功能提交、CI、镜像、迁移与3000结果随后按实际记录。

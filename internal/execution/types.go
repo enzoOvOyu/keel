@@ -78,16 +78,17 @@ type FlowVersion struct {
 	CreatedAt   time.Time  `json:"created_at"`
 }
 type Target struct {
-	SSH          *taskrunner.Binding `json:"ssh,omitempty"`
-	ResourceKey  string              `json:"resource_key,omitempty"`
-	ID           string              `json:"id"`
-	ProjectID    string              `json:"project_id"`
-	Name         string              `json:"name"`
-	Seed         int64               `json:"seed"`
-	Revision     int64               `json:"revision"`
-	ModelVersion string              `json:"model_version"`
-	CreatedAt    time.Time           `json:"created_at"`
-	Mode         string              `json:"mode"`
+	SSHTrustRequestID string              `json:"ssh_trust_request_id,omitempty"`
+	SSH               *taskrunner.Binding `json:"ssh,omitempty"`
+	ResourceKey       string              `json:"resource_key,omitempty"`
+	ID                string              `json:"id"`
+	ProjectID         string              `json:"project_id"`
+	Name              string              `json:"name"`
+	Seed              int64               `json:"seed"`
+	Revision          int64               `json:"revision"`
+	ModelVersion      string              `json:"model_version"`
+	CreatedAt         time.Time           `json:"created_at"`
+	Mode              string              `json:"mode"`
 }
 type SimTarget = Target
 
@@ -159,6 +160,7 @@ type Attempt struct {
 	FinishedAt   *time.Time      `json:"finished_at"`
 }
 type ExecutionSummary struct {
+	TrustVerification     bool       `json:"trust_verification"`
 	ID                    string     `json:"id"`
 	ProjectID             string     `json:"project_id"`
 	FlowVersionID         string     `json:"flow_version_id"`

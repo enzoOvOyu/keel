@@ -34,10 +34,10 @@ func (c TaskCommand) Validate() error {
 	if c.APIVersion != APIVersion || !idPattern.MatchString(c.ProjectID) || !idPattern.MatchString(c.MachineID) || !idPattern.MatchString(c.CommandID) || !idPattern.MatchString(c.AttemptID) || c.FencingToken < 1 || c.TimeoutMS < 100 || c.TimeoutMS > 30000 {
 		return ErrRejected
 	}
-	if c.Operation != "host.identity" && c.Operation != "host.wait" {
+	if c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "trust.verify" {
 		return ErrRejected
 	}
-	if (c.Operation == "host.identity" && c.WaitMS != 0) || c.WaitMS < 0 || c.WaitMS > 30000 {
+	if (c.Operation != "host.wait" && c.WaitMS != 0) || c.WaitMS < 0 || c.WaitMS > 30000 {
 		return ErrRejected
 	}
 	return nil

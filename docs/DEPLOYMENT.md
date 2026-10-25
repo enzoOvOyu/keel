@@ -178,3 +178,11 @@ HTTP(S)来源获取使用可选 `KEEL_MEDIA_FETCH_ORIGINS` 准确origin列表，
 ## 受限服务器SSH任务
 
 A3的host.identity/host.wait通过现有执行器、权威租约和实际持久回执运行，API/worker默认不设置KEEL_SSH_RUNNER_FILE，生产worker也不因发布自动开启。配置与目标helper部署、协议边界及独立测试步骤见 [SSH-RUNNER](SSH-RUNNER.md)。Compose只读挂载仓库外私有目录，禁用占位目录不包含密钥。042扩展现有约束后为schema39；新镜像启动要求042，旧schema38镜像不能直接回切，发布前先备份和隔离恢复演练，失败保留数据修复前进。
+
+### 信任验证请求与043升级
+
+受限首连验证复用SSH配置与Execution，仅验证已由运维安装的平台公钥/helper。配置临时凭据须有credential_version及credential_expires_at；请求冻结公开引用、资产版本及人工核验指纹，经另一位Admin/DL批准后由Admin/DL/SRE执行。详见 [SSH-RUNNER](SSH-RUNNER.md)。
+
+043新增不可变ssh_trust_requests与machines.ssh_trust_source，发布镜像匹配schema40。升级前备份并在隔离库恢复/迁移演练，确认原机器状态/指纹及业务行数保持。仅向运行应用角色授予新表SELECT/INSERT/UPDATE，保留审计/迁移表限制；新表证据不应授予DELETE。既有互信来源统一legacy，不自动提升为真实验证；普通SSH拒绝legacy/sim，需人工核验和独立批准的repair补真实回执。
+
+schema39镜像不能直接连接schema40库，保留数据修复前进；备份恢复另按批准流程执行。升级不设置真实目标、安装客户公钥或开启worker；默认SSH禁用。实际运行版本、迁移和发布证据仍以HANDOFF为准。

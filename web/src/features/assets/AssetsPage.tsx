@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { AssetModelDialog } from './AssetModelDialog'
+import { SSHTrustRequests } from './SSHTrustRequests'
 import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -97,8 +98,8 @@ function TrustDialog({ projectId, machines, onClose, onDone }: { projectId: stri
       await onDone(t('trustDone', { action: trustAction, successes, total: machines.length }))
     }
   }
-  return <ActionDialog title={t('trustTitle')} description={t('trustDetail')} busy={action.busy} confirm={t(action.busy ? 'saving' : 'trustRun')} onSubmit={(event) => void submit(event)} onClose={onClose}>
-    <ActionError error={action.error} />{validation && <p className="field-error" role="alert">{validation}</p>}
+  return <ActionDialog title={t('trustMockTitle')} description={t('trustDetail')} busy={action.busy} confirm={t(action.busy ? 'saving' : 'trustRun')} onSubmit={(event) => void submit(event)} onClose={onClose}>
+    <ActionError error={action.error} />{action.error?.code === 'SSH_TRUST_REAL_VERIFICATION_REQUIRED' && <p className="impact-notice">{t('sshTrustRealRequired')}</p>}{validation && <p className="field-error" role="alert">{validation}</p>}
     <dl className="action-target"><dt>{t('bomHostname')}</dt><dd>{machines.map((m) => m.hostname).join(', ')}</dd></dl>
     <div className="field"><label htmlFor="trust-action">{t('trustAction')}</label><select id="trust-action" value={trustAction} onChange={(event) => setTrustAction(event.target.value as (typeof trustActions)[number])} disabled={action.busy}>{trustActions.map((value) => <option key={value} value={value}>{t('trust_action_' + value)}</option>)}</select></div>
     <div className="field"><label htmlFor="trust-fp">{t('trustFingerprint')}</label><input id="trust-fp" value={fingerprint} onChange={(event) => setFingerprint(event.target.value)} placeholder="SHA256:..." maxLength={120} disabled={action.busy} className="mono-value" /><span className="field-hint">{t('trustFingerprintHint')}</span></div>
@@ -123,7 +124,7 @@ function AssetsContent() {
   if (!allowed) return <PermissionDenied />
   return <>
     <div className="page-heading"><div><p className="section-eyebrow">{project.name}</p><h1>{t('bomTitle')}</h1><p>{t('bomIntro')}</p></div>
-      {manage && <div className="table-actions"><button className="primary-button" onClick={() => { setSuccess(''); setPackageImporting(true) }}>{t('bomPackageTitle')}</button><button className="secondary-button" onClick={() => { setSuccess(''); setImporting(true) }}>{t('bomImport')}</button><button className="secondary-button" disabled={!selected.size} onClick={() => { setSuccess(''); setTrustTarget((assets.data?.items ?? []).filter((a) => selected.has(a.machine_id))) }}>{t('trustTitle')}</button></div>}</div>
+      {manage && <div className="table-actions"><button className="primary-button" onClick={() => { setSuccess(''); setPackageImporting(true) }}>{t('bomPackageTitle')}</button><button className="secondary-button" onClick={() => { setSuccess(''); setImporting(true) }}>{t('bomImport')}</button><button className="secondary-button" disabled={!selected.size} onClick={() => { setSuccess(''); setTrustTarget((assets.data?.items ?? []).filter((a) => selected.has(a.machine_id))) }}>{t('trustMockTitle')}</button></div>}</div>
     {success && <SuccessNotice>{success}</SuccessNotice>}
     <section className="management-panel" aria-busy={assets.isFetching}>
       <ActionError error={assets.error} />
@@ -132,10 +133,11 @@ function AssetsContent() {
           <tbody>{(assets.data.items ?? []).map((asset) => <tr key={asset.id}>{manage && <td><input type="checkbox" aria-label={asset.hostname} checked={selected.has(asset.machine_id)} onChange={(event) => { const next = new Set(selected); if (event.target.checked) next.add(asset.machine_id); else next.delete(asset.machine_id); setSelected(next) }} /></td>}<td><strong>{asset.hostname}</strong><span className="cell-subtitle">v{asset.version}</span></td>
             <td className="mono-value">{asset.serial_number}</td><td>{asset.model_name || '—'}{asset.model_version_id && asset.model_version > 0 ? <><span className="cell-subtitle">{t('assetModelVersion')} v{asset.model_version}</span><Button type="button" variant="ghost" size="sm" onClick={() => setModelTarget(asset)}>{t('assetModelBinding')}</Button></> : <span className="cell-subtitle">{t('assetModelUnbound')}</span>}</td><td>{asset.rack}{asset.unit_position ? ` / ${asset.unit_position}` : ''}</td><td className="mono-value">{asset.ip_reference || '—'}</td>
             <td><span className={`status-label ${asset.state === 'provisioned' ? 'enabled' : asset.state === 'failed' ? 'disabled' : ''}`}>{t('bom_state_' + asset.state)}</span></td>
-            <td><span className={`status-label ${asset.ssh_trust === 'established' ? 'enabled' : asset.ssh_trust === 'revoked' ? 'disabled' : ''}`}>{t('trust_state_' + asset.ssh_trust)}</span></td></tr>)}</tbody></table>
+            <td><span className={`status-label ${asset.ssh_trust === 'established' ? 'enabled' : asset.ssh_trust === 'revoked' ? 'disabled' : ''}`}>{t('trust_state_' + asset.ssh_trust)}</span><span className="cell-subtitle">{t('sshTrustSource_' + asset.ssh_trust_source)}</span>{asset.ssh_trust === 'established' && asset.ssh_trust_source !== 'ssh' && <span className="cell-subtitle">{t('sshTrustNeedsRealVerification')}</span>}</td></tr>)}</tbody></table>
           {!(assets.data.items ?? []).length && <p className="table-loading">{t('bomNoAssets')}</p>}</div>
         <Pagination offset={(page - 1) * assets.data.page_size} limit={assets.data.page_size} total={assets.data.total} busy={assets.isFetching} onChange={(offset) => setPage(offset / assets.data.page_size + 1)} /></>}
     </section>
+    <SSHTrustRequests assets={assets.isError ? [] : assets.data?.items ?? []} />
     {modelTarget && <AssetModelDialog key={`${project.id}:${modelTarget.id}`} projectId={project.id} asset={modelTarget} onClose={() => setModelTarget(null)} />}
     {packageImporting && <BomPackageDialog projectId={project.id} onClose={() => setPackageImporting(false)} onDone={(message) => done(message)} />}
     {importing && <BomImportDialog projectId={project.id} onClose={() => setImporting(false)} onDone={(message) => done(message)} />}

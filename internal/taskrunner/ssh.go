@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,14 +22,36 @@ import (
 )
 
 type TargetConfig struct {
-	ProjectID      string `json:"project_id"`
-	MachineID      string `json:"machine_id"`
-	Address        string `json:"address"`
-	User           string `json:"user"`
-	HostKey        string `json:"host_key"`
-	CredentialRef  string `json:"credential_ref"`
-	PrivateKeyFile string `json:"private_key_file"`
+	ProjectID           string     `json:"project_id"`
+	MachineID           string     `json:"machine_id"`
+	Address             string     `json:"address"`
+	User                string     `json:"user"`
+	HostKey             string     `json:"host_key"`
+	CredentialRef       string     `json:"credential_ref"`
+	CredentialVersion   string     `json:"credential_version,omitempty"`
+	CredentialExpiresAt *time.Time `json:"credential_expires_at,omitempty"`
+	PrivateKeyFile      string     `json:"private_key_file"`
 }
+
+// CredentialMetadata contains references only. Private keys and target addresses
+// remain exclusively in the operator-owned configuration.
+type CredentialMetadata struct {
+	Ref       string     `json:"credential_ref"`
+	Version   string     `json:"credential_version"`
+	ExpiresAt *time.Time `json:"credential_expires_at,omitempty"`
+}
+
+var credentialVersionPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$`)
+
+// IsValidHostKey accepts the canonical OpenSSH SHA256 fingerprint only.
+func IsValidHostKey(value string) bool {
+	if !strings.HasPrefix(value, "SHA256:") || len(value) != 50 {
+		return false
+	}
+	pin, err := base64.RawStdEncoding.DecodeString(value[7:])
+	return err == nil && len(pin) == 32 && base64.RawStdEncoding.EncodeToString(pin) == value[7:]
+}
+
 type config struct {
 	Targets []TargetConfig `json:"targets"`
 }
@@ -84,14 +107,20 @@ func Load(path string) (*SSH, error) {
 	}
 	s := &SSH{targets: map[string]endpoint{}, pool: map[string]*ssh.Client{}}
 	for _, t := range c.Targets {
+		if t.CredentialExpiresAt != nil {
+			// PostgreSQL authorization snapshots use microsecond precision.
+			// Normalize before hashing so equivalent configured instants and
+			// persisted metadata remain exactly comparable.
+			expires := t.CredentialExpiresAt.UTC().Truncate(time.Microsecond)
+			t.CredentialExpiresAt = &expires
+		}
 		ip, port, e := net.SplitHostPort(t.Address)
 		n, pe := strconv.Atoi(port)
 		// Explicit IPs prevent DNS changes silently retargeting a queued command.
-		if !idPattern.MatchString(t.ProjectID) || !idPattern.MatchString(t.MachineID) || e != nil || pe != nil || n < 1 || n > 65535 || net.ParseIP(ip) == nil || net.ParseIP(ip).IsUnspecified() || net.ParseIP(ip).IsMulticast() || t.User != "keel-ctrl" || len(t.CredentialRef) < 1 || len(t.CredentialRef) > 64 || strings.TrimSpace(t.CredentialRef) != t.CredentialRef || !strings.HasPrefix(t.HostKey, "SHA256:") || len(t.HostKey) != 50 {
+		if !idPattern.MatchString(t.ProjectID) || !idPattern.MatchString(t.MachineID) || e != nil || pe != nil || n < 1 || n > 65535 || net.ParseIP(ip) == nil || net.ParseIP(ip).IsUnspecified() || net.ParseIP(ip).IsMulticast() || t.User != "keel-ctrl" || len(t.CredentialRef) < 1 || len(t.CredentialRef) > 64 || strings.TrimSpace(t.CredentialRef) != t.CredentialRef || !IsValidHostKey(t.HostKey) {
 			return nil, ErrRejected
 		}
-		pin, err := base64.RawStdEncoding.DecodeString(t.HostKey[7:])
-		if err != nil || len(pin) != 32 || base64.RawStdEncoding.EncodeToString(pin) != t.HostKey[7:] {
+		if (t.CredentialVersion != "" && !credentialVersionPattern.MatchString(t.CredentialVersion)) || (t.CredentialExpiresAt != nil && (t.CredentialExpiresAt.IsZero() || !t.CredentialExpiresAt.After(time.Now()) || t.CredentialVersion == "")) {
 			return nil, ErrRejected
 		}
 		key, e := readPrivate(t.PrivateKeyFile, 64*1024)
@@ -131,14 +160,58 @@ func Load(path string) (*SSH, error) {
 }
 
 func (s *SSH) Binding(project, machine string) (Binding, error) {
-	if s == nil {
-		return Binding{}, ErrRejected
-	}
-	e, ok := s.targets[project+":"+machine]
-	if !ok {
+	e, err := s.currentEndpoint(project + ":" + machine)
+	if err != nil {
 		return Binding{}, ErrRejected
 	}
 	return e.binding, nil
+}
+
+// HasTarget identifies a configured real transport even after its credential
+// expires or the pool closes. Mock trust actions must not bless such targets.
+func (s *SSH) HasTarget(project, machine string) bool {
+	if s == nil {
+		return false
+	}
+	_, ok := s.targets[project+":"+machine]
+	return ok
+}
+
+func (s *SSH) CredentialMetadata(project, machine string) (CredentialMetadata, error) {
+	ep, err := s.currentEndpoint(project + ":" + machine)
+	if err != nil {
+		return CredentialMetadata{}, ErrRejected
+	}
+	metadata := CredentialMetadata{Ref: ep.config.CredentialRef, Version: ep.config.CredentialVersion}
+	if ep.config.CredentialExpiresAt != nil {
+		expires := *ep.config.CredentialExpiresAt
+		metadata.ExpiresAt = &expires // Do not expose a mutable configuration pointer.
+	}
+	return metadata, nil
+}
+
+func (s *SSH) currentEndpoint(id string) (endpoint, error) {
+	if s == nil {
+		return endpoint{}, ErrRejected
+	}
+	ep, ok := s.targets[id]
+	if !ok {
+		return endpoint{}, ErrRejected
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed || credentialExpired(ep) {
+		if c := s.pool[id]; c != nil {
+			delete(s.pool, id)
+			c.Close()
+		}
+		return endpoint{}, ErrRejected
+	}
+	return ep, nil
+}
+
+func credentialExpired(ep endpoint) bool {
+	return ep.config.CredentialExpiresAt != nil && !time.Now().Before(*ep.config.CredentialExpiresAt)
 }
 func (s *SSH) Close() {
 	if s == nil {
@@ -157,7 +230,11 @@ func (s *SSH) connection(ctx context.Context, id string, ep endpoint) (*ssh.Clie
 		return nil, ErrUnknown
 	}
 	s.mu.Lock()
-	if s.closed {
+	if s.closed || credentialExpired(ep) {
+		if c := s.pool[id]; c != nil {
+			delete(s.pool, id)
+			c.Close()
+		}
 		s.mu.Unlock()
 		return nil, ErrRejected
 	}
@@ -196,7 +273,7 @@ func (s *SSH) connection(ctx context.Context, id string, ep endpoint) (*ssh.Clie
 	c := ssh.NewClient(cc, ch, req)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.closed {
+	if s.closed || credentialExpired(ep) {
 		c.Close()
 		return nil, ErrRejected
 	}
@@ -231,12 +308,17 @@ func (s *SSH) Do(ctx context.Context, r Request) (Observation, error) {
 		return zero, ErrRejected
 	}
 	id := r.Command.ProjectID + ":" + r.Command.MachineID
-	ep, ok := s.targets[id]
-	if !ok {
+	ep, err := s.currentEndpoint(id)
+	if err != nil {
 		return zero, ErrRejected
 	}
 	work, cancel := context.WithTimeout(ctx, 35*time.Second)
 	defer cancel()
+	if ep.config.CredentialExpiresAt != nil {
+		var stop context.CancelFunc
+		work, stop = context.WithDeadline(work, *ep.config.CredentialExpiresAt)
+		defer stop()
+	}
 	c, e := s.connection(work, id, ep)
 	if e != nil {
 		return zero, e

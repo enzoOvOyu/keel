@@ -1,5 +1,6 @@
 import { request } from './api'
 import type { components } from '../generated/api'
+import type { components as executionComponents } from '../generated/execution'
 
 export type BomPortRow = { mac_address: string; port_name: string; rail: number }
 export type BomMachineRow = {
@@ -26,6 +27,23 @@ export const runTrustAction = (projectId: string, action: string, machineIds: st
   request<{ results: TrustResult[] }>(`/projects/${encodeURIComponent(projectId)}/trust/actions`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify({ action, machine_ids: machineIds, fingerprint }) })
 export const listTrustLogs = (projectId: string, page: number, signal: AbortSignal) =>
   request<{ items: TrustLogEntry[]; total: number; page: number; page_size: number }>(`/projects/${encodeURIComponent(projectId)}/trust/logs?page=${page}&page_size=20`, { signal })
+
+// Public identity and credential references are generated from the API contract.
+export type SSHTrustRequest = components['schemas']['SSHTrustRequest']
+export type CreateSSHTrustRequest = components['schemas']['CreateSSHTrustRequestInput']
+const sshTrustPath = (projectId: string, requestId?: string) => `/projects/${encodeURIComponent(projectId)}/ssh-trust-requests${requestId ? `/${encodeURIComponent(requestId)}` : ''}`
+const writeSSHTrust = <T>(path: string, body: unknown, csrf: string, key: string) =>
+  request<T>(path, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify(body) })
+export const listSSHTrustRequests = (projectId: string, page: number, signal: AbortSignal) =>
+  request<components['schemas']['SSHTrustRequestPage']>(`${sshTrustPath(projectId)}?page=${page}&page_size=20`, { signal })
+export const createSSHTrustRequest = (projectId: string, body: CreateSSHTrustRequest, csrf: string, key: string) =>
+  writeSSHTrust<SSHTrustRequest>(sshTrustPath(projectId), body, csrf, key)
+export const approveSSHTrustRequest = (projectId: string, requestId: string, expectedVersion: number, csrf: string, key: string) =>
+  writeSSHTrust<SSHTrustRequest>(`${sshTrustPath(projectId, requestId)}/approve`, { expected_version: expectedVersion }, csrf, key)
+export const revokeSSHTrustRequest = (projectId: string, requestId: string, expectedVersion: number, reason: string, csrf: string, key: string) =>
+  writeSSHTrust<SSHTrustRequest>(`${sshTrustPath(projectId, requestId)}/revoke`, { expected_version: expectedVersion, reason }, csrf, key)
+export const executeSSHTrustRequest = (projectId: string, requestId: string, expectedVersion: number, csrf: string, key: string) =>
+  writeSSHTrust<executionComponents['schemas']['Execution']>(`${sshTrustPath(projectId, requestId)}/execute`, { expected_version: expectedVersion }, csrf, key)
 
 const pageQuery = (page: number) => new URLSearchParams({ page: String(page), page_size: '20' }).toString()
 

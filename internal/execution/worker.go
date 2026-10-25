@@ -451,6 +451,9 @@ func (s *Service) Complete(ctx context.Context, c *Claim) error {
 	if a.State != "running" || a.LeaseUntil == nil || !a.LeaseUntil.After(time.Now()) {
 		return failure(409, "STALE_LEASE", "late completion requires explicit reconciliation")
 	}
+	if e = s.applySSHTrustReceipt(ctx, tx, a, r); e != nil {
+		return e
+	}
 	if e = applyReceipt(ctx, tx, a, r, true); e != nil {
 		return e
 	}
@@ -546,6 +549,9 @@ func (s *Service) reapExecution(ctx context.Context, id string) (int, error) {
 	if len(attempts) == 0 {
 		return 0, nil
 	}
+	if _, e = tx.ExecContext(ctx, "UPDATE ssh_trust_requests SET state='unknown',state_version=state_version+1 WHERE execution_id=$1 AND state='consumed'", id); e != nil {
+		return 0, e
+	}
 	for _, a := range attempts {
 		if _, e = tx.ExecContext(ctx, "UPDATE exec_resource_leases SET state='reconciling' WHERE attempt_id=$1 AND state='held'", a); e != nil {
 			return 0, e
@@ -616,6 +622,9 @@ func (s *Service) Reconcile(ctx context.Context, a *Actor, projectID, id, attemp
 		return nil, failure(409, "EVIDENCE_CONFLICT", "claimed result does not match the durable runner receipt")
 	}
 	// Reconciliation never silently creates a retry, even for an idempotent task.
+	if e = s.applySSHTrustReceipt(ctx, tx, attempt, r); e != nil {
+		return nil, e
+	}
 	if e = applyReceipt(ctx, tx, attempt, r, false); e != nil {
 		return nil, e
 	}

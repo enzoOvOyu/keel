@@ -28,21 +28,24 @@ func (s *Service) sshTargetTx(ctx context.Context, tx *sql.Tx, project, machine 
 		return Target{}, failure(409, "SSH_TARGET_UNAVAILABLE", "No approved SSH binding for this target")
 	}
 	t := Target{ProjectID: project, ResourceKey: machine, Mode: "ssh", SSH: &b}
-	var trust, pin, state string
-	e = tx.QueryRowContext(ctx, `SELECT a.hostname,a.version,COALESCE(a.model_version_id,''),a.created_at,a.state,m.ssh_trust,m.host_key_fingerprint FROM project_assets a JOIN machines m ON m.id=a.machine_id WHERE a.project_id=$1 AND m.id=$2 FOR SHARE OF a,m`, project, machine).Scan(&t.Name, &t.Revision, &t.ModelVersion, &t.CreatedAt, &state, &trust, &pin)
+	var trust, pin, state, source string
+	e = tx.QueryRowContext(ctx, `SELECT a.hostname,a.version,COALESCE(a.model_version_id,''),a.created_at,a.state,m.ssh_trust,m.host_key_fingerprint,m.ssh_trust_source FROM project_assets a JOIN machines m ON m.id=a.machine_id WHERE a.project_id=$1 AND m.id=$2 FOR SHARE OF a,m`, project, machine).Scan(&t.Name, &t.Revision, &t.ModelVersion, &t.CreatedAt, &state, &trust, &pin, &source)
 	if errors.Is(e, sql.ErrNoRows) {
 		return t, failure(404, "NOT_FOUND", "Project machine not found")
 	}
 	if e != nil {
 		return t, e
 	}
-	if state != "provisioned" || trust != "established" || pin != b.HostKey {
+	if state != "provisioned" || trust != "established" || source != "ssh" || pin != b.HostKey {
 		return t, failure(409, "SSH_TRUST_REQUIRED", "Provisioned target with established matching host key is required")
 	}
 	return t, nil
 }
 
 func (s *Service) sshFrozenTx(ctx context.Context, tx *sql.Tx, t Target) error {
+	if t.SSHTrustRequestID != "" {
+		return s.sshTrustFrozenTx(ctx, tx, t)
+	}
 	current, e := s.sshTargetTx(ctx, tx, t.ProjectID, t.ResourceKey)
 	if e != nil {
 		return e
@@ -54,11 +57,25 @@ func (s *Service) sshFrozenTx(ctx context.Context, tx *sql.Tx, t Target) error {
 }
 
 func (s *Service) CreateSSH(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (*Execution, error) {
+	if in.Operation != "host.identity" && in.Operation != "host.wait" {
+		return nil, invalid("Only host.identity and host.wait are admitted by this endpoint")
+	}
+	return s.createSSH(ctx, a, project, in, "", 0, key, trace)
+}
+
+func (s *Service) CreateSSHTrustVerification(ctx context.Context, a *Actor, project, requestID string, version int64, key, trace string) (*Execution, error) {
+	if !opaqueID.MatchString(requestID) || version < 1 {
+		return nil, invalid("Valid request ID and expected_version are required")
+	}
+	return s.createSSH(ctx, a, project, SSHCreateInput{Operation: "trust.verify", TimeoutMS: 5000}, requestID, version, key, trace)
+}
+
+func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SSHCreateInput, requestID string, version int64, key, trace string) (*Execution, error) {
 	if in.TimeoutMS == 0 {
 		in.TimeoutMS = 5000
 	}
 	check := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: project, MachineID: "00000000000000000000000000000000", CommandID: "00000000000000000000000000000000", AttemptID: "00000000000000000000000000000000", FencingToken: 1, Operation: in.Operation, TimeoutMS: in.TimeoutMS, WaitMS: in.WaitMS}
-	if check.Validate() != nil || len(in.MachineIDs) == 0 || len(in.MachineIDs) > 32 {
+	if check.Validate() != nil || (requestID == "" && len(in.MachineIDs) == 0) || len(in.MachineIDs) > 32 {
 		return nil, invalid("1..32 machine IDs and a bounded host.identity or host.wait operation are required")
 	}
 	tx, e := s.DB.BeginTx(ctx, nil)
@@ -66,19 +83,59 @@ func (s *Service) CreateSSH(ctx context.Context, a *Actor, project string, in SS
 		return nil, e
 	}
 	defer tx.Rollback()
-	if e = authorize(ctx, tx, a, project, "Admin", "DE", "DL", "SRE"); e != nil {
+	roles := []string{"Admin", "DE", "DL", "SRE"}
+	if requestID != "" {
+		roles = []string{"Admin", "DL", "SRE"}
+	}
+	if e = authorize(ctx, tx, a, project, roles...); e != nil {
 		return nil, e
 	}
 	ids := append([]string{}, in.MachineIDs...)
 	sort.Strings(ids)
 	in.MachineIDs = ids
-	idem, prior, e := idempotency(ctx, tx, a, "ssh.execute:"+project, key, in)
+	scope := "ssh.execute:" + project
+	if requestID != "" {
+		scope = "ssh.trust.execute:" + requestID
+	}
+	payload := struct {
+		Input     SSHCreateInput `json:"input"`
+		RequestID string         `json:"request_id"`
+		Version   int64          `json:"expected_version"`
+	}{in, requestID, version}
+	idem, prior, e := idempotency(ctx, tx, a, scope, key, payload)
 	if e != nil {
 		return nil, e
 	}
 	if prior != nil {
 		x, e := decode[Execution](prior)
 		return &x, e
+	}
+	if requestID != "" {
+		var machine string
+		var currentVersion int64
+		e = tx.QueryRowContext(ctx, "SELECT machine_id,state_version FROM ssh_trust_requests WHERE id=$1 AND project_id=$2 AND state='approved' FOR UPDATE", requestID, project).Scan(&machine, &currentVersion)
+		if errors.Is(e, sql.ErrNoRows) {
+			return nil, conflict("Approved SSH trust request required")
+		}
+		if e != nil {
+			return nil, e
+		}
+		if currentVersion != version {
+			return nil, conflict("SSH trust request version changed")
+		}
+		if e = advisory(ctx, tx, "ssh.trust.consume:"+project+":"+machine); e != nil {
+			return nil, e
+		}
+		var consumed bool
+		e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM ssh_trust_requests used JOIN ssh_trust_requests current ON current.id=$1 WHERE used.project_id=current.project_id AND used.machine_id=current.machine_id AND used.credential_ref=current.credential_ref AND used.credential_version=current.credential_version AND used.execution_id IS NOT NULL)`, requestID).Scan(&consumed)
+		if e != nil {
+			return nil, e
+		}
+		if consumed {
+			return nil, conflict("SSH credential version has already been consumed for this target")
+		}
+
+		ids = []string{machine}
 	}
 	targets := []Target{}
 	targetIDs := []string{}
@@ -89,7 +146,12 @@ func (s *Service) CreateSSH(ctx context.Context, a *Actor, project string, in SS
 		if i > 0 && machine == ids[i-1] {
 			return nil, invalid("Duplicate machine ID")
 		}
-		t, e := s.sshTargetTx(ctx, tx, project, machine)
+		var t Target
+		if requestID != "" {
+			t, e = s.sshTrustTargetTx(ctx, tx, project, requestID, "approved")
+		} else {
+			t, e = s.sshTargetTx(ctx, tx, project, machine)
+		}
 		if e != nil {
 			return nil, e
 		}
@@ -114,8 +176,16 @@ func (s *Service) CreateSSH(ctx context.Context, a *Actor, project string, in SS
 	params := map[string]any{"ssh_wait_ms": in.WaitMS}
 	x := &Execution{ID: platform.RandomID(), ProjectID: project, FlowVersionID: flow.ID, Mode: "ssh", State: "created", StateVersion: 1, DesiredState: "running", Parameters: params, Concurrency: 1, CircuitBreakerPercent: 100, CreatedBy: a.User.ID, CreatedAt: now, TargetSetHash: hash(jsonBytes(targetIDs))}
 	x.Snapshot = Snapshot{Mode: "ssh", Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "Read-only allowlisted operation, provisioned project asset, exact operator binding and established pinned host key; not hardware acceptance", FrozenAt: now}
+	if requestID != "" {
+		x.Snapshot.Admission = "Independently approved, time-limited pinned first-connection verification of an already installed platform key/helper; no key installation, password change or arbitrary repair"
+	}
 	if _, e = tx.ExecContext(ctx, `INSERT INTO exec_executions(id,project_id,flow_version_id,mode,parameters,snapshot,target_set_hash,concurrency,circuit_breaker_percent,created_by,created_at) VALUES($1,$2,$3,'ssh',$4,$5,$6,1,100,$7,$8)`, x.ID, project, flow.ID, jsonBytes(params), jsonBytes(x.Snapshot), x.TargetSetHash, a.User.ID, now); e != nil {
 		return nil, e
+	}
+	if requestID != "" {
+		if _, e = tx.ExecContext(ctx, "UPDATE ssh_trust_requests SET state='consumed',state_version=state_version+1,execution_id=$2 WHERE id=$1", requestID, x.ID); e != nil {
+			return nil, e
+		}
 	}
 	for _, t := range targets {
 		if _, e = tx.ExecContext(ctx, `INSERT INTO exec_execution_targets(execution_id,target_id,snapshot) VALUES($1,$2,$3)`, x.ID, t.ID, jsonBytes(t)); e != nil {
@@ -131,7 +201,7 @@ func (s *Service) CreateSSH(ctx context.Context, a *Actor, project string, in SS
 	if e = audit(ctx, tx, a.User.ID, project, "execution.ssh.create", x.ID, trace, map[string]any{"operation": in.Operation, "target_count": len(targets), "target_hash": x.TargetSetHash}); e != nil {
 		return nil, e
 	}
-	if e = remember(ctx, tx, idem, in, x); e != nil {
+	if e = remember(ctx, tx, idem, payload, x); e != nil {
 		return nil, e
 	}
 	return x, tx.Commit()

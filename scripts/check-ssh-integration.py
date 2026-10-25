@@ -32,6 +32,7 @@ try:
     env['KEEL_TEST_SSH_DATABASE_URL'] = 'postgresql://' + urllib.parse.quote(owner, safe='') + ':' + urllib.parse.quote(config['POSTGRES_PASSWORD'], safe='') + '@127.0.0.1:15433/' + database + '?sslmode=disable'
     env['KEEL_TEST_SSH_STATIC_DIR'] = str(root / 'web/dist')
     env['KEEL_TEST_SSH_BROWSER_SCRIPT'] = str(root / 'scripts/check-ssh-browser.mjs')
+    env['KEEL_TEST_SSH_TRUST_BROWSER_SCRIPT'] = str(root / 'scripts/check-ssh-trust-browser.mjs')
     assert (root / 'web/dist/index.html').is_file(), 'Build the current frontend first'
     with (work / 'go-integration.log').open('w') as log:
         result = subprocess.run(['go', 'test', '-race', '-count=1', '-v', './internal/taskrunner'], env=env, stdout=log, stderr=subprocess.STDOUT)

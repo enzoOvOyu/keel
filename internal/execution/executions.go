@@ -350,6 +350,14 @@ func (s *Service) Control(ctx context.Context, a *Actor, projectID, id string, i
 			return nil, e
 		}
 	}
+	for _, target := range x.Snapshot.Targets {
+		if target.SSHTrustRequestID != "" {
+			if e = authorize(ctx, tx, a, projectID, "Admin", "DL", "SRE"); e != nil {
+				return nil, e
+			}
+			break
+		}
+	}
 	if x.StateVersion != in.ExpectedVersion {
 		return nil, conflict("execution state changed")
 	}
@@ -374,6 +382,11 @@ func (s *Service) Control(ctx context.Context, a *Actor, projectID, id string, i
 	}
 	if desired == "killed" {
 		if _, e = tx.ExecContext(ctx, "UPDATE exec_task_attempts SET state='cancelled',state_version=state_version+1,finished_at=now() WHERE execution_id=$1 AND state='pending'", id); e != nil {
+			return nil, e
+		}
+	}
+	if desired == "killed" && x.Mode == "ssh" {
+		if _, e = tx.ExecContext(ctx, `UPDATE ssh_trust_requests SET state='failed',state_version=state_version+1 WHERE execution_id=$1 AND state='consumed' AND NOT EXISTS(SELECT 1 FROM exec_task_attempts WHERE execution_id=$1 AND state IN('running','unknown'))`, id); e != nil {
 			return nil, e
 		}
 	}

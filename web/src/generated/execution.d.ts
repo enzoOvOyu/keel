@@ -448,7 +448,7 @@ export interface components {
         FlowTask: {
             id: string;
             /** @enum {string} */
-            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait";
+            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify";
             depends_on?: string[];
             retry: number;
             idempotent: boolean;
@@ -507,6 +507,8 @@ export interface components {
             /** @description Stable controller/device identity for non-simulation targets. */
             resource_key?: string;
             ssh?: components["schemas"]["SSHBinding"];
+            /** @description Frozen approved one-time first-connection verification request; absent for ordinary queries. */
+            ssh_trust_request_id?: string;
         };
         RegisterSimTargetsResponse: {
             items: components["schemas"]["SimTarget"][];
@@ -594,6 +596,8 @@ export interface components {
             /** Format: date-time */
             finished_at: string | null;
             target_count: number;
+            /** @description One-time approved first-connection verification; control requires Admin/DL/SRE. */
+            trust_verification: boolean;
         };
         /** @description Immutable durable simulation receipt. cancelled is attempt outcome; execution cancellation terminal is killed. */
         ExecutionReceipt: {

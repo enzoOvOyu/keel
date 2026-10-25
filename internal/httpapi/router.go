@@ -108,6 +108,7 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 		auth.registerZTPMockKea(r)
 		auth.registerZTP239Manifest(r)
 		auth.registerSshTrust(r)
+		auth.registerSSHTrustRequests(r)
 		auth.registerMedia(r)
 		auth.registerParams(r)
 		auth.registerCatalogAdmin(r)

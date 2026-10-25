@@ -1,5 +1,6 @@
 export const executionViewsTranslations = {
   zh: {
+    sshTrustExecutionNotice: "受限 SSH 主机信任验证；仅 Admin、DL、SRE 可控制。只验证已安装的本平台公钥/helper；成功且有效的终态回执才可建立信任，未知结果保留对账。",
     sshExecutionNotice: "受限 SSH 只读任务；请求仅使用已登记目标和固定主机密钥。断线或超时没有终态回执时保留结果未知，不代表真机验收通过。",
     executionViewTabs: "执行详情视图",
     executionViewTab_overview: "概览",
@@ -52,6 +53,7 @@ export const executionViewsTranslations = {
       "按当前状态版本 {{version}} 提交控制请求；冲突后刷新，不自动重试。",
   },
   en: {
+    sshTrustExecutionNotice: "Restricted SSH host trust verification; only Admin, DL and SRE may control it. It verifies the platform key/helper already installed. Trust requires a valid successful terminal receipt; unknown outcomes retain reconciliation.",
     sshExecutionNotice: "Bounded read-only SSH task using registered targets and pinned host keys. Disconnects without terminal receipts remain unknown. This is not hardware acceptance.",
     executionViewTabs: "Execution views",
     executionViewTab_overview: "Overview",

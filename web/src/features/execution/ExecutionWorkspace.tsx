@@ -24,6 +24,7 @@ import { useAction } from "../../lib/management";
 import { useProject } from "../../components/ProjectWorkspace";
 import { useSession, useExpireOnUnauthorized } from "../../lib/session";
 import { controlExecution } from "../../lib/execution";
+import { ApiError } from "../../lib/api";
 import {
   downloadOutput,
   getAttempt,
@@ -38,7 +39,11 @@ import {
   type ExecutionViewTab,
   type JournalEntry,
 } from "../../lib/execution-views";
+
 import "../../styles/execution-views.css";
+function accessDenied(error: unknown): error is ApiError {
+  return error instanceof ApiError && [401, 403, 404].includes(error.status);
+}
 const Targets = lazy(() => import("./ExecutionTargets"));
 const terminal = ["success", "failed", "killed", "warning"],
   tabs: ExecutionViewTab[] = [
@@ -158,7 +163,7 @@ function Outputs({
       <h2>{t("executionViewOutputs")}</h2>
       <ActionError error={data.error ?? action.error} />
       {data.isPending && <p role="status">{t("loadingRecords")}</p>}
-      {data.data && (
+      {data.data && !accessDenied(data.error) && !accessDenied(action.error) && (
         <>
           <p>{t("executionViewArtifactsUnavailable")}</p>
           <details open>
@@ -252,7 +257,7 @@ function Relations({
       <h2>{t("executionViewRelations")}</h2>
       <ActionError error={data.error} />
       {data.isPending && <p role="status">{t("loadingRecords")}</p>}
-      {data.data && (
+      {data.data && !accessDenied(data.error) && (
         <>
           <dl className="execution-view-facts">
             <dt>{t("flowWorkbenchTitle")}</dt>
@@ -363,7 +368,7 @@ function AttemptDrawer({
       </div>
       <ActionError error={query.error} />
       {query.isPending && <p role="status">{t("loadingRecords")}</p>}
-      {query.data && (
+      {query.data && !accessDenied(query.error) && (
         <>
           <dl className="execution-view-facts">
             <dt>{t("attemptTarget")}</dt>
@@ -415,6 +420,7 @@ export function ExecutionWorkspace({
     },
     tab = search.tab ?? "overview",
     control = useAction();
+  const [scopeDenied, setScopeDenied] = useState<ApiError | null>(null);
   const [rerun,setRerun]=useState<{mode:"failed"|"targets";targetIDs:string[]}|null>(null);
   const [confirm, setConfirm] = useState<"pause" | "resume" | "cancel" | null>(
       null,
@@ -440,8 +446,10 @@ export function ExecutionWorkspace({
     enabled: tab === "logs",
     retry: false,
   });
-  const current = overview.data,
+  const denied = scopeDenied ?? [overview.error, journal.error, control.error].find(accessDenied);
+  const current = denied ? undefined : overview.data,
     active = current ? !terminal.includes(current.execution.state) : false;
+  useEffect(() => { if (denied) { setConfirm(null); setRerun(null); setEvents([]); setResync(false) } }, [denied]);
   useExpireOnUnauthorized(overview.error ?? journal.error);
   function go(value: Partial<ExecutionViewSearch>) {
     void navigate({
@@ -488,6 +496,7 @@ export function ExecutionWorkspace({
         void client.invalidateQueries({ queryKey: prefix });
       },
       onDenied: () => {
+        setScopeDenied(new ApiError(403, "FORBIDDEN"));
         void client.invalidateQueries({
           queryKey: ["private", session.user.id, "project", projectId],
         });
@@ -519,11 +528,12 @@ export function ExecutionWorkspace({
       await client.invalidateQueries({ queryKey: prefix });
     }
   }
+  const trustVerification = Boolean(current?.execution.trust_verification);
   const canControl = Boolean(
     current &&
       ((current.execution.mode === "sim" || current.execution.mode === "ssh")
         ? session.user.is_admin ||
-          ["Admin", "SRE", "DE", "DL"].includes(project.role)
+          (trustVerification ? ["Admin", "SRE", "DL"] : ["Admin", "SRE", "DE", "DL"]).includes(project.role)
         : session.user.is_admin || ["Admin", "NDE"].includes(project.role)),
   );
   const visible = events.filter(
@@ -542,7 +552,7 @@ export function ExecutionWorkspace({
   if (!current)
     return (
       <section className="panel">
-        <ActionError error={overview.error} />
+        <ActionError error={denied ?? overview.error} />
         <Button variant="outline" className="secondary-button" onClick={onClose}>
           {t("backToList")}
         </Button>
@@ -567,7 +577,7 @@ export function ExecutionWorkspace({
       <p className="impact-notice">
         {t(
           current.execution.mode === "ssh"
-            ? "sshExecutionNotice"
+            ? trustVerification ? "sshTrustExecutionNotice" : "sshExecutionNotice"
             : current.execution.mode === "fabric"
             ? "networkExecutionDetail"
             : current.execution.mode === "kea"
@@ -740,7 +750,7 @@ export function ExecutionWorkspace({
           <Relations projectId={projectId} executionId={executionId} />
         )}
       </div>
-      {confirm && (
+      {confirm && canControl && (
         <ActionDialog
           title={t(confirm === "cancel" ? "cancelExecution" : confirm)}
           description={`${project.name} · ${executionId} · ${current.execution.mode} · ${current.progress.total_targets} ${t("attemptTarget")}`}

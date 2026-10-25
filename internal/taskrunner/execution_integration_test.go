@@ -77,7 +77,7 @@ func TestSSHExecutionPostgresProtocolAndHTTP(t *testing.T) {
 	store.SSHRunner = f.runner
 	// Seed the external device identity/trust fixture; this is explicitly a
 	// software protocol target, not a successful PXE or real trust bootstrap.
-	if _, e = store.DB.ExecContext(ctx, `INSERT INTO machines(id,serial_number,ssh_trust,host_key_fingerprint,created_at,updated_at) VALUES($1,$2,'established',$3,now(),now())`, machineID, "ssh-fixture-"+platform.RandomID()[:8], cfg["targets"][0].HostKey); e != nil {
+	if _, e = store.DB.ExecContext(ctx, `INSERT INTO machines(id,serial_number,ssh_trust,ssh_trust_source,host_key_fingerprint,created_at,updated_at) VALUES($1,$2,'established','ssh',$3,now(),now())`, machineID, "ssh-fixture-"+platform.RandomID()[:8], cfg["targets"][0].HostKey); e != nil {
 		t.Fatal(e)
 	}
 	if _, e = store.DB.ExecContext(ctx, `INSERT INTO project_assets(id,project_id,machine_id,hostname,state,created_at,updated_at) VALUES($1,$2,$3,'ssh-protocol-target','provisioned',now(),now())`, platform.RandomID(), project.ID, machineID); e != nil {
