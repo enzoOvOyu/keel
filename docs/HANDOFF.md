@@ -549,3 +549,12 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 **§46 发布完成**：功能代码 `4f563fb3a3f20d84f07a9ee362598503fd7edcb6` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:e5c02e9ab0155adf1d96ecd4dbd67f9006a893a736283c2061f0dd61859a3763`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T00:57:11.406838+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
 
 无迁移，运行库仍37条迁移记录；保留兼容旧镜像 `keel:4d9580d67169556f637448eefe835be407b7f4ad`，不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T005428Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40148518113记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
+
+
+## 47. A4 / WP-1.12：型号列表按权限统计绑定资产（2026-10-25）
+
+持续开发第六块，落实DS 4.12d列表引用设备数，明确以ProjectAsset有效绑定为口径：项目列表只计本项目，平台管理员全局列表统计全局型号在所有项目的绑定；跨版本统计，退役/旧版本仍计入。同一物理机器在不同项目各自绑定各计一次，不从Machine投影推断；缺失或型号/版本不匹配不计入。新增可选reference_count仅在列表提供，UI缺失显示未提供。OpenAPI与生成类型同步，并修正scope_key原enum仅global与项目实际响应不符。新表头/单元格使用共享组件，中文/英文提示统计范围。无迁移、新写入口或设备升级，WP/FR-14/P1仍partial。
+
+实际根npm run build通过（`/tmp/keel-model-references-build.log`，Vite2m6s）；隔离完整model-workspace回归中PG/race23.267s已通过（`/tmp/keel-models-yw4_wigm`），新增同机器跨项目历史绑定、v1/v2、私有/共享、无效型号版本对排除、退役保留和Viewer拒绝。新增实际宽BOM提交后的API/浏览器验证通过：项目各自1、全局2且旧v1未自动升级，Viewer只见本项目计数、退役保留和双语正确。原HTTP/草稿/发布/布局回归已通过，其余原浏览器结果提交前补记。旧fabric/026草稿原样未暂存，overlay沿用。
+
+§47提交前补记：完整model-workspace命令退出0（`/tmp/keel-model-references-integration.log`），全部原扫描/发布/布局/修订/资产/托盘/全局HTTP和浏览器回归通过；model-reference-counts.png已视觉复核。check-design.py退出0（`/tmp/keel-model-references-design.log`）。

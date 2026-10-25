@@ -3429,11 +3429,8 @@ export interface components {
         };
         DeviceModelSummary: {
             id: string;
-            /**
-             * @description Reserved for the platform scope; project scopes use project:<id>.
-             * @enum {string}
-             */
-            scope_key: "global";
+            /** @description Global shared model or a project-private model identity. */
+            scope_key: string;
             name: string;
             /** @enum {string} */
             kind: "rack" | "server" | "compute-tray" | "switch" | "nic" | "gpu" | "psu" | "bmc" | "optic_module";
@@ -3441,6 +3438,11 @@ export interface components {
             state: "active" | "retired";
             /** Format: int64 */
             latest_version: number;
+            /**
+             * Format: int64
+             * @description Present in list responses. Counts assets bound to any published version; project routes count only that project, global admin lists count all projects. Not the latest-version count or a Machine projection.
+             */
+            reference_count?: number;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */

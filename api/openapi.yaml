@@ -4301,11 +4301,12 @@ components:
       required: [id, scope_key, name, kind, state, latest_version, created_at, updated_at]
       properties:
         id: { type: string, pattern: '^[a-f0-9]{32}$' }
-        scope_key: { type: string, enum: [global], description: 'Reserved for the platform scope; project scopes use project:<id>.' }
+        scope_key: { type: string, pattern: '^(global|project:[a-f0-9]{32})$', description: 'Global shared model or a project-private model identity.' }
         name: { type: string, minLength: 1, maxLength: 120 }
         kind: { type: string, enum: [rack, server, compute-tray, switch, nic, gpu, psu, bmc, optic_module] }
         state: { type: string, enum: [active, retired] }
         latest_version: { type: integer, format: int64, minimum: 0 }
+        reference_count: { type: integer, format: int64, minimum: 0, description: 'Present in list responses. Counts assets bound to any published version; project routes count only that project, global admin lists count all projects. Not the latest-version count or a Machine projection.' }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
     DeviceModelPage:

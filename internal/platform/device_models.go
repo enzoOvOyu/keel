@@ -20,14 +20,15 @@ import (
 // immutable published versions. Expectation data only: no runtime state here.
 
 type DeviceModelSummary struct {
-	ID        string    `json:"id"`
-	ScopeKey  string    `json:"scope_key"`
-	Name      string    `json:"name"`
-	Kind      string    `json:"kind"`
-	State     string    `json:"state"`
-	Version   int64     `json:"latest_version"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ReferenceCount *int64    `json:"reference_count,omitempty"`
+	ID             string    `json:"id"`
+	ScopeKey       string    `json:"scope_key"`
+	Name           string    `json:"name"`
+	Kind           string    `json:"kind"`
+	State          string    `json:"state"`
+	Version        int64     `json:"latest_version"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type DeviceModelVersionDetail struct {
@@ -104,18 +105,33 @@ func (s *Store) ListDeviceModels(ctx context.Context, a *AuthSession, project *P
 	if e = tx.QueryRowContext(ctx, "SELECT count(*) FROM device_models WHERE "+filter, scope).Scan(&out.Total); e != nil {
 		return out, e
 	}
+	projectID := ""
+	if project != nil {
+		projectID = project.ID
+	}
 	rows, e := tx.QueryContext(ctx, `SELECT m.id,m.scope_key,m.name,m.kind,m.state,m.created_at,m.updated_at,
-		coalesce((SELECT max(v.version) FROM device_model_versions v WHERE v.model_id=m.id),0)
-		FROM device_models m WHERE `+filter+` ORDER BY m.scope_key,m.name LIMIT $2 OFFSET $3`, scope, p.PageSize, p.Offset())
+		coalesce((SELECT max(v.version) FROM device_model_versions v WHERE v.model_id=m.id),0),
+        coalesce(refs.reference_count,0)
+        FROM device_models m
+        LEFT JOIN (
+            SELECT a.model_id,count(*) AS reference_count
+            FROM project_assets a
+            JOIN device_model_versions bound ON bound.id=a.model_version_id AND bound.model_id=a.model_id
+            WHERE ($4='' OR a.project_id=$4)
+            GROUP BY a.model_id
+        ) refs ON refs.model_id=m.id
+        WHERE `+filter+` ORDER BY m.scope_key,m.name LIMIT $2 OFFSET $3`, scope, p.PageSize, p.Offset(), projectID)
 	if e != nil {
 		return out, e
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var m DeviceModelSummary
-		if e = rows.Scan(&m.ID, &m.ScopeKey, &m.Name, &m.Kind, &m.State, &m.CreatedAt, &m.UpdatedAt, &m.Version); e != nil {
+		var count int64
+		if e = rows.Scan(&m.ID, &m.ScopeKey, &m.Name, &m.Kind, &m.State, &m.CreatedAt, &m.UpdatedAt, &m.Version, &count); e != nil {
 			return out, e
 		}
+		m.ReferenceCount = &count
 		out.Items = append(out.Items, m)
 	}
 	return out, rows.Err()
