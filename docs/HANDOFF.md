@@ -2,11 +2,14 @@
 
 更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～71。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
-## 当前恢复入口（2026-10-25 08:44 UTC）
+## 当前恢复入口（2026-10-25 10:58 UTC）
 
-- 唯一工作区`/opt/keel`，分支`dev/p1-network-bom`。3000运行`d20899486e1220ec016f1fbfc1e0c058471fd514`，镜像`sha256:1b3821ff8745921497bcd2b932ec8f2fab2b63fc75b0b0b82cfca18d559d94a6`，健康及八页真实登录/公钥列表/受限角色API复验通过。046已应用，运行库43条迁移；旧schema42镜像不可直接回切，备份恢复另走批准流程。
+- **用户最新排期（2026-10-25）**：下一次涉及前端时完成shadcn/ui剩余整合，再统一调整全局漂亮等宽字体；无合适选型则核对并采用RunPod字体。接续§23已存在的共享组件，先查实际剩余范围，不能重复接入或把基础完成当作所有页面已迁移。届时更新DESIGN-SYSTEM/字体令牌、授权与中文回退并进行浏览器验证；本次尚未改字体或前端。最新要求详见DEVELOPMENT §2。
+
+- 唯一工作区`/opt/keel`，分支`dev/p1-network-bom`。3000运行`8ee27c51bb1e38df2ec183f3a1ab60bd24d41587`，镜像`sha256:3361da00bf74a8d8703935aca79f0d54ad34e4b34b213d41bd22b2d78b50759f`，健康及八页真实登录/公钥列表/受限角色API复验通过。047已应用，运行库44条迁移；旧schema43镜像不可直接回切，备份恢复另走批准流程。
 - A3/WP-1.5新增独立批准的受控非root公钥安装，强制helper条目追加保持客户内容，新域钥全新SSH握手查询原回执才写真实互信。unknown保持资源隔离、恢复不重装；安装前或证明后撤销均阻断信任。实际PG/SSH/双人浏览器与全量检查通过，详见§64。
-- 生产worker、真实SSH、主密钥提供者、外部介质获取仍关闭；签名只读挂载保持。无生产域钥生成或真机操作，两份原fabric草稿未跟踪且未构建。
+- §71新增Agent一次性注册/mTLS/连接心跳及双架构CLI，实际PG/TLS/gRPC/CLI/受限角色与DB超时恢复通过；仅身份基础，任务/遥测/自动安装/续签仍未完成。功能提交7670144、完整配置提交8ee27c5均已推送，完整提交CI/run40186128595成功。
+- 生产Agent listener、worker、真实SSH、主密钥提供者、外部介质获取仍关闭；签名只读挂载保持。无生产域钥生成或真机操作，两份原fabric草稿未跟踪且未构建。
 - 本轮两小时开发的功能与修正均已提交推送，最终有效CI通过。WP-1.14 OIDC/LDAP已提交发布（§65/66），生产仍关闭；SSH安装后的普通任务域钥绑定已提交发布（§67），资产页普通只读SSH启动入口已提交发布（§68），后续只读repair域钥绑定安全回归及测试顺序修复已完成（§69）；H-1旧执行包的认证/指纹/缺证据假成功路径已改为离线证据校验（§70）；root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、Agent任务/自动安装/续签与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
 
 ## 1. 工作区与运行版本（早期快照，当前见上方）
@@ -955,3 +958,10 @@ CI诊断包装复核：ab36da7加入tee时未显式pipefail，可能掩盖make c
 
 
 §71最终本地验证：全量 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json GOMEMLIMIT=768MiB make check` 已退出0（`/tmp/keel-agent-make-check.log`，含Go vet/race、正式契约/UI检查、类型及前端生产构建，已有大bundle提示保留）。独立审查进一步修正临时DB错误被映射成永久身份拒绝的问题：非sql.ErrNoRows的DB错误保留并返回Unavailable，当前流立即终止但可退避恢复；真实撤销/绑定失效仍PermissionDenied，注册仍禁止自动重试。最终专用runner `/tmp/keel-agent-final-integration.log`、`/tmp/keel-agent-integration-1bcmu4xy` 已退出0，新增第九个真实证书行锁超时场景验证流Unavailable且释放锁后原证书仍有效，其余八场景及受限角色全通过。修改后的相关包vet退出0（`/tmp/keel-agent-final-vet.log`）。后续只补发布证据，不重复已通过且不受影响的前端验证。
+
+
+§71发布补记（2026-10-25 10:58 UTC）：功能提交7670144及可选只读Compose接入8ee27c5已推送；完整发布SHA `8ee27c51bb1e38df2ec183f3a1ab60bd24d41587` 的GitHub Actions [run40186128595](https://github.com/enzoOvOyu/keel/actions/runs/40186128595) completed/success，包含真实Agent PG/TLS/gRPC/CLI/列级权限测试、双架构、既有认证/SSH/OIDC/LDAP浏览器及容器健康检查。精确git archive镜像为 `sha256:3361da00bf74a8d8703935aca79f0d54ad34e4b34b213d41bd22b2d78b50759f`，未纳入两份原fabric草稿；镜像内Agent version实际核验一致。
+
+发布证据目录 `/home/ubuntu/.local/state/keel/releases/20261025T104612Z`：pre047.dump（304242字节）已验证格式并在独立恢复库完整恢复，保留原ACL后执行047、核查业务行数/SSH身份/审计限制和新增最小授权；恢复库仅清理自有副本。运行库迁移43→44，三张Agent表均空、未生成生产CA/token。候选3108八页/公开域钥/真实受限应用角色读探针通过，再切3000；3000相同复验及镜像/health精确SHA通过，Agent/SSH/主密钥/介质获取/OIDC/LDAP保持关闭。候选容器和其临时env已移除，旧镜像、数据库卷、备份及回退资料保留，运行.env保持600。数据库迁移后旧schema43镜像不能直接回切，恢复不自动执行。
+
+用户最新追加的shadcn/ui剩余整合和全局等宽字体调整已排入下一次前端改动，记录于当前恢复入口及DEVELOPMENT §2；本轮没有修改字体或组件。当前代码下一实施单元仍为既有Agent身份上的统一Runner只读任务/持久回执及断线对账，前端一旦涉及则先执行上述用户要求。完整P1/FR-0、Agent安装/续签/遥测和真机验收依然不闭环。
