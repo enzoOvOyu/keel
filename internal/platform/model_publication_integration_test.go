@@ -20,6 +20,7 @@ func TestModelPublicationPreservesAndSeals(t *testing.T) {
 		t.Fatal(e)
 	}
 	in := ImportModelScanInput{ModelName: "Reviewed server", SourceHost: "fixture-node", HwSpec: map[string]any{"kind": "server", "cpu_arch": "amd64"}, ExpectedTopology: map[string]any{"source": "independent-fixture"}, CapabilityMatrix: map[string]any{"feature": "fixture"}, PanelLayout: map[string]any{"source": "panel-fixture"}, BomExpect: map[string]any{"nic_count": float64(2)}, DefaultRolePlan: map[string]any{"management": "slot-2"}, Slots: []ModelSlot{{SlotNo: 2, PcieSlot: "PCIe-2", ExpectNicModel: "fixture", PanelPort: "2", DefaultRole: "management"}, {SlotNo: 1, PcieSlot: "PCIe-1", ExpectNicModel: "fixture", PanelPort: "1", DefaultRole: "compute"}}}
+	in.PanelLayout = map[string]any{"source": "independent-panel-fixture", "layout_v1": map[string]any{"rows": 1, "columns": 2, "ports": []any{map[string]any{"id": "p1", "label": "NIC 1", "row": 1, "column": 1, "slot_no": 1}, map[string]any{"id": "p2", "label": "NIC 2", "row": 1, "column": 2, "slot_no": 2}}}}
 	d, e := s.ImportModelScan(ctx, a, p, in, "test")
 	if e != nil {
 		t.Fatal(e)
@@ -61,6 +62,25 @@ func TestModelPublicationPreservesAndSeals(t *testing.T) {
 		if err := s.DB.QueryRowContext(ctx, "SELECT count(*) FROM "+table+" WHERE model_id=$1", d.ModelID).Scan(&count); err != nil || count != want {
 			t.Fatalf("invalid slots modified %s: %d %v", table, count, err)
 		}
+	}
+	for _, scope := range []*ProjectSummary{p, nil} {
+		invalid := in
+		invalid.ModelName = "Invalid panel identity"
+		invalid.PanelLayout = map[string]any{"layout_v1": map[string]any{"rows": 1, "columns": 1, "ports": []any{map[string]any{"id": "p1", "label": "Missing slot", "row": 1, "column": 1, "slot_no": 99}}}}
+		if _, err := s.ImportModelScan(ctx, a, scope, invalid, "test"); err == nil {
+			t.Fatal("invalid panel created a draft")
+		} else {
+			assertErrorCode(t, err, "VALIDATION_ERROR")
+		}
+		if _, err := s.PublishModelVersion(ctx, a, p, d.ModelID, invalid.payload(), "test"); err == nil {
+			t.Fatal("invalid panel published")
+		} else {
+			assertErrorCode(t, err, "VALIDATION_ERROR")
+		}
+	}
+	var invalidPanels int
+	if err := s.DB.QueryRowContext(ctx, "SELECT count(*) FROM device_models WHERE name='Invalid panel identity'").Scan(&invalidPanels); err != nil || invalidPanels != 0 {
+		t.Fatalf("invalid panel left identity: %d %v", invalidPanels, err)
 	}
 	again := in
 	again.Slots = []ModelSlot{in.Slots[1], in.Slots[0]}
@@ -113,6 +133,7 @@ func TestModelPublicationPreservesAndSeals(t *testing.T) {
 	// Two editors at the same observed version yield exactly one successor.
 	expected = 1
 	payload.SourceDraftID = ""
+	payload.PanelLayout = map[string]any{"layout_v1": map[string]any{"rows": 1, "columns": 1, "ports": []any{map[string]any{"id": "new-p1", "label": "New layout", "row": 1, "column": 1, "slot_no": 1}}}}
 	results := make(chan error, 2)
 	var wg sync.WaitGroup
 	for i := 0; i < 2; i++ {

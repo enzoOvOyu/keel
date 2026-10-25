@@ -22,7 +22,7 @@ try {
  const payload = {
   hw_spec: { model: 'Reviewed-' + suffix, kind: 'server', cpu_arch: 'amd64', gpu_count: 2, gpu: 'Independent-GPU-fixture' },
   expected_topology: { source: 'independent-fixture', numa: ['fixture-a'] },
-  capability_matrix: { diagnostics: ['fixture-tool'] }, panel_layout: { source: 'fixture-layout', ports: ['p1', 'p2'] },
+  capability_matrix: { diagnostics: ['fixture-tool'] }, panel_layout: { source: 'independent-fixture-layout', layout_v1: { rows: 1, columns: 3, ports: [{ id: 'p1', label: 'NIC-1', row: 1, column: 1, slot_no: 1 }, { id: 'p2', label: 'NIC-2', row: 1, column: 2, slot_no: 2 }, { id: 'oob', label: 'OOB', row: 1, column: 3 }] } },
   bom_expect: { nic_count: 2 }, default_role_plan: { management: 'slot-2' },
   slots: [1, 2].map(n => ({ slot_no: n, pcie_slot: 'PCIe-' + n, expect_nic_model: 'fixture-nic', panel_port: 'p' + n, default_role: n === 1 ? 'compute' : 'management' }))
  }
@@ -44,8 +44,22 @@ try {
    assert.deepEqual(JSON.parse(await page.locator('#' + id).inputValue()), payload[key])
   }
   assert.equal(await page.locator('.slot-row').count(), 2)
+  const panel = page.getByRole('region', { name: '型号面板预览', exact: true })
+  await panel.getByRole('button', { name: 'NIC-1 计算', exact: true }).click()
+  await panel.getByText('PCIe-1', { exact: true }).waitFor()
+  assert.equal(await panel.getByRole('button', { name: 'OOB 未关联槽位', exact: true }).count(), 1)
  }
  await openReview()
+ const invalidPanels = [null, { rows: 0, columns: 3, ports: payload.panel_layout.layout_v1.ports }, { ...payload.panel_layout.layout_v1, ports: [{ ...payload.panel_layout.layout_v1.ports[0], slot_no: 99 }] }, { ...payload.panel_layout.layout_v1, ports: [payload.panel_layout.layout_v1.ports[0], { ...payload.panel_layout.layout_v1.ports[1], column: 1 }] }]
+ for (const grid of invalidPanels) {
+  await call('POST', base + '/import', { ...scan, model_name: 'Invalid-panel-' + suffix, panel_layout: { layout_v1: grid } }, 400)
+  await call('POST', modelPath + '/versions', { ...payload, panel_layout: { layout_v1: grid } }, 400)
+ }
+ await page.locator('#panel-layout').fill(JSON.stringify({ layout_v1: invalidPanels[2] }))
+ await page.getByText('面板布局无效', { exact: false }).waitFor()
+ await page.locator('.action-dialog button[type=submit]').click()
+ await page.getByRole('alert').filter({ hasText: '面板布局无效' }).waitFor()
+ await page.locator('#panel-layout').fill(JSON.stringify(payload.panel_layout))
  // Reject ambiguous PCIe/slot aliases before sending a publication request.
  let publicationRequests = 0
  const trackPublication = request => { if (request.method() === 'POST' && request.url().endsWith(modelPath + '/versions')) publicationRequests++ }
@@ -93,6 +107,16 @@ try {
  const reviewed = { ...payload, bom_expect: { nic_count: 3, source: 'human-reviewed-fixture' } }
  for (const key of Object.keys(reviewed)) assert.deepEqual(v2[key], reviewed[key])
  const history = await call('GET', modelPath + '/versions'); assert.deepEqual(history.items.find(v => v.id === v1.id), v1)
+ await page.getByRole('row').filter({ has: page.getByText(payload.hw_spec.model, { exact: true }) }).first().getByRole('button', { name: '版本历史', exact: true }).click()
+ const oldRow = page.getByRole('row').filter({ has: page.getByText('v1', { exact: true }) }).last()
+ await oldRow.locator('summary').filter({ hasText: '型号面板预览' }).click()
+ const oldPanel = oldRow.getByRole('region', { name: '型号面板预览', exact: true })
+ await oldPanel.getByRole('button', { name: 'NIC-2 管理', exact: true }).click()
+ await oldPanel.getByText('PCIe-2', { exact: true }).waitFor()
+ assert((await oldPanel.textContent()).includes('v1'))
+ await oldPanel.screenshot({ path: process.env.KEEL_WORKSPACE_EVIDENCE_DIR + '/model-panel-history.png' })
+ console.log('PASS typed model layout import/review/publication/history preview, physical coordinates and slot defaults; invalid layouts rejected without publication and legacy metadata remains compatible')
+
  await call('POST', base + '/import', { source_host: scan.source_host, ...reviewed }, 409)
  const other = await call('POST', base, { name: 'Other-' + suffix, kind: 'server' }, 201)
  await call('POST', base + '/' + other.id + '/drafts/' + draft.id + '/discard', {}, 404)

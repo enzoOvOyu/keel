@@ -354,7 +354,7 @@ func validateModelPayload(input PublishModelVersionInput) error {
 			return apiError(400, "VALIDATION_ERROR", "Slot default role must be management, storage, compute, oob or unused")
 		}
 	}
-	return nil
+	return validateModelPanelLayout(input.PanelLayout, input.Slots)
 }
 
 func modelContentHash(input PublishModelVersionInput) (string, error) {

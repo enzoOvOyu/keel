@@ -3166,8 +3166,8 @@ components:
           type: string
           format: date-time
           description: Non-zero timestamp observed before confirmation. Artifact attachment and lifecycle transitions advance this version; successful responses return the persisted timestamp.
-    ModelDraft: {"type": "object", "additionalProperties": false, "required": ["id", "model_id", "model_name", "source_host", "content_hash", "created_by", "created_at", "hw_spec", "expected_topology", "capability_matrix", "panel_layout", "bom_expect", "default_role_plan", "slots"], "properties": {"id": {"type": "string"}, "model_id": {"type": "string"}, "model_name": {"type": "string"}, "source_host": {"type": "string"}, "content_hash": {"type": "string"}, "created_by": {"type": "string"}, "created_at": {"type": "string"}, "hw_spec": {"$ref": "#/components/schemas/ModelHardwareSpecification"}, "expected_topology": {"type": "object", "additionalProperties": true}, "capability_matrix": {"type": "object", "additionalProperties": true}, "panel_layout": {"type": "object", "additionalProperties": true}, "bom_expect": {"$ref": "#/components/schemas/ModelBOMExpectation"}, "default_role_plan": {"type": "object", "additionalProperties": true}, "slots": {"type": "array", "items": {"$ref": "#/components/schemas/ModelSlot"}}}}
-    ImportModelScanInput: {"type": "object", "additionalProperties": false, "required": ["source_host", "hw_spec"], "properties": {"model_name": {"type": "string"}, "source_host": {"type": "string"}, "hw_spec": {"$ref": "#/components/schemas/ModelHardwareSpecification"}, "expected_topology": {"type": "object", "additionalProperties": true}, "capability_matrix": {"type": "object", "additionalProperties": true}, "panel_layout": {"type": "object", "additionalProperties": true}, "bom_expect": {"$ref": "#/components/schemas/ModelBOMExpectation"}, "default_role_plan": {"type": "object", "additionalProperties": true}, "slots": {"type": "array", "items": {"$ref": "#/components/schemas/ModelSlot"}}}}
+    ModelDraft: {"type": "object", "additionalProperties": false, "required": ["id", "model_id", "model_name", "source_host", "content_hash", "created_by", "created_at", "hw_spec", "expected_topology", "capability_matrix", "panel_layout", "bom_expect", "default_role_plan", "slots"], "properties": {"id": {"type": "string"}, "model_id": {"type": "string"}, "model_name": {"type": "string"}, "source_host": {"type": "string"}, "content_hash": {"type": "string"}, "created_by": {"type": "string"}, "created_at": {"type": "string"}, "hw_spec": {"$ref": "#/components/schemas/ModelHardwareSpecification"}, "expected_topology": {"type": "object", "additionalProperties": true}, "capability_matrix": {"type": "object", "additionalProperties": true}, "panel_layout": {"$ref": "#/components/schemas/ModelPanelLayout"}, "bom_expect": {"$ref": "#/components/schemas/ModelBOMExpectation"}, "default_role_plan": {"type": "object", "additionalProperties": true}, "slots": {"type": "array", "items": {"$ref": "#/components/schemas/ModelSlot"}}}}
+    ImportModelScanInput: {"type": "object", "additionalProperties": false, "required": ["source_host", "hw_spec"], "properties": {"model_name": {"type": "string"}, "source_host": {"type": "string"}, "hw_spec": {"$ref": "#/components/schemas/ModelHardwareSpecification"}, "expected_topology": {"type": "object", "additionalProperties": true}, "capability_matrix": {"type": "object", "additionalProperties": true}, "panel_layout": {"$ref": "#/components/schemas/ModelPanelLayout"}, "bom_expect": {"$ref": "#/components/schemas/ModelBOMExpectation"}, "default_role_plan": {"type": "object", "additionalProperties": true}, "slots": {"type": "array", "items": {"$ref": "#/components/schemas/ModelSlot"}}}}
     ModelDraftPage: {"type": "object", "additionalProperties": false, "required": ["items"], "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/ModelDraft"}}}}
     DiscardModelDraftResult: {"type": "object", "additionalProperties": false, "required": ["discarded"], "properties": {"discarded": {"type": "boolean"}}}
     CompatibilityMatrix:
@@ -4279,6 +4279,31 @@ components:
         total: { type: integer }
         page: { type: integer }
         page_size: { type: integer }
+    ModelPanelPort:
+      type: object
+      required: [id, label, row, column]
+      additionalProperties: true
+      properties:
+        id: { type: string, minLength: 1, maxLength: 64, description: Unique in this layout; no surrounding whitespace. }
+        label: { type: string, minLength: 1, maxLength: 120 }
+        row: { type: integer, minimum: 1, maximum: 16 }
+        column: { type: integer, minimum: 1, maximum: 64 }
+        slot_no: { type: integer, minimum: 1, maximum: 1024, description: Optional reference to a NIC slot in this exact model version. Omission does not infer a slot or role. }
+    ModelPanelGrid:
+      type: object
+      required: [rows, columns, ports]
+      additionalProperties: true
+      description: Physical positions from an independent model specification. Port IDs and grid cells must be unique; positions must fit the declared grid. This is expected layout, not observed link health.
+      properties:
+        rows: { type: integer, minimum: 1, maximum: 16 }
+        columns: { type: integer, minimum: 1, maximum: 64 }
+        ports: { type: array, minItems: 1, maxItems: 256, items: { $ref: '#/components/schemas/ModelPanelPort' } }
+    ModelPanelLayout:
+      type: object
+      additionalProperties: true
+      description: Version-bound panel definition. Legacy metadata is preserved; omission of layout_v1 supplies no renderable physical layout.
+      properties:
+        layout_v1: { $ref: '#/components/schemas/ModelPanelGrid' }
     ModelSlot:
       description: Each slot number and PCIe location must uniquely identify one slot within the version. PCIe locations cannot repeat, collide with another slot number, or contain surrounding whitespace. A slot may use its own decimal number as its PCIe location.
       type: object
@@ -4324,7 +4349,7 @@ components:
         hw_spec: { $ref: '#/components/schemas/ModelHardwareSpecification' }
         expected_topology: { type: object, additionalProperties: true }
         capability_matrix: { type: object, additionalProperties: true }
-        panel_layout: { type: object, additionalProperties: true }
+        panel_layout: { $ref: '#/components/schemas/ModelPanelLayout' }
         bom_expect: { $ref: '#/components/schemas/ModelBOMExpectation' }
         default_role_plan: { type: object, additionalProperties: true }
         slots:
@@ -4341,7 +4366,7 @@ components:
         hw_spec: {}
         expected_topology: {}
         capability_matrix: {}
-        panel_layout: {}
+        panel_layout: { $ref: '#/components/schemas/ModelPanelLayout' }
         bom_expect: {}
         default_role_plan: {}
         content_hash: { type: string, minLength: 64, maxLength: 64 }

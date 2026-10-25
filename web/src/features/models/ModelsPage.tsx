@@ -1,3 +1,4 @@
+import { ModelPanelPreview, parseModelPanel } from '../../components/ModelPanelPreview'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
@@ -105,6 +106,7 @@ function PublishVersionDialog({ projectId, model, seed, onClose, onDone }: { pro
       }
       cleaned.push({ slot_no: no, pcie_slot: slot.pcie_slot.trim(), expect_nic_model: slot.expect_nic_model.trim(), panel_port: slot.panel_port.trim(), default_role: slot.default_role })
     }
+    if (parseModelPanel(complete.panel_layout, cleaned).state === 'invalid') { setValidation(t('modelPanelInvalid')); return }
     setValidation('')
     const body = { hw_spec: parsed, capability_matrix: capability, ...complete, slots: cleaned, expected_version: model.latest_version, ...(seed ? { source_draft_id: seed.id } : {}) }
     const result = await action.run(() => publishModelVersion(projectId, model.id, body, session.csrf_token, keyFor(JSON.stringify(body))))
@@ -119,6 +121,7 @@ function PublishVersionDialog({ projectId, model, seed, onClose, onDone }: { pro
       <Label htmlFor={key.replaceAll('_', '-')}>{t('modelField_' + key)}</Label>
       <Textarea id={key.replaceAll('_', '-')} value={value} rows={3} className="mono-value" disabled={action.busy} onChange={event => setExtra(current => ({ ...current, [key]: event.target.value }))} />
     </div>)}
+    <div className="field"><strong>{t('modelPanelPreview')}</strong><ModelPanelPreview value={(() => { try { return JSON.parse(extra.panel_layout) } catch { return null } })()} slots={slots.map(slot => ({ ...slot, slot_no: Number(slot.slot_no) }))} /></div>
     <p className="impact-notice">{t('modelsReviewComplete')}</p>
     {(model.kind === 'server' || model.kind === 'compute-tray' || slots.length > 0) && <div className="field"><label>{t('modelSlots')}</label>
       {slots.map((slot, index) => <div key={index} className="slot-row">
@@ -156,7 +159,7 @@ function ModelVersions({ projectId, model }: { projectId: string | null; model: 
   return <div className="model-versions">
     <h2>{t('modelsVersions')}</h2>
     <ActionError error={versions.error} />
-    {versions.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : versions.data && <><div className="table-scroll" tabIndex={0} role="region" aria-label={t('modelsVersions')}><table className="data-table"><thead><tr><th scope="col">{t('recordVersion')}</th><th scope="col">{t('modelsContentHash')}</th><th scope="col">{t('modelSlots')}</th><th scope="col">{t('createdAt')}</th></tr></thead><tbody>{versions.data.items.map((version) => <tr key={version.id}><td>v{version.version}</td><td className="mono-value">{version.content_hash.slice(0, 16)}…<details><summary>{t('modelsCompletePayload')}</summary><pre>{JSON.stringify({ hw_spec: version.hw_spec, expected_topology: version.expected_topology, capability_matrix: version.capability_matrix, panel_layout: version.panel_layout, bom_expect: version.bom_expect, default_role_plan: version.default_role_plan, slots: version.slots }, null, 2)}</pre></details></td><td>{version.slots.length}</td><td>{format(version.published_at)}</td></tr>)}</tbody></table>{!versions.data.items.length && <p className="table-loading">{t('noRecords')}</p>}</div><Pagination offset={(page - 1) * versions.data.page_size} limit={versions.data.page_size} total={versions.data.total} busy={versions.isFetching} onChange={(offset) => setPage(offset / versions.data.page_size + 1)} /></>}
+    {versions.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : versions.data && <><div className="table-scroll" tabIndex={0} role="region" aria-label={t('modelsVersions')}><table className="data-table"><thead><tr><th scope="col">{t('recordVersion')}</th><th scope="col">{t('modelsContentHash')}</th><th scope="col">{t('modelSlots')}</th><th scope="col">{t('createdAt')}</th></tr></thead><tbody>{versions.data.items.map((version) => <tr key={version.id}><td>v{version.version}</td><td className="mono-value">{version.content_hash.slice(0, 16)}…<details><summary>{t('modelsCompletePayload')}</summary><pre>{JSON.stringify({ hw_spec: version.hw_spec, expected_topology: version.expected_topology, capability_matrix: version.capability_matrix, panel_layout: version.panel_layout, bom_expect: version.bom_expect, default_role_plan: version.default_role_plan, slots: version.slots }, null, 2)}</pre></details><details><summary>{t('modelPanelPreview')}</summary><ModelPanelPreview value={version.panel_layout} slots={version.slots} version={version.version} /></details></td><td>{version.slots.length}</td><td>{format(version.published_at)}</td></tr>)}</tbody></table>{!versions.data.items.length && <p className="table-loading">{t('noRecords')}</p>}</div><Pagination offset={(page - 1) * versions.data.page_size} limit={versions.data.page_size} total={versions.data.total} busy={versions.isFetching} onChange={(offset) => setPage(offset / versions.data.page_size + 1)} /></>}
   </div>
 }
 function ModelDrafts({ projectId, model, canManage, onPublishDraft }: { projectId: string | null; model: DeviceModelSummary; canManage: boolean; onPublishDraft: (draft: ModelDraft) => void }) {

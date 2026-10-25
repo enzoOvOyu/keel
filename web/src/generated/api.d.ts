@@ -1941,9 +1941,7 @@ export interface components {
             capability_matrix: {
                 [key: string]: unknown;
             };
-            panel_layout: {
-                [key: string]: unknown;
-            };
+            panel_layout: components["schemas"]["ModelPanelLayout"];
             bom_expect: components["schemas"]["ModelBOMExpectation"];
             default_role_plan: {
                 [key: string]: unknown;
@@ -1960,9 +1958,7 @@ export interface components {
             capability_matrix?: {
                 [key: string]: unknown;
             };
-            panel_layout?: {
-                [key: string]: unknown;
-            };
+            panel_layout?: components["schemas"]["ModelPanelLayout"];
             bom_expect?: components["schemas"]["ModelBOMExpectation"];
             default_role_plan?: {
                 [key: string]: unknown;
@@ -3424,6 +3420,31 @@ export interface components {
             page: number;
             page_size: number;
         };
+        ModelPanelPort: {
+            /** @description Unique in this layout; no surrounding whitespace. */
+            id: string;
+            label: string;
+            row: number;
+            column: number;
+            /** @description Optional reference to a NIC slot in this exact model version. Omission does not infer a slot or role. */
+            slot_no?: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description Physical positions from an independent model specification. Port IDs and grid cells must be unique; positions must fit the declared grid. This is expected layout, not observed link health. */
+        ModelPanelGrid: {
+            rows: number;
+            columns: number;
+            ports: components["schemas"]["ModelPanelPort"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description Version-bound panel definition. Legacy metadata is preserved; omission of layout_v1 supplies no renderable physical layout. */
+        ModelPanelLayout: {
+            layout_v1?: components["schemas"]["ModelPanelGrid"];
+        } & {
+            [key: string]: unknown;
+        };
         /** @description Each slot number and PCIe location must uniquely identify one slot within the version. PCIe locations cannot repeat, collide with another slot number, or contain surrounding whitespace. A slot may use its own decimal number as its PCIe location. */
         ModelSlot: {
             slot_no: number;
@@ -3467,9 +3488,7 @@ export interface components {
             capability_matrix?: {
                 [key: string]: unknown;
             };
-            panel_layout?: {
-                [key: string]: unknown;
-            };
+            panel_layout?: components["schemas"]["ModelPanelLayout"];
             bom_expect?: components["schemas"]["ModelBOMExpectation"];
             default_role_plan?: {
                 [key: string]: unknown;
@@ -3484,7 +3503,7 @@ export interface components {
             hw_spec: unknown;
             expected_topology: unknown;
             capability_matrix: unknown;
-            panel_layout: unknown;
+            panel_layout: components["schemas"]["ModelPanelLayout"];
             bom_expect: unknown;
             default_role_plan: unknown;
             content_hash: string;
