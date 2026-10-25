@@ -4,10 +4,10 @@
 
 ## 当前恢复入口（2026-10-25 07:28 UTC）
 
-- 唯一工作区`/opt/keel`，分支`dev/p1-network-bom`。3000运行`b60c0f9413e70111af50ae2e4712c50e4f42b473`，镜像`sha256:e159f2f4f1a9423683f6e2775fb5ae0f63f062b5787c871588f4907acfb7dc2e`，健康及八页真实登录/公钥列表/受限角色API复验通过。045已应用，运行库42条迁移；旧schema41镜像不可直接回切，备份恢复另走批准流程。
+- 唯一工作区`/opt/keel`，分支`dev/p1-network-bom`。3000运行`43bb7d6f2b8ed9b05caf64ce475de8fd11fc2d5e`，镜像`sha256:54c87ad380ae0a7b00e41e081d2d83b64bc47221929726aaa4a6b79e342cc597`，健康及八页真实登录/公钥列表/受限角色API复验通过。045已应用，运行库42条迁移；旧schema41镜像不可直接回切，备份恢复另走批准流程。
 - A3/WP-1.5新增独立批准的受控非root公钥安装，强制helper条目追加保持客户内容，新域钥全新SSH握手查询原回执才写真实互信。unknown保持资源隔离、恢复不重装；安装前或证明后撤销均阻断信任。实际PG/SSH/双人浏览器与全量检查通过，详见§64。
 - 生产worker、真实SSH、主密钥提供者、外部介质获取仍关闭；签名只读挂载保持。无生产域钥生成或真机操作，两份原fabric草稿未跟踪且未构建。
-- 用户两小时开发仍在继续。下一功能按P1 WP-1.14补OIDC登录（已具备本地会话/权限前置），尚未提交/发布；LDAP、root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、Agent与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
+- 用户两小时开发仍在继续。WP-1.14 OIDC已提交/发布（§65），生产仍关闭；正补LDAP，未提交/发布；root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、Agent与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
 
 ## 1. 工作区与运行版本（早期快照，当前见上方）
 
@@ -853,3 +853,6 @@ SSH目标可显式选择vault提供者，仍保留原文件兼容；精确版本
 
 
 §65最终验证：`/tmp/keel-oidc-final-integration.log`、`/tmp/keel-oidc-integration-wkypx7tx`退出0，增加PKCE错误挑战拒绝、8并发回调仅一次成功、错误/取消及回调issuer不符立即消耗state、真实来源IP限流和超限不再写审计；原浏览器全链仍通过。完整overlay make check `/tmp/keel-oidc-make-check.log`退出0，最终相关Go vet `/tmp/keel-oidc-final-vet.log`、Compose/设计/diff检查通过。无新数据库迁移；生产OIDC配置仍未启用。
+
+
+§65发布：功能`43bb7d6f2b8ed9b05caf64ce475de8fd11fc2d5e`已正常推送GitHub，确切归档镜像`sha256:54c87ad380ae0a7b00e41e081d2d83b64bc47221929726aaa4a6b79e342cc597`于`2026-10-25T07:39:36.484137+00:00`发布3000。无新迁移，schema42保持；OIDC生产未配置、SSH/worker/主密钥提供者仍关闭。首次候选八页均可打开但Chromium记录ERR_NETWORK_CHANGED，因此该次检查失败；发布命令缺少遇错停止，仍发生切换，此门禁缺陷已修正为候选证据匹配版本后才切换。网络稳定后候选及3000八页/受限API完整串行重验均退出0：`/tmp/keel-oidc-candidate-recheck.log`、`/tmp/keel-oidc-candidate-read-recheck.log`、`/tmp/keel-oidc-3000-recheck.log`、`/tmp/keel-oidc-3000-read-recheck.log`。原失败不记为通过；私有证据`/home/ubuntu/.local/state/keel/releases/20261025T073728Z`。候选容器/临时配置随后清理，无业务记录创建。CI状态需按功能SHA独立核验。两小时继续WP-1.14的LDAP后端及组织账号入口。
