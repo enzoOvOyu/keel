@@ -162,6 +162,9 @@ func (a *authAPI) register(r *gin.Engine) {
 		if yes {
 			status = "ready"
 			methods = append(methods, "local")
+			if a.store.LDAP != nil {
+				methods = append(methods, "ldap")
+			}
 			if len(a.store.OIDC.Public()) > 0 {
 				methods = append(methods, "oidc")
 			}
@@ -170,7 +173,11 @@ func (a *authAPI) register(r *gin.Engine) {
 		if !yes {
 			providers = providers[:0]
 		}
-		c.JSON(200, gin.H{"status": status, "methods": methods, "environment": a.config.Environment, "oidc_providers": providers})
+		ldapName := ""
+		if yes {
+			ldapName = a.store.LDAP.Name()
+		}
+		c.JSON(200, gin.H{"status": status, "methods": methods, "environment": a.config.Environment, "oidc_providers": providers, "ldap_name": ldapName})
 	})
 	r.GET("/api/v1/auth/csrf", func(c *gin.Context) {
 		if !a.host(c) {
@@ -212,6 +219,11 @@ func (a *authAPI) register(r *gin.Engine) {
 		}
 		var input platform.LoginInput
 		if !decodeBody(c, &input) {
+			return
+		}
+		if input.Method == "ldap" && !a.allowPre(c) {
+			c.Header("Retry-After", "60")
+			failure(c, 429, "RATE_LIMITED", "Too many authentication requests")
 			return
 		}
 		ready, e := a.store.HasAdministrator(c.Request.Context())

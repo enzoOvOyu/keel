@@ -3996,8 +3996,8 @@ export interface components {
             username: string;
             /** @description Maximum 1024 UTF-8 bytes; newly provisioned passwords require at least 12 bytes. */
             password: string;
-            /** @constant */
-            method: "local";
+            /** @enum {string} */
+            method: "local" | "ldap";
         };
         CreateProjectRequest: {
             name: string;
@@ -5546,7 +5546,9 @@ export interface operations {
                     "application/json": {
                         status: components["schemas"]["AuthStatus"];
                         /** @description Only configured methods are listed when initialized. */
-                        methods: ("local" | "oidc")[];
+                        methods: ("local" | "oidc" | "ldap")[];
+                        /** @description Configured public directory label only; empty when disabled. */
+                        ldap_name?: string;
                         oidc_providers?: {
                             id: string;
                             name: string;

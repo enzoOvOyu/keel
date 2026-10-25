@@ -31,12 +31,13 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
 export async function getAuthProviders(signal?: AbortSignal): Promise<AuthProviders> {
   const value = await request<AuthProviders>('/auth/providers', { signal })
   if (!value || !['ready', 'setup_required', 'not_configured'].includes(value.status)
-    || !Array.isArray(value.methods) || value.methods.some((method) => method !== 'local' && method !== 'oidc')
+    || !Array.isArray(value.methods) || value.methods.some((method) => method !== 'local' && method !== 'oidc' && method !== 'ldap')
     || (value.status === 'ready' && !value.methods.includes('local')) || typeof value.environment !== 'string') {
     throw new ApiError(502, 'INVALID_RESPONSE')
   }
   if (value.methods.includes('oidc') && (!Array.isArray(value.oidc_providers) || value.oidc_providers.length === 0
     || value.oidc_providers.some((provider) => !/^[a-z][a-z0-9-]{0,31}$/.test(provider.id) || !provider.name || provider.name.length > 80))) throw new ApiError(502, 'INVALID_RESPONSE')
+  if (value.methods.includes('ldap') && (typeof value.ldap_name !== 'string' || !value.ldap_name || value.ldap_name.length > 80)) throw new ApiError(502, 'INVALID_RESPONSE')
   return value
 }
 export const getCSRF = () => request<CSRF>('/auth/csrf')

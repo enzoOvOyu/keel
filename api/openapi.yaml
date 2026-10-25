@@ -706,13 +706,18 @@ paths:
                   methods:
                     type: array
                     uniqueItems: true
-                    maxItems: 2
+                    maxItems: 3
                     items:
                       type: string
                       enum:
                       - local
                       - oidc
+                      - ldap
                     description: Only configured methods are listed when initialized.
+                  ldap_name:
+                    type: string
+                    maxLength: 80
+                    description: Configured public directory label only; empty when disabled.
                   oidc_providers:
                     type: array
                     maxItems: 8
@@ -4830,7 +4835,7 @@ components:
           description: Maximum 1024 UTF-8 bytes; newly provisioned passwords require at least 12 bytes.
         method:
           type: string
-          const: local
+          enum: [local, ldap]
     CreateProjectRequest:
       type: object
       additionalProperties: false

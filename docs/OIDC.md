@@ -1,6 +1,6 @@
 # OIDC 组织登录
 
-WP-1.14 / FR-10.1 的可选组织登录；本地账号、初始管理员CLI和现有会话仍是前置。没有公开注册、默认口令、按邮箱合并或来自IdP的管理员/项目角色授权。LDAP仍属独立未完成范围。
+WP-1.14 / FR-10.1 的可选组织登录；本地账号、初始管理员CLI和现有会话仍是前置。没有公开注册、默认口令、按邮箱合并或来自IdP的管理员/项目角色授权。LDAP由独立可选适配器提供，见 [LDAP](LDAP.md)，须分别配置和验收。
 
 ## 配置
 
@@ -38,4 +38,4 @@ Cookie复用HttpOnly、Secure、SameSite=Lax与已有idle/absolute期限、CSRF�
 
 构建当前前端后运行 `GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json GOMEMLIMIT=768MiB python3 scripts/check-oidc-integration.py`。只在标记disposable的测试PG容器创建并清理随机 `keel_test_oidc_*` 库。真实回环HTTP身份fixture签发RSA JWT并实际验证PKCE，覆盖合法往返、错误签名/issuer/audience/nonce/azp/过期/未绑定subject、外浏览器/state重放、跨站start、重复参数、会话轮换、本地角色与退出、账号停用。Chromium验证真实provider按钮/跳转/回调、中文与英文390宽、Cookie、无token持久化及原本地登录。fixture不是外部组织IdP验收。
 
-协议依据与依赖文档：[coreos go-oidc](https://pkg.go.dev/github.com/coreos/go-oidc/v3/oidc)、[Go oauth2 PKCE](https://pkg.go.dev/golang.org/x/oauth2)。具体运行、提交/CI与3000状态以HANDOFF为准，F-10.5/S-6/U-12及WP-1.14仍保留LDAP和外部IdP等剩余验收。
+协议依据与依赖文档：[coreos go-oidc](https://pkg.go.dev/github.com/coreos/go-oidc/v3/oidc)、[Go oauth2 PKCE](https://pkg.go.dev/golang.org/x/oauth2)。具体运行、提交/CI与3000状态以HANDOFF为准，F-10.5/S-6/U-12及WP-1.14仍保留外部IdP和其他完整安全验收，LDAP另按其文档验证。

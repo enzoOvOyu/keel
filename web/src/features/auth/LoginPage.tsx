@@ -6,6 +6,8 @@ import { Brand } from '../../components/Brand'
 import { KeelStructure } from '../../components/KeelStructure'
 import { Preferences } from '../../components/Preferences'
 import { Icon } from '../../components/Icon'
+import { NativeSelect, NativeSelectOption } from '../../components/ui/native-select'
+import { Label } from '../../components/ui/label'
 import { ApiError, getAuthProviders, getCSRF, login, safeNext, type Session } from '../../lib/api'
 import { sessionKey, useAuthSession } from '../../lib/session'
 
@@ -17,6 +19,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [method, setMethod] = useState<'local' | 'ldap'>('local')
   const [busy, setBusy] = useState(false)
   const busyRef = useRef(false)
   const [error, setError] = useState<ApiError | null>(null)
@@ -26,6 +29,8 @@ export function LoginPage() {
   const retrySeconds = Math.max(0, Math.ceil((retryAt - now) / 1000))
   const providers = useQuery({ queryKey: ['public', 'auth', 'providers'], queryFn: ({ signal }) => getAuthProviders(signal), staleTime: 30_000 })
   const available = providers.data?.status === 'ready' && providers.data.methods.includes('local')
+  const ldapAvailable = available && providers.data?.methods.includes('ldap')
+  useEffect(() => { if (!ldapAvailable && method === 'ldap') { setMethod('local'); setPassword(''); setError(null) } }, [ldapAvailable, method])
   const auth = useAuthSession(available)
   const pending = providers.isPending
   const contractError = providers.error instanceof ApiError && providers.error.code === 'INVALID_RESPONSE'
@@ -56,13 +61,13 @@ export function LoginPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!available || busyRef.current || retrySeconds > 0) return
+    if (!available || busyRef.current || retrySeconds > 0 || (method === 'ldap' && !ldapAvailable)) return
     const missing = !username.trim() ? 'username' : !password ? 'password' : null
     if (missing) { setInvalid(missing); document.getElementById(missing)?.focus(); return }
     busyRef.current = true; setBusy(true); setError(null); setInvalid(null)
     try {
       const pre = await getCSRF()
-      const session = await login({ method: 'local', username: username.trim(), password }, pre.csrf_token)
+      const session = await login({ method, username: username.trim(), password }, pre.csrf_token)
       setPassword('')
       await client.cancelQueries()
       client.clear()
@@ -106,6 +111,7 @@ export function LoginPage() {
           {available && search.reason && <p className="session-notice" role="status">{t(search.reason === 'password_changed' ? 'passwordChanged' : search.reason === 'access_changed' ? 'ownAccessChanged' : 'sessionExpired')}</p>}
           {error && <div id="login-error" className="form-error" role="alert" tabIndex={-1}><strong>{t(errorKey)}</strong>{error.status === 429 && <p>{t('retrySeconds', { count: retrySeconds })}</p>}{error.traceId && <small>{t('traceId')}: {error.traceId}</small>}</div>}
           <form id="login-form" aria-describedby={!available ? 'identity-status' : undefined} onSubmit={(event) => void submit(event)} noValidate aria-busy={busy}>
+            {ldapAvailable && <div className="field"><Label htmlFor="identity-method">{t('identityMethod')}</Label><NativeSelect id="identity-method" name="identity-method" value={method} disabled={busy} onChange={(event) => { setMethod(event.target.value === 'ldap' ? 'ldap' : 'local'); setPassword(''); setError(null) }}><NativeSelectOption value="local">{t('localAccount')}</NativeSelectOption><NativeSelectOption value="ldap">{t('directoryAccount', { name: providers.data?.ldap_name })}</NativeSelectOption></NativeSelect></div>}
             <div className="field"><label htmlFor="username">{t('account')}</label><input id="username" name="username" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={128} placeholder={t('accountPlaceholder')} value={username} onChange={(event) => { setUsername(event.target.value); setInvalid(null) }} disabled={busy} aria-invalid={invalid === 'username'} aria-describedby={invalid === 'username' ? 'username-error' : undefined} />{invalid === 'username' && <span className="field-error" id="username-error">{t('accountRequired')}</span>}</div>
             <div className="field"><label htmlFor="password">{t('password')}</label><div className="password-field"><input id="password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" maxLength={1024} placeholder={t('passwordPlaceholder')} value={password} onChange={(event) => { setPassword(event.target.value); setInvalid(null) }} disabled={busy} aria-invalid={invalid === 'password'} aria-describedby={invalid === 'password' ? 'password-error' : undefined} /><button className="password-toggle" type="button" onClick={() => setShowPassword(!showPassword)} aria-label={t(showPassword ? 'hidePassword' : 'showPassword')} aria-pressed={showPassword} aria-controls="password"><Icon name={showPassword ? 'eyeOff' : 'eye'} /></button></div>{invalid === 'password' && <span className="field-error" id="password-error">{t('passwordRequired')}</span>}</div>
             <button className="submit-button" type="submit" disabled={!available || busy || retrySeconds > 0} aria-describedby={!available ? 'identity-status' : undefined}><span>{t(busy ? 'signingIn' : 'signIn')}</span><Icon name={busy ? 'refresh' : 'arrow'} className={busy ? 'rotating' : ''} /></button>

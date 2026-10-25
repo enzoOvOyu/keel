@@ -15,6 +15,7 @@ import (
 
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/httpapi"
+	"github.com/enzoOvOyu/keel/internal/ldapauth"
 	"github.com/enzoOvOyu/keel/internal/mediaartifact"
 	"github.com/enzoOvOyu/keel/internal/mediamanifest"
 	"github.com/enzoOvOyu/keel/internal/mediasource"
@@ -55,6 +56,11 @@ func main() {
 		}
 		store = opened
 		defer store.Close()
+		store.LDAP, err = ldapauth.Load(os.Getenv("KEEL_LDAP_CONFIG_FILE"))
+		if err != nil {
+			slog.Error("directory authentication configuration rejected")
+			os.Exit(1)
+		}
 		oidcCtx, oidcCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		store.OIDC, err = oidcauth.Load(oidcCtx, os.Getenv("KEEL_OIDC_PROVIDERS_FILE"), config.PublicOrigins, config.Environment == "development" && config.InsecureDevCookie)
 		oidcCancel()

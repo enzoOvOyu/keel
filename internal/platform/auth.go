@@ -229,7 +229,7 @@ func appendAudit(ctx context.Context, tx *sql.Tx, actor, project, action, target
 	return e
 }
 func (s *Store) Login(ctx context.Context, token, csrf string, input LoginInput, sourceIP, trace string) (string, *AuthSession, error) {
-	if input.Method != "local" || len(input.Username) < 1 || len(input.Username) > 128 || len(input.Password) < 1 || len(input.Password) > 1024 {
+	if (input.Method != "local" && input.Method != "ldap") || len(input.Username) < 1 || len(input.Username) > 128 || len(input.Password) < 1 || len(input.Password) > 1024 {
 		return "", nil, apiError(400, "VALIDATION_ERROR", "Invalid login request")
 	}
 	select {
@@ -264,6 +264,9 @@ func (s *Store) Login(ctx context.Context, token, csrf string, input LoginInput,
 	if oldUser.Valid {
 		return "", nil, apiError(409, "ALREADY_AUTHENTICATED", "Sign out before changing accounts")
 	}
+	if input.Method == "ldap" && s.LDAP == nil {
+		return "", nil, apiError(503, "AUTH_NOT_CONFIGURED", "Organization sign-in is not enabled")
+	}
 	name := NormalizeUsername(input.Username)
 	keys := []string{digest("account:" + name), digest("ip:" + sourceIP)}
 	sort.Strings(keys)
@@ -292,7 +295,30 @@ func (s *Store) Login(ctx context.Context, token, csrf string, input LoginInput,
 	if !found {
 		hash = s.dummyHash
 	}
-	valid := VerifyPassword(hash, input.Password)
+	valid := false
+	if input.Method == "local" {
+		valid = VerifyPassword(hash, input.Password)
+	} else {
+		// The explicit directory mapping cannot create or enable local accounts.
+		if found && enabled {
+			valid, e = s.LDAP.Authenticate(ctx, name, input.Password)
+			if e != nil {
+				if e = appendAudit(ctx, tx, "", "", "auth.login.failed", digest("account:"+name), trace, map[string]any{"source_ip": sourceIP, "method": "ldap", "result": "backend_unavailable"}); e != nil {
+					return "", nil, e
+				}
+				if e = tx.Commit(); e != nil {
+					return "", nil, e
+				}
+				return "", nil, apiError(503, "AUTH_UNAVAILABLE", "Authentication is temporarily unavailable")
+			}
+		} else {
+			_ = VerifyPassword(s.dummyHash, input.Password)
+		}
+	}
+	now = time.Now().UTC()
+	if !expires.After(now) {
+		return "", nil, apiError(403, "CSRF_INVALID", "Invalid CSRF token")
+	}
 	if !found || !enabled || !valid {
 		for _, key := range keys {
 			_, e = tx.ExecContext(ctx, `INSERT INTO login_throttles(id,failures,window_started_at,locked_until) VALUES($1,1,$2,NULL)
@@ -304,7 +330,7 @@ func (s *Store) Login(ctx context.Context, token, csrf string, input LoginInput,
 				return "", nil, e
 			}
 		}
-		if e = appendAudit(ctx, tx, "", "", "auth.login.failed", digest("account:"+name), trace, map[string]any{"source_ip": sourceIP, "result": "invalid_credentials"}); e != nil {
+		if e = appendAudit(ctx, tx, "", "", "auth.login.failed", digest("account:"+name), trace, map[string]any{"source_ip": sourceIP, "result": "invalid_credentials", "method": input.Method}); e != nil {
 			return "", nil, e
 		}
 		if e = tx.Commit(); e != nil {
@@ -326,7 +352,7 @@ func (s *Store) Login(ctx context.Context, token, csrf string, input LoginInput,
 	if e != nil {
 		return "", nil, e
 	}
-	if e = appendAudit(ctx, tx, u.ID, "", "auth.login.succeeded", u.ID, trace, map[string]any{"source_ip": sourceIP}); e != nil {
+	if e = appendAudit(ctx, tx, u.ID, "", "auth.login.succeeded", u.ID, trace, map[string]any{"source_ip": sourceIP, "method": input.Method}); e != nil {
 		return "", nil, e
 	}
 	if e = tx.Commit(); e != nil {

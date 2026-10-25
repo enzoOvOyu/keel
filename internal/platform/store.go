@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"github.com/enzoOvOyu/keel/ent"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
+	"github.com/enzoOvOyu/keel/internal/ldapauth"
 	"github.com/enzoOvOyu/keel/internal/mediamanifest"
 	"github.com/enzoOvOyu/keel/internal/mediasource"
 	"github.com/enzoOvOyu/keel/internal/oidcauth"
@@ -28,6 +29,7 @@ type MediaObjectStore interface {
 
 type Store struct {
 	OIDC                *oidcauth.Service
+	LDAP                *ldapauth.Service
 	SSHRunner           *taskrunner.SSH
 	MediaObjects        MediaObjectStore
 	MediaSources        *mediasource.Fetcher

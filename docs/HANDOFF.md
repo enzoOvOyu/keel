@@ -856,3 +856,14 @@ SSH目标可显式选择vault提供者，仍保留原文件兼容；精确版本
 
 
 §65发布：功能`43bb7d6f2b8ed9b05caf64ce475de8fd11fc2d5e`已正常推送GitHub，确切归档镜像`sha256:54c87ad380ae0a7b00e41e081d2d83b64bc47221929726aaa4a6b79e342cc597`于`2026-10-25T07:39:36.484137+00:00`发布3000。无新迁移，schema42保持；OIDC生产未配置、SSH/worker/主密钥提供者仍关闭。首次候选八页均可打开但Chromium记录ERR_NETWORK_CHANGED，因此该次检查失败；发布命令缺少遇错停止，仍发生切换，此门禁缺陷已修正为候选证据匹配版本后才切换。网络稳定后候选及3000八页/受限API完整串行重验均退出0：`/tmp/keel-oidc-candidate-recheck.log`、`/tmp/keel-oidc-candidate-read-recheck.log`、`/tmp/keel-oidc-3000-recheck.log`、`/tmp/keel-oidc-3000-read-recheck.log`。原失败不记为通过；私有证据`/home/ubuntu/.local/state/keel/releases/20261025T073728Z`。候选容器/临时配置随后清理，无业务记录创建。CI状态需按功能SHA独立核验。两小时继续WP-1.14的LDAP后端及组织账号入口。
+
+
+## 66. P1 WP-1.14：LDAP 组织账号
+
+接续§65，在本地账号/会话/权限前置上增加可选受信LDAPS后端。受保护配置显式绑定本地规范用户名与固定DN，拒绝同一DN分配两个本地账号；无目录搜索、自动建号、组/角色导入、服务账号密码或明文/匿名Bind。实际系统/自定义CA与主机名验证、最低TLS1.2及5秒请求/取消边界；目录口令不保存。复用原Login事务/CSRF/Origin/会话轮换/安全版本/审计，Bind后重验预会话期限；未绑定/错误口令统一401，目录故障503不回退或记账号口令锁，账号/IP锁跨本地/LDAP共用，LDAP HTTP入口另有来源请求上限。登录页共享NativeSelect/Label原语提供组织/本地选择，方式变化清空口令。
+
+真实TLS/LDAPv3 Bind/PG/HTTP/浏览器初验 `/tmp/keel-ldap-first-integration.log`、`/tmp/keel-ldap-integration-kmpjo4on`退出0；增加同DN拒绝和本地停用实际LDAP会话后最终 `/tmp/keel-ldap-final-integration.log`、`/tmp/keel-ldap-integration-ztv5qh90`退出0。覆盖不可信CA/主机名不符/明文/空口令/无映射/取消/断连、CSRF零Bind、无本地兜底、503恢复、Bind期间预会话到期、Cookie/当前非Admin角色/退出、共享锁不能换方式绕过和停用拒绝派发。实际Chromium中英390宽、错误和切换清口令、组织与本地成功/退出、无跨源口令或持久化通过。
+
+原本地认证/控制面在新建独立PG库回归 `/tmp/keel-auth-provider-regression-rqanre3a/local-and-control.log`退出0（19.123s）；OIDC完整签名/PKCE/PG/HTTP/浏览器回归 `/tmp/keel-ldap-oidc-regression.log`、`/tmp/keel-oidc-integration-y9kvrrxi`退出0。完整overlay make check `/tmp/keel-ldap-make-check.log`通过，最终Go vet `/tmp/keel-ldap-final-vet.log`、设计/Compose/diff检查通过。共享UI检查曾拒绝新增native input/label，已改用现有NativeSelect/Label，不放宽规则。最后增加provider撤去时清口令，已重新构建，浏览器与提交/CI/3000按后续实测补记。
+
+边界：目录侧停用只拒绝新Bind，不主动撤销既有Keel会话；即时撤权用现有本地停用/安全版本/会话机制。当前只做固定DN LDAPS Bind，未接客户OpenLDAP/AD/外部组织IdP真实环境，不能称完整F-10.5/S-6/U-12或P1完成。生产LDAP/OIDC仍关闭，无迁移、无生产账号/配置/秘密生成；两份旧fabric草稿继续未跟踪。详见LDAP.md。
