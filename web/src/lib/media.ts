@@ -131,3 +131,6 @@ export const fetchMediaSource = (projectId: string | null, id: string, csrf: str
 export type MediaCompatibility = components['schemas']['CompatibilityMatrix'];
 export const validateMediaCompatibility = (projectId: string | null, input: unknown, csrf: string, signal: AbortSignal) =>
  request<MediaCompatibility>(`${mediaBase(projectId)}/compatibility/validate`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: JSON.stringify(input), signal });
+
+export const getMediaQuarantineEvidence = (projectId: string | null, id: string, signal: AbortSignal) =>
+ request<components['schemas']['MediaQuarantineEvidence']>(`${mediaBase(projectId)}/${encodeURIComponent(id)}/quarantine-evidence`, { signal });

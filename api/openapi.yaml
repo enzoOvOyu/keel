@@ -461,6 +461,44 @@ paths:
         '416': {description: Requested range is not satisfiable}
         '422': {description: Stored object integrity verification failed; no bytes served}
         '503': {description: Pinned object or storage unavailable}
+  /api/v1/projects/{id}/media/{mediaId}/quarantine-evidence:
+    get:
+      operationId: getMediaQuarantineEvidence
+      tags: [Media]
+      security: [{ sessionCookie: [] }]
+      x-permission: media:read
+      description: Read immutable persisted quarantine evidence without contacting object storage. Includes the last complete failed observation, not a fresh integrity check or permission to clear quarantine. Project members including Viewer may read their project and inherited global records; platform endpoint requires administrator.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: mediaId, in: path, required: true, schema: { type: string, pattern: '^[a-f0-9]{32}$' } }
+      responses:
+        '200':
+          description: Persisted evidence; no object keys, credentials or file bytes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaQuarantineEvidence' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: No persisted quarantine evidence in this scope }
+  /api/v1/admin/media/{mediaId}/quarantine-evidence:
+    get:
+      operationId: getGlobalMediaQuarantineEvidence
+      x-platform-admin-required: true
+      tags: [Media]
+      security: [{ sessionCookie: [] }]
+      x-permission: media:read
+      description: Read immutable persisted quarantine evidence without contacting object storage. Includes the last complete failed observation, not a fresh integrity check or permission to clear quarantine. Project members including Viewer may read their project and inherited global records; platform endpoint requires administrator.
+      parameters:
+        - { name: mediaId, in: path, required: true, schema: { type: string, pattern: '^[a-f0-9]{32}$' } }
+      responses:
+        '200':
+          description: Persisted evidence; no object keys, credentials or file bytes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaQuarantineEvidence' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: No persisted quarantine evidence in this scope }
   /api/v1/projects/{id}/media/compatibility/validate:
     post:
       operationId: validateMediaCompatibility
@@ -3370,6 +3408,21 @@ components:
     ImportModelScanInput: {"type": "object", "additionalProperties": false, "required": ["source_host", "hw_spec"], "properties": {"model_name": {"type": "string"}, "source_host": {"type": "string"}, "hw_spec": {"$ref": "#/components/schemas/ModelHardwareSpecification"}, "expected_topology": {"type": "object", "additionalProperties": true}, "capability_matrix": {"type": "object", "additionalProperties": true}, "panel_layout": {"$ref": "#/components/schemas/ModelPanelLayout"}, "bom_expect": {"$ref": "#/components/schemas/ModelBOMExpectation"}, "default_role_plan": {"type": "object", "additionalProperties": true}, "slots": {"type": "array", "items": {"$ref": "#/components/schemas/ModelSlot"}}}}
     ModelDraftPage: {"type": "object", "additionalProperties": false, "required": ["items"], "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/ModelDraft"}}}}
     DiscardModelDraftResult: {"type": "object", "additionalProperties": false, "required": ["discarded"], "properties": {"discarded": {"type": "boolean"}}}
+    MediaQuarantineEvidence:
+      type: object
+      additionalProperties: false
+      required: [media_id, state, object_version, expected_sha256, expected_size, observed_sha256, observed_size, quarantined_at, reason, mismatch_count]
+      properties:
+        media_id: { type: string, pattern: '^[a-f0-9]{32}$' }
+        state: { type: string, enum: [uploaded, verified, approved, retired] }
+        object_version: { type: string }
+        expected_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        expected_size: { type: integer, format: int64, minimum: 0 }
+        observed_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        observed_size: { type: integer, format: int64, minimum: 0 }
+        quarantined_at: { type: string, format: date-time }
+        reason: { type: string, enum: [digest_mismatch] }
+        mismatch_count: { type: integer, minimum: 3, maximum: 3 }
     CompatibilityMatrix:
       type: object
       additionalProperties: false

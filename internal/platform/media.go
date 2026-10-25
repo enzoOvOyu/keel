@@ -137,10 +137,10 @@ func (s *Store) ListMediaFiltered(ctx context.Context, a *AuthSession, project *
 	if e := p.Validate(); e != nil {
 		return out, e
 	}
-	criteria.Search = strings.TrimSpace(criteria.Search)
 	if err := criteria.validate(); err != nil {
 		return out, err
 	}
+	criteria.Search = strings.TrimSpace(criteria.Search)
 	scope := s.scopeKeyFor(project)
 	tx, e := s.beginControlRead(ctx, a)
 	if e != nil {

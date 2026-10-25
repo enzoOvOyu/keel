@@ -186,6 +186,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/media/{mediaId}/quarantine-evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Read immutable persisted quarantine evidence without contacting object storage. Includes the last complete failed observation, not a fresh integrity check or permission to clear quarantine. Project members including Viewer may read their project and inherited global records; platform endpoint requires administrator. */
+        get: operations["getMediaQuarantineEvidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/media/{mediaId}/quarantine-evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Read immutable persisted quarantine evidence without contacting object storage. Includes the last complete failed observation, not a fresh integrity check or permission to clear quarantine. Project members including Viewer may read their project and inherited global records; platform endpoint requires administrator. */
+        get: operations["getGlobalMediaQuarantineEvidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/media/compatibility/validate": {
         parameters: {
             query?: never;
@@ -2104,6 +2138,23 @@ export interface components {
         };
         DiscardModelDraftResult: {
             discarded: boolean;
+        };
+        MediaQuarantineEvidence: {
+            media_id: string;
+            /** @enum {string} */
+            state: "uploaded" | "verified" | "approved" | "retired";
+            object_version: string;
+            expected_sha256: string;
+            /** Format: int64 */
+            expected_size: number;
+            observed_sha256: string;
+            /** Format: int64 */
+            observed_size: number;
+            /** Format: date-time */
+            quarantined_at: string;
+            /** @enum {string} */
+            reason: "digest_mismatch";
+            mismatch_count: number;
         };
         /** @description Common requirements AND one complete combination row. Rows have identical keys; values from different rows cannot be mixed. At least one nonempty rule is required. */
         CompatibilityMatrix: {
@@ -4766,6 +4817,69 @@ export interface operations {
             };
             /** @description Versioned storage unavailable */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getMediaQuarantineEvidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Persisted evidence; no object keys, credentials or file bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaQuarantineEvidence"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description No persisted quarantine evidence in this scope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getGlobalMediaQuarantineEvidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Persisted evidence; no object keys, credentials or file bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaQuarantineEvidence"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description No persisted quarantine evidence in this scope */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -51,6 +51,7 @@ func mediaDeadline(c *gin.Context) context.CancelFunc {
 	return cancel
 }
 func (a *authAPI) registerMediaArtifacts(r *gin.Engine, base string, global bool) {
+	a.registerMediaQuarantineEvidence(r, base, global)
 	r.GET(base+"/:mediaId/manifest", func(c *gin.Context) {
 		actor, project, ok := a.mediaScope(c, false, global)
 		if !ok {

@@ -184,6 +184,19 @@ func TestMediaIntegrityRetriesAndQuarantine(t *testing.T) {
 		}
 	}
 
+	evidence, evidenceErr := s.GetMediaQuarantineEvidence(ctx, owner, project, item.ID)
+	if evidenceErr != nil || evidence.ExpectedSHA256 != item.Sha256 || evidence.ExpectedSize != item.Size || evidence.ObservedSHA256 == item.Sha256 || evidence.MismatchCount != 3 || evidence.QuarantinedAt.IsZero() || evidence.ObjectVersion == "" || evidence.Reason != "digest_mismatch" {
+		t.Fatal("missing immutable quarantine observation", evidenceErr)
+	}
+	// Evidence remains readable without any configured object-storage connection.
+	s.MediaObjects = nil
+	repeated, evidenceErr := s.GetMediaQuarantineEvidence(ctx, owner, project, item.ID)
+	if evidenceErr != nil || *repeated != *evidence {
+		t.Fatal("evidence required a fresh storage read or changed")
+	}
+	_, evidenceErr = s.GetMediaQuarantineEvidence(ctx, owner, nil, item.ID)
+	assertErrorCode(t, evidenceErr, "NOT_FOUND")
+	s.MediaObjects = objects
 	if _, err = s.TransitionMedia(ctx, reviewer, project, item.ID, "retired", "test"); err != nil {
 		t.Fatal(err)
 	}

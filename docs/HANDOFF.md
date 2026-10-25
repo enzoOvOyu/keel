@@ -726,3 +726,13 @@ WP-1.10接续PRD登记外部引用，复用现有manifest_ref及§53固定绑定
 **§57 发布完成**：功能代码 `6a534b019e18f1badc47e4b9eaef2a110308897d` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:75da877baf396ca7f9f9420aa183fb738ed8b51aec2ea11ee8800349ac09b031`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T04:01:37.221550+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
 
 无迁移，运行库38条迁移记录；保留旧镜像 `keel:3817277f67a6a73c0e11e0404073add4d0b738b4`。保留兼容旧镜像。不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T035901Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40160202413记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
+
+## 58. A4 持久隔离证据的作用域只读查看（2026-10-25）
+
+接续§53的不可变完整性表，新增项目/全局GET media/:id/quarantine-evidence及共享只读弹窗。返回期望与末次完整失败观测SHA/长度、固定对象版本、记录时间/原因/3次失败以及当前生命周期；只查既有数据库，不读取存储或修改隔离，无迁移。项目Viewer可读本项目/继承全局，平台全局入口仍要求管理员，跨项目或未隔离404，匿名401。响应private/no-store、nosniff，无对象key/凭据/文件原文。
+
+界面区分“期望文件”和“末次完整读取观测”，展示只读证据/恢复路线，可关闭、错误重试、中英文。不会把一次历史观测当作当前存储复检或硬件诊断，不提供解除隔离/直接重试源按钮。退役仍保留隔离证据且只改变当前生命周期字段，恢复必须新版本独立审批。实际PG/协议故障/浏览器证据和发布结果后补，WP/P1仍partial。
+
+§58实际证据：/tmp/keel-media-quarantine-evidence-integration.log、/tmp/keel-media-udn4yuup及最终/tmp/keel-media-quarantine-evidence-review-integration.log、/tmp/keel-media-2iplabt8均退出0，真实PG platform race14.280s/manifest1.347s。受控HTTP故障注入的观测SHA与首字节翻转后的精确摘要一致，长度/固定版本/3次/时间/原因/状态均核对；读取证据和UI明确重试没有增加源GET。项目/全局、Viewer继承、匿名/非成员项目/平台入口权限、无隔离404、退役后不变记录均通过，Go另把MediaObjects设nil仍能读同一记录。前端对403刷新另用明确负例响应注入，已有缓存观测被隐藏，撤销负例并明确重试后由真实API恢复；该UI故障注入不冒充真实后台撤权，实际作用域API拒绝单独通过。
+
+最终前端构建（契约/类型/控件/版本lint）退出0，受影响host Go race/httpapi2.306s/platform2.387s与vet、设计检查通过。复查§57还发现长度检查原在trim之后，现改为原始搜索先验证，补121空白查询拒绝；/tmp/keel-media-query-boundary-final.log、/tmp/keel-media-4scsif_q实际PG6.248s与筛选完整浏览器退出0。未重复未变容量/硬件或整组昂贵测试。准备无迁移候选和3000验证，原两草稿未暂存。

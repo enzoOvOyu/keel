@@ -3,7 +3,6 @@ package httpapi
 import (
 	"github.com/enzoOvOyu/keel/internal/platform"
 	"github.com/gin-gonic/gin"
-	"strings"
 )
 
 // Media registry and private version-pinned artifact routes.
@@ -50,7 +49,7 @@ func (a *authAPI) registerMediaScope(r *gin.Engine, base string, global bool) {
 			failure(c, 400, "VALIDATION_ERROR", "stored_only must be true or false")
 			return
 		}
-		filter = platform.MediaListFilter{Search: strings.TrimSpace(c.Query("search")), Type: c.Query("type"), State: c.Query("state"), CompatibleArch: c.Query("compatible_arch"), StoredOnly: stored == "true"}
+		filter = platform.MediaListFilter{Search: c.Query("search"), Type: c.Query("type"), State: c.Query("state"), CompatibleArch: c.Query("compatible_arch"), StoredOnly: stored == "true"}
 		result, e := a.store.ListMediaFiltered(c.Request.Context(), actor, project, p, filter)
 		if e != nil {
 			a.respondError(c, e)

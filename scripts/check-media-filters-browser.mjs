@@ -35,7 +35,7 @@ try {
  const scoped = await call('GET', query(base, { search: suffix, page_size: '100' })); assert(scoped.items.some(x => x.id === global.id)); assert(!scoped.items.some(x => x.id === foreign.id)); assert(scoped.items.every(x => x.scope_key === 'global' || x.scope_key === 'project:' + project.id))
  const onlyGlobal = await call('GET', query(globalBase, { search: suffix })); assert(onlyGlobal.items.every(x => x.scope_key === 'global'))
  const second = await call('GET', query(base, { search: 'aaa-draft-' + suffix, type: 'config', state: 'uploaded', compatible_arch: 'arm64', page_size: '5', page: '2' })); assert.equal(second.total, 25); assert.equal(second.items.length, 5); assert(second.items.every(x => x.arch === 'arm64')); assert(second.items[0].name.endsWith('-05'))
- for (const params of ['state=anything', 'type=anything', 'compatible_arch=x86', 'stored_only=yes', 'state=approved&state=retired', 'search=a&search=b', 'search=%FF', 'search=%00', 'search=' + encodeURIComponent('界'.repeat(121))]) await call('GET', base + '?' + params, undefined, 400)
+ for (const params of ['state=anything', 'type=anything', 'compatible_arch=x86', 'stored_only=yes', 'state=approved&state=retired', 'search=a&search=b', 'search=%FF', 'search=%00', 'search=' + encodeURIComponent('界'.repeat(121)), 'search=' + encodeURIComponent(' '.repeat(121))]) await call('GET', base + '?' + params, undefined, 400)
  assert.equal((await anonymous.request.get('/api/v1' + base + '?state=approved')).status(), 401)
  await call('GET', otherBase + '?search=' + suffix, undefined, 404, viewer, viewToken); await call('GET', globalBase + '?search=' + suffix, undefined, 403, viewer, viewToken)
  async function upload(scope, name, arch) {

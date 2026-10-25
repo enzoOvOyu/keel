@@ -1,3 +1,4 @@
+import { MediaQuarantineDialog } from './MediaQuarantineDialog';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import type { MediaListFilter } from '../../lib/media';
 import { MediaCompatibilityImport, MediaCompatibilitySummary } from './MediaCompatibility';
@@ -399,6 +400,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
   const [filters, setFilters] = useState<MediaListFilter>({});
   const [search, setSearch] = useState("");
   function changeFilters(next: MediaListFilter) { setPage(1); setFilters(next); }
+  const [quarantineView, setQuarantineView] = useState<MediaItemSummary | null>(null);
   const [matrixView, setMatrixView] = useState<MediaItemSummary | null>(null);
   const [sourceFetch, setSourceFetch] = useState<MediaItemSummary | null>(null);
   const [manifestExport, setManifestExport] = useState<MediaItemSummary | null>(null);
@@ -481,6 +483,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
         <div className="ui:flex ui:items-end ui:gap-2 ui:pb-3"><Button type="submit">{t("mediaFilterApply")}</Button><Button type="button" variant="outline" onClick={() => { setSearch(""); changeFilters({}); }}>{t("mediaFilterClear")}</Button></div>
       </form>
       {success && <SuccessNotice>{success}</SuccessNotice>}
+      {quarantineView && <MediaQuarantineDialog projectId={projectId} item={quarantineView} onClose={() => setQuarantineView(null)} />}
       {matrixView && <ActionDialog title={t("mediaCompatibility")} description={`${matrixView.name} · ${matrixView.version}`} busy={false} confirm={t("mediaMatrixClose")} onClose={() => setMatrixView(null)} onSubmit={event => { event.preventDefault(); setMatrixView(null); }}><MediaCompatibilitySummary matrix={matrixView.deps.compatibility} /></ActionDialog>}
       {sourceFetch && <MediaSourceDialog projectId={projectId} item={sourceFetch} onClose={() => setSourceFetch(null)} onDone={() => done(t("mediaSourceFetched"))} />}
       {manifestExport && <MediaManifestDialog projectId={projectId} item={manifestExport} onClose={() => setManifestExport(null)} onDone={() => { setManifestExport(null); setSuccess(t("mediaManifestDownloaded")); }} />}
@@ -541,6 +544,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
                         <td>{format(item.created_at)}</td>
                         <td>
                           <div className="table-actions">
+                            {item.artifact_quarantined && <Button variant="ghost" size="sm" onClick={() => setQuarantineView(item)}>{t("mediaQuarantineView")}</Button>}
                             {item.deps.compatibility && <Button variant="ghost" size="sm" onClick={() => setMatrixView(item)}>{t("mediaMatrixView")}</Button>}
                             {manage && item.scope_key === (projectId === null ? "global" : "project:" + projectId) &&
                               nextStates[item.state].map((target) => (

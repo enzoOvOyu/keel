@@ -1,5 +1,16 @@
 export const mediaTranslations = {
   zh: {
+    mediaQuarantineView: "查看隔离证据",
+    mediaQuarantineDetail: "查看已持久化的固定源隔离记录，不重新读取对象或解除隔离。",
+    mediaQuarantineWhen: "隔离记录时间",
+    mediaQuarantineReason: "隔离原因",
+    mediaQuarantineMismatch: "连续完整读取摘要不符",
+    mediaQuarantineCount: "连续失败次数",
+    mediaQuarantineExpected: "期望文件",
+    mediaQuarantineObserved: "末次完整读取观测",
+    mediaQuarantineVersion: "固定对象版本",
+    mediaQuarantineTrust: "观测摘要是最后一次完整失败读取的记录。即使源字节已恢复，隔离仍保留；请退役并登记、独立审批新版本。",
+
     mediaFilters: "筛选介质",
     mediaSearch: "名称或版本",
     mediaFilterAll: "全部",
@@ -110,6 +121,17 @@ export const mediaTranslations = {
     mediaExists: "同类型、名称与版本的介质已存在。",
   },
   en: {
+    mediaQuarantineView: "View quarantine evidence",
+    mediaQuarantineDetail: "Inspect persisted pinned-source evidence without rereading storage or clearing quarantine.",
+    mediaQuarantineWhen: "Quarantined at",
+    mediaQuarantineReason: "Reason",
+    mediaQuarantineMismatch: "Repeated complete-read digest mismatch",
+    mediaQuarantineCount: "Consecutive failed reads",
+    mediaQuarantineExpected: "Expected file",
+    mediaQuarantineObserved: "Last complete failed observation",
+    mediaQuarantineVersion: "Pinned object version",
+    mediaQuarantineTrust: "The observed digest records the last complete failed read. Restoring source bytes does not clear quarantine. Retire and register an independently reviewed new version.",
+
     mediaFilters: "Filter media",
     mediaSearch: "Name or version",
     mediaFilterAll: "All",
