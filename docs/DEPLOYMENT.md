@@ -113,6 +113,18 @@ python3 scripts/test-environment.py start
 
 HTTP/控制/浏览器集成顺序以 `.github/workflows/ci.yml` 和 `scripts/check-integration.sh` 为准。HTTP 使用独立 `keel_test_http` 与 API3102，避免 Go 测试重建 schema 相互干扰。浏览器检查需安装 CI 锁定的 Playwright/Chromium；临时凭据文件600，验证后删除。报告分别记录本机结果、GitHub Actions 实际结果及跳过项，不把依赖缺失记成通过。
 
+### 独立执行容量复核
+
+已有标记为disposable的测试PostgreSQL和固定Go工具链时，可运行：
+
+```sh
+python3 scripts/check-execution-workspace-integration.py
+```
+
+默认2,000逻辑目标；`--targets 100`仅用于明确的dev档，不能替代2,000档验收。脚本新建随机独占库、回环3102 API和自有worker，剥离继承的KEEL配置，不启用硬件适配器，不重置既有库。端口/锁被占用即退出；使用专用测试容器标签确认，不访问运行库。沿用现有执行HTTP检查，覆盖冻结Flow、回执/租约/待对账、重试/依赖/熔断、控制和权限。
+
+每次保留私有证据目录：simulation-report.json记录容量与模拟口径，resource-report.json记录源码版本/差异摘要、二进制摘要、CPU/内存/磁盘、API/worker/测试进程和数据库容器观测。数据库容器与宿主机网络指标可能包含其他测试负载，明确标为共享；Redis/对象存储不参与此测试，真实设备连接与传输字节为0。失败保留状态和待对账回执证据，不能把容量子步骤或旧结果当整套PASS。结束只清理自有进程/随机库/临时凭据，日志保留600。历史未接入草稿需按当前工作区约定使用Go overlay，不能为了测试删除草稿。
+
 ## 6. ZTP 设备入口
 
 普通 3000 UI/API 与设备引导 listener 分开。239/143 只有在专用 TLS 配置齐备且数据库匹配时启用；Compose 预览是否启用见 HANDOFF。

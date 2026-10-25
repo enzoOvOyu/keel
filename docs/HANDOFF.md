@@ -562,3 +562,16 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 **§47 发布完成**：功能代码 `0abd781e5d229f9517f70bb38b527e6ef69b17bc` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:6affb72ef2df857e1ed1e518614b69476304559aee538ef5a2845071b5284a46`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T01:11:29.624704+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
 
 无迁移，运行库仍37条迁移记录；保留兼容旧镜像 `keel:4f563fb3a3f20d84f07a9ee362598503fd7edcb6`，不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T010740Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40149400725记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
+
+
+## 48. A3 / WP-1.4、WP-1.2：执行结算读取收敛与独立容量复核（2026-10-25）
+
+持续开发第七块。真实2,000目标检查发现每次回执应用/结算读取完整冻结目标集、所有历史attempt及完整结果；现只读取同一不可变执行快照中的Flow定义、目标数和控制字段，最新attempt按(target_id,task_id,attempt_no)选取并只投影ID/状态。保留执行行锁、租约/fencing、资源隔离、unknown显式对账、熔断与重试规则，不延长5s租约或自动重跑未知结果。无API/前端/迁移。
+
+新增check-execution-workspace-integration.py隔离封装既有HTTP检查，默认2,000（--targets100仅dev档），随机独占测试库、私有API/worker、端口/锁检查、剥离继承KEEL配置和硬件适配器；只清理自身进程/库/临时凭据。报告源码/差异/二进制摘要、API/worker/client CPU/RSS、数据库容器、磁盘与共享网络口径，不将loopback字节当硬件传输。失败保留完整私有快照和unknown回执证据。补冻结DAG发布后仍按旧定义、失败重试不误跳过下游、失败依赖跳过、冻结目标数熔断三组。修正旧介质门禁测试漏cpu.arch导致的PARAM_ARCH_REQUIRED；没有放宽产品门禁。
+
+本轮失败与基准均保留：首次探测TIME_WAIT占用用SO_REUSEADDR修正重启检查，仍拒绝活跃监听；/tmp/keel-execution-capacity-advlt47z在并行构建负载下有回执待对账，未算PASS。停止构建后的旧结算基准/tmp/keel-execution-capacity-h9xau0lk容量子项2,000/2,000、301.286s，但后续过期介质夹具失败，整套未通过，不把子项伪装全PASS。
+
+实际Go execution/httpapi race退出0（/tmp/keel-settlement-unit.log），相关execution/httpapi/platform vet退出0（/tmp/keel-settlement-vet.log）。优化后--targets100隔离真实PG/API/worker共12组退出0，证据/tmp/keel-execution-capacity-wzq70hee，100目标5.62s，仅dev档、不代替2,000档；冻结DAG/重试/依赖/熔断/控制/丢回执对账/权限/参数门禁/事件审计通过。2,000档、其他执行模式与发布结果后补；CPU并行负载异常仍需后续专项故障负载验证，不声称问题全部消失或P1/硬件闭环。两份原fabric/026草稿保留未暂存，overlay沿用。
+
+用户于本轮进行中追加一小时，持续开发窗口由00:24:05–01:24:05延长至2026-10-25 02:24:05 UTC；继续同一工作目录和约束，不把第一次时长到点当任务完成。

@@ -443,11 +443,11 @@ func applyReceipt(ctx context.Context, tx *sql.Tx, a Attempt, r Receipt, allowRe
 	if _, e := tx.ExecContext(ctx, "UPDATE exec_resource_leases SET state='released' WHERE attempt_id=$1 AND fencing_token=$2", a.ID, a.FencingToken); e != nil {
 		return e
 	}
-	x, e := scanExecution(tx.QueryRowContext(ctx, "SELECT "+executionColumns+" FROM exec_executions WHERE id=$1", a.ExecutionID))
+	x, e := loadExecutionControl(ctx, tx, a.ExecutionID)
 	if e != nil {
 		return e
 	}
-	task, e := taskByID(x.Snapshot.Flow.Definition, a.TaskID)
+	task, e := taskByID(x.Definition, a.TaskID)
 	if e != nil {
 		return e
 	}

@@ -89,7 +89,10 @@ assert new['version']==2
 passed('Immutable Flow versions, typed parameters, DAG/YAML validation and simulation admission')
 
 start=time.monotonic();run=execute(flow,targets);done=wait(run,{'success','failed','paused','reconciling'},timeout=900)
-assert done['execution']['state']=='success' and done['counts'].get('success')==count
+if done['execution']['state']!='success' or done['counts'].get('success')!=count:
+    failure_file=Path(os.environ.get('KEEL_SIM_REPORT_FILE','/tmp/keel-simulation-report.json')).with_name('simulation-failure.json')
+    failure_file.write_text(json.dumps(done,ensure_ascii=False,indent=2)+'\n');failure_file.chmod(0o600)
+    raise AssertionError(f"Simulation did not pass: state={done['execution']['state']}, counts={done['counts']}; private evidence {failure_file}")
 assert done['execution']['snapshot']['flow']['id']==flow['id'] and done['execution']['snapshot']['flow']['version']==1
 assert len(done['execution']['snapshot']['targets'])==count
 attempt_page=admin.call('GET',path+'/executions/'+run['id']+'/attempts?page=2&page_size=1')
@@ -105,6 +108,33 @@ d=wait(retry,{'success','failed','reconciling'})
 assert d['execution']['state']=='success' and d['attempts_total']==2
 assert sorted(a['attempt_no'] for a in d['attempts'])==[1,2]
 passed('Known failed idempotent simulation retries once without duplicating successful attempts')
+
+# Settlement must use the latest attempt per task and the submitted frozen DAG.
+# An earlier failed attempt with an admitted retry cannot skip its dependant.
+dag=definition(retry=1,fail_first=1)
+dag['tasks'].append({'id':'verify','type':'sim.read','depends_on':['inspect'],'retry':0,'idempotent':True,'timeout_ms':5000,'resources':['machine'],'sim':{'outcome':'success','duration_ms':10,'seed':42}})
+dag_flow=publish('frozen retry DAG',dag)
+dag_run=execute(dag_flow,circuit_breaker_percent=100)
+changed_dag=copy.deepcopy(dag);changed_dag['tasks'][1]['sim']['outcome']='failed'
+admin.call('POST',path+'/flows/'+dag_flow['flow_id']+'/versions',{'name':dag_flow['name'],'definition':changed_dag,'expected_version':1},code=201)
+d=wait(dag_run,{'success','failed','paused','reconciling'})
+assert d['execution']['state']=='success' and d['attempts_total']==3
+assert d['execution']['snapshot']['flow']['id']==dag_flow['id']
+assert sorted((a['task_id'],a['attempt_no'],a['state']) for a in d['attempts'])==[('inspect',1,'failed'),('inspect',2,'success'),('verify',1,'success')]
+passed('Settlement keeps retry dependants pending and uses the original frozen DAG after a newer Flow publication')
+
+blocked=copy.deepcopy(dag);blocked['tasks'][0]['retry']=0;blocked['tasks'][0]['sim']['outcome']='failed'
+blocked_run=execute(publish('dependency failure',blocked),circuit_breaker_percent=100)
+d=wait(blocked_run,{'failed','success','paused','reconciling'})
+assert d['execution']['state']=='failed' and d['counts'].get('failed')==1 and d['counts'].get('skipped')==1
+assert d['attempts_total']==2
+passed('Failed dependency skips the pending child without dispatch or a fabricated receipt')
+
+breaker_run=execute(publish('frozen target circuit breaker',definition('failed')),targets[:2],concurrency=1,circuit_breaker_percent=1)
+d=wait(breaker_run,{'paused','failed','success','reconciling'})
+assert d['execution']['state']=='paused' and d['counts'].get('failed')==1 and d['counts'].get('pending')==1
+assert len(d['execution']['snapshot']['targets'])==2
+passed('Circuit breaker uses the frozen target denominator and stops pending work after a failure')
 
 slow=publish('control',definition(duration=3000))
 r=execute(slow,targets[:min(3,count)],concurrency=1)
@@ -152,8 +182,9 @@ passed('Viewer execution actions denied and foreign-project executions hidden')
 admin.call('PUT',path+'/params',{'key':'sim_driver','value_type':'version','source_media_type':'driver'},code=201)
 gated_def=definition()
 gated_def['inputs']['sim_driver']={'type':'string','required':True}
+gated_def['inputs']['cpu.arch']={'type':'enum','required':True,'enum':['amd64','arm64','noarch']}
 gated=publish('gated',gated_def)
-rej=admin.call('POST',path+'/executions',{'mode':'sim','flow_version_id':gated['id'],'target_ids':[targets[0]['id']],'parameters':{'profile':'smoke','sim_driver':'9.9.9-notapproved'}},code=422)
+rej=admin.call('POST',path+'/executions',{'mode':'sim','flow_version_id':gated['id'],'target_ids':[targets[0]['id']],'parameters':{'profile':'smoke','sim_driver':'9.9.9-notapproved','cpu.arch':'amd64'}},code=422)
 assert rej['code']=='PARAM_VALUE_REJECTED',rej
 passed('Catalog-gated parameters reject unapproved media versions at execution admission')
 events=admin.call('GET',path+'/executions/'+run['id']+'/events?after=0')

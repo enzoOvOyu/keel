@@ -396,21 +396,43 @@ func (s *Service) Control(ctx context.Context, a *Actor, projectID, id string, i
 	return &x, tx.Commit()
 }
 
+// Read only control fields from the frozen execution snapshot. Settlement and
+// receipt application do not need to transfer/decode every target or result.
+// Callers retain the execution-row lock and all lease/fencing checks.
+type executionControl struct {
+	State, DesiredState, Mode                                string
+	CircuitBreakerPercent, TargetCount, AcknowledgedFailures int
+	Definition                                               Definition
+}
+
+func loadExecutionControl(ctx context.Context, tx *sql.Tx, id string) (executionControl, error) {
+	var out executionControl
+	var definition []byte
+	err := tx.QueryRowContext(ctx, `SELECT state,desired_state,mode,circuit_breaker_percent,breaker_ack_failures,
+ jsonb_array_length(snapshot->'targets'),snapshot#>'{flow,definition}' FROM exec_executions WHERE id=$1`, id).
+		Scan(&out.State, &out.DesiredState, &out.Mode, &out.CircuitBreakerPercent, &out.AcknowledgedFailures, &out.TargetCount, &definition)
+	if err != nil {
+		return out, err
+	}
+	out.Definition, err = decode[Definition](definition)
+	return out, err
+}
+
 // settle is called with the execution row locked. No completion state can outrun
 // unacknowledged in-flight work or a quarantined resource lease.
 func settle(ctx context.Context, tx *sql.Tx, id string) error {
-	x, e := scanExecution(tx.QueryRowContext(ctx, "SELECT "+executionColumns+" FROM exec_executions WHERE id=$1", id))
+	x, e := loadExecutionControl(ctx, tx, id)
 	if e != nil {
 		return e
 	}
-	rows, e := tx.QueryContext(ctx, "SELECT "+attemptColumns+" FROM exec_task_attempts WHERE execution_id=$1 ORDER BY attempt_no", id)
+	rows, e := tx.QueryContext(ctx, "SELECT DISTINCT ON(target_id,task_id) id,target_id,task_id,state FROM exec_task_attempts WHERE execution_id=$1 ORDER BY target_id,task_id,attempt_no DESC", id)
 	if e != nil {
 		return e
 	}
 	latest := map[string]Attempt{}
 	for rows.Next() {
-		a, e := scanAttempt(rows)
-		if e != nil {
+		var a Attempt
+		if e = rows.Scan(&a.ID, &a.TargetID, &a.TaskID, &a.State); e != nil {
 			rows.Close()
 			return e
 		}
@@ -421,13 +443,13 @@ func settle(ctx context.Context, tx *sql.Tx, id string) error {
 	if e != nil {
 		return e
 	}
-	for pass := 0; pass < len(x.Snapshot.Flow.Definition.Tasks); pass++ {
+	for pass := 0; pass < len(x.Definition.Tasks); pass++ {
 		changed := false
 		for k, a := range latest {
 			if a.State != "pending" {
 				continue
 			}
-			task, _ := taskByID(x.Snapshot.Flow.Definition, a.TaskID)
+			task, _ := taskByID(x.Definition, a.TaskID)
 			blocked := false
 			for _, dep := range task.DependsOn {
 				st := latest[a.TargetID+":"+dep].State
@@ -457,13 +479,10 @@ func settle(ctx context.Context, tx *sql.Tx, id string) error {
 		}
 	}
 	desired := x.DesiredState
-	var acknowledged int
-	if e = tx.QueryRowContext(ctx, "SELECT breaker_ack_failures FROM exec_executions WHERE id=$1", id).Scan(&acknowledged); e != nil {
-		return e
-	}
-	if desired == "running" && counts["pending"] > 0 && len(failedTargets) > acknowledged && 100*len(failedTargets) > x.CircuitBreakerPercent*len(x.Snapshot.Targets) {
+	acknowledged := x.AcknowledgedFailures
+	if desired == "running" && counts["pending"] > 0 && len(failedTargets) > acknowledged && 100*len(failedTargets) > x.CircuitBreakerPercent*x.TargetCount {
 		desired = "paused"
-		if e = event(ctx, tx, id, "execution.circuit_breaker", map[string]any{"failed_targets": len(failedTargets), "total_targets": len(x.Snapshot.Targets), "threshold_percent": x.CircuitBreakerPercent}); e != nil {
+		if e = event(ctx, tx, id, "execution.circuit_breaker", map[string]any{"failed_targets": len(failedTargets), "total_targets": x.TargetCount, "threshold_percent": x.CircuitBreakerPercent}); e != nil {
 			return e
 		}
 	}
