@@ -33,7 +33,11 @@ jobs:
       - run: npm ci
       - run: docker exec '${{ job.services.postgres.id }}' createdb -U keel_test keel_test_execution
       - run: docker exec '${{ job.services.postgres.id }}' createdb -U keel_test keel_test_ssh
-      - run: make check
+      - name: Full checks with failure diagnostics
+        run: |
+          if make check 2>&1 | tee /tmp/keel-ci-check.log; then exit 0; fi
+          python3 -c 'from pathlib import Path; tail = Path("/tmp/keel-ci-check.log").read_text()[-12000:]; print("::error title=make check failed::" + tail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))'
+          exit 1
       - name: Compile Linux arm64 control-plane binaries
         env:
           CGO_ENABLED: '0'
