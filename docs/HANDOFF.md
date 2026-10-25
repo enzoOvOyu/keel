@@ -575,3 +575,11 @@ GitHub SSH仓库读取已验证；origin main/dev均仍为 `6aa8479`，本轮新
 实际Go execution/httpapi race退出0（/tmp/keel-settlement-unit.log），相关execution/httpapi/platform vet退出0（/tmp/keel-settlement-vet.log）。优化后--targets100隔离真实PG/API/worker共12组退出0，证据/tmp/keel-execution-capacity-wzq70hee，100目标5.62s，仅dev档、不代替2,000档；冻结DAG/重试/依赖/熔断/控制/丢回执对账/权限/参数门禁/事件审计通过。2,000档、其他执行模式与发布结果后补；CPU并行负载异常仍需后续专项故障负载验证，不声称问题全部消失或P1/硬件闭环。两份原fabric/026草稿保留未暂存，overlay沿用。
 
 用户于本轮进行中追加一小时，持续开发窗口由00:24:05–01:24:05延长至2026-10-25 02:24:05 UTC；继续同一工作目录和约束，不把第一次时长到点当任务完成。
+
+§48容量补记：确切功能提交f2f418582947ebcf341c60cec26d0b23893d3ac9、无已跟踪工作区差异下，隔离默认2,000档命令退出0（/tmp/keel-settlement-capacity-integration.log），证据/tmp/keel-execution-capacity-80lt42q7。2,000/2,000成功、130.464s，全部12组145.992s，worker并发8/执行并发64/租约5s/每任务10ms/seed42，与本机旧结算301.286s基准相比用时减少约56.7%，仅本次共享开发主机观测，不保证所有负载SLO或10,000×30s达标。资源报告记录4逻辑CPU/约15.4GiB内存，API峰值176848KiB、worker151452KiB、client31068KiB，worker观测CPU63.52s；完整DB/磁盘/网络/二进制摘要另见私有report。真实设备连接与硬件传输字节0，硬件适配器关闭。未知/迟到回执继续隔离且需证据对账，首轮并行构建下的失败仍保留作后续负载故障验证。
+
+§48其他执行模式补记：真实Kea协议fixture回归退出0（/tmp/keel-settlement-kea-integration.log，/tmp/keel-shell-7qs3bw1j），规划/N-S3/已批准介质、共享worker回执、DORA及配置不确定结果隔离通过。网络配置模式回归退出0（/tmp/keel-settlement-network-integration.log，/tmp/keel-shell-w9u_7gpv），独立NH审批、共享预检、金丝雀/下发/读回、权限撤销、介质/参数退役、歧义写入UNKNOWN、SSH隔离及浏览器检查通过；协议fixture不替代真机PoC。
+
+**§48 发布完成**：功能代码 `f2f418582947ebcf341c60cec26d0b23893d3ac9` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:3b3f3a5acb795e80f2bdcb9d989015360718f84d7732f1cdce537bb636dd664a`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T01:18:11.539385+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
+
+无迁移，运行库仍37条迁移记录；保留兼容旧镜像 `keel:0abd781e5d229f9517f70bb38b527e6ef69b17bc`，不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T011219Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40149709532记录时 completed/success，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
