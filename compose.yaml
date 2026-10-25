@@ -19,11 +19,18 @@ services:
       KEEL_MEDIA_SIGNING_KEY_FILE: ${KEEL_MEDIA_SIGNING_KEY_FILE:-}
       KEEL_OIDC_PROVIDERS_FILE: ${KEEL_OIDC_PROVIDERS_FILE:-}
       KEEL_LDAP_CONFIG_FILE: ${KEEL_LDAP_CONFIG_FILE:-}
+      KEEL_AGENT_IDENTITY_FILE: ${KEEL_AGENT_IDENTITY_FILE:-}
       KEEL_SSH_RUNNER_FILE: ${KEEL_SSH_RUNNER_FILE:-}
       KEEL_CREDENTIAL_MASTER_KEY_FILE: ${KEEL_CREDENTIAL_MASTER_KEY_FILE:-}
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-3000}:3000"
     volumes:
+      - type: bind
+        source: ${KEEL_AGENT_IDENTITY_DIRECTORY:-./infra/agent-disabled}
+        target: /run/keel/agent
+        read_only: true
+        bind:
+          create_host_path: false
       - type: bind
         source: ${KEEL_LDAP_DIRECTORY:-./infra/ldap-disabled}
         target: /run/keel/ldap
