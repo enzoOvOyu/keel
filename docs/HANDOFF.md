@@ -707,3 +707,7 @@ WP-1.10接续PRD登记外部引用，复用现有manifest_ref及§53固定绑定
 验签解析模糊测试 `GOMAXPROCS=2 go test ./internal/mediamanifest -run '^$' -fuzz '^FuzzSignedManifestParser$' -fuzztime=120s -parallel=2` 实际121.038s、1,069,175次输入、通过（/tmp/keel-media-bundle-fuzz.log）；有效输入还须在正式类型编码下验签往返一致。单元涵盖空制品、原样清单、路径/链接/PAX/乱序/大小/内容/填充/尾块、FIFO与不可信输出目录，受影响vet及设计检查通过；本步无前端实现变化，沿用§55最终前端构建和13组共享回归。
 
 §56新增单个大制品实际证明：`--large-artifact-only` /tmp/keel-media-large-artifact.log、/tmp/keel-media-2ie40vim/large-artifact-report.json退出0；500,000,000字节SHA ff5935cae16508fe425be3f5ec80416b0951bfcefbfde1523ab2cbfb20b982b8，归档500,003,328字节。实际上传固定6.945s、校验2.493s、独立审批2.427s、完整下载4.691s、Range2.452s、签名导出2.328s、归档生成5.776s、离线验包1.645s。API进程VmHWM164,852KiB（不含MinIO/内核页缓存），观察值而非全系统上限/性能SLO。本次合成大文件结束删除，仅保留私有报告/清单；仅单制品真实PG/MinIO/HTTP/CLI，不冒充10k目标、厂商、缓存或真机验收。无迁移，发布结果另记。
+
+**§56 发布完成**：功能代码 `3817277f67a6a73c0e11e0404073add4d0b738b4` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:6700087e0b0d252c395a339e0b989650906eb5d53bdb374f5e4e34727329cde4`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T03:49:19.951056+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
+
+无迁移，运行库38条迁移记录；保留旧镜像 `keel:b20b7c4b92f37ade60aad27c59a063492456908d`。保留兼容旧镜像。不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T034634Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40159454541记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
