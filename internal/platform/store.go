@@ -13,6 +13,7 @@ import (
 	"github.com/enzoOvOyu/keel/ent"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/mediamanifest"
+	"github.com/enzoOvOyu/keel/internal/mediasource"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"io"
 	"time"
@@ -25,6 +26,7 @@ type MediaObjectStore interface {
 
 type Store struct {
 	MediaObjects        MediaObjectStore
+	MediaSources        *mediasource.Fetcher
 	MediaManifestSigner *mediamanifest.Signer
 	FabricProbes        *fabricboot.ProbeSuite
 	DB                  *sql.DB

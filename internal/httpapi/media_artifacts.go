@@ -68,6 +68,27 @@ func (a *authAPI) registerMediaArtifacts(r *gin.Engine, base string, global bool
 		c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": "keel-media-" + manifest.Payload.RootID + ".manifest.json"}))
 		c.JSON(200, manifest)
 	})
+	r.POST(base+"/:mediaId/fetch", func(c *gin.Context) {
+		actor, project, ok := a.mediaScope(c, true, global)
+		if !ok {
+			return
+		}
+		cancel := mediaDeadline(c)
+		defer cancel()
+		// This action consumes the immutable registered URL, never a request URL.
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 1)
+		raw, err := io.ReadAll(c.Request.Body)
+		if err != nil || len(raw) != 0 {
+			failure(c, 400, "VALIDATION_ERROR", "Source fetch does not accept a request body")
+			return
+		}
+		item, err := a.store.FetchMediaSource(c.Request.Context(), actor, project, c.Param("mediaId"), c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.JSON(200, item)
+	})
 	r.POST(base+"/upload", func(c *gin.Context) {
 		actor, project, ok := a.mediaScope(c, true, global)
 		if !ok {

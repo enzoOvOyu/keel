@@ -454,6 +454,58 @@ paths:
         '416': {description: Requested range is not satisfiable}
         '422': {description: Stored object integrity verification failed; no bytes served}
         '503': {description: Pinned object or storage unavailable}
+  /api/v1/projects/{id}/media/{mediaId}/fetch:
+    post:
+      operationId: fetchMediaSource
+      tags: [Media]
+      security: [{ sessionCookie: [] }]
+      x-permission: media:manage
+      description: Fetch the immutable registered HTTP(S) source URL under the operator origin allowlist, pin matching bytes in private versioned storage, and retain uploaded state. Only the original uploader may fetch. No request body or caller-provided URL is accepted. No approval, remote credentials or environment proxy forwarding.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: mediaId, in: path, required: true, schema: { type: string, pattern: '^[a-f0-9]{32}$' } }
+        - { $ref: '#/components/parameters/Origin' }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Actual digest-matched fixed object attached; still requires verification and independent approval
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaItemSummary' }
+        '400': { description: Request body is not accepted }
+        '401': { description: Authentication required }
+        '403': { description: Scope, manager, original uploader or CSRF permission denied }
+        '404': { description: Media is outside the accessible scope }
+        '409': { description: Already bound or no longer uploaded }
+        '413': { description: Inline source size exceeds 1 GiB }
+        '422': { description: URL or redirect policy rejected, or source digest/size mismatch }
+        '503': { description: Source fetching disabled, allowed source unavailable or storage unavailable }
+  /api/v1/admin/media/{mediaId}/fetch:
+    post:
+      operationId: fetchGlobalMediaSource
+      x-platform-admin-required: true
+      tags: [Media]
+      security: [{ sessionCookie: [] }]
+      x-permission: media:manage
+      description: Fetch the immutable registered HTTP(S) source URL under the operator origin allowlist, pin matching bytes in private versioned storage, and retain uploaded state. Only the original uploader may fetch. No request body or caller-provided URL is accepted. No approval, remote credentials or environment proxy forwarding.
+      parameters:
+        - { name: mediaId, in: path, required: true, schema: { type: string, pattern: '^[a-f0-9]{32}$' } }
+        - { $ref: '#/components/parameters/Origin' }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Actual digest-matched fixed object attached; still requires verification and independent approval
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaItemSummary' }
+        '400': { description: Request body is not accepted }
+        '401': { description: Authentication required }
+        '403': { description: Scope, manager, original uploader or CSRF permission denied }
+        '404': { description: Media is outside the accessible scope }
+        '409': { description: Already bound or no longer uploaded }
+        '413': { description: Inline source size exceeds 1 GiB }
+        '422': { description: URL or redirect policy rejected, or source digest/size mismatch }
+        '503': { description: Source fetching disabled, allowed source unavailable or storage unavailable }
   /api/v1/projects/{id}/media/{mediaId}/manifest:
     get:
       operationId: exportMediaManifest

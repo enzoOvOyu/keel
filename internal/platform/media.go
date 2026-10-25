@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/enzoOvOyu/keel/internal/mediasource"
 	"github.com/jackc/pgx/v5/pgconn"
 	"regexp"
 	"strings"
@@ -84,6 +85,9 @@ func validateMediaInput(input RegisterMediaInput) error {
 	}
 	if utf8.RuneCountInString(input.OsScope) > 120 || utf8.RuneCountInString(input.HwScope) > 120 || utf8.RuneCountInString(input.ManifestRef) > 200 {
 		return apiError(400, "VALIDATION_ERROR", "Media scope or manifest reference exceeds its limit")
+	}
+	if (strings.HasPrefix(strings.ToLower(input.ManifestRef), "http://") || strings.HasPrefix(strings.ToLower(input.ManifestRef), "https://")) && mediasource.ValidateReference(input.ManifestRef) != nil {
+		return apiError(400, "VALIDATION_ERROR", "Source URLs must not contain credentials, query strings or fragments")
 	}
 	if e := validateCompatibility(input.Deps); e != nil {
 		return e

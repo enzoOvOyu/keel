@@ -659,3 +659,15 @@ keel-admin新增不依赖DB的media-signing-keygen和media-manifest-verify；私
 **§53 发布完成**：功能代码 `974630557b2c746513746e3ce372890851668ca6` 已正常推送GitHub，确切SHA的git archive构建镜像 `sha256:c8044e853018dd0ad7768cc295b1a522684f56cd35e574a3c574b627afae2410`。候选3108真实登录、参数/型号/介质/执行/Flow与全局型号/目录/介质八页、只读作用域API、匿名401、完整版本及控制台检查通过。于 `2026-10-25T03:05:15.120598+00:00` 更新3000并healthy，切换后同套检查再次通过，healthz返回上述功能SHA。
 
 041迁移已应用，备份/隔离恢复与新表授权已验证；运行库38条迁移记录；保留旧镜像 `keel:b60eb1d82587297d81714f301b1cb08c1676750f`。旧镜像不兼容新增迁移，不可直接回切；须修复前进，备份恢复另走批准流程。不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T030208Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40156706937记录时 in_progress/尚无结论，不将进行中视为通过；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
+
+## 54. A4 受控HTTP(S)来源获取与不可变存储（2026-10-25）
+
+WP-1.10接续PRD登记外部引用，复用现有manifest_ref及§53固定绑定/完整性状态，不新增迁移。登记URL禁止凭据/查询/片段，要求已声明准确SHA/大小；POST项目/全局media/:id/fetch不接受正文或临时替换URL。复核会话/CSRF/Origin、管理作用域及原登记人，仅uploaded未绑定项能获取；继承全局不能借项目写入。操作员KEEL_MEDIA_FETCH_ORIGINS明确最多32个origin，空值关闭；HTTPS验证证书，HTTP/明确loopback仅development，DNS结果校验后直接拨号固定IP，逐跳重定向重新匹配政策且最多3跳，不转发会话凭据、不继承环境代理。link-local/loopback重绑定/云元数据地址失败关闭；关键地址核验官方资料并在代码/介质文档引用。
+
+最多3次来源获取链、总期限5min、头64KiB、正文上限1GiB；只读到登记大小+1即可判超长，拒绝压缩/206。实际摘要/大小匹配后同事务绑定真实版本桶和完整性记录、media.upload/media.source.fetch审计（只记origin/摘要/大小/次数）。获取成功仍uploaded，继续校验与独立复核；来源文件后来改变不影响固定下载。未绑定外部错误不伪造固定源损坏/隔离。共享UI审核目标、只读来源/摘要/大小及批准边界，中英文错误保持弹窗；非原登记人/只读权限不显示获取按钮。
+
+实际证据：/tmp/keel-media-source-final-integration.log、/tmp/keel-media-8f71ow7o，Go mediasource race1.044s/platform真实PG3.582s，受控真实HTTP→真实MinIO/API/浏览器的项目/全局完整流程退出0；同源重定向成功、源改变后固定原字节、错摘要无绑定/无隔离、禁止重定向离开origin、正文URL替换拒绝、匿名/Viewer/非原登记人/CSRF/跨项目/继承全局边界均通过。上游请求日志断言未收到Cookie/Authorization/CSRF。纯Go另测DNS固定/loopback/link-local/元数据拒绝、环境代理隔离、3跳限制和非完整/压缩响应。类型/构建和设计检查通过，完整浏览器接续及发布另记。
+
+契约中实际scheme名为sessionCookie，补自动检查所有HTTP操作引用已声明的securitySchemes（包含path级parameters的规范解码），不以类型生成成功冒充完整契约校验。来源摄取默认关闭，未获运营来源allowlist不替用户开放外网或造供应商凭据；是受控HTTP文件获取，不是apt/yum同步、厂商签名或目标端分发/缓存，WP-1.10/P1仍partial。§53功能9746305 run40156706937和交接16d0b3f run40156996633已查询completed/success；3000当前仍9746305/schema38。两份旧草稿继续保留原样。
+
+§54最终检查：/tmp/keel-media-source-browser-regression.log完整12组HTTP/浏览器退出0；未重复昂贵PG整组，沿用本步实际PG3.582s和§53完整Go44.906s，新增全仓go test -race ./...退出0（无DB项按规范skip，/tmp/keel-media-source-go-all.log）。受影响包vet、契约security引用、最终npm check/build、Compose/设计检查均通过。新增服务自身5分钟总期限，源正文最多读登记长度+1后拒绝超长，避免已知短文件被恶意大响应消耗。无新增迁移；运行来源origin默认仍未配置。

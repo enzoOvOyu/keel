@@ -1,3 +1,4 @@
+import { MediaSourceDialog } from './MediaSourceDialog';
 import { MediaManifestDialog } from './MediaManifestDialog';
 import { MediaDependencyPicker, MediaDependencySummary, type MediaDependencyChoice } from './MediaDependencyPicker';
 import { Workspace } from "../../components/Workspace";
@@ -385,6 +386,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
   const { t, i18n } = useTranslation(),
     session = useSession(),
     client = useQueryClient();
+  const [sourceFetch, setSourceFetch] = useState<MediaItemSummary | null>(null);
   const [manifestExport, setManifestExport] = useState<MediaItemSummary | null>(null);
   const [upload, setUpload] = useState(false),
     [attach, setAttach] = useState<MediaItemSummary | null>(null);
@@ -419,6 +421,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
     setCreate(false);
     setUpload(false);
     setAttach(null);
+    setSourceFetch(null);
     setTransition(null);
     setSuccess(message);
     await client.invalidateQueries({
@@ -456,6 +459,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
         )}
       </div>
       {success && <SuccessNotice>{success}</SuccessNotice>}
+      {sourceFetch && <MediaSourceDialog projectId={projectId} item={sourceFetch} onClose={() => setSourceFetch(null)} onDone={() => done(t("mediaSourceFetched"))} />}
       {manifestExport && <MediaManifestDialog projectId={projectId} item={manifestExport} onClose={() => setManifestExport(null)} onDone={() => { setManifestExport(null); setSuccess(t("mediaManifestDownloaded")); }} />}
       <section className="management-panel" aria-busy={media.isFetching}>
         <ActionError error={media.error} />
@@ -547,6 +551,7 @@ function MediaContent({ projectId, projectName, projectRole }: { projectId: stri
                                   {t("mediaAttach")}
                                 </Button>
                               )}
+                            {manage && item.scope_key === (projectId === null ? "global" : "project:" + projectId) && item.state === "uploaded" && !item.artifact_stored && item.uploaded_by === session.user.id && /^https?:\/\//i.test(item.manifest_ref) && <Button variant="outline" onClick={() => { setSuccess(""); setSourceFetch(item); }}>{t("mediaSourceFetch")}</Button>}
                             {item.state === "approved" &&
                               item.artifact_stored && !item.artifact_quarantined && (
                                 <><a href={mediaDownloadURL(projectId, item.id)}>

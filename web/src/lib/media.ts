@@ -121,3 +121,6 @@ export const mediaDownloadURL = (projectId: string | null, id: string) =>
 
 export const exportMediaManifest = (projectId: string | null, id: string) =>
   request<components['schemas']['SignedMediaManifest']>(`${mediaBase(projectId)}/${encodeURIComponent(id)}/manifest`);
+
+export const fetchMediaSource = (projectId: string | null, id: string, csrf: string) =>
+  request<MediaItemSummary>(`${mediaBase(projectId)}/${encodeURIComponent(id)}/fetch`, { method: 'POST', headers: { 'X-CSRF-Token': csrf } });

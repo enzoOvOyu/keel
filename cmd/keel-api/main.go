@@ -17,6 +17,7 @@ import (
 	"github.com/enzoOvOyu/keel/internal/httpapi"
 	"github.com/enzoOvOyu/keel/internal/mediaartifact"
 	"github.com/enzoOvOyu/keel/internal/mediamanifest"
+	"github.com/enzoOvOyu/keel/internal/mediasource"
 	"github.com/enzoOvOyu/keel/internal/platform"
 )
 
@@ -76,6 +77,11 @@ func main() {
 		store.MediaManifestSigner, err = mediamanifest.LoadSigner(os.Getenv("KEEL_MEDIA_SIGNING_KEY_FILE"))
 		if err != nil {
 			slog.Error("media manifest signing configuration rejected")
+			os.Exit(1)
+		}
+		store.MediaSources, err = mediasource.Load()
+		if err != nil {
+			slog.Error("media source policy configuration rejected")
 			os.Exit(1)
 		}
 		handler = httpapi.NewWithStore(version, dir, store, config)
