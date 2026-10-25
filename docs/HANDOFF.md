@@ -1,10 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～74。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～78。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
-## 当前恢复入口（2026-10-25 14:08 UTC）
+## 当前恢复入口（2026-10-25，本次两小时开发窗口）
 
 用户已于2026-10-25 15:36 UTC恢复两小时开发，当前开发窗口至17:36 UTC。最新偏好：单Agent、不主动启动子代理；先推进P1剩余实现，P1实现完成后集中联调/全量测试/浏览器验证/镜像发布，开发中只保留必要编译与凭据/迁移等关键检查。不再按每个小增量重建镜像或重复全套验证。后续收工记录仅描述此前快照，已被本次恢复覆盖。
+
+- **本窗口源码尚未发布（§75～78）**：单Agent完成同密钥续签/状态、OS引导介质/BOM配置预览、owner主密钥重包裹、独立审计留证、默认关闭的执行Webhook及其owner查询入口；新增用例和集中验证入口已写入，除§75早期续签安全检查外均未运行。必要Go/TS编译与静态检查已完成，不等于功能/SQL迁移通过。源迁移49、运行46；3000仍§74。原草稿保留。
 
 - **Agent网页只读链路已发布（§74）**：既有mTLS任务通过认证API/资产页启动并进入原执行五Tab，unknown由当前操作员凭worker查询的真实回执显式对账；实际HTTP/Agent/浏览器和完整CI通过。生产HTTP任务准入、listener及worker继续关闭。
 
@@ -22,9 +24,9 @@
 
 下次按以下顺序恢复，不能从历史章节的旧“下一步”重新开始：
 
-1. 工作区固定/opt/keel，分支dev/p1-network-bom。先读AGENTS.md、README.md、本文件当前恢复入口和§71～74、DEPLOYMENT，再定向读PRD/ARCHITECTURE/DESIGN-SYSTEM/IMPLEMENTATION-PLAN对应章节。检查git status、远端差异、实际进程和3000版本，保护已有服务。
+1. 工作区固定/opt/keel，分支dev/p1-network-bom。先读AGENTS.md、README.md、本文件当前恢复入口和§75～78、DEPLOYMENT，再定向读PRD/ARCHITECTURE/DESIGN-SYSTEM/IMPLEMENTATION-PLAN对应章节。检查git status、远端差异、实际进程和3000版本，保护已有服务。
 2. 当前主线是WP-1.5双通道Runner的剩余能力。Agent的注册/mTLS/心跳、host.identity/host.wait、统一执行/回执/unknown恢复及网页入口已经完成本阶段交付，不要重复实现。UI旧控件迁移和JetBrains Mono已经完成，不再当待办。
-3. 建议下一完整实施单元优先核对Agent短期证书生命周期：现有证书仅一小时，无自动续签；依据正式设计确定续签、撤销/到期及断线恢复契约，再实现和验证。此建议是接续顺序，不表示设计细节或验收已完成；不把自动安装、PXE或完整监控当作已有前提。完整任务目录/介质分发、安装/systemd、遥测等继续按WP依赖分批推进，不能为关闭FR-0强拉后续功能。
+3. 同密钥续签与owner状态已经写入源码，新增关闭默认/实际叶证书绑定/本地原子更新，勿重复开发；完整CA轮换仍未完成。下一完整主单元是WP-1.7的共享Execution冻结装机请求、重装准入与独占资源，之后接受控ProxyDHCP/iPXE、同请求回调及真实首连/修复。已有准备接口只预览，不提供启动按钮或安装成功证据。通知邮件/IM/页面等并行依赖按WP-1.6继续，完整Agent任务/分发按WP-1.5推进；不能为关闭FR-0强拉P2/P4。用户要求P1实现后集中联调，不逐增量跑浏览器/全量测试或构建镜像。
 4. 宿主所有Go命令仍须GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json、GOMEMLIMIT=768MiB；若overlay不存在，先恢复草稿排除措施。internal/platform/fabric_precheck.go与internal/platform/migrations/026_fabric_precheck.sql是原始未跟踪草稿，不能直接编译、迁移、提交或删除。镜像用精确提交git archive构建。
 5. 实际软件验证只使用自有随机keel_test_*隔离库；真实Agent/SSH、主密钥、OIDC/LDAP和外部介质获取默认关闭。不得为展示UI而生成生产CA/token、启用真实设备写入或伪造成功。检查监听归属后再启动开发服务，不能凭历史记录假定5173是Keel。
 
@@ -1065,3 +1067,20 @@ WP-1.10→WP-1.7补齐OS引导角色：os rootfs及直接固定的kernel/initrd/
 新增单次构建 owner CLI 的 check-p1-lifecycle-integration.py，以及实际 CLI/PG/单元拒绝路径用例，均待按用户要求集中执行。该入口只覆盖新增 P1 生命周期软件子集，对象传输为内存 fixture，没有浏览器/真机/全 P1 验收声明。另修正新增全局 OS boot-profile 的 OpenAPI 路径为实际 /api/v1/admin/media/...，保持正式契约与既有路由一致。后续编译/静态检查结果及本地提交随后补记。
 
 §77必要检查补记：带既有 overlay/GOMEMLIMIT/GOMAXPROCS=2 的 `go test -p=1 ./internal/auditevidence ./internal/platform ./cmd/keel-admin -run '^$'` 退出0，证据 /tmp/keel-p1-audit-final-compile.log，明确只编译而未运行测试。前端正式类型重新生成及 tsc --noEmit 退出0，/tmp/keel-p1-contract-types.log；该结果早于随后两处 UI 缓存失效修正。check-design.py 和 diff --check 退出0，均不证明新增业务用例通过。
+
+
+## 78. 出站执行 Webhook 与装机准备浏览器入口（2026-10-25，源码待集中验证）
+
+审计独立留证已保存本地提交 `47c3370`，未 push。随后接 WP-1.6 的首个出站通知通道：默认关闭、项目绑定、独立 HMAC/精确源白名单/DNS固定拨号、无重定向、CloudEvents公共投影、现有 outbox 独立消费、不可变策略/原消息/终态、短事务认领+HTTP期间不持锁、30秒认领/8秒请求、最多6次退避和owner分页状态CLI。每个sink有独立循环且最多16个，不占用执行调度/心跳；响应丢失保持同事件ID供接收方幂等。原始metadata/URL/密钥不进入送达状态输出。配置首次绑定原子审计；部署配置只读独立挂载，默认空目录，生产未启用。详见 WEBHOOK-NOTIFICATIONS；邮件/IM/通知管理页面/工单门禁来源等仍待开发。
+
+新增052后源迁移49条（含050/051/052，不含原026草稿），运行仍46。没有执行生产迁移、通知发送、密钥生成、镜像构建、CI或3000发布。新增 Webhook/PG/本地HTTP/实际CLI用例写入生命周期批量入口，未运行；生产缺失迁移时不得直接运行新二进制。
+
+装机准备补 `check-media-artifacts-integration.py --provision-only`：项目/全局 OS 引导角色 UI 与真实 MinIO、BOM/型号/域公钥、owner CLI撤销、无执行/资产改变以及Viewer拒绝；小字节fixture不是真实启动镜像。该脚本和浏览器均未执行。并修正新两个弹窗在查询失败时展示旧缓存的问题：隐藏OS旧核对证据，清除配置预览/选择并禁用提交。OpenAPI全局boot-profile路径与生成类型同步，接口实际前缀为admin/media。必要编译与静态结果及本地提交随后补记。
+
+§78源码收口：装机 UI 失效处理与浏览器入口已保存本地 `f75aaff`，浏览器仍未运行。审查另修 fs_setup 应为 array-of-mapping，并拒绝 fs_setup.cmd/extra_opts、apt.conf、源 filename/路径穿越和 ntp.config 自定义路径；独立批准的软件包仍可执行自身安装逻辑，不能把此模板约束称为完整 OS 沙箱。字段依据沿用 PROVISIONING 中的官方 cloud-init 模块参考。新正负例未运行。
+
+本窗口末批必要编译：`GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json GOMEMLIMIT=768MiB GOMAXPROCS=2 go test -p=1 ./internal/auditevidence ./internal/webhook ./internal/mediasource ./internal/provisionseed ./internal/platform ./cmd/keel-worker ./cmd/keel-admin -run '^$'` 退出0，/tmp/keel-p1-window-final-compile.log，全部明确 no tests to run。前端最后两处 UI 改动后 tsc --noEmit 退出0，/tmp/keel-p1-preparation-ui-compile.log。JS node --check、三个 Python ast.parse、check-design.py、diff --check、Compose config --quiet 均退出0，只有语法/静态配置证据。新增 SQL 触发器尚未在数据库执行，新增功能/owner CLI/浏览器用例也未执行；原§75早期续签安全验证不覆盖本窗口后续功能。
+
+继续开发仍留在 /opt/keel、dev/p1-network-bom，使用同一宿主 Go overlay/GOMEMLIMIT/GOMAXPROCS。当前 P1 仍 partial：下一项核心链是共享 Execution 下的冻结装机请求与独占资源/重装权限，之后受控 ProxyDHCP/iPXE/可信分发、同请求的一次性回调和真实 SSH 首连/修复；不能把预览或通知送达当安装成功。Agent 全任务目录/介质传输/完整部署轮换、通知邮件/IM与页面、完整留存恢复及规模/真机判据继续按实际依赖推进。不要为 FR-0 强行提前实现 P2/P4。
+
+完整测试/浏览器/镜像按用户要求待 P1 实现里程碑集中进行，当前只准备复用的一次构建生命周期批量入口及现有独立 Agent/SSH/MinIO/浏览器 runners。不要提前 push 触发全量 CI，也不要把任何新用例写作 PASS。运行3000仍为§74的6668a72/schema46；生产worker/Agent/SSH/主密钥/组织认证/外部介质源与新Webhook均未启用。两个原fabric草稿保持未跟踪、排除编译且不提交。后续提交号及时间窗结束另补记。

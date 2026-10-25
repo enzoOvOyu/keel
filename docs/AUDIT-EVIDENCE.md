@@ -27,4 +27,4 @@ keel-admin audit-evidence-compare --public-key-file /independent-trust/audit-pub
 
 ## 集中验证入口
 
-`python3 scripts/check-p1-lifecycle-integration.py` 为新 OS 配置预览、主密钥重包裹和审计留证的批量软件验证入口，使用带 disposable 标签的隔离 PostgreSQL、独占随机数据库及一次构建的实际 owner CLI；对象存储在该入口中为内存 fixture，不代替真实 MinIO/浏览器或真机验收。它会记录实际 PASS 用例和两项 CLI 完成标记，不把构建成功当作用例通过。当前新增测试已写入，尚未运行；按用户要求待 P1 实现里程碑集中验证。
+`python3 scripts/check-p1-lifecycle-integration.py` 为新 OS 配置预览、主密钥重包裹、审计留证和出站执行 Webhook 的批量软件验证入口，使用带 disposable 标签的隔离 PostgreSQL、独占随机数据库及一次构建的实际 owner CLI；对象存储在该入口中为内存 fixture，不代替真实 MinIO/浏览器或真机验收。它会记录实际 PASS 用例和三项 CLI 完成标记，不把构建成功当作用例通过。当前新增测试已写入，尚未运行；按用户要求待 P1 实现里程碑集中验证。

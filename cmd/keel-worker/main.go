@@ -9,6 +9,7 @@ import (
 	"github.com/enzoOvOyu/keel/internal/execution"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/platform"
+	"github.com/enzoOvOyu/keel/internal/webhook"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -82,6 +83,13 @@ func main() {
 	if e != nil {
 		fail("database migration required")
 	}
+	webhooks, e := webhook.Load(os.Getenv("KEEL_WEBHOOK_SINKS_FILE"), os.Getenv("KEEL_ENV") == "development")
+	if e != nil {
+		fail("webhook sink configuration rejected")
+	}
+	if webhooks != nil {
+		defer webhooks.Close()
+	}
 	concurrency := 8
 	if text := os.Getenv("KEEL_WORKER_CONCURRENCY"); text != "" {
 		n, err := strconv.Atoi(text)
@@ -100,6 +108,10 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	webhookDone, e := startWebhookWorker(ctx, store, webhooks)
+	if e != nil {
+		fail("webhook sink policy rejected")
+	}
 	agentDone, e := startAgentWorker(ctx, store, agentConfig, agentBroker)
 	if e != nil {
 		fail("Agent worker listener configuration rejected")
@@ -175,6 +187,9 @@ loop:
 	}
 	if refreshDone != nil {
 		<-refreshDone
+	}
+	if webhookDone != nil {
+		<-webhookDone
 	}
 	if listenerFailed {
 		fail("Agent task listener stopped unexpectedly")

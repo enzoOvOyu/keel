@@ -2,7 +2,8 @@
 """One isolated P1 lifecycle batch; no browser, image build or production writes.
 
 Run at the agreed validation milestone. Builds one owner CLI, then exercises
-OS composition/config previews, master rewrap and independent audit evidence.
+OS composition/config previews, master rewrap, independent audit evidence and
+signed outbound execution Webhooks against local HTTP receivers.
 Agent/SSH transport and complete P1 acceptance retain their existing runners.
 """
 import argparse
@@ -17,7 +18,7 @@ import uuid
 
 os.umask(0o077)
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--run', default='TestOSBootMediaComposition|TestProvisionPreviewUsesCurrentBOMAndApprovedOS|TestCredentialMasterAtomicRewrapAndRecovery|TestAuditEvidence|TestCloudInit|TestMasterRewrap|TestSignedOSBootRoles|TestSSHCredentialCLI', help='Narrow only after a diagnosed failure; default covers this lifecycle batch')
+parser.add_argument('--run', default='TestOSBootMediaComposition|TestProvisionPreviewUsesCurrentBOMAndApprovedOS|TestCredentialMasterAtomicRewrapAndRecovery|TestAuditEvidence|TestCloudInit|TestMasterRewrap|TestSignedOSBootRoles|TestSSHCredentialCLI|TestWebhook', help='Narrow only after a diagnosed failure; default covers this lifecycle batch')
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 os.chdir(root)
@@ -44,10 +45,10 @@ try:
     env['KEEL_TEST_P1_ADMIN_BIN'] = str(binary_dir / 'keel-admin')
     with (work / 'integration.log').open('x') as log:
         subprocess.run(['go', 'build', '-o', env['KEEL_TEST_P1_ADMIN_BIN'], './cmd/keel-admin'], env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
-        result = subprocess.run(['go', 'test', '-p=1', '-race', '-count=1', '-v', './internal/auditevidence', './internal/credentialvault', './internal/mediamanifest', './internal/provisionseed', './internal/platform', './cmd/keel-admin', '-run', args.run], env=env, stdout=log, stderr=subprocess.STDOUT)
+        result = subprocess.run(['go', 'test', '-p=1', '-race', '-count=1', '-v', './internal/auditevidence', './internal/webhook', './internal/mediasource', './internal/credentialvault', './internal/mediamanifest', './internal/provisionseed', './internal/platform', './cmd/keel-admin', '-run', args.run], env=env, stdout=log, stderr=subprocess.STDOUT)
     transcript = (work / 'integration.log').read_text()
     passed = re.findall(r'^--- PASS: (\S+)', transcript, re.MULTILINE)
-    owner_cli_verified = all(marker in transcript for marker in ['P1_LIFECYCLE_MASTER_CLI_OK', 'P1_LIFECYCLE_AUDIT_CLI_OK']) and all(name in passed for name in ['TestCredentialMasterAtomicRewrapAndRecovery', 'TestAuditEvidenceDetectsOwnerChangesWithoutExportingMetadata'])
+    owner_cli_verified = all(marker in transcript for marker in ['P1_LIFECYCLE_MASTER_CLI_OK', 'P1_LIFECYCLE_AUDIT_CLI_OK', 'P1_LIFECYCLE_WEBHOOK_CLI_OK']) and all(name in passed for name in ['TestCredentialMasterAtomicRewrapAndRecovery', 'TestAuditEvidenceDetectsOwnerChangesWithoutExportingMetadata', 'TestWebhookDurableOutboxDeliveryAndIsolation'])
     (work / 'result.json').write_text(json.dumps({'exit_code': result.returncode, 'test_filter': args.run, 'real_postgresql_configured': True, 'owner_cli_binary_built': True, 'owner_cli_lifecycle_verified': owner_cli_verified, 'passed_tests': passed, 'object_transport': 'in-memory fixture', 'browser_run': False, 'image_build': False, 'production_writes': False, 'full_p1_acceptance': False}))
     print('P1 lifecycle batch exit:', result.returncode, flush=True)
     raise SystemExit(result.returncode)

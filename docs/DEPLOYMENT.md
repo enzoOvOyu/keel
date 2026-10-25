@@ -213,3 +213,8 @@ WP-1.5 的一次性注册、短期mTLS与连接心跳见 [AGENT-IDENTITY](AGENT-
 任务worker通过受保护的KEEL_AGENT_WORKER_FILE显式启用；配置增加tasks_enabled=true，目标Agent也须显式开启。Compose只读挂载/run/keel/agent-worker且默认不开worker profile或端口。普通API身份listener不提供任务派发。配置、真实平台Admin登录、CLI幂等键和未知回执处置见[Agent运行说明](AGENT-IDENTITY.md)。默认发布保持所有真实执行通道关闭。
 
 网页/API入口另由 `KEEL_AGENT_TASKS_ENABLED=true` 开启，默认false；开关只允许提交既有只读任务，不启动worker或签发身份。资产页的在线/离线来自当前证书绑定和30秒心跳/任务连接，不能替代主机健康；执行页沿用原五Tab，unknown在worker查询到真实终态后由当前有权限操作员显式对账。此入口无新增迁移；`npm run build` 后运行 `python3 scripts/check-agent-integration.py --browser` 可验证隔离PG/HTTP/真实Agent/浏览器链路。
+
+
+## 本轮 P1 源码与可选通知配置（尚未发布）
+
+050/051/052 新增 Agent 续签、owner 主密钥维护和独立 Webhook 消费证据；源迁移49条，运行仍46，当前未执行生产迁移。新二进制不能直接连接旧运行 schema。集中验收/备份恢复与权限演练后再按既有发布流程部署，不能自动启用真实通道。可选 worker `KEEL_WEBHOOK_SINKS_FILE` 默认空，独立只读 `/run/keel/webhooks` 挂载默认无密钥；详见 [WEBHOOK-NOTIFICATIONS](WEBHOOK-NOTIFICATIONS.md)。主密钥维护与审计归档分别见 [CREDENTIAL-MASTER-ROTATION](CREDENTIAL-MASTER-ROTATION.md)、[AUDIT-EVIDENCE](AUDIT-EVIDENCE.md)，本批没有执行这些生产维护操作。运行版本与验证事实以 HANDOFF 最后记录为准。
