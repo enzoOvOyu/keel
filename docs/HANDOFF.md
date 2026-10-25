@@ -1054,3 +1054,14 @@ WP-1.10→WP-1.7补齐OS引导角色：os rootfs及直接固定的kernel/initrd/
 接续P1/WP-1.6既有独立主密钥与不可变项目域钥。新增owner CLI credential-master-inspect/rewrap，带域指纹、精确数量/来源指纹、稳定操作ID、全记录认证/全事务重加密、逐条摘要证据/单审计、代际建钥约束及历史主密钥禁复用。公钥/任务身份/有效期/撤销保持，历史过期/撤销只认证存储不获得签名能力。051维护表及更新触发器保持应用角色只读；部署仍需明确维护窗口和双文件保留，命令不改.env、不重启/清理服务。工程契约及恢复顺序见CREDENTIAL-MASTER-ROTATION。
 
 本批只做源码开发；没有读取/轮换生产主密钥、迁移运行库或执行维护命令。源迁移现为48条（新增050/051，不含原026草稿），运行3000仍6668a72/schema46。新增crypto/PostgreSQL/回滚/权限用例已写入待集中运行；必要Go编译日志/tmp/keel-p1-master-compile.log退出0。后续源审查收紧cloud-init容器tag及字段类型，并将OS核对根的排他读锁改为共享锁以允许并发预览，生命周期写仍串行；这些后续变更待下一批编译及最终集中验证。P1/相关WP/FR-0仍partial。
+
+
+## 77. 审计独立留证与集中验证准备（2026-10-25，源码待集中验证）
+
+本窗口已用本地提交 `0daed4b` 保存 Agent 续签/状态、OS 引导介质与 BOM 配置预览、owner 主密钥重包裹。没有 push，避免提前触发全量 CI；没有镜像构建、生产迁移或更新 3000。源码 48 条迁移，运行仍 46；两个原 fabric 草稿继续排除。
+
+随后补齐 owner 审计摘要导出/独立 Ed25519 签名、离线验证和当前库比对 CLI：全部字段的规范化投影、只读一致快照、严格索引及 seal 编码/上限、新增记录单独计数、已归档修改/删除报告差异，导出不含原始审计内容。归档目录不可覆盖，签名私钥和可信公钥由独立保管域管理；没有生成生产密钥或导出生产数据。格式/命令/威胁边界见 AUDIT-EVIDENCE；不能视为完整三年留存、备份恢复或 S-5 验收。
+
+新增单次构建 owner CLI 的 check-p1-lifecycle-integration.py，以及实际 CLI/PG/单元拒绝路径用例，均待按用户要求集中执行。该入口只覆盖新增 P1 生命周期软件子集，对象传输为内存 fixture，没有浏览器/真机/全 P1 验收声明。另修正新增全局 OS boot-profile 的 OpenAPI 路径为实际 /api/v1/admin/media/...，保持正式契约与既有路由一致。后续编译/静态检查结果及本地提交随后补记。
+
+§77必要检查补记：带既有 overlay/GOMEMLIMIT/GOMAXPROCS=2 的 `go test -p=1 ./internal/auditevidence ./internal/platform ./cmd/keel-admin -run '^$'` 退出0，证据 /tmp/keel-p1-audit-final-compile.log，明确只编译而未运行测试。前端正式类型重新生成及 tsc --noEmit 退出0，/tmp/keel-p1-contract-types.log；该结果早于随后两处 UI 缓存失效修正。check-design.py 和 diff --check 退出0，均不证明新增业务用例通过。

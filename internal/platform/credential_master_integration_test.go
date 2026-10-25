@@ -4,7 +4,12 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,6 +28,7 @@ func TestCredentialMasterAtomicRewrapAndRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	masterPaths := map[string]string{}
 	vault := func() *credentialvault.Vault {
 		t.Helper()
 		path := filepath.Join(t.TempDir(), "master")
@@ -33,6 +39,7 @@ func TestCredentialMasterAtomicRewrapAndRecovery(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
+		masterPaths[v.KeyID()] = path
 		return v
 	}
 	previous, next := vault(), vault()
@@ -98,7 +105,33 @@ func TestCredentialMasterAtomicRewrapAndRecovery(t *testing.T) {
 	if _, err = s.DB.ExecContext(ctx, "DROP TRIGGER reject_test_master_audit ON audits; DROP FUNCTION reject_test_master_audit()"); err != nil {
 		t.Fatal(err)
 	}
-	result, err := s.RewrapCredentialMaster(ctx, previous, next, input)
+	binary := os.Getenv("KEEL_TEST_P1_ADMIN_BIN")
+	invoke := func(args ...string) ([]byte, error) {
+		cmd := exec.CommandContext(ctx, binary, args...)
+		for _, value := range os.Environ() {
+			if !strings.HasPrefix(value, "KEEL_") {
+				cmd.Env = append(cmd.Env, value)
+			}
+		}
+		cmd.Env = append(cmd.Env, "KEEL_DATABASE_URL="+os.Getenv("KEEL_TEST_DATABASE_URL"), "KEEL_CREDENTIAL_MASTER_KEY_FILE="+masterPaths[previous.KeyID()])
+		return cmd.Output()
+	}
+	var result *CredentialMasterRewrap
+	if binary != "" {
+		raw, e := invoke("credential-master-inspect")
+		var checked CredentialMasterInspection
+		if e != nil || json.Unmarshal(raw, &checked) != nil || checked.Keys != 2 || checked.KeyID != previous.KeyID() {
+			t.Fatalf("actual master inspect CLI failed: %v", e)
+		}
+		raw, e = invoke("credential-master-rewrap", "--rotation-id", input.ID, "--expected-source-key-id", input.ExpectedSourceKeyID, "--expected-keys", strconv.Itoa(input.ExpectedKeys), "--new-master-key-file", masterPaths[next.KeyID()], "--reason", input.Reason)
+		if e != nil {
+			t.Fatalf("actual master rewrap CLI failed: %v", e)
+		}
+		result = &CredentialMasterRewrap{}
+		err = json.Unmarshal(raw, result)
+	} else {
+		result, err = s.RewrapCredentialMaster(ctx, previous, next, input)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,6 +172,14 @@ func TestCredentialMasterAtomicRewrapAndRecovery(t *testing.T) {
 	retry, err := s.RewrapCredentialMaster(ctx, previous, next, input)
 	if err != nil || !retry.AlreadyCommitted {
 		t.Fatalf("lost-response retry: %+v %v", retry, err)
+	}
+	if binary != "" {
+		raw, e := invoke("credential-master-rewrap", "--rotation-id", input.ID, "--expected-source-key-id", input.ExpectedSourceKeyID, "--expected-keys", strconv.Itoa(input.ExpectedKeys), "--new-master-key-file", masterPaths[next.KeyID()], "--reason", input.Reason)
+		var proof CredentialMasterRewrap
+		if e != nil || json.Unmarshal(raw, &proof) != nil || !proof.AlreadyCommitted {
+			t.Fatalf("actual master retry CLI failed: %v", e)
+		}
+		t.Log("P1_LIFECYCLE_MASTER_CLI_OK")
 	}
 	changed := input
 	changed.Reason = "different operation"

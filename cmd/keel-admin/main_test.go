@@ -12,6 +12,8 @@ func TestSSHCredentialCLIRejectsUnrelatedFlagsBeforeDatabaseAccess(t *testing.T)
 		{"ssh-key-list", "--project", "11111111111111111111111111111111", "--output", "/tmp/not-created"},
 		{"credential-master-keygen", "--project", "11111111111111111111111111111111"},
 		{"ssh-key-revoke", "unexpected"},
+		{"credential-master-inspect", "--project", "11111111111111111111111111111111"},
+		{"credential-master-rewrap", "--output", "/tmp/not-created"},
 	} {
 		if err := run(args); err == nil {
 			t.Fatal("unrelated credential CLI arguments accepted")
