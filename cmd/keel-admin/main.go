@@ -26,9 +26,12 @@ func main() {
 }
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: keel-admin media-init|media-signing-keygen|media-manifest-verify|media-bundle-create|media-bundle-verify|migrate|init-admin|user-create|user-disable|user-unlock|user-password|member-grant|member-revoke [flags]")
+		return errors.New("usage: keel-admin credential-master-keygen|ssh-key-create|ssh-key-list|ssh-key-revoke|media-init|media-signing-keygen|media-manifest-verify|media-bundle-create|media-bundle-verify|migrate|init-admin|user-create|user-disable|user-unlock|user-password|member-grant|member-revoke [flags]")
 	}
 	command := args[0]
+	if command == "credential-master-keygen" || command == "ssh-key-create" || command == "ssh-key-list" || command == "ssh-key-revoke" {
+		return runSSHCredentials(command, args[1:])
+	}
 	if command == "media-bundle-create" || command == "media-bundle-verify" {
 		return runMediaBundle(command, args[1:])
 	}

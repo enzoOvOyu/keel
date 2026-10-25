@@ -6,6 +6,27 @@ import (
 )
 
 func (a *authAPI) registerSSHTrustRequests(r *gin.Engine) {
+	r.GET("/api/v1/projects/:id/ssh-domain-keys", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		p, ok := readPagination(c)
+		if !ok {
+			return
+		}
+		project, e := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		out, e := a.store.ProjectSSHDomainKeys(c.Request.Context(), actor, project.ID, p)
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
 	base := "/api/v1/projects/:id/ssh-trust-requests"
 	r.GET(base, func(c *gin.Context) {
 		actor, ok := a.authenticated(c)

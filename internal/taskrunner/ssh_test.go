@@ -38,6 +38,10 @@ type sshFixture struct {
 }
 
 func fixture(t *testing.T) *sshFixture {
+	return fixtureWithPublicKey(t, nil)
+}
+
+func fixtureWithPublicKey(t *testing.T, authorized ssh.PublicKey) *sshFixture {
 	t.Helper()
 	dir := t.TempDir()
 	if e := os.Chmod(dir, 0700); e != nil {
@@ -50,6 +54,9 @@ func fixture(t *testing.T) *sshFixture {
 	signer, e := ssh.NewSignerFromKey(private)
 	if e != nil {
 		t.Fatal(e)
+	}
+	if authorized == nil {
+		authorized = signer.PublicKey()
 	}
 	_, host, e := ed25519.GenerateKey(rand.Reader)
 	if e != nil {
@@ -75,7 +82,7 @@ func fixture(t *testing.T) *sshFixture {
 		t.Fatal(e)
 	}
 	server := &ssh.ServerConfig{PublicKeyCallback: func(c ssh.ConnMetadata, k ssh.PublicKey) (*ssh.Permissions, error) {
-		if c.User() != "keel-ctrl" || !bytes.Equal(k.Marshal(), signer.PublicKey().Marshal()) {
+		if c.User() != "keel-ctrl" || !bytes.Equal(k.Marshal(), authorized.Marshal()) {
 			return nil, errors.New("rejected")
 		}
 		return nil, nil

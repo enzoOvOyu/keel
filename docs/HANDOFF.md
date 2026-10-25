@@ -812,3 +812,17 @@ TaskCommand版本keel.task/v1；SSH只发送常量helper入口与受限stdin JSO
 043信任请求/来源迁移已应用，schema39→40备份/隔离恢复、既有身份保持与新表受限授权已验证；运行库40条迁移记录；保留旧镜像 `keel:b946f3446091123d3edcb0a86b73d588ba9e1d48`。旧镜像不兼容新增迁移，不可直接回切；须修复前进，备份恢复另走批准流程。不改数据卷、worker范围或其他服务。.env仍600，私有发布状态、切换前配置和截图在 `/home/ubuntu/.local/state/keel/releases/20261025T062805Z`，候选容器/临时配置已清理。两份旧草稿保留未暂存。GitHub Actions run40169168724已completed/success；后续交接文档提交不改3000功能SHA。相关WP及P1仍按剩余验收项保持partial。
 
 §62生产复验：`/tmp/keel-trust-candidate-app-role.log`、`/tmp/keel-trust-3000-app-role.log`均退出0；候选/3000使用受限应用角色查询新信任表和资产来源，新资产页显示正确，无浏览器错误；信任创建接口匿名401/CSRF403/配置缺失503，无业务记录创建。迁移演练与应用证据在私有发布目录 migration-rehearsal.json / migration-applied.json，包含新表受限授权与既有审计限制；生产SSH与worker未开启。
+
+
+## 63. 两小时续开发：加密项目域凭据前置
+
+按A3/WP-1.5及WP-1.6依赖接续§62，先补公钥安装/轮换所需的加密域密钥提供者，不提前假定PXE、Agent或完整repair存在。新增AES-256-GCM密文存储与独立32字节主密钥文件，AAD绑定项目/引用/版本/公钥/到期；私钥只在控制面内存解密，领域快照、API、页面及审计仅保留公开身份。044新表版本不可覆盖/删除，唯一允许首次控制面撤销；创建/撤销与CLI操作员审计原子提交。服务器owner CLI提供master-keygen及ssh-key-create/list/revoke，运行角色只读新表。
+
+SSH目标可显式选择vault提供者，仍保留原文件兼容；精确版本/有效期/公钥不符、数据库不可用、撤销或主密钥错误均拒绝，无文件/sim回退。每次Binding/元数据/操作前复核，拒绝关闭对应目标的池连接；业务事务与凭据读取分离连接池防止自锁。撤销阻止后续取用，不伪造目标机删除公钥证明；已派发结果遵循原回执与unknown隔离语义。公开密钥API/资产列表按当前平台Admin或项目Admin/DL/SRE授权，中英/分页/到期/控制面撤销及403隐藏旧缓存均接入既有组件。
+
+已实际通过加密/文件边界race、真实PG密钥不可变/跨项目/并发幂等撤销/审计/只读运行角色验证（`/tmp/keel-domain-key-check-76tf1c1f`）；后续HTTP验证发现只读事务使用FOR SHARE，已改为只读角色查询。完整真实PG/SSH/HTTP/原双账号审批/新公钥浏览器集成`/tmp/keel-domain-ssh-complete.log`、`/tmp/keel-ssh-integration-icpc5tjd`退出0，覆盖活动池撤销、重启拒绝、unknown保留两把隔离锁、业务池耗尽仍可取钥、五项目角色和实际撤权会话失效；页面中英/390宽/精确公钥及明确注入403后实际刷新恢复通过。完整overlay make check `/tmp/keel-domain-key-full-check.log`退出0，保留现有bundle体积提示。独立CLI进程与最终变更复核、提交/CI/044备份恢复演练及3000发布结果随后按实际补记。
+
+边界：无目标公钥/helper安装、root密码首登、目标双钥轮换/删除、新连接拒绝证明、Vault密文销毁、主密钥轮换或Agent；本步不闭环S-3/F-1.3/WP-1.5/WP-1.6/P1。当前3000仍运行§62功能SHA，生产worker/SSH关闭，044尚未应用；两份原草稿不纳入提交/构建。后续优先补受控公钥安装与真实broken/repair，不另建执行队列。
+
+
+§63最终增量验证：独立CLI发现首次撤销返回纳秒而DB为微秒，已统一创建/撤销时间精度；定向真实PG/SSH/HTTP/公钥浏览器与独立CLI进程 `/tmp/keel-domain-cli-retry-final.log`、`/tmp/keel-ssh-integration-vvsygfw6`退出0，覆盖master排他创建/原文件保持、公开输出、版本拒绝复用、撤销精确重试响应一致，以及helper跨进程回执保持。最终域PG+vault传输复验 `/tmp/keel-domain-final-pg.log`、`/tmp/keel-domain-key-check-4dijv8ya`退出0。一次并行Vite构建替换dist导致浏览器找不到登录控件，已按构建结束后串行复验，不计该失败为通过；运行库未受影响。配置/设计/diff检查通过。

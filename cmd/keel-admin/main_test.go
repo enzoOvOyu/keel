@@ -6,6 +6,19 @@ import (
 	"testing"
 )
 
+func TestSSHCredentialCLIRejectsUnrelatedFlagsBeforeDatabaseAccess(t *testing.T) {
+	t.Setenv("KEEL_DATABASE_URL", "")
+	for _, args := range [][]string{
+		{"ssh-key-list", "--project", "11111111111111111111111111111111", "--output", "/tmp/not-created"},
+		{"credential-master-keygen", "--project", "11111111111111111111111111111111"},
+		{"ssh-key-revoke", "unexpected"},
+	} {
+		if err := run(args); err == nil {
+			t.Fatal("unrelated credential CLI arguments accepted")
+		}
+	}
+}
+
 func TestPasswordFileBoundary(t *testing.T) {
 	dir := t.TempDir()
 	secret := filepath.Join(dir, "password")

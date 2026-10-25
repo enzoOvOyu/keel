@@ -7,7 +7,6 @@ import (
 	"github.com/enzoOvOyu/keel/internal/execution"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/platform"
-	"github.com/enzoOvOyu/keel/internal/taskrunner"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -39,7 +38,7 @@ func main() {
 		fail("worker database unavailable")
 	}
 	defer store.Close()
-	store.SSHRunner, e = taskrunner.Load(os.Getenv("KEEL_SSH_RUNNER_FILE"))
+	e = store.ConfigureSSHRunner(os.Getenv("KEEL_SSH_RUNNER_FILE"), os.Getenv("KEEL_CREDENTIAL_MASTER_KEY_FILE"))
 	if e != nil {
 		slog.Error("SSH runner configuration rejected")
 		os.Exit(1)

@@ -19,7 +19,6 @@ import (
 	"github.com/enzoOvOyu/keel/internal/mediamanifest"
 	"github.com/enzoOvOyu/keel/internal/mediasource"
 	"github.com/enzoOvOyu/keel/internal/platform"
-	"github.com/enzoOvOyu/keel/internal/taskrunner"
 )
 
 var version = "development"
@@ -62,7 +61,7 @@ func main() {
 			slog.Error("database schema rejected", "error", err)
 			os.Exit(1)
 		}
-		store.SSHRunner, err = taskrunner.Load(os.Getenv("KEEL_SSH_RUNNER_FILE"))
+		err = store.ConfigureSSHRunner(os.Getenv("KEEL_SSH_RUNNER_FILE"), os.Getenv("KEEL_CREDENTIAL_MASTER_KEY_FILE"))
 		if err != nil {
 			slog.Error("SSH runner configuration rejected")
 			os.Exit(1)

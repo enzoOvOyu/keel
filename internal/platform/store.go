@@ -35,6 +35,8 @@ type Store struct {
 	Ent                 *ent.Client
 	passwordSlots       chan struct{}
 	dummyHash           string
+	dsn                 string
+	credentialDB        *sql.DB
 }
 
 func Open(ctx context.Context, dsn string) (*Store, error) {
@@ -54,11 +56,14 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 		db.Close()
 		return nil, e
 	}
-	return &Store{DB: db, Ent: ent.NewClient(ent.Driver(entsql.OpenDB(dialect.Postgres, db))), passwordSlots: make(chan struct{}, 2), dummyHash: h}, nil
+	return &Store{DB: db, Ent: ent.NewClient(ent.Driver(entsql.OpenDB(dialect.Postgres, db))), passwordSlots: make(chan struct{}, 2), dummyHash: h, dsn: dsn}, nil
 }
 func (s *Store) Close() error {
 	if s.SSHRunner != nil {
 		s.SSHRunner.Close()
+	}
+	if s.credentialDB != nil {
+		s.credentialDB.Close()
 	}
 	return s.Ent.Close()
 }

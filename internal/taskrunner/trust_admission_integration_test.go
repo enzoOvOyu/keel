@@ -105,7 +105,11 @@ func (f *trustAdmissionFixture) login(name string) *platform.AuthSession {
 func (f *trustAdmissionFixture) newAdmin(prefix string) *platform.AuthSession {
 	f.t.Helper()
 	name := prefix + platform.RandomID()[:10]
-	if _, e := f.store.CreateUser(f.ctx, name, name, f.password, true, false); e != nil {
+	var initialized bool
+	if e := f.store.DB.QueryRowContext(f.ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE is_admin)`).Scan(&initialized); e != nil {
+		f.t.Fatal(e)
+	}
+	if _, e := f.store.CreateUser(f.ctx, name, name, f.password, true, !initialized); e != nil {
 		f.t.Fatal(e)
 	}
 	return f.login(name)

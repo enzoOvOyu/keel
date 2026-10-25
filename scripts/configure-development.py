@@ -44,6 +44,8 @@ DO $keel$ BEGIN
   IF to_regclass('public.audits') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON audits FROM keel_app; END IF;
   IF to_regclass('public.keel_schema_migrations') IS NOT NULL THEN REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON keel_schema_migrations FROM keel_app; END IF;
   IF to_regclass('public.schema_migrations') IS NOT NULL THEN REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON schema_migrations FROM keel_app; END IF;
+  IF to_regclass('public.ssh_domain_keys') IS NOT NULL THEN REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON ssh_domain_keys FROM keel_app; END IF;
+  IF to_regclass('public.ssh_trust_requests') IS NOT NULL THEN REVOKE DELETE,TRUNCATE ON ssh_trust_requests FROM keel_app; END IF;
 END $keel$;''')
 origins=','.join('http://'+host+':'+port for port in ('3000','3001','5173') for host in ('localhost','127.0.0.1'))
 app_url=lambda host: 'postgresql://keel_app:'+quote(password,safe='')+'@'+host+'/'+quote(db,safe='')+'?sslmode=disable'

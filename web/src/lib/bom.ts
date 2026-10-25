@@ -30,6 +30,9 @@ export const listTrustLogs = (projectId: string, page: number, signal: AbortSign
 
 // Public identity and credential references are generated from the API contract.
 export type SSHTrustRequest = components['schemas']['SSHTrustRequest']
+export type SSHDomainKey = components['schemas']['SSHDomainKey']
+export const listSSHDomainKeys = (projectId: string, page: number, signal: AbortSignal) =>
+  request<components['schemas']['SSHDomainKeyPage']>(`/projects/${encodeURIComponent(projectId)}/ssh-domain-keys?page=${page}&page_size=20`, { signal })
 export type CreateSSHTrustRequest = components['schemas']['CreateSSHTrustRequestInput']
 const sshTrustPath = (projectId: string, requestId?: string) => `/projects/${encodeURIComponent(projectId)}/ssh-trust-requests${requestId ? `/${encodeURIComponent(requestId)}` : ''}`
 const writeSSHTrust = <T>(path: string, body: unknown, csrf: string, key: string) =>

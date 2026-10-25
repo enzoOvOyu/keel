@@ -186,3 +186,8 @@ A3的host.identity/host.wait通过现有执行器、权威租约和实际持久�
 043新增不可变ssh_trust_requests与machines.ssh_trust_source，发布镜像匹配schema40。升级前备份并在隔离库恢复/迁移演练，确认原机器状态/指纹及业务行数保持。仅向运行应用角色授予新表SELECT/INSERT/UPDATE，保留审计/迁移表限制；新表证据不应授予DELETE。既有互信来源统一legacy，不自动提升为真实验证；普通SSH拒绝legacy/sim，需人工核验和独立批准的repair补真实回执。
 
 schema39镜像不能直接连接schema40库，保留数据修复前进；备份恢复另按批准流程执行。升级不设置真实目标、安装客户公钥或开启worker；默认SSH禁用。实际运行版本、迁移和发布证据仍以HANDOFF为准。
+
+
+### 加密SSH域密钥
+
+可选`KEEL_CREDENTIAL_MASTER_KEY_FILE`沿用私有SSH目录只读挂载，默认空值关闭。044迁移新增加密域密钥表；迁移与备份恢复演练后只给`keel_app`新表SELECT，不授INSERT/UPDATE/DELETE/TRUNCATE。主密钥独立保管，数据库备份不包含它；不得因部署自动生成或替换真实主密钥。API/worker继续使用受限角色，创建/撤销只由授权服务器owner CLI执行。命令、权限和控制面撤销边界见[SSH-RUNNER](SSH-RUNNER.md#加密项目域密钥提供者)。本功能发布不自动开启真实SSH、生产worker或目标公钥安装。

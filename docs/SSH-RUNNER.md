@@ -4,7 +4,7 @@
 
 ## 操作员配置
 
-默认不配置 `KEEL_SSH_RUNNER_FILE`，SSH 关闭。只读查询无需介质；脚本执行、完整bootstrap/repair、密钥注入/轮换/撤销、Agent 和目标缓存尚未交付，不借查询例外放行它们。原有 mock 互信动作不证明真实首连。
+默认不配置 `KEEL_SSH_RUNNER_FILE`，SSH 关闭。只读查询无需介质；脚本执行、完整bootstrap/repair、目标公钥注入/轮换/删除、Agent 和目标缓存尚未交付，不借查询例外放行它们。原有 mock 互信动作不证明真实首连。
 
 配置 JSON 的 `targets` 是最多128个显式项目/机器绑定，每项为：
 
@@ -16,7 +16,8 @@
 | host_key | 经独立可信渠道取得的 OpenSSH SHA256 主机密钥指纹；禁止自动接受未知指纹 |
 | credential_ref | 项目/rail 域密钥的操作员引用名，1～64字符 |
 | credential_version / credential_expires_at | 普通长期域配置可省略；受限首连验证必填版本与覆盖授权窗口的RFC3339到期时间，消费后不重用该目标的同一引用版本 |
-| private_key_file | 受控 Ed25519 PKCS8/OpenSSH 私钥文件路径；不含密码，不落数据库 |
+| private_key_file | 文件提供者使用的受控 Ed25519 PKCS8/OpenSSH 私钥文件路径；不含密码，不落数据库；vault 提供者必须为空 |
+| credential_provider | 省略沿用文件提供者；`vault` 通过独立主密钥解密数据库中精确项目/引用/版本的域密钥，必须同时配置版本和到期时间 |
 
 配置与私钥必须为当前服务用户拥有、组及其他用户无权限的普通文件（推荐600/400）；拒绝最终符号链接、FIFO、目录和过大文件。配置文件≤128KiB，私钥≤64KiB。配置错误使启动失败，不静默退回 sim。API 与 worker 使用同一配置；API需要凭据查询失联任务的真实回执。
 
@@ -61,3 +62,27 @@ Pause停止新派发，当前只读步骤安全完成；Kill需要cancelled/其�
 043增加 `ssh_trust_source=legacy|sim|ssh`：旧记录默认legacy，mock投影标sim，只有实际验证回执标ssh。普通SSH拒绝legacy/sim，即使历史状态为established；这类状态可经独立批准的repair补真实验证。revoked不自动恢复；已完成真实验证的established不借repair执行其他动作。资产页区分来源，旧mock动作不能修改当前或历史真实目标。
 
 本增量不安装公钥/helper、不改变客户口令、不实现目标密钥撤销或Vault销毁；一次性指验证授权消费，回执查询不重新执行。授权/凭据到期或绑定轮换后，unknown仍保持隔离，换凭据查询旧命令的恢复治理尚待开发。043要求schema40；备份恢复演练、完整集成/CI、提交和实际运行版本以HANDOFF最新记录为准。
+
+## 加密项目域密钥提供者
+
+WP-1.6为WP-1.5提供的运行时凭据前置：平台生成项目域Ed25519密钥，AES-256-GCM加密后存入`ssh_domain_keys`；主密钥是独立于数据库的32随机字节文件。项目、引用、版本、公钥和UTC微秒到期时间共同作为AEAD附加认证数据，移动或篡改记录不能解密。每版新生成独立密钥，引用/版本不可覆盖或复用，创建和首次撤销与脱敏CLI操作员审计同事务提交。数据库备份必须与主密钥分开保管；遗失主密钥不能从数据库恢复私钥，替换主密钥也不会自动重加密旧记录。
+
+以下命令由授权运维在服务器执行。加载既有owner配置仅用于管理操作，不能把owner DSN提供给API/worker。示例中的项目ID、路径和到期时间需替换为实际值；命令输出只有公开元数据：
+
+```sh
+keel-admin credential-master-keygen --output /private/keel/ssh/master.key
+export KEEL_CREDENTIAL_MASTER_KEY_FILE=/private/keel/ssh/master.key
+keel-admin ssh-key-create --project PROJECT_ID --ref keel-ctrl-project --version v1 --expires-at RFC3339_TIME
+keel-admin ssh-key-list --project PROJECT_ID --limit 50 --offset 0
+keel-admin ssh-key-revoke --project PROJECT_ID --id KEY_ID --expected-version 1 --reason '撤销原因'
+```
+
+主密钥创建使用0600与排他创建，不覆盖已有文件；提供者拒绝相对路径、最终符号链接、FIFO、非当前UID拥有、其他用户可读或长度错误的文件。创建需有效期大于五分钟，按现有项目状态拒绝已交付/归档项目新增密钥；撤销仍可进行。撤销使用状态版本；同一旧版本与相同原因的精确重试返回原证据，冲突请求拒绝。公开公钥带`keel-ctrl-项目-引用-版本`注释，便于后续受控安装登记；注释本身不证明目标归属或安装成功。
+
+目标配置使用`credential_provider: "vault"`，`private_key_file: ""`，并准确填写公开元数据中的`credential_ref`、`credential_version`与`credential_expires_at`。API/worker设置`KEEL_CREDENTIAL_MASTER_KEY_FILE`，其路径可位于原有只读`/run/keel/ssh`挂载中，文件和私有目录由容器实际UID65532拥有。运维CLI须使用有权读取该文件的同UID上下文，不能为方便而放宽文件权限或把密钥输出到终端。文件提供者保留兼容；vault配置错误或不可用绝不回退文件/sim。
+
+提供者每次Binding、元数据读取以及run/query/cancel前重验数据库版本、撤销状态、有效期和公钥身份，包括已有连接池。凭据读取使用独立有界连接池，避免持有业务事务时自锁；数据库不可用时拒绝取钥。拒绝时关闭对应目标的池连接，新操作不会继续派发；已派发动作仍按真实回执与授权投影处理，不宣称撤销能回滚远端已执行动作。失联结果保持unknown及资源隔离，不借新凭据重放旧命令。
+
+`GET /api/v1/projects/{id}/ssh-domain-keys`与资产页公开密钥列表仅允许当前平台Admin或项目Admin/DL/SRE，分页返回公钥、引用/版本、到期及控制面撤销证据。无私钥/密文/文件路径字段。浏览器无密钥生成、导入或撤销入口；管理动作仅服务器owner CLI。运行角色对新表只授SELECT，禁止INSERT/UPDATE/DELETE/TRUNCATE；`configure-development.py --grant`保留这一限制及原信任请求、审计和迁移证据限制。
+
+本功能不安装目标公钥、不删除authorized_keys条目、不修改客户密码，也不实现目标双钥轮换或Vault密文销毁。控制面已撤销与“新SSH连接被目标拒绝”的撤销证明是两个不同事实；S-3与完整bootstrap/repair仍需后续完成。新增044迁移，部署必须按DEPLOYMENT备份、隔离恢复演练并授新表只读权限；旧schema40镜像不能直接用于新增迁移后的库。

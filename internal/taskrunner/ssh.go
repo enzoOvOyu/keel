@@ -31,6 +31,13 @@ type TargetConfig struct {
 	CredentialVersion   string     `json:"credential_version,omitempty"`
 	CredentialExpiresAt *time.Time `json:"credential_expires_at,omitempty"`
 	PrivateKeyFile      string     `json:"private_key_file"`
+	CredentialProvider  string     `json:"credential_provider,omitempty"`
+}
+
+// CredentialProvider is the control-plane secret boundary. Implementations must
+// resolve exact versions and reject revoked/expired credentials without fallback.
+type CredentialProvider interface {
+	Resolve(context.Context, string, string, string) (ssh.Signer, time.Time, error)
 }
 
 // CredentialMetadata contains references only. Private keys and target addresses
@@ -61,10 +68,11 @@ type endpoint struct {
 	binding Binding
 }
 type SSH struct {
-	mu      sync.Mutex
-	targets map[string]endpoint
-	pool    map[string]*ssh.Client
-	closed  bool
+	mu          sync.Mutex
+	targets     map[string]endpoint
+	pool        map[string]*ssh.Client
+	closed      bool
+	credentials CredentialProvider
 }
 
 func readPrivate(path string, max int64) ([]byte, error) {
@@ -88,6 +96,10 @@ func readPrivate(path string, max int64) ([]byte, error) {
 // Load is opt-in. The file is an operator-owned project/machine allowlist;
 // secrets and addresses cannot be supplied by an execution request.
 func Load(path string) (*SSH, error) {
+	return LoadWithCredentials(path, nil)
+}
+
+func LoadWithCredentials(path string, credentials CredentialProvider) (*SSH, error) {
 	if path == "" {
 		return nil, nil
 	}
@@ -105,7 +117,7 @@ func Load(path string) (*SSH, error) {
 	if d.Decode(&extra) != io.EOF || len(c.Targets) == 0 || len(c.Targets) > 128 {
 		return nil, ErrRejected
 	}
-	s := &SSH{targets: map[string]endpoint{}, pool: map[string]*ssh.Client{}}
+	s := &SSH{targets: map[string]endpoint{}, pool: map[string]*ssh.Client{}, credentials: credentials}
 	for _, t := range c.Targets {
 		if t.CredentialExpiresAt != nil {
 			// PostgreSQL authorization snapshots use microsecond precision.
@@ -123,21 +135,7 @@ func Load(path string) (*SSH, error) {
 		if (t.CredentialVersion != "" && !credentialVersionPattern.MatchString(t.CredentialVersion)) || (t.CredentialExpiresAt != nil && (t.CredentialExpiresAt.IsZero() || !t.CredentialExpiresAt.After(time.Now()) || t.CredentialVersion == "")) {
 			return nil, ErrRejected
 		}
-		key, e := readPrivate(t.PrivateKeyFile, 64*1024)
-		if e != nil {
-			return nil, ErrRejected
-		}
-		private, e := ssh.ParseRawPrivateKey(key)
-		for i := range key {
-			key[i] = 0
-		}
-		if e != nil {
-			return nil, ErrRejected
-		}
-		if _, ok := private.(ed25519.PrivateKey); !ok {
-			return nil, ErrRejected
-		}
-		signer, e := ssh.NewSignerFromKey(private)
+		signer, e := s.resolveSigner(context.Background(), t)
 		if e != nil {
 			return nil, ErrRejected
 		}
@@ -159,8 +157,40 @@ func Load(path string) (*SSH, error) {
 	return s, nil
 }
 
+func (s *SSH) resolveSigner(ctx context.Context, t TargetConfig) (ssh.Signer, error) {
+	if t.CredentialProvider != "" {
+		if t.CredentialProvider != "vault" || s.credentials == nil || t.PrivateKeyFile != "" || t.CredentialVersion == "" || t.CredentialExpiresAt == nil {
+			return nil, ErrRejected
+		}
+		work, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+		signer, expiry, err := s.credentials.Resolve(work, t.ProjectID, t.CredentialRef, t.CredentialVersion)
+		if err != nil || signer == nil || !expiry.Equal(*t.CredentialExpiresAt) || !expiry.After(time.Now()) || signer.PublicKey().Type() != ssh.KeyAlgoED25519 {
+			return nil, ErrRejected
+		}
+		return signer, nil
+	}
+	key, err := readPrivate(t.PrivateKeyFile, 64*1024)
+	if err != nil {
+		return nil, ErrRejected
+	}
+	defer clear(key)
+	private, err := ssh.ParseRawPrivateKey(key)
+	if err != nil {
+		return nil, ErrRejected
+	}
+	if _, ok := private.(ed25519.PrivateKey); !ok {
+		return nil, ErrRejected
+	}
+	signer, err := ssh.NewSignerFromKey(private)
+	if err != nil {
+		return nil, ErrRejected
+	}
+	return signer, nil
+}
+
 func (s *SSH) Binding(project, machine string) (Binding, error) {
-	e, err := s.currentEndpoint(project + ":" + machine)
+	e, err := s.currentEndpoint(context.Background(), project+":"+machine)
 	if err != nil {
 		return Binding{}, ErrRejected
 	}
@@ -178,7 +208,7 @@ func (s *SSH) HasTarget(project, machine string) bool {
 }
 
 func (s *SSH) CredentialMetadata(project, machine string) (CredentialMetadata, error) {
-	ep, err := s.currentEndpoint(project + ":" + machine)
+	ep, err := s.currentEndpoint(context.Background(), project+":"+machine)
 	if err != nil {
 		return CredentialMetadata{}, ErrRejected
 	}
@@ -190,7 +220,7 @@ func (s *SSH) CredentialMetadata(project, machine string) (CredentialMetadata, e
 	return metadata, nil
 }
 
-func (s *SSH) currentEndpoint(id string) (endpoint, error) {
+func (s *SSH) currentEndpoint(ctx context.Context, id string) (endpoint, error) {
 	if s == nil {
 		return endpoint{}, ErrRejected
 	}
@@ -198,9 +228,16 @@ func (s *SSH) currentEndpoint(id string) (endpoint, error) {
 	if !ok {
 		return endpoint{}, ErrRejected
 	}
+	// Recheck provider authority before using even an existing SSH connection.
+	// No database operation runs while holding the pool mutex.
+	invalid := false
+	if ep.config.CredentialProvider != "" {
+		signer, err := s.resolveSigner(ctx, ep.config)
+		invalid = err != nil || ssh.FingerprintSHA256(signer.PublicKey()) != ssh.FingerprintSHA256(ep.signer.PublicKey())
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.closed || credentialExpired(ep) {
+	if s.closed || invalid || credentialExpired(ep) {
 		if c := s.pool[id]; c != nil {
 			delete(s.pool, id)
 			c.Close()
@@ -308,7 +345,7 @@ func (s *SSH) Do(ctx context.Context, r Request) (Observation, error) {
 		return zero, ErrRejected
 	}
 	id := r.Command.ProjectID + ":" + r.Command.MachineID
-	ep, err := s.currentEndpoint(id)
+	ep, err := s.currentEndpoint(ctx, id)
 	if err != nil {
 		return zero, ErrRejected
 	}
