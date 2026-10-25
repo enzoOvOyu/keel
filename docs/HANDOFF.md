@@ -1,13 +1,13 @@
 # 当前开发状态
 
-更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～64。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新完整证据见§52～66。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
-## 当前恢复入口（2026-10-25 07:28 UTC）
+## 当前恢复入口（2026-10-25 07:58 UTC）
 
-- 唯一工作区`/opt/keel`，分支`dev/p1-network-bom`。3000运行`43bb7d6f2b8ed9b05caf64ce475de8fd11fc2d5e`，镜像`sha256:54c87ad380ae0a7b00e41e081d2d83b64bc47221929726aaa4a6b79e342cc597`，健康及八页真实登录/公钥列表/受限角色API复验通过。045已应用，运行库42条迁移；旧schema41镜像不可直接回切，备份恢复另走批准流程。
+- 唯一工作区`/opt/keel`，分支`dev/p1-network-bom`。3000运行`cd5dc87cdbb86d63ccc61a48a98ec9f3ae5bdfd1`，镜像`sha256:c76393b5a7ee563692a97de702392fb879dbed03b4a047cfbb46cc51d7a3a1e0`，健康及八页真实登录/公钥列表/受限角色API复验通过。045已应用，运行库42条迁移；旧schema41镜像不可直接回切，备份恢复另走批准流程。
 - A3/WP-1.5新增独立批准的受控非root公钥安装，强制helper条目追加保持客户内容，新域钥全新SSH握手查询原回执才写真实互信。unknown保持资源隔离、恢复不重装；安装前或证明后撤销均阻断信任。实际PG/SSH/双人浏览器与全量检查通过，详见§64。
 - 生产worker、真实SSH、主密钥提供者、外部介质获取仍关闭；签名只读挂载保持。无生产域钥生成或真机操作，两份原fabric草稿未跟踪且未构建。
-- 用户两小时开发仍在继续。WP-1.14 OIDC已提交/发布（§65），生产仍关闭；正补LDAP，未提交/发布；root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、Agent与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
+- 用户两小时开发仍在继续。WP-1.14 OIDC/LDAP已提交发布（§65/66），生产仍关闭；正在补SSH安装后的普通任务域钥绑定，未提交/发布；root首登、PXE、完整repair/旧钥删除轮换/目标撤销、主密钥轮换、Vault销毁、Agent与真机PoC仍未闭环。相关WP/P1/FR-0仍partial。
 
 ## 1. 工作区与运行版本（早期快照，当前见上方）
 
@@ -867,3 +867,8 @@ SSH目标可显式选择vault提供者，仍保留原文件兼容；精确版本
 原本地认证/控制面在新建独立PG库回归 `/tmp/keel-auth-provider-regression-rqanre3a/local-and-control.log`退出0（19.123s）；OIDC完整签名/PKCE/PG/HTTP/浏览器回归 `/tmp/keel-ldap-oidc-regression.log`、`/tmp/keel-oidc-integration-y9kvrrxi`退出0。完整overlay make check `/tmp/keel-ldap-make-check.log`通过，最终Go vet `/tmp/keel-ldap-final-vet.log`、设计/Compose/diff检查通过。共享UI检查曾拒绝新增native input/label，已改用现有NativeSelect/Label，不放宽规则。最后增加provider撤去时清口令，已重新构建，浏览器与提交/CI/3000按后续实测补记。
 
 边界：目录侧停用只拒绝新Bind，不主动撤销既有Keel会话；即时撤权用现有本地停用/安全版本/会话机制。当前只做固定DN LDAPS Bind，未接客户OpenLDAP/AD/外部组织IdP真实环境，不能称完整F-10.5/S-6/U-12或P1完成。生产LDAP/OIDC仍关闭，无迁移、无生产账号/配置/秘密生成；两份旧fabric草稿继续未跟踪。详见LDAP.md。
+
+
+§66发布：功能`cd5dc87cdbb86d63ccc61a48a98ec9f3ae5bdfd1`已正常推送GitHub，确切归档镜像`sha256:c76393b5a7ee563692a97de702392fb879dbed03b4a047cfbb46cc51d7a3a1e0`于`2026-10-25T07:53:24.722127+00:00`发布3000。候选八页/受限API通过并生成确切版本证据后才切换，修正后的门禁已生效。3000同套复验 `/tmp/keel-ldap-3000-smoke.log`、`/tmp/keel-ldap-3000-read.log`退出0；公开providers仅local，OIDC数组空/LDAP名空，生产未启用组织认证或真实SSH/worker/主密钥提供者。无新迁移，schema42保持；无生产账号或业务记录新增。最后浏览器/PG验证 `/tmp/keel-ldap-last-integration.log`、`/tmp/keel-ldap-integration-aqjdh2zq`退出0。证据`/home/ubuntu/.local/state/keel/releases/20261025T075131Z`。CI状态独立记录，不以本地检查代替。
+
+功能`43bb7d6f2b8ed9b05caf64ce475de8fd11fc2d5e`的GitHub CI run40173471981已核验completed/success。
