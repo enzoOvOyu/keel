@@ -25,13 +25,16 @@ type KeaLiveConfig struct {
 }
 
 func (k *KeaControl) ReadFullDHCP4(ctx context.Context) (*KeaLiveConfig, error) {
+	return k.readFull(ctx, "Dhcp4")
+}
+func (k *KeaControl) readFull(ctx context.Context, namespace string) (*KeaLiveConfig, error) {
 	reply, e := k.command(ctx, "config-get", nil)
 	if e != nil {
 		return nil, e
 	}
 	var fields map[string]json.RawMessage
-	if json.Unmarshal(reply.Arguments, &fields) != nil || len(fields["Dhcp4"]) == 0 {
-		return nil, errors.New("Kea config-get has no Dhcp4 configuration")
+	if json.Unmarshal(reply.Arguments, &fields) != nil || len(fields[namespace]) == 0 {
+		return nil, errors.New("Kea config-get has no expected service configuration")
 	}
 	var hash string
 	if json.Unmarshal(fields["hash"], &hash) != nil || !keaHashPattern.MatchString(hash) {
@@ -39,7 +42,7 @@ func (k *KeaControl) ReadFullDHCP4(ctx context.Context) (*KeaLiveConfig, error) 
 	}
 	delete(fields, "hash")
 	for key := range fields {
-		if key != "Dhcp4" && key != "Logging" {
+		if key != namespace && key != "Logging" {
 			return nil, errors.New("unexpected Kea configuration namespace")
 		}
 	}
@@ -57,6 +60,26 @@ func (k *KeaControl) TestFullDHCP4(ctx context.Context, config json.RawMessage) 
 // PersistFullDHCP4 uses only Kea's startup configuration path, never a filename
 // supplied by a caller. No automatic retry follows any ambiguous write.
 func (k *KeaControl) PersistFullDHCP4(ctx context.Context, config json.RawMessage, expectedHash string) (*KeaApplyResult, error) {
+	return k.persistFull(ctx, config, expectedHash, "Dhcp4")
+}
+func (k *KeaControl) persistFull(ctx context.Context, config json.RawMessage, expectedHash, namespace string) (*KeaApplyResult, error) {
+	var top map[string]json.RawMessage
+	if json.Unmarshal(config, &top) != nil {
+		return nil, errors.New("invalid full Kea configuration")
+	}
+	var service map[string]json.RawMessage
+	if json.Unmarshal(top[namespace], &service) != nil || service == nil {
+		return nil, errors.New("expected Kea service configuration is required")
+	}
+	for key := range top {
+		if key != namespace && key != "Logging" {
+			return nil, errors.New("unexpected Kea configuration namespace")
+		}
+	}
+
+	if !keaHashPattern.MatchString(expectedHash) {
+		return nil, errors.New("expected Kea hash is required")
+	}
 	before, e := k.hash(ctx)
 	if e != nil {
 		return nil, e
@@ -90,7 +113,7 @@ func (k *KeaControl) PersistFullDHCP4(ctx context.Context, config json.RawMessag
 	}
 	// Reading the full content checks the actual staged candidate, not only a
 	// hash echoed by the server. Credentials in this payload remain in memory.
-	live, e := k.ReadFullDHCP4(ctx)
+	live, e := k.readFull(ctx, namespace)
 	if e != nil || live.Hash != active || KeaConfigDigest(live.Config) != KeaConfigDigest(config) {
 		return nil, &KeaMutationUnknown{Stage: "content-readback"}
 	}

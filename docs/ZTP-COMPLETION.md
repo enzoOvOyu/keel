@@ -51,3 +51,15 @@
 尚需真实 PoC：目标 NVUE 版本的命令/默认 pending/持久化和服务行为、工厂 credential 引导/集中凭据网关实现及可信 SSH host-key 来源、设备级 DHCP 日志解析、真实 IPv6 136/厂商 60-43 控制适配、轮换期存量旧凭据自然过期全链、RMA 换件完整流程、千台规模与 HA。当前实现不修改设备用户口令/SSH 授权密钥；网关必须通过已经批准的集中凭据验证可管理性。缺上述能力时保持阻断/unknown，不冒称已完成硬件交付。
 
 NVUE 命令依据：[NVIDIA NVUE Cheat Sheet](https://docs.nvidia.com/networking-ethernet-software/knowledge-base/Setup-and-Getting-Started/NVUE-Cheat-Sheet/) 与 [Cumulus 5.14 Quick Start](https://docs.nvidia.com/networking-ethernet-software/cumulus-linux-514/Quick-Start-Guide/)。不同 NOS 版本的 PoC 差异在独立 renderer/网关适配器内修改，不改业务准入。
+
+### DHCPv6 136 协议适配与PoC入口（2026-10-26，源码未验证）
+
+WP-1.17新增独立DHCPv6适配，不复用IPv4 239/143的地址/MAC假设。`MergeBootstrap136`仅对现存明确subnet6内、指定project/switch归属的DUID预约生成候选；保留接口/其他子网/客户预约，拒绝同DUID/地址/主机名冲突、RMA隐式改DUID、额外地址/前缀/独立选项、外部/global/shared预约和自定义136语义。输出dhcp6的136原始载荷，不附带239/143/60/43。DUID需实测输入，禁止从MAC猜测。
+
+KeaDHCP6Control独立绑定dhcp6服务；候选测试、两次漂移检查、写入、完整内容读回及持久化沿用既有序列，写后不确定返回KeaMutationUnknown，不自动重写。该库方法本身不是部署批准，现有网页IPv4执行入口不能选择它。
+
+服务端CLI：`keel-admin ztp-dhcp6-candidate --input-file <private.json> --output-file <new-private.json>`只离线生成0600新候选文件，stdout仅摘要，不打印可能含其他凭据的完整配置，不覆盖文件或联系服务器。输入version=kea-dhcp6-candidate/v1，字段live_config/subnet/project_id/bindings（switch_id/duid/address/hostname）/bootstrap_origins，均需运维按已批准规划提供；候选生成不证明审批、控制器已应用或设备已管理。
+
+`keel-admin ztp-dhcp6-probe --input-file <private.json> --confirm-canary`提供显式运维PoC入口：输入version=dhcp6-canary/v1、canary_reserved=true、bootstrap_origins和config。config字段server/listen（明确IPv6地址:端口）、link_address（所选管理网段中继地址）、duid/server_duid（实测、不同、规范化小写冒号十六进制）、iaid/address/timeout_seconds；专用canary身份及地址必须与设备SoT隔离。实现单轮Relay-forward/Relay-reply内的Solicit/Advertise→Request/Reply，核对中继地址/peer、事务、客户端/服务器DUID、IAID/IAADDR/租期及完整136 URI载荷，错误或超时即返回，不自动重试或改设备。输出是operator_canary观察，不自动写ZTP会话或NP，也不能作为装机成功。
+
+依据[RFC8572 §8](https://www.rfc-editor.org/rfc/rfc8572.html#section-8)、[RFC8415](https://www.rfc-editor.org/rfc/rfc8415.html)及[Kea DHCPv6预约/选项](https://kea.readthedocs.io/en/kea-2.7.0/arm/dhcp6-srv.html)。新增保留配置/冲突/错误绑定/载荷/写后丢响应与隔离UDP6完整收发、CLI私有输入/不覆盖用例源码，均未执行。未运行CLI、未发包、未应用配置。完整IPv6规划仍在WP-2.15；136尚未接入项目级批准执行/N-S3及ZTP会话，P1/WP-1.17不能据此标记闭环。
