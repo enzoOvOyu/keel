@@ -6,6 +6,19 @@ import (
 )
 
 func (a *authAPI) registerAgentExecution(r *gin.Engine, base string) {
+	r.GET(base+"/agent-targets/:machineId/cache-inventory", func(c *gin.Context) {
+		actor, _, ok := a.executionProject(c, false)
+		if !ok {
+			return
+		}
+		out, err := a.store.GetAgentCacheInventory(c.Request.Context(), actor, c.Param("id"), c.Param("machineId"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.Header("Cache-Control", "private, no-store")
+		c.JSON(200, out)
+	})
 	r.GET(base+"/agent-targets/:machineId/network-inventory", func(c *gin.Context) {
 		actor, _, ok := a.executionProject(c, false)
 		if !ok {

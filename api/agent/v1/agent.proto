@@ -41,6 +41,8 @@ message Heartbeat {
   // Strict agent-network-inventory/v1 delta JSON, at most 12288 bytes.
   // Omitted means disabled; it is not hardware health or gate evidence.
   bytes network_inventory_json = 7;
+  // Optional complete ownership-index observation; does not verify file bytes.
+  bytes cache_inventory_json = 8;
 }
 message HeartbeatAck {
   string connection_id = 1;

@@ -21,6 +21,7 @@ import (
 	"github.com/enzoOvOyu/keel/internal/agentinventory"
 	"github.com/enzoOvOyu/keel/internal/agentpki"
 	pb "github.com/enzoOvOyu/keel/internal/agentproto"
+	"github.com/enzoOvOyu/keel/internal/taskrunner"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -100,7 +101,7 @@ func (c Config) connect(certificates []tls.Certificate) (*grpc.ClientConn, error
 	if e != nil {
 		return nil, e
 	}
-	return grpc.NewClient("passthrough:///"+c.Endpoint, grpc.WithTransportCredentials(credentials.NewTLS(config)), grpc.WithNoProxy(), grpc.WithDisableRetry(), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(16384), grpc.MaxCallSendMsgSize(16384)))
+	return grpc.NewClient("passthrough:///"+c.Endpoint, grpc.WithTransportCredentials(credentials.NewTLS(config)), grpc.WithNoProxy(), grpc.WithDisableRetry(), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(16384), grpc.MaxCallSendMsgSize(32768)))
 }
 func (c Config) verify(identity Identity, key []byte) error {
 	if identity.ProjectID != c.ProjectID || identity.MachineID != c.MachineID || identity.Serial != c.Serial {
@@ -258,6 +259,14 @@ func Stream(ctx context.Context, c Config, version string, observe func(*pb.Hear
 				nextBaseline = next
 			}
 			message.NetworkInventoryJson = raw
+		}
+		if c.CacheInventoryEnabled {
+			frame := taskrunner.CollectMediaCacheIndex(ctx, time.Now())
+			raw, err := json.Marshal(frame)
+			if err != nil || len(raw) > agentinventory.MaxCacheFrameBytes {
+				return ErrIdentity
+			}
+			message.CacheInventoryJson = raw
 		}
 		if e = stream.Send(message); e != nil {
 			return e

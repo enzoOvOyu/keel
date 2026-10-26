@@ -271,6 +271,10 @@ func (s *Store) AgentHeartbeat(ctx context.Context, cert *x509.Certificate, auth
 }
 
 func (s *Store) AgentHeartbeatInventory(ctx context.Context, cert *x509.Certificate, authority, connection string, sequence uint64, inventory *agentinventory.NetworkFrame) error {
+	return s.AgentHeartbeatObservations(ctx, cert, authority, connection, sequence, inventory, nil)
+}
+
+func (s *Store) AgentHeartbeatObservations(ctx context.Context, cert *x509.Certificate, authority, connection string, sequence uint64, inventory *agentinventory.NetworkFrame, cache *agentinventory.CacheFrame) error {
 	if sequence == 0 || sequence > 1<<62 {
 		return ErrAgentDenied
 	}
@@ -292,6 +296,12 @@ func (s *Store) AgentHeartbeatInventory(ctx context.Context, cert *x509.Certific
 		return ErrAgentDenied
 	}
 	if e = s.recordAgentNetworkInventoryTx(ctx, tx, out, connection, agentpki.Hash(cert.Raw), sequence, inventory); e != nil {
+		return e
+	}
+	if !s.TaskCacheInventoryEnabled {
+		cache = nil
+	}
+	if e = s.recordAgentCacheInventoryTx(ctx, tx, out, connection, agentpki.Hash(cert.Raw), sequence, cache); e != nil {
 		return e
 	}
 	return tx.Commit()

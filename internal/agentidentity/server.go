@@ -114,7 +114,7 @@ func NewWithTasks(store *platform.Store, config Config, broker *agentrunner.Brok
 	}
 	pool := x509.NewCertPool()
 	pool.AddCert(authority.Certificate)
-	server := grpc.NewServer(grpc.Creds(credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{pair}, ClientCAs: pool, ClientAuth: tls.VerifyClientCertIfGiven})), grpc.ConnectionTimeout(5*time.Second), grpc.MaxConcurrentStreams(32), grpc.MaxRecvMsgSize(16384), grpc.MaxSendMsgSize(16384), grpc.MaxHeaderListSize(8192))
+	server := grpc.NewServer(grpc.Creds(credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{pair}, ClientCAs: pool, ClientAuth: tls.VerifyClientCertIfGiven})), grpc.ConnectionTimeout(5*time.Second), grpc.MaxConcurrentStreams(32), grpc.MaxRecvMsgSize(32768), grpc.MaxSendMsgSize(16384), grpc.MaxHeaderListSize(8192))
 	pb.RegisterAgentIdentityServer(server, &Server{networkInventoryEnabled: config.NetworkInventoryEnabled && store.AgentNetworkInventoryEnabled, broker: broker, store: store, authority: authority, renewalEnabled: config.RenewalEnabled, slots: make(chan struct{}, 1024), rates: map[string]rate{}})
 	return server, nil
 }
@@ -284,8 +284,14 @@ func (s *Server) Heartbeats(stream grpc.BidiStreamingServer[pb.Heartbeat, pb.Hea
 				} else if len(in.GetNetworkInventoryJson()) > agentinventory.MaxNetworkFrameBytes {
 					e = platform.ErrAgentDenied
 				}
+				var cache *agentinventory.CacheFrame
+				if e == nil && s.store.TaskCacheInventoryEnabled {
+					cache, e = agentinventory.DecodeCache(in.GetCacheInventoryJson(), time.Now())
+				} else if len(in.GetCacheInventoryJson()) > agentinventory.MaxCacheFrameBytes {
+					e = platform.ErrAgentDenied
+				}
 				if e == nil {
-					e = s.store.AgentHeartbeatInventory(work, cert, s.authority.ID, connection, in.GetSequence(), inventory)
+					e = s.store.AgentHeartbeatObservations(work, cert, s.authority.ID, connection, in.GetSequence(), inventory, cache)
 				} else {
 					e = platform.ErrAgentDenied
 				}

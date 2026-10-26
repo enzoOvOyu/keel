@@ -2541,6 +2541,78 @@
         },
         "description": "Current project member read of opt-in authenticated Agent network observations. Exact current provisioned asset and credential required. Captured/received times and 30-second freshness are separate from heartbeat liveness, health, LLDP and gates. Missing, disabled, failed or stale inventory never becomes ready; collection failure retains prior observations as history."
       }
+    },
+    "/api/v1/projects/{id}/agent-targets/{machineId}/cache-inventory": {
+      "get": {
+        "operationId": "getAgentCacheInventory",
+        "tags": [
+          "Agent execution"
+        ],
+        "x-permission": "execution:read",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "machineId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Source-labelled platform cache ownership observations; content_verified is always false",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentCacheInventory"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Current project member read of authenticated Agent ownership-index observations. Contains no seed project/media references or executable approval. Content is not verified; current identity and 30-second freshness are required. Failed/disabled observations preserve explicitly historical entries."
+      }
     }
   },
   "components": {
@@ -5635,6 +5707,113 @@
           "ttl_seconds": {
             "type": "integer",
             "const": 30
+          }
+        }
+      },
+      "AgentCacheInventory": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "machine_id",
+          "credential_id",
+          "source",
+          "enabled",
+          "state",
+          "ttl_seconds",
+          "entries",
+          "content_verified"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "enum": [
+              "agent-cache-inventory/v1"
+            ]
+          },
+          "machine_id": {
+            "type": "string"
+          },
+          "credential_id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "agent"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "unavailable",
+              "ready",
+              "stale"
+            ]
+          },
+          "failure_code": {
+            "type": "string",
+            "enum": [
+              "cache_directory_unavailable",
+              "cache_index_unavailable",
+              "cache_index_busy",
+              "cache_observation_interrupted"
+            ]
+          },
+          "collected_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_success_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ttl_seconds": {
+            "type": "integer",
+            "const": 30
+          },
+          "content_verified": {
+            "type": "boolean",
+            "const": false,
+            "description": "Heartbeat reports ownership index only. Actual content verification requires a task."
+          },
+          "manifest_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "entries": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/components/schemas/AgentCacheItem"
+            }
+          }
+        }
+      },
+      "AgentCacheItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sha256",
+          "size"
+        ],
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8192
           }
         }
       }
