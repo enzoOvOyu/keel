@@ -132,6 +132,48 @@ try {
   const nextResponse = page.waitForResponse(result => result.url().endsWith('/provision/preview') && result.request().method() === 'POST')
   await dialog.locator('button[type=submit]').click(); const next = await (await nextResponse).json()
   assert.notEqual(next.snapshot_sha256, preview.snapshot_sha256)
+  // Persist consent from the actual BOM preview dialog, then independently
+  // approve and execute source verification. No bootable image/hardware is used.
+  await dialog.locator('#provision-request-reason').fill('Isolated software preparation only')
+  const creation = page.waitForResponse(result => result.url().endsWith('/provision/requests') && result.request().method() === 'POST')
+  await dialog.getByRole('button', { name: '提交装机准备申请', exact: true }).click()
+  const createdResponse = await creation; assert.equal(createdResponse.status(), 201)
+  const created = await createdResponse.json()
+  assert(created.snapshot.seed.meta_data.includes(created.id))
+  assert.notEqual(created.snapshot_sha256, next.snapshot_sha256)
+  const requestBase = projectBase + '/provision/requests/' + created.id
+  await call('POST', requestBase + '/approve', { expected_version: 1, reason: 'Self approval must fail' }, 409)
+  const reviewPage = await reviewer.newPage()
+  await reviewPage.goto(`/p/${project.id}/deploy/provision`, { waitUntil: 'networkidle' })
+  const reviewRow = reviewPage.locator(`[data-provision-request="${created.id}"]`)
+  await reviewRow.getByRole('button', { name: '审批准备申请', exact: true }).click()
+  const reviewDialog = reviewPage.locator('.action-dialog')
+  await reviewDialog.locator('#provision-action-reason').fill('Independent fixture media review')
+  const approvalResponse = reviewPage.waitForResponse(result => result.url().endsWith('/' + created.id + '/approve'))
+  await reviewDialog.locator('button[type=submit]').click()
+  assert.equal((await approvalResponse).status(), 200)
+  const boardPage = await admin.newPage()
+  await boardPage.goto(`/p/${project.id}/deploy/provision`, { waitUntil: 'networkidle' })
+  const boardRow = boardPage.locator(`[data-provision-request="${created.id}"]`)
+  await boardRow.getByRole('button', { name: '执行准备校验', exact: true }).click()
+  const preparationResponse = boardPage.waitForResponse(result => result.url().endsWith('/' + created.id + '/prepare'))
+  await boardPage.locator('.action-dialog button[type=submit]').click()
+  const executionResponse = await preparationResponse; assert.equal(executionResponse.status(), 201)
+  const preparation = await executionResponse.json(); assert.equal(preparation.mode, 'provision')
+  const deadline = Date.now() + 60_000
+  let prepared
+  do {
+    prepared = await call('GET', requestBase)
+    if (prepared.state === 'prepared') break
+    assert(!['failed', 'canceled', 'expired'].includes(prepared.state), JSON.stringify(prepared))
+    await new Promise(resolve => setTimeout(resolve, 150))
+  } while (Date.now() < deadline)
+  assert.equal(prepared.state, 'prepared'); assert.equal(prepared.execution_id, preparation.id)
+  await boardPage.getByRole('button', { name: '刷新', exact: true }).click()
+  await boardRow.getByText('准备完成', { exact: true }).waitFor()
+  await boardPage.screenshot({ path: work + '/provision-prepared.png', fullPage: true })
+  await call('POST', requestBase + '/cancel', { expected_version: prepared.state_version, reason: 'Retire isolated preparation fixture' })
+  await boardPage.close(); await reviewPage.close()
   await owner('ssh-key-revoke', ['--project', project.id, '--id', key.id, '--expected-version', String(key.state_version), '--reason', 'isolated preview revocation check'])
   const revokedResponse = page.waitForResponse(result => result.url().endsWith('/provision/preview') && result.request().method() === 'POST')
   await dialog.locator('button[type=submit]').click(); assert.equal((await revokedResponse).status(), 409)
@@ -141,7 +183,7 @@ try {
   await dialog.getByRole('button', { name: '取消', exact: true }).click()
   const assetsAfter = await call('GET', projectBase + '/assets')
   assert.deepEqual(assetsAfter.items.find(item => item.id === asset.id), asset)
-  assert.equal((await call('GET', projectBase + '/executions')).total, executionsBefore)
+  assert.equal((await call('GET', projectBase + '/executions')).total, executionsBefore + 1)
   const viewerName = 'provision-viewer-' + suffix
   await call('POST', '/admin/users', { username: viewerName, display_name: 'Viewer', password, is_admin: false }, 201)
   await call('POST', projectBase + '/members', { username: viewerName, role: 'Viewer' }, 201)
@@ -152,7 +194,7 @@ try {
   // Retire fixtures through the real lifecycle so subsequent catalog checks stay isolated.
   for (const group of roots) for (const item of [group.root, group.kernel, group.initrd, group.template, group.incompatible]) await call('POST', group.base + '/' + item.id + '/transition', { state: 'retired' }, 200, reviewer, reviewToken)
   assert.deepEqual(errors, [])
-  console.log('PASS actual project/global OS upload UI pins exact roles/digests; readback checks real stored bytes and permission failure hides stale metadata')
+  console.log('PASS durable independent provisioning approval, native source verification and unchanged asset/trust state; actual project/global OS upload UI pins exact roles/digests; readback checks real stored bytes and permission failure hides stale metadata')
   console.log('PASS actual BOM/model/vault key preview, image change clears result, owner revocation rejects refresh, no execution/asset mutation, Viewer denied')
   console.log('No PXE, installation, host trust or hardware acceptance is claimed')
 } finally { await browser.close() }

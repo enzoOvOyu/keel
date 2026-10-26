@@ -30,20 +30,21 @@ type MediaObjectStore interface {
 type Store struct {
 	// AgentTasksEnabled admits HTTP read-only tasks; no task transport or CA is
 	// loaded by this switch. Dispatch remains exclusively worker-owned.
-	AgentTasksEnabled   bool
-	OIDC                *oidcauth.Service
-	LDAP                *ldapauth.Service
-	SSHRunner           *taskrunner.SSH
-	MediaObjects        MediaObjectStore
-	MediaSources        *mediasource.Fetcher
-	MediaManifestSigner *mediamanifest.Signer
-	FabricProbes        *fabricboot.ProbeSuite
-	DB                  *sql.DB
-	Ent                 *ent.Client
-	passwordSlots       chan struct{}
-	dummyHash           string
-	dsn                 string
-	credentialDB        *sql.DB
+	AgentTasksEnabled       bool
+	ProvisionPrepareEnabled bool
+	OIDC                    *oidcauth.Service
+	LDAP                    *ldapauth.Service
+	SSHRunner               *taskrunner.SSH
+	MediaObjects            MediaObjectStore
+	MediaSources            *mediasource.Fetcher
+	MediaManifestSigner     *mediamanifest.Signer
+	FabricProbes            *fabricboot.ProbeSuite
+	DB                      *sql.DB
+	Ent                     *ent.Client
+	passwordSlots           chan struct{}
+	dummyHash               string
+	dsn                     string
+	credentialDB            *sql.DB
 }
 
 func Open(ctx context.Context, dsn string) (*Store, error) {

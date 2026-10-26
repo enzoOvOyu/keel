@@ -1435,9 +1435,16 @@
         "docs/PROVISIONING.md",
         "internal/platform/provision_preview.go",
         "internal/provisionseed/cloud_init.go",
-        "internal/platform/provision_preview_integration_test.go"
+        "internal/platform/provision_preview_integration_test.go",
+        "internal/platform/provision_requests.go",
+        "internal/platform/provision_execution.go",
+        "internal/platform/migrations/053_provision_requests.sql",
+        "internal/execution/provision.go",
+        "internal/execution/provision_integration_test.go",
+        "internal/httpapi/provision_requests.go",
+        "web/src/features/provision/ProvisionPage.tsx"
       ],
-      "implementation_notes": "Current source adds the OS-media prerequisite: immutable rootfs plus pinned same-architecture kernel/initrd and config installer template, independent approval, strict signed-manifest preservation and a scoped read-only verified boot-role API/UI. ProxyDHCP/iPXE, cloud-init rendering, one-time callbacks, seven-stage installation and SSH first-connection integration remain incomplete. New cases are written but deferred to the user-requested consolidated P1 validation; no release or installation claim. Added a scoped asset-page provisioning preview: pinned BOM/model CPU architecture, explicit physical boot port, approved OS composition and live project public-key version are rechecked in one transaction. Bounded declarative cloud-init templates render a password-locked forced-helper account and public metadata only. No execution, callback credential, DHCP configuration or trust state is created. New security/database cases await consolidated P1 validation."
+      "implementation_notes": "Current source adds the OS-media prerequisite: immutable rootfs plus pinned same-architecture kernel/initrd and config installer template, independent approval, strict signed-manifest preservation and a scoped read-only verified boot-role API/UI. ProxyDHCP/iPXE, cloud-init rendering, one-time callbacks, seven-stage installation and SSH first-connection integration remain incomplete. New cases are written but deferred to the user-requested consolidated P1 validation; no release or installation claim. Added a scoped asset-page provisioning preview: pinned BOM/model CPU architecture, explicit physical boot port, approved OS composition and live project public-key version are rechecked in one transaction. Bounded declarative cloud-init templates render a password-locked forced-helper account and public metadata only. No execution, callback credential, DHCP configuration or trust state is created. New security/database cases await consolidated P1 validation. Added source-only durable independently approved 30-minute installation preparation requests, explicit reinstall/SN confirmation, frozen request instance ID and BOM/media/public-key hash, scoped API and DS provision page. Native provision.prepare uses the shared exclusive device:machine lease, current-source byte verification, durable fenced receipt and unknown reconciliation; prepared does not project installation or SSH trust. Default-off API/worker admission and 053 migration are not deployed. New PostgreSQL and browser cases await the user-requested P1 validation milestone; actual ProxyDHCP/iPXE/hardware preflight/callback/SSH first connection remain incomplete."
     },
     {
       "id": "WP-1.8",

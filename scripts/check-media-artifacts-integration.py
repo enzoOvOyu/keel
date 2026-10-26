@@ -12,7 +12,7 @@ probe=socket.socket();probe.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);
 record=json.loads(subprocess.check_output(['docker','inspect','keel-auth-test-postgres']))[0]
 assert record['Config']['Labels'].get('io.keel.test-environment')=='disposable'
 config=dict(v.split('=',1) for v in record['Config']['Env'] if '=' in v);owner,password=config['POSTGRES_USER'],config['POSTGRES_PASSWORD']
-database='keel_test_media_'+uuid.uuid4().hex[:12];unit_database=database+'_unit';work=Path(tempfile.mkdtemp(prefix='keel-media-'));api=worker=None;fault_proxy=source_fixture=None
+database='keel_test_media_'+uuid.uuid4().hex[:12];unit_database=database+'_unit';provision_database='keel_test_agent_provision_'+uuid.uuid4().hex[:12];work=Path(tempfile.mkdtemp(prefix='keel-media-'));api=worker=None;fault_proxy=source_fixture=None
 # Keep real /tmp credential directories and the existing MinIO path guard;
 # retain only the large binaries on disk because /tmp is a memory filesystem.
 evidence_root=Path.home()/'.local/state/keel/evidence/media';evidence_root.mkdir(parents=True,exist_ok=True,mode=0o700);evidence_root.chmod(0o700)
@@ -25,7 +25,7 @@ def checked(command,env=None):
   raise RuntimeError('Media integration command failed: '+command[0]+'; inspect protected failure.log')
  return result.stdout
 try:
- for name in [database,unit_database]:checked(['docker','exec','keel-auth-test-postgres','createdb','-U',owner,name])
+ for name in [database,unit_database,provision_database]:checked(['docker','exec','keel-auth-test-postgres','createdb','-U',owner,name])
  env=os.environ.copy();env.update(KEEL_ENV='development',KEEL_INSECURE_DEV_COOKIE='true',KEEL_PUBLIC_ORIGINS='http://127.0.0.1:3102',KEEL_LISTEN_ADDR='127.0.0.1:3102',KEEL_STATIC_DIR=str(root/'web/dist'))
  checked(['python3','scripts/test-media-environment.py','start','--directory',str(work)])
  env.update(dict(line.split('=',1) for line in (work/'media.env').read_text().splitlines()))
@@ -41,8 +41,10 @@ try:
  if args.integrity_only or args.manifest_only or args.matrix_only or args.large_artifact_only or full_browser:
   checked([str(work/'keel-admin'),'media-signing-keygen','--private-key-file',str(work/'manifest-private.pem'),'--public-key-file',str(work/'manifest-public.pem')],env)
   env.update(KEEL_MEDIA_SIGNING_KEY_FILE=str(work/'manifest-private.pem'),KEEL_MEDIA_MANIFEST_PUBLIC_KEY_FILE=str(work/'manifest-public.pem'),KEEL_ADMIN_BINARY=str(work/'keel-admin'))
+ if args.provision_only or full_browser:
+  env.update(KEEL_PROVISION_PREPARE_ENABLED='true',KEEL_TEST_AGENT_DATABASE_URL=dsn+provision_database+'?sslmode=disable')
  if args.provision_only:
-  result=checked(['go','test','-race','./internal/mediaboot','./internal/mediamanifest','./internal/provisionseed','./internal/platform','-run','TestOSBoot|TestSignedOSBootRoles|TestProvisionPreview|TestCloudInit','-count=1'],env)
+  result=checked(['go','test','-race','./internal/mediaboot','./internal/mediamanifest','./internal/provisionseed','./internal/platform','./internal/execution','-run','TestOSBoot|TestSignedOSBootRoles|TestProvisionPreview|TestProvisionRequest|TestProvisionExecutionKernelPostgres|TestCloudInit','-count=1'],env)
   (work/'go-integration.log').write_text(result);print(result,flush=True)
  elif args.filters_only:
   result=checked(['go','test','-race','./internal/platform','-run','TestMediaIntegrityRetriesAndQuarantine','-count=1'],env)
@@ -89,6 +91,6 @@ finally:
  if source_fixture is not None:source_fixture.close()
  if fault_proxy is not None:fault_proxy.close()
  if (work/'media-container').exists():subprocess.run(['python3','scripts/test-media-environment.py','stop','--directory',str(work)],capture_output=True)
- for name in [database,unit_database]:subprocess.run(['docker','exec','keel-auth-test-postgres','dropdb','--if-exists','-U',owner,name],capture_output=True)
+ for name in [database,unit_database,provision_database]:subprocess.run(['docker','exec','keel-auth-test-postgres','dropdb','--if-exists','-U',owner,name],capture_output=True)
  for name in ['password','credentials.json','manifest-private.pem','wrong-private.pem']:(work/name).unlink(missing_ok=True)
  print('Isolated API/databases/MinIO and temporary credentials removed; evidence retained.',flush=True)

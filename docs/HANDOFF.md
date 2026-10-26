@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-25；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～78。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～79。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
-## 当前恢复入口（2026-10-25，本次两小时开发窗口）
+## 当前恢复入口（2026-10-26，本次两小时开发窗口）
 
-用户已于2026-10-25 15:36 UTC恢复两小时开发，当前开发窗口至17:36 UTC。最新偏好：单Agent、不主动启动子代理；先推进P1剩余实现，P1实现完成后集中联调/全量测试/浏览器验证/镜像发布，开发中只保留必要编译与凭据/迁移等关键检查。不再按每个小增量重建镜像或重复全套验证。后续收工记录仅描述此前快照，已被本次恢复覆盖。
+用户于2026-10-26 00:11:10 UTC授权继续两小时开发，当前窗口至02:11:10 UTC。保持单Agent，不启动子代理；P1实现完成后集中联调/全量测试/浏览器验证/镜像发布，开发只做必要编译与静态检查。此前收工/暂停记录是历史快照。
 
-- **本窗口源码尚未发布（§75～78）**：单Agent完成同密钥续签/状态、OS引导介质/BOM配置预览、owner主密钥重包裹、独立审计留证、默认关闭的执行Webhook及其owner查询入口；新增用例和集中验证入口已写入，除§75早期续签安全检查外均未运行。必要Go/TS编译与静态检查已完成，不等于功能/SQL迁移通过。源迁移49、运行46；3000仍§74。原草稿保留。
+- **本窗口源码尚未发布（§75～79）**：单Agent完成同密钥续签/状态、OS引导介质/BOM配置预览、owner主密钥重包裹、独立审计留证、默认关闭的执行Webhook及其owner查询入口，以及持久装机准备/独立审批/共享独占Execution和页面；新增用例和集中验证入口已写入，除§75早期续签安全检查外均未运行。必要Go/TS编译与静态检查已完成，不等于功能/SQL迁移通过。源迁移50、运行46；3000仍§74。原草稿保留。
 
 - **Agent网页只读链路已发布（§74）**：既有mTLS任务通过认证API/资产页启动并进入原执行五Tab，unknown由当前操作员凭worker查询的真实回执显式对账；实际HTTP/Agent/浏览器和完整CI通过。生产HTTP任务准入、listener及worker继续关闭。
 
@@ -1086,3 +1086,18 @@ WP-1.10→WP-1.7补齐OS引导角色：os rootfs及直接固定的kernel/initrd/
 完整测试/浏览器/镜像按用户要求待 P1 实现里程碑集中进行，当前只准备复用的一次构建生命周期批量入口及现有独立 Agent/SSH/MinIO/浏览器 runners。不要提前 push 触发全量 CI，也不要把任何新用例写作 PASS。运行3000仍为§74的6668a72/schema46；生产worker/Agent/SSH/主密钥/组织认证/外部介质源与新Webhook均未启用。两个原fabric草稿保持未跟踪、排除编译且不提交。后续提交号及时间窗结束另补记。
 
 §78本地提交补记（2026-10-25 17:36:00 UTC）：本窗口5笔源码提交为 `0daed4b`（续签/OS准备/主密钥）、`47c3370`（审计留证）、`f75aaff`（失效预览及浏览器入口）、`3fcdd4b`（cloud-init选项约束）、`b04bab5`（执行Webhook）；`2448b5b`记录下一步事务/共用设备资源落点。全部仅本地，没有 push/CI/发布。最后check-design.py退出0，源迁移为49。除两份原fabric草稿外业务源码已提交；PROVISIONING明确下一单元需在同一创建事务复用准入，实际机器独占device:machine资源，禁止另造队列或落回sim空间。用户要求的集中测试仍待P1实现完成，本轮未开始新集成/浏览器/镜像验收。
+
+
+## 79. 持久装机准备、独立审批与共享 Execution（2026-10-26，源码待集中验证）
+
+本次在 /opt/keel、dev/p1-network-bom 接续 e0a9467；00:11:10～02:11:10 UTC两小时窗口进行中，单Agent，无新子代理。用户仍要求P1实现后集中测试，未启动完整测试、浏览器、镜像、生产迁移或设备listener。
+
+WP-1.7新增不可变30分钟装机准备申请，冻结BOM/已发布型号/显式物理引导口/批准OS四角色精确对象字节及项目公共域钥，使用新请求ID作为cloud-init instance-id；稳定幂等键、版本冲突、每机器单活动申请、重装意图与完整SN确认。Admin/DE/DL/SRE可申请，独立Admin/DL审批，创建者不能自批；DE仅获装机公共密钥候选，不扩大SSH凭据/互信审批权限。历史在项目关闭后可读。过期仅回收非运行请求，跨项目被动过期审计归原项目，不泄漏旧申请给新项目。
+
+原生provision.prepare通过现有Flow/Execution/outbox/TaskAttempt/心跳/fence/持久回执和unknown对账接入，独占device:machine:<id>，与SSH/Agent同冲突域。派发复验当前操作者/审批人、BOM/介质/公钥，worker实际读取固定对象并重渲染比对摘要。回执绑定request/hash/attempt/fence，拒绝不匹配证明；从未启动的排队任务取消可撤销申请；运行/unknown不能凭超时或客户端成功字符串解锁。成功仅置prepared，固定installation_performed=false，不更新资产安装/SSH信任，也不启动网络引导；实际安装须重新取锁复验。
+
+API集合、创建/详情/审批/取消/准备执行及候选公共密钥契约已写入OpenAPI并生成TS；BOM预览可创建申请，DS路由/p/<projectId>/deploy/provision显示审批/准备/取消和共享执行链接，复用shadcn/ui。API/worker新增KEEL_PROVISION_PREPARE_ENABLED，默认false；worker需配置同一对象存储。053迁移新增请求与provision模式，未执行生产SQL。source50（排除026原草稿），runtime46；3000仍6668a72/§74镜像，未发布或推送触发CI。
+
+实际完成仅编译：带既有overlay及GOMEMLIMIT=768MiB/GOMAXPROCS=2的go test -p=1 [platform/execution/httpapi/keel-api/keel-worker] -run '^$'通过（/tmp/keel-provision-source-compile.log）；execution/httpapi go vet通过（-vet.log）；生成后tsc --noEmit通过（-types/-tsc.log）；UI边界与版本控件静态检查通过（-ui-boundaries/-version-inputs.log），docker compose config --quiet及check-design通过（-design.log），Python AST/JS syntax通过。没有执行新增用例、SQL迁移或浏览器，不视为功能验收。
+
+已写待运行：平台申请/幂等/独立审批/不可变快照/重装确认/DE与Viewer权限、execution真实PG共享Agent设备锁/单次消费/排队取消/错绑回执/unknown占用；既有--provision-only集中入口追加独立随机Agent测试库与实际API/对象存储/浏览器申请→审批→准备链。修正旧预览fixture第二用户错误重复init-admin；仍待集中运行。下一主链是受控ProxyDHCP/iPXE/HTTP、硬件预检、同请求一次性回调，再真实SSH首连/修复与七阶段/规模/PoC；WP-1.7/P1保持partial。

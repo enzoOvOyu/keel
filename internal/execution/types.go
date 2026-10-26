@@ -32,6 +32,7 @@ type Service struct {
 	AgentAdmissionOnly bool
 	SSHRunner          taskrunner.Runner
 	MediaStore         *platform.Store
+	ProvisionStore     *platform.Store
 	DB                 *sql.DB
 	KeaStore           *platform.Store
 	NetworkStore       *platform.Store
@@ -86,20 +87,22 @@ type FlowVersion struct {
 	CreatedAt   time.Time  `json:"created_at"`
 }
 type Target struct {
-	Agent             *taskrunner.Binding           `json:"agent,omitempty"`
-	SSHInstallKey     *taskrunner.InstallCredential `json:"ssh_install_key,omitempty"`
-	SSHTrustExpiresAt *time.Time                    `json:"ssh_trust_expires_at,omitempty"`
-	SSHTrustRequestID string                        `json:"ssh_trust_request_id,omitempty"`
-	SSH               *taskrunner.Binding           `json:"ssh,omitempty"`
-	ResourceKey       string                        `json:"resource_key,omitempty"`
-	ID                string                        `json:"id"`
-	ProjectID         string                        `json:"project_id"`
-	Name              string                        `json:"name"`
-	Seed              int64                         `json:"seed"`
-	Revision          int64                         `json:"revision"`
-	ModelVersion      string                        `json:"model_version"`
-	CreatedAt         time.Time                     `json:"created_at"`
-	Mode              string                        `json:"mode"`
+	ProvisionRequestID      string                        `json:"provision_request_id,omitempty"`
+	ProvisionSnapshotSHA256 string                        `json:"provision_snapshot_sha256,omitempty"`
+	Agent                   *taskrunner.Binding           `json:"agent,omitempty"`
+	SSHInstallKey           *taskrunner.InstallCredential `json:"ssh_install_key,omitempty"`
+	SSHTrustExpiresAt       *time.Time                    `json:"ssh_trust_expires_at,omitempty"`
+	SSHTrustRequestID       string                        `json:"ssh_trust_request_id,omitempty"`
+	SSH                     *taskrunner.Binding           `json:"ssh,omitempty"`
+	ResourceKey             string                        `json:"resource_key,omitempty"`
+	ID                      string                        `json:"id"`
+	ProjectID               string                        `json:"project_id"`
+	Name                    string                        `json:"name"`
+	Seed                    int64                         `json:"seed"`
+	Revision                int64                         `json:"revision"`
+	ModelVersion            string                        `json:"model_version"`
+	CreatedAt               time.Time                     `json:"created_at"`
+	Mode                    string                        `json:"mode"`
 }
 type SimTarget = Target
 

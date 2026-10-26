@@ -1,16 +1,16 @@
 # P1 装机准备与待接链路
 
-所属 WP-1.7 / FR-2.2~2.6。当前实现只提供已审批 OS 组合核对和 BOM 驱动的装机配置预览；没有启动 PXE、改变资产状态或建立 SSH 互信。完整装机依次消费这些准备产物，再接共享 Execution/资源锁、ProxyDHCP/iPXE、可信分发、一次性回调和真实 SSH 首连证明。不能把预览或 DHCP 指纹当成装机成功。
+所属 WP-1.7 / FR-2.2~2.6。当前源码提供已审批 OS 组合核对、BOM 配置预览、独立审批的持久请求和共享 Execution 下的装机准备校验；没有启动 PXE、改变资产状态或建立 SSH 互信。完整装机依次消费这些准备产物，再接 ProxyDHCP/iPXE、可信分发、一次性回调和真实 SSH 首连证明。不能把预览或 DHCP 指纹当成装机成功。
 
 ## 输入与配置预览契约
 
 - OS 组合复用 [MEDIA-ARTIFACTS.md](MEDIA-ARTIFACTS.md) 的不可变 `deps.os_boot`，不建第二套镜像登记。`boot_only=true` 筛选仅列有组合元数据的具体架构 OS 根；读取预览时检查当前审批、固定对象字节与全部依赖，筛选结果本身不是就绪证明。
 - 目标来自现有统一 BOM 的 `ProjectAsset`、稳定机器/物理口与已发布型号版本。具体架构取绑定版本 `hw_spec.cpu_arch`，禁止默认为 amd64 或跟随 latest。hostname 为 1~63 位小写 DNS label，SN 和选定引导口 MAC 取数据库事实，客户端不能覆盖。
-- 操作者为当前项目 Admin/DL/SRE（或平台管理员），项目关闭则拒绝。资产版本不符返回409。引导口必须属于当前机器且为六字节单播 MAC；不根据第一张网卡猜测。公钥必须是本项目未撤销、至少再有效一小时的受控 Ed25519 版本；不读取私钥或解密主密钥。
+- 操作者为当前项目 Admin/DE/DL/SRE（或平台管理员），项目关闭则拒绝。资产版本不符返回409。引导口必须属于当前机器且为六字节单播 MAC；不根据第一张网卡猜测。公钥必须是本项目未撤销、至少再有效一小时的受控 Ed25519 版本；不读取私钥或解密主密钥。
 - GET `/api/v1/projects/{id}/assets/{assetId}/provision/target` 返回绑定型号、版本/摘要、hostname、架构与物理口候选；POST 同前缀 `/preview` 消费精确 `asset_version/boot_port_id/media_id/domain_key_id`，需要同源/CSRF。全部事实在同一业务事务核验，返回 `keel.provision-preview/v1` 的冻结公共元数据、四个介质角色、user-data/meta-data 和配置摘要。
 - 摘要为 Go 紧凑 JSON 中 `snapshot_sha256` 置空时的 SHA256，覆盖渲染后的全部公共配置及精确版本。相同事实产生相同预览。实际装机创建必须再次原子核验，并使用新的持久请求 ID 作为 instance-id；禁止把确定性的预览 instance-id 复用为重装授权。
 
-资产页提供只读“装机配置预览”，网口、OS 和域公钥均为服务端候选下拉；镜像候选分页和公钥候选分页保持项目隔离，切换选择清除旧结果。当前页面没有装机启动动作。
+资产页提供“装机配置预览”及持久准备申请，网口、OS 和域公钥均为服务端候选下拉；镜像候选分页和公钥候选分页保持项目隔离，切换选择清除旧结果。准备申请入口不会启动实际安装。
 
 ## cloud-init 模板工程决策
 
@@ -24,14 +24,24 @@ v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud
 
 代码包含模板安全、真实数据库/BOM/介质审批/公钥生命周期及无执行副作用用例；按用户要求，留待 P1 集中运行。当前仅有 Go 编译和生成后 TypeScript 静态检查，不声称新增场景通过。
 
-下一步按可用依赖补齐：共享 Execution 下的冻结装机请求/重装权限与资源占用 → 显式受控网络范围中的 ProxyDHCP/iPXE/HTTP 引导和实际硬件预检 → 同请求/SN/MAC/项目的一次性回调（DHCP 指纹仅辅助）→ 新主机密钥绑定及 SSH 首连/修复队列 → 七阶段页面与200台并行装机验收。网络域的Kea配置不得被服务器ProxyDHCP覆盖或无边界争用。安装脚本必须来自批准介质，不以预览代替下一环。
+下一步按可用依赖补齐： 显式受控网络范围中的 ProxyDHCP/iPXE/HTTP 引导和实际硬件预检 → 同请求/SN/MAC/项目的一次性回调（DHCP 指纹仅辅助）→ 新主机密钥绑定及 SSH 首连/修复队列 → 七阶段页面与200台并行装机验收。网络域的Kea配置不得被服务器ProxyDHCP覆盖或无边界争用。安装脚本必须来自批准介质，不以预览代替下一环。
 
 ## 集中浏览器验证准备
 
 `python3 scripts/check-media-artifacts-integration.py --provision-only` 已接入实际隔离 PostgreSQL/MinIO/API 和真实 owner CLI 的装机准备场景：项目/全局上传固定引导角色、实际存储核对、BOM/型号/公钥预览、撤销拒绝和无装机副作用；仅使用测试生成的小字节 fixture，不是真实可启动镜像。新增浏览器场景尚未运行。配置查询失权/失败时页面清除旧预览并禁用提交，OS 核对弹窗不显示已失败请求的缓存字节证据。
 
-## 下一个实施单元的代码落点
+## 持久装机准备请求与共享执行（新增源码，待集中验证）
 
-沿用 internal/execution/ssh.go 的授权、稳定幂等键、冻结公共身份、exec_targets 和创建 outbox 的同事务模式，不另开装机队列。平台预览目前在自己的只读事务取数，实际创建需抽出可在调用事务内复用的准入/渲染路径，不能先读取预览后在第二个事务直接信任结果。每次实际重装使用新的持久请求 ID；冻结资产/型号/物理引导口、四角色对象版本/摘要及项目域公钥，派发前复验当前授权、资产与撤销事实。
+- 资产预览可提交 `/projects/{id}/assets/{assetId}/provision/requests`，必须提供理由和稳定 Idempotency-Key；创建使用新的持久请求 ID 渲染 instance-id，冻结精确资产/型号/网口、四角色对象版本/摘要、公钥及配置。已有已装机/已互信资产须显式 `reinstall=true` 并确认完整 BOM SN。每台物理机器只能有一条活动请求，防止跨项目重复占用；非运行请求30分钟过期，运行/unknown 请求不能自动过期或解锁。
+- 项目 Admin/DE/DL/SRE（含平台管理员）可读/申请/取消，另一位当前 Admin/DL 审批，创建者不能自批；公钥候选 `/projects/{id}/provision/public-keys` 仅公开有效公共身份，不扩大 DE 的 SSH 凭据/互信审批权限。项目关闭仍可读取历史。
+- `/projects/{id}/provision/requests/{requestId}` 提供详情，集合 GET 支持分页；POST `/approve`、`/cancel` 消费精确 `expected_version` 与理由；POST `/prepare` 一次消费当前审批版本，返回原生 `mode=provision` Execution。全部写请求使用同源、CSRF、稳定幂等键。页面 `/p/<projectId>/deploy/provision` 复用共享外壳和 shadcn/ui，提供审批、准备/取消及执行记录链接。
+- API 与 worker 必须显式 `KEEL_PROVISION_PREPARE_ENABLED=true`，默认关闭。worker 需要与 API 相同的受控对象存储配置，读取已固定对象；不需要私钥、主密钥、DHCP listener 或设备连接。Compose 仅提供关闭默认的配置接线，本次不启用生产实例。
+- `provision.prepare` 复用已有 outbox、TaskAttempt、心跳、fence、回执与对账。真实机器资源必须是 `device:machine:<machine_id>`，准备取独占，与 SSH/Agent 共用冲突域。派发重查当前操作者与审批人、资产/物理口、介质审批和公钥撤销；执行重新校验完整对象字节并重渲染比对摘要。损坏介质沿用隔离审计，不把旧预览当当前证明。
+- 请求状态 `requested → approved → preparing → prepared/failed/canceled`；非运行请求可取消/过期。准备结果投影与完成回执在同一事务。未知保留机器资源，须有匹配 request/hash/attempt/fence 的持久回执才能显式对账；从未开始的排队任务取消可直接撤销准备请求，不伪造停止回执。
+- `prepared` 仅证明控制面输入与字节校验完成，**不证明硬件预检、PXE、安装或 SSH 信任**。回执固定 `installation_performed=false`，不会更新资产状态或机器互信。准备结束会释放设备锁，后续实际安装必须重新取得独占锁、复验授权与快照，不能把已释放的准备锁当作安装占用。
 
-资源接入需同时修改 worker 的真实机器命名和模式映射：与 SSH/Agent 共用现有 device:machine:<machine_id>，装机取独占，不能退回 sim:<target_id> 或只锁新建 provision:<id>。unknown 保留原设备占用，回调必须匹配请求/项目/SN/MAC及当前 attempt/fence，不能凭 DHCP 指纹或客户端成功字符串释放。网络侧现有 Kea/ZTP 配置不等于服务器 ProxyDHCP 已实现，二者测试网络范围与控制权必须明确隔离。只有实际 installer/首连回执成立后才投影安装/互信状态；准备接口和软件fixture不提前推进设备状态。
+053 迁移新增不可变准备请求、受控状态迁移及 provision 执行模式；未对运行库应用。新增平台/执行器真实 PostgreSQL 用例和既有 `--provision-only` 浏览器链路留到 P1 集中执行；Go 仅编译、TS 和语法检查不是数据库/网络或硬件验收。
+
+## 下一个实施单元
+
+在隔离的受控网段提供 ProxyDHCP/iPXE/HTTP 引导与实际硬件预检；接同请求/项目/SN/MAC及当前 attempt/fence 的一次性回调，DHCP 指纹仅辅助；然后绑定新主机密钥并通过真实 SSH 首连/修复队列形成互信证明。网络侧既有 Kea/ZTP 不等于服务器 ProxyDHCP 已实现，两者网段和控制权必须明确隔离。安装脚本来自批准介质，任何模拟/准备证据均不得直接投影安装成功。

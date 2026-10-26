@@ -13,13 +13,14 @@ import (
 	"github.com/enzoOvOyu/keel/internal/mediaboot"
 )
 
-func TestProvisionPreviewUsesCurrentBOMAndApprovedOS(t *testing.T) {
+func provisionFixture(t *testing.T) (*Store, *AuthSession, *AuthSession, *ProjectSummary, string, *ProvisionTarget, *MediaItemSummary, *MediaItemSummary, *SSHDomainKey, ProvisionPreviewInput) {
+	t.Helper()
 	s := integrationStore(t)
 	ctx := context.Background()
 	s.MediaObjects = &testMediaObjects{}
 	const password = "test-only-provision-preview-password"
 	for _, name := range []string{"provision-owner", "provision-reviewer"} {
-		if _, err := s.CreateUser(ctx, name, name, password, true, true); err != nil {
+		if _, err := s.CreateUser(ctx, name, name, password, true, name == "provision-owner"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -100,6 +101,12 @@ func TestProvisionPreviewUsesCurrentBOMAndApprovedOS(t *testing.T) {
 		t.Fatal(err)
 	}
 	input := ProvisionPreviewInput{AssetVersion: target.AssetVersion, BootPortID: target.Ports[0].ID, MediaID: root.ID, DomainKeyID: key.ID}
+	return s, owner, reviewer, project, asset, target, root, kernel, key, input
+}
+
+func TestProvisionPreviewUsesCurrentBOMAndApprovedOS(t *testing.T) {
+	s, owner, _, project, asset, target, root, kernel, key, input := provisionFixture(t)
+	ctx := context.Background()
 	preview, err := s.PreviewProvisionSeed(ctx, owner, project, asset, input, "test")
 	if err != nil {
 		t.Fatal(err)

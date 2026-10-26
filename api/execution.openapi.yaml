@@ -2491,7 +2491,8 @@
               "fabric.push",
               "host.identity",
               "host.wait",
-              "trust.verify"
+              "trust.verify",
+              "provision.prepare"
             ]
           },
           "depends_on": {
@@ -2554,7 +2555,9 @@
               "keel.sim/v1",
               "keel.kea/v1",
               "keel.fabric/v1",
-              "keel.ssh/v1"
+              "keel.ssh/v1",
+              "keel.agent/v1",
+              "keel.provision-preparation/v1"
             ]
           },
           "inputs": {
@@ -2722,7 +2725,8 @@
               "kea",
               "fabric",
               "ssh",
-              "agent"
+              "agent",
+              "provision"
             ]
           },
           "resource_key": {
@@ -2738,6 +2742,14 @@
           },
           "agent": {
             "$ref": "#/components/schemas/AgentBinding"
+          },
+          "provision_request_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "provision_snapshot_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
           }
         },
         "required": [
@@ -2848,7 +2860,8 @@
               "kea",
               "fabric",
               "ssh",
-              "agent"
+              "agent",
+              "provision"
             ]
           },
           "flow": {
@@ -2934,7 +2947,8 @@
               "kea",
               "fabric",
               "ssh",
-              "agent"
+              "agent",
+              "provision"
             ]
           },
           "state": {
@@ -3066,7 +3080,8 @@
               "kea",
               "fabric",
               "ssh",
-              "agent"
+              "agent",
+              "provision"
             ]
           },
           "state": {
@@ -3477,7 +3492,8 @@
               "kea",
               "fabric",
               "ssh",
-              "agent"
+              "agent",
+              "provision"
             ]
           }
         },
@@ -3832,7 +3848,8 @@
               "kea",
               "fabric",
               "ssh",
-              "agent"
+              "agent",
+              "provision"
             ]
           },
           "resource_key": {
@@ -3840,6 +3857,14 @@
           },
           "agent": {
             "$ref": "#/components/schemas/AgentBinding"
+          },
+          "provision_request_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "provision_snapshot_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
           }
         },
         "required": [

@@ -34,6 +34,7 @@ import { Route as PProjectIdModelsRouteImport } from './routes/p_.$projectId.mod
 import { Route as PProjectIdParamsRouteImport } from './routes/p_.$projectId.params'
 import { Route as PProjectIdRulesRouteImport } from './routes/p_.$projectId.rules'
 import { Route as PProjectIdZtpRouteImport } from './routes/p_.$projectId.ztp'
+import { Route as PProjectIdDeployProvisionRouteImport } from './routes/p_.$projectId.deploy.provision'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -160,6 +161,12 @@ const PProjectIdZtpRoute = PProjectIdZtpRouteImport.update({
   path: '/p/$projectId/ztp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PProjectIdDeployProvisionRoute =
+  PProjectIdDeployProvisionRouteImport.update({
+    id: '/p_/$projectId/deploy/provision',
+    path: '/p/$projectId/deploy/provision',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -187,6 +194,7 @@ export interface FileRoutesByFullPath {
   '/p/$projectId/params': typeof PProjectIdParamsRoute
   '/p/$projectId/rules': typeof PProjectIdRulesRoute
   '/p/$projectId/ztp': typeof PProjectIdZtpRoute
+  '/p/$projectId/deploy/provision': typeof PProjectIdDeployProvisionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -214,6 +222,7 @@ export interface FileRoutesByTo {
   '/p/$projectId/params': typeof PProjectIdParamsRoute
   '/p/$projectId/rules': typeof PProjectIdRulesRoute
   '/p/$projectId/ztp': typeof PProjectIdZtpRoute
+  '/p/$projectId/deploy/provision': typeof PProjectIdDeployProvisionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -242,6 +251,7 @@ export interface FileRoutesById {
   '/p_/$projectId/params': typeof PProjectIdParamsRoute
   '/p_/$projectId/rules': typeof PProjectIdRulesRoute
   '/p_/$projectId/ztp': typeof PProjectIdZtpRoute
+  '/p_/$projectId/deploy/provision': typeof PProjectIdDeployProvisionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -271,6 +281,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/params'
     | '/p/$projectId/rules'
     | '/p/$projectId/ztp'
+    | '/p/$projectId/deploy/provision'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -298,6 +309,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/params'
     | '/p/$projectId/rules'
     | '/p/$projectId/ztp'
+    | '/p/$projectId/deploy/provision'
   id:
     | '__root__'
     | '/'
@@ -325,6 +337,7 @@ export interface FileRouteTypes {
     | '/p_/$projectId/params'
     | '/p_/$projectId/rules'
     | '/p_/$projectId/ztp'
+    | '/p_/$projectId/deploy/provision'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -353,6 +366,7 @@ export interface RootRouteChildren {
   PProjectIdParamsRoute: typeof PProjectIdParamsRoute
   PProjectIdRulesRoute: typeof PProjectIdRulesRoute
   PProjectIdZtpRoute: typeof PProjectIdZtpRoute
+  PProjectIdDeployProvisionRoute: typeof PProjectIdDeployProvisionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -532,6 +546,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectIdZtpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p_/$projectId/deploy/provision': {
+      id: '/p_/$projectId/deploy/provision'
+      path: '/p/$projectId/deploy/provision'
+      fullPath: '/p/$projectId/deploy/provision'
+      preLoaderRoute: typeof PProjectIdDeployProvisionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -561,6 +582,7 @@ const rootRouteChildren: RootRouteChildren = {
   PProjectIdParamsRoute: PProjectIdParamsRoute,
   PProjectIdRulesRoute: PProjectIdRulesRoute,
   PProjectIdZtpRoute: PProjectIdZtpRoute,
+  PProjectIdDeployProvisionRoute: PProjectIdDeployProvisionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

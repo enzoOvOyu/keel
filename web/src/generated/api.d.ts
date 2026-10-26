@@ -4,6 +4,125 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{id}/provision/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Admin/DE/DL/SRE read scoped frozen requests, including project closure history. */
+        get: operations["listProvisionRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/requests/{requestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Current authorized deployment operators read immutable public preparation evidence. */
+        get: operations["getProvisionRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/provision/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Freeze current BOM, exact approved OS bytes and public domain key. Reinstall requires explicit intent and exact serial confirmation. No installation starts. One active request per physical machine. */
+        post: operations["createProvisionRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/requests/{requestId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Independent Admin/DL approval; creator cannot approve. Admin/DE/DL/SRE may cancel requested/approved/prepared requests. Running tasks use Execution control and durable reconciliation. */
+        post: operations["approveProvisionRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/requests/{requestId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Independent Admin/DL approval; creator cannot approve. Admin/DE/DL/SRE may cancel requested/approved/prepared requests. Running tasks use Execution control and durable reconciliation. */
+        post: operations["cancelProvisionRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/requests/{requestId}/prepare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Default disabled KEEL_PROVISION_PREPARE_ENABLED=true requires a configured preparation worker and media object storage. Consume an approved unexpired request once. Actual bytes reverified under exclusive device:machine lease shared with SSH/Agent. No PXE, install or SSH trust projection. */
+        post: operations["prepareProvisionRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/public-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Admin/DE/DL/SRE read only active project public key candidates valid for at least one hour. This does not grant SSH credential or trust mutation authority. */
+        get: operations["listProvisionPublicKeys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/assets/{assetId}/provision/target": {
         parameters: {
             query?: never;
@@ -11,7 +130,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Admin/DL/SRE read-only provisioning preparation from current BOM, pinned published model, approved OS boot media and active project public key. Does not create an execution, issue callback credentials, start installation or establish SSH trust. Preview snapshot SHA256 is calculated with snapshot_sha256 set to the empty string. */
+        /** @description Admin/DE/DL/SRE read-only provisioning preparation from current BOM, pinned published model, approved OS boot media and active project public key. Does not create an execution, issue callback credentials, start installation or establish SSH trust. Preview snapshot SHA256 is calculated with snapshot_sha256 set to the empty string. */
         get: operations["getProvisionTarget"];
         put?: never;
         post?: never;
@@ -30,7 +149,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Admin/DL/SRE read-only provisioning preparation from current BOM, pinned published model, approved OS boot media and active project public key. Does not create an execution, issue callback credentials, start installation or establish SSH trust. Preview snapshot SHA256 is calculated with snapshot_sha256 set to the empty string. */
+        /** @description Admin/DE/DL/SRE read-only provisioning preparation from current BOM, pinned published model, approved OS boot media and active project public key. Does not create an execution, issue callback credentials, start installation or establish SSH trust. Preview snapshot SHA256 is calculated with snapshot_sha256 set to the empty string. */
         post: operations["previewProvisionSeed"];
         delete?: never;
         options?: never;
@@ -2501,6 +2620,53 @@ export interface components {
             arch: "amd64" | "arm64";
             ports: components["schemas"]["ProvisionBootPort"][];
         };
+        /** @description Immutable 30-minute independently approved preparation. Prepared means source verification only; no installation, DHCP or trust side effects. */
+        ProvisionRequest: {
+            id: string;
+            project_id: string;
+            machine_id: string;
+            asset_id: string;
+            created_by: string;
+            reason: string;
+            reinstall: boolean;
+            snapshot: components["schemas"]["ProvisionPreview"];
+            snapshot_sha256: string;
+            /** @enum {string} */
+            state: "requested" | "approved" | "preparing" | "prepared" | "failed" | "canceled" | "expired";
+            state_version: number;
+            approved_by?: string;
+            /** Format: date-time */
+            approved_at?: string;
+            execution_id?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ProvisionRequestPage: {
+            items: components["schemas"]["ProvisionRequest"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        CreateProvisionRequest: {
+            asset_version: number;
+            boot_port_id: string;
+            media_id: string;
+            domain_key_id: string;
+            reason: string;
+            reinstall: boolean;
+            confirm_serial?: string;
+        };
+        ProvisionRequestAction: {
+            expected_version: number;
+            reason: string;
+        };
+        ProvisionPrepareInput: {
+            expected_version: number;
+        };
         ProvisionPreviewInput: {
             asset_version: number;
             boot_port_id: string;
@@ -4400,7 +4566,7 @@ export interface components {
         FlowTask: {
             id: string;
             /** @enum {string} */
-            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify";
+            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare";
             depends_on?: string[];
             retry: number;
             idempotent: boolean;
@@ -4410,7 +4576,7 @@ export interface components {
         };
         FlowDefinition: {
             /** @enum {string} */
-            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1" | "keel.ssh/v1";
+            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1" | "keel.ssh/v1" | "keel.agent/v1" | "keel.provision-preparation/v1";
             inputs: {
                 [key: string]: components["schemas"]["FlowInput"];
             };
@@ -4450,13 +4616,15 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
             /** @description Stable controller/device identity for non-simulation targets. */
             resource_key?: string;
             ssh?: components["schemas"]["SSHBinding"];
             /** @description Frozen approved one-time first-connection verification request; absent for ordinary queries. */
             ssh_trust_request_id?: string;
             agent?: components["schemas"]["AgentBinding"];
+            provision_request_id?: string;
+            provision_snapshot_sha256?: string;
         };
         RerunSource: {
             execution_id: string;
@@ -4494,7 +4662,7 @@ export interface components {
         /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
         ExecutionSnapshot: {
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
             flow: components["schemas"]["FlowVersion"];
             targets: components["schemas"]["SimTarget"][];
             /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
@@ -4513,7 +4681,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -4637,6 +4805,344 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listProvisionRequests: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current scoped result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionRequestPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Invalid boot configuration or media integrity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Preparation runner explicitly disabled or object storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getProvisionRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current scoped result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionRequest"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Invalid boot configuration or media integrity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Preparation runner explicitly disabled or object storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createProvisionRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProvisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Current scoped result */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionRequest"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Invalid boot configuration or media integrity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Preparation runner explicitly disabled or object storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    approveProvisionRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionRequestAction"];
+            };
+        };
+        responses: {
+            /** @description Current scoped result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionRequest"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Invalid boot configuration or media integrity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Preparation runner explicitly disabled or object storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cancelProvisionRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionRequestAction"];
+            };
+        };
+        responses: {
+            /** @description Current scoped result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionRequest"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Invalid boot configuration or media integrity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Preparation runner explicitly disabled or object storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    prepareProvisionRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionPrepareInput"];
+            };
+        };
+        responses: {
+            /** @description Current scoped result */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Invalid boot configuration or media integrity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Preparation runner explicitly disabled or object storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listProvisionPublicKeys: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current scoped result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SSHDomainKeyPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Invalid boot configuration or media integrity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Preparation runner explicitly disabled or object storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getProvisionTarget: {
         parameters: {
             query?: never;

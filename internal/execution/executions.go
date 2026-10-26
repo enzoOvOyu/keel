@@ -527,6 +527,11 @@ func settle(ctx context.Context, tx *sql.Tx, id string) error {
 	case counts["running"] > 0:
 		state = "running"
 	}
+	if state == "killed" && x.Mode == "provision" {
+		if e = cancelUnstartedProvisionTx(ctx, tx, id); e != nil {
+			return e
+		}
+	}
 	if x.State != state || x.DesiredState != desired {
 		if _, e = tx.ExecContext(ctx, "UPDATE exec_executions SET state=$2,desired_state=$3,state_version=state_version+1,finished_at=CASE WHEN $4 THEN now() ELSE NULL END WHERE id=$1", id, state, desired, finished); e != nil {
 			return e

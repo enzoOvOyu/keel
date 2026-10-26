@@ -18,7 +18,7 @@ import uuid
 
 os.umask(0o077)
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--run', default='TestOSBootMediaComposition|TestProvisionPreviewUsesCurrentBOMAndApprovedOS|TestCredentialMasterAtomicRewrapAndRecovery|TestAuditEvidence|TestCloudInit|TestMasterRewrap|TestSignedOSBootRoles|TestSSHCredentialCLI|TestWebhook', help='Narrow only after a diagnosed failure; default covers this lifecycle batch')
+parser.add_argument('--run', default='TestOSBootMediaComposition|TestProvisionPreviewUsesCurrentBOMAndApprovedOS|TestProvisionRequest|TestCredentialMasterAtomicRewrapAndRecovery|TestAuditEvidence|TestCloudInit|TestMasterRewrap|TestSignedOSBootRoles|TestSSHCredentialCLI|TestWebhook', help='Narrow only after a diagnosed failure; default covers this lifecycle batch')
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 os.chdir(root)

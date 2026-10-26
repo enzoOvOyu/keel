@@ -13,6 +13,9 @@ import (
 // maximum 60s run; cancellation waits for that operation's real completion.
 // Persisting a simulator receipt and applying it are separate fault boundaries.
 func (s *Service) RunClaim(ctx context.Context, c *Claim) error {
+	if c.Target.Mode == "provision" {
+		return s.runProvisionPreparationClaim(ctx, c)
+	}
 	if c.Target.Mode == "agent" {
 		return s.runHostClaim(ctx, c, "agent")
 	}

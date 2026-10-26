@@ -578,7 +578,7 @@ export function ExecutionWorkspace({
   const trustVerification = Boolean(current?.execution.trust_verification);
   const canControl = Boolean(
     current &&
-      ((current.execution.mode === "sim" || current.execution.mode === "ssh" || current.execution.mode === "agent")
+      ((current.execution.mode === "sim" || current.execution.mode === "ssh" || current.execution.mode === "agent" || current.execution.mode === "provision")
         ? session.user.is_admin ||
           (trustVerification ? ["Admin", "SRE", "DL"] : ["Admin", "SRE", "DE", "DL"]).includes(project.role)
         : session.user.is_admin || ["Admin", "NDE"].includes(project.role)),
@@ -623,7 +623,9 @@ export function ExecutionWorkspace({
       </header>
       <p className="impact-notice">
         {t(
-          current.execution.mode === "ssh"
+          current.execution.mode === "provision"
+            ? "provisionPreparationOnly"
+            : current.execution.mode === "ssh"
             ? trustVerification ? "sshTrustExecutionNotice" : "sshExecutionNotice"
             : current.execution.mode === "agent"
             ? "agentExecutionNotice"

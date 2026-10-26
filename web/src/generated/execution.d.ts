@@ -482,7 +482,7 @@ export interface components {
         FlowTask: {
             id: string;
             /** @enum {string} */
-            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify";
+            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare";
             depends_on?: string[];
             retry: number;
             idempotent: boolean;
@@ -492,7 +492,7 @@ export interface components {
         };
         FlowDefinition: {
             /** @enum {string} */
-            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1" | "keel.ssh/v1";
+            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1" | "keel.ssh/v1" | "keel.agent/v1" | "keel.provision-preparation/v1";
             inputs: {
                 [key: string]: components["schemas"]["FlowInput"];
             };
@@ -537,13 +537,15 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
             /** @description Stable controller/device identity for non-simulation targets. */
             resource_key?: string;
             ssh?: components["schemas"]["SSHBinding"];
             /** @description Frozen approved one-time first-connection verification request; absent for ordinary queries. */
             ssh_trust_request_id?: string;
             agent?: components["schemas"]["AgentBinding"];
+            provision_request_id?: string;
+            provision_snapshot_sha256?: string;
         };
         RegisterSimTargetsResponse: {
             items: components["schemas"]["SimTarget"][];
@@ -568,7 +570,7 @@ export interface components {
         /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
         ExecutionSnapshot: {
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
             flow: components["schemas"]["FlowVersion"];
             targets: components["schemas"]["SimTarget"][];
             /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
@@ -587,7 +589,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -614,7 +616,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -714,7 +716,7 @@ export interface components {
             /** Format: int64 */
             next_cursor: number;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
         };
         SimTargetPage: {
             items: components["schemas"]["SimTarget"][];
@@ -798,9 +800,11 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
             resource_key?: string;
             agent?: components["schemas"]["AgentBinding"];
+            provision_request_id?: string;
+            provision_snapshot_sha256?: string;
         };
         TaskTimeline: {
             task_id: string;

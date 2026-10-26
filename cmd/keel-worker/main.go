@@ -8,6 +8,7 @@ import (
 	"github.com/enzoOvOyu/keel/internal/agentrunner"
 	"github.com/enzoOvOyu/keel/internal/execution"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
+	"github.com/enzoOvOyu/keel/internal/mediaartifact"
 	"github.com/enzoOvOyu/keel/internal/platform"
 	"github.com/enzoOvOyu/keel/internal/webhook"
 	"log/slog"
@@ -50,7 +51,18 @@ func main() {
 	if e != nil {
 		fail("fabric probe configuration rejected")
 	}
+	store.ProvisionPrepareEnabled = os.Getenv("KEEL_PROVISION_PREPARE_ENABLED") == "true"
+	if store.ProvisionPrepareEnabled {
+		store.MediaObjects, e = mediaartifact.Load()
+		if e != nil || store.MediaObjects == nil {
+			fail("Provision preparation requires configured media storage")
+		}
+	}
 	service := execution.New(store.DB)
+	if store.ProvisionPrepareEnabled {
+		service.ProvisionStore = store
+	}
+
 	if store.SSHRunner != nil {
 		service.SSHRunner = store.SSHRunner
 	}

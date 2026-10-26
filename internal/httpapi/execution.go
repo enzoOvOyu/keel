@@ -56,6 +56,7 @@ func (a *authAPI) executionProject(c *gin.Context, write bool) (*platform.AuthSe
 	}
 	service := execution.New(a.store.DB)
 	service.MediaStore = a.store
+	service.ProvisionStore = a.store
 	service.AgentAdmissionOnly = a.store.AgentTasksEnabled
 	if a.store.SSHRunner != nil {
 		service.SSHRunner = a.store.SSHRunner

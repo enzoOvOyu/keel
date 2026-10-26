@@ -53,7 +53,7 @@ func provisionTargetTx(ctx context.Context, tx *sql.Tx, a *AuthSession, project 
 	if project == nil || !modelIDPattern.MatchString(asset) {
 		return nil, ErrNotFound
 	}
-	if err := requireSSHTrustAuthority(ctx, tx, a, project.ID, false); err != nil {
+	if err := requireProvisionAuthority(ctx, tx, a, project.ID, false); err != nil {
 		return nil, err
 	}
 	out := &ProvisionTarget{ProjectID: project.ID, Ports: []ProvisionBootPort{}}
@@ -127,6 +127,26 @@ func (s *Store) PreviewProvisionSeed(ctx context.Context, a *AuthSession, projec
 		return nil, err
 	}
 	defer func() { tx.Rollback(); resultErr = s.RecordMediaIntegrityFailure(ctx, resultErr, a.User.ID, trace) }()
+	out, err = s.FreezeProvisionTx(ctx, tx, a, project, asset, in, "")
+	if err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// FreezeProvisionTx is shared by preview and durable request creation. All
+// facts and rendered bytes are checked in the caller's transaction. A nonempty
+// instanceID must be the fresh durable request ID, never a cached preview ID.
+func (s *Store) FreezeProvisionTx(ctx context.Context, tx *sql.Tx, a *AuthSession, project *ProjectSummary, asset string, in ProvisionPreviewInput, instanceID string) (*ProvisionPreview, error) {
+	return s.freezeProvisionUntilTx(ctx, tx, a, project, asset, in, instanceID, time.Now().Add(time.Hour))
+}
+func (s *Store) freezeProvisionUntilTx(ctx context.Context, tx *sql.Tx, a *AuthSession, project *ProjectSummary, asset string, in ProvisionPreviewInput, instanceID string, until time.Time) (*ProvisionPreview, error) {
+	if in.AssetVersion < 1 || !modelIDPattern.MatchString(in.BootPortID) || !modelIDPattern.MatchString(in.MediaID) || !modelIDPattern.MatchString(in.DomainKeyID) || (instanceID != "" && !modelIDPattern.MatchString(instanceID)) {
+		return nil, apiError(400, "VALIDATION_ERROR", "Exact provision identities required")
+	}
 	target, err := provisionTargetTx(ctx, tx, a, project, asset)
 	if err != nil {
 		return nil, err
@@ -152,7 +172,7 @@ func (s *Store) PreviewProvisionSeed(ctx context.Context, a *AuthSession, projec
 	if plan.Artifacts[0].Arch != target.Arch {
 		return nil, apiError(422, "PROVISION_ARCH_MISMATCH", "OS boot architecture differs from the bound model version")
 	}
-	key, err := ReadSSHInstallCredential(ctx, tx, project.ID, taskrunner.InstallCredential{ID: in.DomainKeyID}, time.Now().Add(time.Hour))
+	key, err := ReadSSHInstallCredential(ctx, tx, project.ID, taskrunner.InstallCredential{ID: in.DomainKeyID}, until)
 	if err != nil {
 		return nil, err
 	}
@@ -184,19 +204,19 @@ func (s *Store) PreviewProvisionSeed(ctx context.Context, a *AuthSession, projec
 		return nil, err
 	}
 	identityHash := sha256.Sum256(snapshot)
-	seed, err := provisionseed.Render(raw, provisionseed.Identity{ProjectID: project.ID, MachineID: target.MachineID, InstanceID: hex.EncodeToString(identityHash[:16]), Hostname: target.Hostname, PublicKey: key.PublicKey})
+	if instanceID == "" {
+		instanceID = hex.EncodeToString(identityHash[:16])
+	}
+	seed, err := provisionseed.Render(raw, provisionseed.Identity{ProjectID: project.ID, MachineID: target.MachineID, InstanceID: instanceID, Hostname: target.Hostname, PublicKey: key.PublicKey})
 	if err != nil {
 		return nil, apiError(422, "PROVISION_TEMPLATE_INVALID", err.Error())
 	}
-	out = &ProvisionPreview{Schema: "keel.provision-preview/v1", Target: *target, BootPort: port, DomainKey: *key, Media: *plan, Seed: *seed}
+	out := &ProvisionPreview{Schema: "keel.provision-preview/v1", Target: *target, BootPort: port, DomainKey: *key, Media: *plan, Seed: *seed}
 	encoded, err := json.Marshal(out)
 	if err != nil {
 		return nil, err
 	}
 	hash := sha256.Sum256(encoded)
 	out.SnapshotSHA256 = hex.EncodeToString(hash[:])
-	if err = tx.Commit(); err != nil {
-		return nil, err
-	}
 	return out, nil
 }

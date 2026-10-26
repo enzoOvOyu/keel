@@ -82,7 +82,7 @@ func (s *Service) Claim(ctx context.Context, worker string, lease time.Duration)
 	cursorTime := time.Unix(0, 0)
 	cursorID := ""
 	for {
-		rows, e := s.DB.QueryContext(ctx, "SELECT id,created_at FROM exec_executions WHERE desired_state='running' AND state IN('scheduled','dispatching','running') AND (created_at,id)>($1,$2) AND (mode='sim' OR ($3 AND mode='kea') OR ($4 AND mode='fabric') OR ($5 AND mode='ssh') OR ($6 AND mode='agent')) ORDER BY created_at,id LIMIT 64", cursorTime, cursorID, s.KeaStore != nil, s.NetworkStore != nil, s.SSHRunner != nil, s.AgentRunner != nil)
+		rows, e := s.DB.QueryContext(ctx, "SELECT id,created_at FROM exec_executions WHERE desired_state='running' AND state IN('scheduled','dispatching','running') AND (created_at,id)>($1,$2) AND (mode='sim' OR ($3 AND mode='kea') OR ($4 AND mode='fabric') OR ($5 AND mode='ssh') OR ($6 AND mode='agent') OR ($7 AND mode='provision')) ORDER BY created_at,id LIMIT 64", cursorTime, cursorID, s.KeaStore != nil, s.NetworkStore != nil, s.SSHRunner != nil, s.AgentRunner != nil, s.ProvisionStore != nil && s.ProvisionStore.ProvisionPrepareEnabled)
 		if e != nil {
 			return nil, e
 		}
@@ -138,6 +138,9 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 	if e != nil {
 		return nil, e
 	}
+	if executionMode == "provision" && (s.ProvisionStore == nil || !s.ProvisionStore.ProvisionPrepareEnabled) {
+		return nil, nil
+	}
 	if executionMode == "agent" && s.AgentRunner == nil {
 		return nil, nil
 	}
@@ -167,7 +170,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 		if e != nil && !errors.Is(e, sql.ErrNoRows) {
 			return nil, e
 		}
-		allowed = allowed && (role == "Admin" || ((executionMode == "kea" || executionMode == "fabric") && role == "NDE") || ((executionMode == "sim" || executionMode == "ssh" || executionMode == "agent") && (role == "DE" || role == "DL" || role == "SRE")))
+		allowed = allowed && (role == "Admin" || ((executionMode == "kea" || executionMode == "fabric") && role == "NDE") || ((executionMode == "sim" || executionMode == "ssh" || executionMode == "agent" || executionMode == "provision") && (role == "DE" || role == "DL" || role == "SRE")))
 	}
 	x, e := scanExecution(tx.QueryRowContext(ctx, "SELECT "+executionColumns+" FROM exec_executions WHERE id=$1 AND desired_state='running' AND state IN('scheduled','dispatching','running') FOR UPDATE SKIP LOCKED", id))
 	if errors.Is(e, sql.ErrNoRows) {
@@ -243,6 +246,24 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 			if target.ID == "" {
 				return nil, fmt.Errorf("frozen target missing")
 			}
+			if x.Mode == "provision" {
+				if e = s.provisionFrozenTx(ctx, tx, target); e != nil {
+					var blocked *platform.Error
+					if !errors.As(e, &blocked) {
+						return nil, e
+					}
+					if _, e = tx.ExecContext(ctx, "UPDATE exec_executions SET desired_state='paused',state_version=state_version+1 WHERE id=$1", id); e != nil {
+						return nil, e
+					}
+					if e = settle(ctx, tx, id); e != nil {
+						return nil, e
+					}
+					if e = event(ctx, tx, id, "execution.authorization_blocked", map[string]string{"reason": "provision_preparation_binding_changed"}); e != nil {
+						return nil, e
+					}
+					return nil, tx.Commit()
+				}
+			}
 			if x.Mode == "ssh" {
 				if e = s.sshFrozenTx(ctx, tx, target); e != nil {
 					var blocked *platform.Error
@@ -297,7 +318,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 			}
 			resources := []string{}
 			for _, kind := range task.Resources {
-				if x.Mode == "ssh" || x.Mode == "agent" {
+				if x.Mode == "ssh" || x.Mode == "agent" || x.Mode == "provision" {
 					resources = append(resources, kind+":machine:"+target.ResourceKey)
 				} else if x.Mode == "fabric" {
 					resources = append(resources, kind+":switch:"+target.ResourceKey)
@@ -423,12 +444,13 @@ func (s *Service) RecordReceipt(ctx context.Context, r Receipt) error {
 		return e
 	}
 	defer tx.Rollback()
-	var valid bool
-	if e = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM exec_task_attempts WHERE id=$1 AND command_id=$2 AND fencing_token=$3 AND state IN('running','unknown','success','failed','cancelled'))", r.AttemptID, r.CommandID, r.FencingToken).Scan(&valid); e != nil {
-		return e
-	}
-	if !valid {
+	var runner string
+	e = tx.QueryRowContext(ctx, "SELECT runner FROM exec_task_attempts WHERE id=$1 AND command_id=$2 AND fencing_token=$3 AND state IN('running','unknown','success','failed','cancelled')", r.AttemptID, r.CommandID, r.FencingToken).Scan(&runner)
+	if errors.Is(e, sql.ErrNoRows) {
 		return failure(409, "STALE_FENCE", "receipt does not match claimed attempt")
+	}
+	if e != nil {
+		return e
 	}
 	// A durable proof remains historical fact after credential revocation. Only
 	// new Agent proofs must serialize against revocation in this transaction.
@@ -442,6 +464,15 @@ func (s *Service) RecordReceipt(ctx context.Context, r Receipt) error {
 	}
 	if !errors.Is(e, sql.ErrNoRows) {
 		return e
+	}
+	if runner == "provision" {
+		attempt, err := scanAttempt(tx.QueryRowContext(ctx, "SELECT "+attemptColumns+" FROM exec_task_attempts WHERE id=$1", r.AttemptID))
+		if err != nil {
+			return err
+		}
+		if _, err = provisionReceiptTarget(ctx, tx, attempt, r); err != nil {
+			return err
+		}
 	}
 	if e = s.agentReceiptAllowedTx(ctx, tx, r); e != nil {
 		return e
@@ -492,6 +523,9 @@ func (s *Service) Complete(ctx context.Context, c *Claim) error {
 	}
 	if a.State != "running" || a.LeaseUntil == nil || !a.LeaseUntil.After(time.Now()) {
 		return failure(409, "STALE_LEASE", "late completion requires explicit reconciliation")
+	}
+	if e = s.applyProvisionReceipt(ctx, tx, a, r); e != nil {
+		return e
 	}
 	if e = s.applySSHTrustReceipt(ctx, tx, a, r); e != nil {
 		return e
@@ -664,6 +698,9 @@ func (s *Service) Reconcile(ctx context.Context, a *Actor, projectID, id, attemp
 		return nil, failure(409, "EVIDENCE_CONFLICT", "claimed result does not match the durable runner receipt")
 	}
 	// Reconciliation never silently creates a retry, even for an idempotent task.
+	if e = s.applyProvisionReceipt(ctx, tx, attempt, r); e != nil {
+		return nil, e
+	}
 	if e = s.applySSHTrustReceipt(ctx, tx, attempt, r); e != nil {
 		return nil, e
 	}
@@ -687,7 +724,7 @@ func (s *Service) Reconcile(ctx context.Context, a *Actor, projectID, id, attemp
 }
 func (s *Service) WorkerHeartbeat(ctx context.Context, id string, active int) error {
 	mode := "sim"
-	if s.KeaStore != nil || s.NetworkStore != nil || s.SSHRunner != nil || s.AgentRunner != nil {
+	if s.KeaStore != nil || s.NetworkStore != nil || s.SSHRunner != nil || s.AgentRunner != nil || s.ProvisionStore != nil {
 		mode = "mixed"
 	}
 	_, e := s.DB.ExecContext(ctx, "INSERT INTO exec_worker_heartbeats(id,mode,active_count,observed_at) VALUES($1,$2,$3,now()) ON CONFLICT(id) DO UPDATE SET mode=EXCLUDED.mode,active_count=EXCLUDED.active_count,observed_at=EXCLUDED.observed_at", id, mode, active)
@@ -696,7 +733,7 @@ func (s *Service) WorkerHeartbeat(ctx context.Context, id string, active int) er
 func (s *Service) WorkerHealthy(ctx context.Context, id string) error {
 	var yes bool
 	mode := "sim"
-	if s.KeaStore != nil || s.NetworkStore != nil || s.SSHRunner != nil || s.AgentRunner != nil {
+	if s.KeaStore != nil || s.NetworkStore != nil || s.SSHRunner != nil || s.AgentRunner != nil || s.ProvisionStore != nil {
 		mode = "mixed"
 	}
 	e := s.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM exec_worker_heartbeats WHERE id=$1 AND mode=$2 AND observed_at>now()-interval '10 seconds')", id, mode).Scan(&yes)
