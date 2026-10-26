@@ -188,3 +188,22 @@ SSH/Agent脚本创建输入新增可选`prefer_cache:true`，默认false；页�
 worker仅保存目标终态证明，**不执行Reconcile、不释放unknown资源**。原尝试抽屉可显式请求并手动刷新；取得匹配回执后仍按既有说明/版本/权限显式对账。该证明依赖目标受保护状态目录/文件系统持久化、时钟和已安装helper契约；不将网络错误、文件缺失或人工描述本身当作停止证明。已接收后丢失执行结果仍继续隔离，不能借此自动清理/重跑。请求过期或请求人被禁用/撤权后，不再获取新证明，已记录历史回执仍按原显式对账规则处理。
 
 新增目标未到期拒绝/未接收持久失败/晚到正文不执行/accepted-running-lock忙损坏保持未知及PG请求幂等/无证明不放行/撤权阻断源码用例，均未运行；仅定向格式化/API生成，不代表软件/硬件验收。
+
+
+### 本轮新增入口的最小请求形状（源码契约，未执行）
+
+批准脚本仍走独立`POST /api/v1/projects/{id}/ssh-script-executions`或`agent-script-executions`，请求示意（ID占位值须替换为当前项目的明确选择）：
+
+```json
+{"machine_ids":["<machine-id>"],"media_id":"<approved-media-id>","timeout_ms":5000,"result_format":"json","prefer_cache":true}
+```
+
+请求遵循当前会话CSRF、项目角色、显式确认与稳定Idempotency-Key；不能把任意正文/路径/解释器参数塞入此API。`prefer_cache`省略/false保留传正文，`result_format`省略/空字符串保留文本结果，目标开关由操作员现有受保护配置明确管理。
+
+过期unknown脚本在原尝试抽屉显式申请未启动证明，或向`POST /api/v1/projects/{id}/executions/{executionId}/attempts/{attemptId}/script-nonstart-proof`发送：
+
+```json
+{"expected_version":7,"confirmed":true}
+```
+
+`202 requested`只证明请求已登记，5分钟有效；不能把它当作未启动或释放隔离证明。等待拥有通道的worker取得并保存目标回执后，通过原attempt读取/刷新检查，再按现有Reconcile操作显式对账；此请求不重新执行脚本。演示版本号是占位，必须使用当前尝试版本。当前执行事实摘要可只读`GET /api/v1/projects/{id}/executions/{executionId}/report`，详细内容与边界见FR1-EXECUTION-VIEWS。上述请求未在当前3000旧版执行，本节不是运行或验收记录。
