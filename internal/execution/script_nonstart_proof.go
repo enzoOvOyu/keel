@@ -37,7 +37,7 @@ func (s *Service) RequestScriptNonstartProof(ctx context.Context, a *Actor, proj
 	if err = authorize(ctx, tx, a, project, "Admin", "DL", "SRE"); err != nil {
 		return nil, err
 	}
-	idem, prior, err := idempotency(ctx, tx, a, "script.nonstart:"+attemptID, key, in)
+	idem, prior, err := idempotency(ctx, tx, a, "script.nonstart:"+project+":"+id+":"+attemptID, key, in)
 	if err != nil {
 		return nil, err
 	}

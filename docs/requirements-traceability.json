@@ -1303,8 +1303,12 @@
         "scripts/check-ssh-integration.py",
         "scripts/check-ssh-trust-browser.mjs",
         "web/src/features/assets/SSHTrustRequests.tsx",
-        "internal/taskrunner/trust_admission_integration_test.go"
-      ]
+        "internal/taskrunner/trust_admission_integration_test.go",
+        "internal/execution/report.go",
+        "web/src/features/execution/ExecutionReportDownload.tsx",
+        "docs/FR1-EXECUTION-VIEWS.md"
+      ],
+      "evidence": " Source-only execution report export aggregates frozen flow/target identity, current latest-task states, planned/unobserved slots, historical matching receipt provenance and unknown held-resource counts in one repeatable-read snapshot. Hardware acceptance and GateEvidence remain false; raw logs/bodies/credentials remain outside the summary, with scoped paged evidence references. Not a generic report.aggregate task closure; not tested or deployed; HANDOFF section134."
     },
     {
       "id": "WP-1.5",
@@ -1596,8 +1600,12 @@
         "docs/HANDOFF.md",
         "web/src/components/WorkspaceNavigation.tsx",
         "scripts/check-workspace-browser.mjs",
-        "scripts/check-ui-migration-integration.py"
-      ]
+        "scripts/check-ui-migration-integration.py",
+        "internal/execution/report.go",
+        "web/src/features/execution/ExecutionReportDownload.tsx",
+        "docs/FR1-EXECUTION-VIEWS.md"
+      ],
+      "evidence": " Source-only execution report export aggregates frozen flow/target identity, current latest-task states, planned/unobserved slots, historical matching receipt provenance and unknown held-resource counts in one repeatable-read snapshot. Hardware acceptance and GateEvidence remain false; raw logs/bodies/credentials remain outside the summary, with scoped paged evidence references. Not a generic report.aggregate task closure; not tested or deployed; HANDOFF section134."
     },
     {
       "id": "WP-1.9",

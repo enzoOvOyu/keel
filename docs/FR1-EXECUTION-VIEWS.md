@@ -90,3 +90,6 @@ SSE 每条连接在25秒内轮换，低于现有 API 的30秒写超时；游标�
 执行中心增加「导出执行报告」，按当前项目成员/会话权限调用`GET /executions/{id}/report`，返回`execution-evidence-report/v1` JSON。同一repeatable-read事务复用原overview计算，固定Flow版本/hash、目标集合hash、冻结时间和当前执行/尝试状态，另列计划任务槽位、尚无尝试的槽位、匹配command/attempt/fence的历史终态回执数量及声明来源、unknown实际持有的资源数。报告完整仅表示全部计划槽位已终态，不表示成功或验收。
 
 报告固定`hardware_acceptance:false`与`gate_evidence:false`；未开始、运行中、未知和历史来源不被改写为PASS。输出只含汇总和原授权分页matrix/outputs/journal/relations引用，不打包原始日志、脚本正文、凭据或全量目标回执。页面请求时才生成，无后台轮询，无状态变更/自动解锁。此增量提供报告聚合基础与导出，不声称通用`report.aggregate` Flow任务、门禁签署或完整证据归档已完成。相关PG计划槽位/未知隔离/来源与冻结身份/范围/正文不泄露回归源码已补，尚未运行。
+
+
+批准脚本的执行工作台使用独立脚本提示，不沿用SSH/Agent只读任务描述。Outputs与尝试详情从原host来源回执展示实际进程是否启动、进程树停止证明、缓存内容核对、退出码、结果原因及可用摘要；未启动不表述为曾运行后停止。原过期派发的nonstart_proof明确仍须在尝试详情显式对账，未知启动/停止状态不补成功。原始回执和结构化结果继续保留。此显示层源码未验证。
