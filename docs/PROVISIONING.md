@@ -309,3 +309,8 @@ SSH未知结果仅显式query原helper回执；只有当前fresh pinned query证
 ### TFTP分发事实
 
 小型iPXE固件仍是TFTP唯一允许资源。隔离socket逐块确认完整UDP写出、严格核对同一客户端TID/interface上的最终ACK后，复用HTTP的`boot.file_served`存储；此前各块必须实际确认发送，重传不加字节，512整数倍文件必须完成空终止块握手。记录前重新检查当前授权，存储层仍核对冻结对象版本/sha/大小和原独占租约。该事件只作服务器传输辅助事实，`server_write_only`不因UDP ACK提升成客户端执行或启动证据。纯协议驱动、部分/取消/撤销和缺ACK不产出事件；写证据失败不触发发送重试。源码边界用例尚未运行，见HANDOFF §115；§110的TFTP缺口历史记录由本节源码补齐，真实UDP/固件PoC仍待验证。
+
+
+### 批量只读核验
+
+修复列表逐机展开已存在的终态失败查询证据后，可显式加入最多32个节点的核验选择，统一确认原因。`POST /api/v1/projects/{id}/provision/installations/ssh-verifications`要求CSRF、当前Admin/DL/SRE和完整Idempotency-Key，每项绑定installation_id/expected_version/repair_event_id/failed_event_id。沿用原单机准入和新只读probe机制，整批原子授权，任一过期/变化/未知成员令整批回滚。任务派发及成功互信仍独立重查当前权限和真实回执；批量接受不等于完成修复，不能推送凭据、重装、续租或解除unknown隔离。相同幂等请求返回原授权，不能利用新key重复消费失败。源码及尚未执行的数据库边界用例见HANDOFF §117。

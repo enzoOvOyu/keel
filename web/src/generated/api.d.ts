@@ -106,6 +106,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/provision/installations/ssh-verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Atomically authorize 1-32 explicit read-only SSH verifications using the same per-node known terminal failure, current actor/source and original live fenced claim checks. Reject all if any node is stale/unknown. Canonical selection and reason bind Idempotency-Key; acceptance is not a successful verification. No new native attempt, lease renewal or reinstall. */
+        post: operations["requestProvisionSSHBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/provision/installations": {
         parameters: {
             query?: never;
@@ -2904,6 +2921,22 @@ export interface components {
             created_at: string;
             requests: components["schemas"]["ProvisionRequest"][];
         };
+        ProvisionSSHBatchItem: {
+            /** Format: int64 */
+            expected_version: number;
+            /** Format: int64 */
+            repair_event_id: number;
+            /** Format: int64 */
+            failed_event_id: number;
+            installation_id: string;
+        };
+        ProvisionSSHBatchInput: {
+            items: components["schemas"]["ProvisionSSHBatchItem"][];
+            reason: string;
+        };
+        ProvisionSSHBatch: {
+            verifications: components["schemas"]["ProvisionSSHVerification"][];
+        };
         ProvisionSSHVerificationInput: {
             /** Format: int64 */
             expected_version: number;
@@ -5696,6 +5729,51 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProvisionSSHVerification"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Installation runtime or approved SSH configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestProvisionSSHBatch: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionSSHBatchInput"];
+            };
+        };
+        responses: {
+            /** @description Explicit read-only verification authorized; success remains unproven */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionSSHBatch"];
                 };
             };
             400: components["responses"]["InvalidRequest"];

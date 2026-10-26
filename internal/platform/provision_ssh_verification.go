@@ -55,6 +55,14 @@ func (s *Store) RequestProvisionSSHVerification(ctx context.Context, a *AuthSess
 	if err = validateProvisionSSHRetryActorTx(ctx, tx, project, a.User.ID); err != nil {
 		return nil, err
 	}
+	out, err := requestProvisionSSHVerificationTx(ctx, tx, a, project, id, in, trace)
+	if err != nil {
+		return nil, err
+	}
+	return out, tx.Commit()
+}
+
+func requestProvisionSSHVerificationTx(ctx context.Context, tx *sql.Tx, a *AuthSession, project, id string, in ProvisionSSHVerificationInput, trace string) (*ProvisionSSHVerification, error) {
 	x, request, scope, until, err := installationMutationTx(ctx, tx, project, id)
 	if err != nil {
 		return nil, err
@@ -96,7 +104,7 @@ func (s *Store) RequestProvisionSSHVerification(ctx context.Context, a *AuthSess
 		if consumed {
 			return nil, apiError(409, "PROVISION_SSH_VERIFICATION_CONSUMED", "This failed receipt already authorized a replacement probe")
 		}
-		return &ProvisionSSHVerification{ID: prior, InstallationID: x.ID, RepairEventID: in.RepairEventID, FailedEventID: failedID, Status: "pending", Mode: "run"}, tx.Commit()
+		return &ProvisionSSHVerification{ID: prior, InstallationID: x.ID, RepairEventID: in.RepairEventID, FailedEventID: failedID, Status: "pending", Mode: "run"}, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
@@ -119,7 +127,7 @@ func (s *Store) RequestProvisionSSHVerification(ctx context.Context, a *AuthSess
 	if err = appendAudit(ctx, tx, a.User.ID, project, "provision.first_boot.ssh_verification_requested", id, trace, evidence); err != nil {
 		return nil, err
 	}
-	return out, tx.Commit()
+	return out, nil
 }
 
 func provisionPendingFirstSSHWorkTx(ctx context.Context, tx *sql.Tx, id string) (bool, error) {
