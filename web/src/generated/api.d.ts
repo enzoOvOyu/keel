@@ -2875,6 +2875,11 @@ export interface components {
             resource: components["schemas"]["ProvisionProgressResource"];
             failure_reason?: string;
             ssh_repair?: components["schemas"]["ProvisionSSHRepair"];
+            /**
+             * @description Registered installations only: current public configuration match; no secret resolution or network operation. This is not execution admission or a fresh SSH proof.
+             * @enum {string}
+             */
+            ssh_configuration?: "matched" | "configuration_required" | "identity_changed" | "credential_unavailable";
         };
         ProvisionRackRequestItem: {
             asset_id: string;

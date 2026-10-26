@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～115。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～116。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
@@ -1394,3 +1394,10 @@ initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新�
 接续26062b5。原Linux隔离TFTP socket路径在每次WriteToUDP返回全长且无错误后才确认当前精确DATA字节，顺序累计一次、超时重传不重复计数；空终止块仍须发出并收到最后ACK。最终ACK沿原客户端IP/port TID与interface校验，全部字节/块一致且文件成功关闭后，强制再验当前权限再调用原FileDeliveryAuthority；部分/跳块/改字节/关闭/无最终ACK/取消/撤销不记完成。纯OpenTFTP/Next消费不等于已发送，也不能记录事实。证据存储失败只缺证据，不重发、不假成功。沿用现有按资源去重的boot.file_served及server_write_only语义，不证明客户端执行、iPXE/OS启动或SSH互信。
 
 新增无socket的传输边界用例源码覆盖1/511/512/513/1024字节、整块末尾空包、重传不重计、无发送确认/最终ACK、提前关闭、撤销、取消、落库失败只调用一次及篡改/跳块拒绝；未执行用例，不冒充真实UDP或硬件验证。集中入口既有provisionboot全包已覆盖新测试。三包仅编译与provisionboot/platform vet退出0（/tmp/keel-tftp-delivery-{compile,vet}.log）；设计/diff检查记录同前缀design日志。无镜像/迁移/生产listener/push，3000未更新，WP-1.7/P1 partial。
+
+
+## 116. 已注册后的普通SSH配置状态（2026-10-26）
+
+接续2b114ca。沿WP-1.7→WP-1.5接续复核确认：真实首次SSH互信与普通operator配置是独立边界，provision-only不能被成功回执隐式晋升。原普通任务服务端已校验实际新host pin、精确已证明vault域身份和当前权限/资源；本次只补原进度API的registered后只读配置状态及双语显示，区分matched/configuration_required/identity_changed/credential_unavailable。读取当前资产provisioned、真实ssh trust/pin及完整公开域凭据，并在同事务核对当前未撤销/未过期的公开域钥版本；普通配置必须当前pin、vault引用/版本/有效期和已加载signer公钥一致且runner未关闭。配置比较不调用Resolve、不连接或修改operator文件，不推断worker/网络可用、无新SSH证明或任务授权，原七阶段持久验证事实保留。
+
+提取原CheckActiveCredential公共配置比较以复用，实际执行仍重新Resolve当前vault权限。新增纯无socket配置边界源码覆盖匹配、wrong pin/target/credential、provider不可用仍只读比较但执行拒绝、关闭/nil/provision-only不晋升；新增合成注册DB投影源码覆盖未配置、当前trust撤销和域钥撤销且不覆盖历史SSH成功，已接集中入口。按用户要求未运行用例。相关三包仅编译/vet、API生成、直接TypeScript/UI边界检查退出0（/tmp/keel-provision-config-status-{compile,vet,api,tsc,ui}.log），design/diff及脚本AST另记同前缀design日志。无SQL/镜像/push/生产连接，3000保持原版，P1 partial。

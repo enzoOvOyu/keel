@@ -66,15 +66,32 @@ func (s *SSH) CheckActiveCredential(ctx context.Context, project, machine string
 	if err != nil {
 		return ErrRejected
 	}
-	c := ep.config
-	if c.CredentialProvider != "vault" || c.PrivateKeyFile != "" || c.CredentialRef != credential.Ref || c.CredentialVersion != credential.Version || c.CredentialExpiresAt == nil || !c.CredentialExpiresAt.Equal(credential.ExpiresAt) {
-		return ErrRejected
-	}
-	public, err := installPublicIdentity(credential.PublicKey, project)
-	if err != nil || ssh.FingerprintSHA256(public) != ssh.FingerprintSHA256(ep.signer.PublicKey()) {
+	if !matchesDomainCredential(ep, project, credential) {
 		return ErrRejected
 	}
 	return nil
+}
+
+func matchesDomainCredential(ep endpoint, project string, credential InstallCredential) bool {
+	c := ep.config
+	if c.ProvisionOnly || ep.signer == nil || c.CredentialProvider != "vault" || c.PrivateKeyFile != "" || c.CredentialRef != credential.Ref || c.CredentialVersion != credential.Version || c.CredentialExpiresAt == nil || !c.CredentialExpiresAt.Equal(credential.ExpiresAt) {
+		return false
+	}
+	public, err := installPublicIdentity(credential.PublicKey, project)
+	return err == nil && ssh.FingerprintSHA256(public) == ssh.FingerprintSHA256(ep.signer.PublicKey())
+}
+
+// MatchesDomainConfiguration compares public selection only, without resolving a
+// secret, connecting or promoting a provision-only endpoint. The caller must
+// check current credential authority; execution still uses CheckActiveCredential.
+func (s *SSH) MatchesDomainConfiguration(project, machine, pin string, credential InstallCredential) bool {
+	if s == nil {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ep, ok := s.targets[project+":"+machine]
+	return ok && !s.closed && !credentialExpired(ep) && ep.binding.HostKey == pin && matchesDomainCredential(ep, project, credential)
 }
 
 func (s *SSH) CheckInstallCredential(project, machine string, credential InstallCredential) error {

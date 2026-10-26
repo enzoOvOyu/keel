@@ -29,7 +29,9 @@ Compose 将仓库外 `KEEL_SSH_RUNNER_DIRECTORY` 只读挂载到 `/run/keel/ssh`
 
 此入口只预留网络坐标。装机当前批准请求与认证首启报告绑定的新host pin、同peer/批准网段、精确项目域公钥/版本/到期时间仍必须由控制面核验；每次握手从vault重新取当前凭据，错误pin/peer、过期、撤销和关闭runner均拒绝。普通Binding、CredentialMetadata、run/query/cancel、旧凭据安装/普通域凭据检查一律拒绝此目标；HasTarget仍为true，不能借mock回退。
 
-首次核验和显式原回执query使用私有临时endpoint，不修改operator配置，也不把连接提升为普通任务池。验证成功后若需普通SSH任务，操作员须独立核对并更新为有实际新host pin和已证明vault身份的普通配置。这里只是允许无旧pin的首装前置，不能代替首启认证、真正SSH回执或P1验收；新增配置/回环用例仅源码，尚未执行。
+首次核验和显式原回执query使用私有临时endpoint，不修改operator配置，也不把连接提升为普通任务池。验证成功后若需普通SSH任务，操作员须独立核对并更新为有实际新host pin和已证明vault身份的普通配置。已registered安装的进度面板单独显示当前普通配置状态：当前资产/真实互信及未撤销域钥均有效后，再比对普通配置的实际pin、vault引用/版本/有效期和公钥；provision-only或缺配置显示需操作员更新。只读匹配不Resolve私钥或连接目标，也不证明worker/网络可用，实际任务仍按原准入执行。
+
+这里只是允许无旧pin的首装前置，不能代替首启认证、真正SSH回执或P1验收；新增配置/回环用例仅源码，尚未执行。
 
 ## 目标 helper 与回执
 

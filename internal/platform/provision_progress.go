@@ -3,6 +3,10 @@ package platform
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
+
+	"github.com/enzoOvOyu/keel/internal/taskrunner"
 	"strings"
 	"time"
 )
@@ -28,14 +32,15 @@ type ProvisionProgressResource struct {
 	ReconciliationRequired bool       `json:"reconciliation_required"`
 }
 type ProvisionInstallationProgress struct {
-	InstallationID string                    `json:"installation_id"`
-	State          string                    `json:"state"`
-	StateVersion   int64                     `json:"state_version"`
-	ObservedAt     time.Time                 `json:"observed_at"`
-	Stages         []ProvisionProgressStage  `json:"stages"`
-	Resource       ProvisionProgressResource `json:"resource"`
-	SSHRepair      *ProvisionSSHRepair       `json:"ssh_repair,omitempty"`
-	FailureReason  *string                   `json:"failure_reason,omitempty"`
+	InstallationID   string                    `json:"installation_id"`
+	State            string                    `json:"state"`
+	StateVersion     int64                     `json:"state_version"`
+	ObservedAt       time.Time                 `json:"observed_at"`
+	Stages           []ProvisionProgressStage  `json:"stages"`
+	Resource         ProvisionProgressResource `json:"resource"`
+	SSHConfiguration string                    `json:"ssh_configuration,omitempty"`
+	SSHRepair        *ProvisionSSHRepair       `json:"ssh_repair,omitempty"`
+	FailureReason    *string                   `json:"failure_reason,omitempty"`
 }
 type provisionProgressFact struct {
 	ProvisionProgressEvidence
@@ -184,8 +189,46 @@ func (s *Store) ReadProvisionInstallationProgress(ctx context.Context, a *AuthSe
 	if err != nil {
 		return nil, err
 	}
+	if x.State == "registered" {
+		out.SSHConfiguration, err = s.provisionSSHConfigurationTx(ctx, tx, x)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
 	return out, nil
+}
+
+// Configuration matching is current public metadata, independent of historical
+// successful SSH evidence. No private key is fetched by this read-only view.
+func (s *Store) provisionSSHConfigurationTx(ctx context.Context, tx *sql.Tx, x *ProvisionInstallation) (string, error) {
+	var state, trust, source, pin string
+	var raw []byte
+	err := tx.QueryRowContext(ctx, `SELECT a.state,m.ssh_trust,m.ssh_trust_source,m.host_key_fingerprint,m.ssh_domain_credential
+ FROM project_assets a JOIN machines m ON m.id=a.machine_id
+ WHERE a.project_id=$1 AND m.id=$2 FOR SHARE OF a,m`, x.ProjectID, x.MachineID).Scan(&state, &trust, &source, &pin, &raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "identity_changed", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	var credential *taskrunner.InstallCredential
+	if state != "provisioned" || trust != "established" || source != "ssh" || !taskrunner.IsValidHostKey(pin) || json.Unmarshal(raw, &credential) != nil || credential == nil || credential.Ref == "" || credential.Version == "" || credential.PublicKey == "" || credential.ExpiresAt.IsZero() {
+		return "identity_changed", nil
+	}
+	key, err := ReadSSHInstallCredential(ctx, tx, x.ProjectID, *credential, time.Now())
+	if err != nil {
+		var domainError *Error
+		if errors.As(err, &domainError) {
+			return "credential_unavailable", nil
+		}
+		return "", err
+	}
+	if !s.SSHRunner.MatchesDomainConfiguration(x.ProjectID, x.MachineID, pin, *key) {
+		return "configuration_required", nil
+	}
+	return "matched", nil
 }
