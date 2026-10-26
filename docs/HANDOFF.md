@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～90。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～92。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
-## 当前恢复入口（2026-10-26，本次两小时开发窗口）
+## 当前恢复入口（2026-10-26，两小时开发窗口已结束）
 
-用户于2026-10-26 00:11:10 UTC授权继续两小时开发，当前窗口至02:11:10 UTC。保持单Agent，不启动子代理；P1实现完成后集中联调/全量测试/浏览器验证/镜像发布，开发只做必要编译与静态检查。此前收工/暂停记录是历史快照。
+用户于2026-10-26 00:11:10 UTC授权继续两小时开发，窗口于02:11:10 UTC结束，本轮已收尾提交，详见§92。保持单Agent，不启动子代理；P1实现完成后集中联调/全量测试/浏览器验证/镜像发布，开发只做必要编译与静态检查。此前收工/暂停记录是历史快照。
 
-- **累计未发布源码（§75～90）**：此前的续签/主密钥重包裹/审计/Webhook等增量继续保留；本次从e0a9467接续，单Agent完成持久装机准备/独立审批/共享独占Execution与页面、隔离ProxyDHCP/HTTP/TFTP传输、Linux只读硬件预检与双架构helper、固定固件/helper启动配方与iPXE/清单生成和消费校验，以及无最终镜像前置循环的离线helper overlay生产/反向校验。修正Linux槽位ABI、NVMe实际health输出、传输中失效和准备完成时的当前准入边界。新增用例与集中/CI入口已写入但未运行。必要Go/TS编译、静态检查和指定双架构构建通过，不等于功能/SQL/镜像/硬件验证。源迁移50、运行46；3000仍§74。原草稿保留。
+- **累计未发布源码（§75～92）**：此前的续签/主密钥重包裹/审计/Webhook等增量继续保留；本次从e0a9467接续，单Agent完成持久装机准备/独立审批/共享独占Execution与页面、隔离ProxyDHCP/HTTP/TFTP传输、Linux只读硬件预检与双架构helper、固定固件/helper启动配方与iPXE/清单生成和消费校验，以及无最终镜像前置循环的离线helper overlay生产/反向校验。修正Linux槽位ABI、NVMe实际health输出、传输中失效和准备完成时的当前准入边界。新增用例与集中/CI入口已写入但未运行。必要Go/TS编译、静态检查和指定双架构构建通过，不等于功能/SQL/镜像/硬件验证。源迁移50、运行46；3000仍§74。原草稿保留。
 
 - **Agent网页只读链路已发布（§74）**：既有mTLS任务通过认证API/资产页启动并进入原执行五Tab，unknown由当前操作员凭worker查询的真实回执显式对账；实际HTTP/Agent/浏览器和完整CI通过。生产HTTP任务准入、listener及worker继续关闭。
 
@@ -1191,3 +1191,18 @@ Make新增build-installer-helpers跨架构生产两份实际helper；CLI不接DB
 ## 91. 准备看板读取失败与切换项目清除旧操作（2026-10-26，源码待集中验证）
 
 接续0945c9e，看板列表任何当前读取失败均隐藏缓存操作行并关闭确认弹窗；项目变化重置分页/选择，弹窗另校验所属项目，防止沿用上一项目选择。仍复用shadcn/ui，无样式/字体替换。既有集中浏览器脚本新增503后旧行消失、恢复读取后重新出现的场景；同时修正旧PASS日志的“no execution”措辞，因为现在实际创建原生准备Execution，只能声明无安装/资产状态变化。场景未运行，仅JS语法、TS类型及UI静态边界检查，结果见窗口收工记录。
+
+
+## 92. 本轮两小时开发交接（2026-10-26，00:11:10～02:11:10 UTC）
+
+唯一工作区/分支为/opt/keel、dev/p1-network-bom。接续e0a9467单Agent开发；本轮13个实现/验证入口源码提交为111364a、3619992、ff1791d、ff7f336、3b6118a、a7a8e81、6d075f3、ce48c9f、1fc17fe、ec562d6、1277abb、0945c9e、8f40e56，最后另提交本条交接/需求追踪压缩记录；均仅本地，未推送/触发CI/发布。各批具体事实见§79～91。
+
+本轮形成准备请求/独立审批/共享执行器与页面、隔离引导传输、只读硬件预检/双架构helper、固定启动配方/iPXE/清单生成校验、独立批准helper-set的离线overlay生产/反向验证；并修正真实Linux槽位/NVMe输出、传输中失效、准备完成时准入和页面旧操作残留。P1与WP-1.7仍partial：无已验收可启动initrd、实际安装/一次性回调许可/生产Authority/SSH首连闭环，prepared只证明源准备。
+
+实际完成必要Go包/命令编译（go test -run '^$'，无用例运行）、定向go vet、OpenAPI/TS生成与tsc、UI/版本静态边界、设计DAG检查、Python/JS/CI YAML及嵌入shell语法检查，并成功编译指定amd64/arm64静态helper/admin；最终新增boot/preflight/preflight CLI的linux/arm64编译也退出0（/tmp/keel-provision-final-arm64-compile.log）。最终平台/执行器编译与vet为/tmp/keel-provision-late-expiry-{compile,vet}.log；看板tsc/UI为/tmp/keel-provision-board-final-{tsc,ui}.log，均退出0。上述不是功能/SQL/CLI/固件/硬件证据。新用例只写入；遵照用户P1开发完成后集中测试，没有运行集成入口、新离线CLI、浏览器或镜像构建。
+
+02:08 UTC只读复核：3000 /healthz为status=ok、版本6668a72c1adaeb2444b8c28a3f4db4f038db49dd，实际镜像sha256:c6fbfd82912588f0f428a18440761ac6146a9c8b4e7db8de83c48e5adf79bdae、容器healthy；Keel PostgreSQL/Redis/MinIO及15433测试PG亦healthy；runsun/5173未动。.env仍600。没有应用053或任何SQL：源迁移50、运行基线46/至049继续保留，不能把源码当3000已交付。
+
+下一步直接沿PROVISIONING最后一节推进：先明确独立批准目标磁盘/布局的安装契约，完成受控initrd的无写盘准备及默认拒绝许可接口；不把MinimumDisks、现有cloud-init或overlay当可安装证明。随后接真实装机Execution/当前网络与独占lease Authority、一次性认证回调/当前写盘许可、首启host-key和真实SSH首连/修复、七阶段事件投影。不要重做已完成准备/传输，也不借FR-0扩展P2～P4依赖。集中验证入口已接线，待P1实现闭环后使用。
+
+继续保护原未跟踪internal/platform/fabric_precheck.go与internal/platform/migrations/026_fabric_precheck.sql，不编译/提交/迁移/删除；Host Go包括gofmt继续使用GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json、GOMEMLIMIT=768MiB、GOMAXPROCS=2。保留所有数据卷、原服务、回滚镜像和受保护证据。本轮无新增开发子代理或后台装机任务。

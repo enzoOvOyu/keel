@@ -140,4 +140,4 @@ CI中的既有Agent专用PostgreSQL集成步亦显式包含`TestProvisionExecuti
 
 WP-1.7仍为partial；从已完成的helper-set/overlay和文件校验继续，不重做准备申请或传输模块。下一完整单元是受控安装环境：先补明确的存储安装契约（独立批准的目标磁盘选择/布局和身份，缺失或歧义阻断；MinimumDisks仅健康库存下限，不能选盘授权），再实现实际initrd入口、驱动/smartctl输入、固定对象字节校验和写盘前预检。现有受限cloud-init模板用于首启账户/域公钥配置，不承担磁盘安装/任意脚本授权；不得假定普通rootfs或helper overlay可自行安装。此处是下一单元的输入要求，当前没有新增选盘字段、许可或写盘实现。
 
-此后才接真实安装Execution/独占lease与当前网络所有权Authority、只经可信启动环境交付的一次性回调凭据、预检结果/当前许可、首启新host-key绑定、真实SSH首连及修复队列，最后将已有真实事件投影为七阶段页面。回调项目/申请/SN/MAC/attempt/command/fence必须一致；Grant公共ID、DHCP fingerprint、prepared和自报PASS均不能替代一次性认证及当前许可。各单元按设计可独立开发，P1实现闭环后集中执行已接线的软件/PG/HTTP/CLI/浏览器检查，真实可启动镜像与硬件验收另列证据。
+initrd入口先交付无写盘准备与默认拒绝的许可接口，不依赖尚不存在的在线服务才能构建，也不能在许可缺失时开放安装。此后接真实安装Execution/独占lease与当前网络所有权Authority、只经可信启动环境交付的一次性回调凭据、预检结果/当前许可、首启新host-key绑定、真实SSH首连及修复队列，最后将已有真实事件投影为七阶段页面。回调项目/申请/SN/MAC/attempt/command/fence必须一致；Grant公共ID、DHCP fingerprint、prepared和自报PASS均不能替代一次性认证及当前许可。各单元按设计可独立开发，P1实现闭环后集中执行已接线的软件/PG/HTTP/CLI/浏览器检查，真实可启动镜像与硬件验收另列证据。
