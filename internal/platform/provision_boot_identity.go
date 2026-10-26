@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"net/netip"
 	"os"
 	"time"
 
@@ -12,21 +13,8 @@ import (
 	"github.com/enzoOvOyu/keel/internal/provisionpreflight"
 )
 
-type ProvisionBootToken struct {
-	ID             string                  `json:"id"`
-	InstallationID string                  `json:"installation_id"`
-	ProjectID      string                  `json:"project_id"`
-	GrantID        string                  `json:"grant_id"`
-	Spec           provisionpreflight.Spec `json:"spec"`
-	ExpiresAt      time.Time               `json:"expires_at"`
-}
-type ProvisionBootIdentity struct {
-	InstallationID string    `json:"installation_id"`
-	BootID         string    `json:"boot_id"`
-	Sequence       int64     `json:"sequence"`
-	State          string    `json:"state"`
-	ExpiresAt      time.Time `json:"expires_at"`
-}
+type ProvisionBootToken = provisionboot.BootstrapBinding
+type ProvisionBootIdentity = provisionboot.BootAcknowledgment
 
 func provisionTokenHash(raw string) string { return digest("keel-provision-boot-token-v1:" + raw) }
 func requireProvisionTokenOwnerTx(ctx context.Context, tx *sql.Tx) error {
@@ -126,6 +114,25 @@ func bootIdentity(x *ProvisionInstallation) *ProvisionBootIdentity {
 	return &ProvisionBootIdentity{InstallationID: x.ID, BootID: *x.BootID, Sequence: x.CallbackSequence, State: x.State, ExpiresAt: x.ExpiresAt}
 }
 func (s *Store) EnrollProvisionBoot(ctx context.Context, project, grant, token string, enrollment provisionboot.BootEnrollment, proof provisionboot.BootProof) (*ProvisionBootIdentity, error) {
+	return s.enrollProvisionBoot(ctx, project, grant, token, enrollment, proof, nil)
+}
+
+type provisionCallbackPeer struct {
+	scope provisionboot.Scope
+	peer  netip.Addr
+}
+
+func checkProvisionCallbackPeer(want *provisionCallbackPeer, current *ProvisionBootScope) error {
+	if want == nil {
+		return nil
+	}
+	raw, err := json.Marshal(want.scope)
+	if err != nil || current == nil || current.ID != want.scope.ID || current.ProjectID != want.scope.ProjectID || digest(string(raw)) != current.ScopeSHA256 || !current.Scope.CheckPeer(want.peer) {
+		return ErrProvisionBootDenied
+	}
+	return nil
+}
+func (s *Store) enrollProvisionBoot(ctx context.Context, project, grant, token string, enrollment provisionboot.BootEnrollment, proof provisionboot.BootProof, peer *provisionCallbackPeer) (*ProvisionBootIdentity, error) {
 	if !s.ProvisionInstallEnabled || !validToken(token) || !modelIDPattern.MatchString(project) || !modelIDPattern.MatchString(grant) {
 		return nil, ErrProvisionBootDenied
 	}
@@ -145,8 +152,11 @@ func (s *Store) EnrollProvisionBoot(ctx context.Context, project, grant, token s
 		return nil, err
 	}
 	defer tx.Rollback()
-	x, _, _, _, err := installationMutationTx(ctx, tx, project, enrollment.InstallationID)
+	x, _, scope, _, err := installationMutationTx(ctx, tx, project, enrollment.InstallationID)
 	if err != nil {
+		return nil, err
+	}
+	if err = checkProvisionCallbackPeer(peer, scope); err != nil {
 		return nil, err
 	}
 	if x.GrantID != grant || x.State != "booting" || x.BootID != nil || x.CallbackSequence != 0 {
@@ -190,6 +200,9 @@ func (s *Store) EnrollProvisionBoot(ctx context.Context, project, grant, token s
 // enrolled private-key proof, exact next sequence and live execution authority.
 // It never projects installation success or accepts an unauthenticated PASS.
 func (s *Store) SubmitProvisionPreflight(ctx context.Context, project, grant string, raw []byte, proof provisionboot.BootProof) (*ProvisionBootIdentity, error) {
+	return s.submitProvisionPreflight(ctx, project, grant, raw, proof, nil)
+}
+func (s *Store) submitProvisionPreflight(ctx context.Context, project, grant string, raw []byte, proof provisionboot.BootProof, peer *provisionCallbackPeer) (*ProvisionBootIdentity, error) {
 	if !s.ProvisionInstallEnabled || len(raw) == 0 || len(raw) > 2<<20 {
 		return nil, ErrProvisionBootDenied
 	}
@@ -198,8 +211,11 @@ func (s *Store) SubmitProvisionPreflight(ctx context.Context, project, grant str
 		return nil, err
 	}
 	defer tx.Rollback()
-	x, _, _, _, err := installationMutationTx(ctx, tx, project, proof.InstallationID)
+	x, _, scope, _, err := installationMutationTx(ctx, tx, project, proof.InstallationID)
 	if err != nil {
+		return nil, err
+	}
+	if err = checkProvisionCallbackPeer(peer, scope); err != nil {
 		return nil, err
 	}
 	if x.GrantID != grant || x.BootID == nil || (x.State != "booting" && x.State != "preflight_ready") || x.StoragePlan != nil || x.CallbackSequence > 32 || provisionboot.VerifyBootProof(x.BootPublicKey, x.ID, *x.BootID, x.CallbackSequence+1, "preflight", raw, proof) != nil {

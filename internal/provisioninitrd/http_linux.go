@@ -3,9 +3,11 @@
 package provisioninitrd
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"io"
 	"net"
 	"net/http"
@@ -15,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/enzoOvOyu/keel/internal/provisionboot"
 	"golang.org/x/sys/unix"
 )
 
@@ -134,4 +137,39 @@ func (h *HTTPFiles) Get(ctx context.Context, name string) ([]byte, error) {
 		return nil, ErrUnavailable
 	}
 	return raw, nil
+}
+
+// PostCallback reuses the exact fixed-IP/interface/CA/hostname transport. POSTs
+// carry no idempotency key or replayable body and never follow redirects/retry.
+func (h *HTTPFiles) PostCallback(ctx context.Context, operation, token string, raw []byte) (*provisionboot.BootAcknowledgment, error) {
+	if h == nil || h.client == nil || len(raw) == 0 || len(raw) > provisionboot.MaximumCallbackBytes || (operation != "enroll" && operation != "preflight") || (operation == "enroll" && !digest.MatchString(token)) || (operation == "preflight" && token != "") {
+		return nil, ErrUnavailable
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.base+operation, bytes.NewReader(raw))
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	req.GetBody = nil
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept-Encoding", "identity")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	response, err := h.client.Do(req)
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK || response.ContentLength > 8192 || response.Header.Get("Content-Encoding") != "" || response.Header.Get("Content-Range") != "" {
+		return nil, ErrUnavailable
+	}
+	body, err := io.ReadAll(io.LimitReader(response.Body, 8193))
+	if err != nil || len(body) == 0 || len(body) > 8192 || ctx.Err() != nil {
+		return nil, ErrUnavailable
+	}
+	var ack provisionboot.BootAcknowledgment
+	if json.Unmarshal(body, &ack) != nil {
+		return nil, ErrUnavailable
+	}
+	return &ack, nil
 }

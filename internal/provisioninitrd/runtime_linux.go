@@ -119,7 +119,8 @@ func ReadBootInput() (Input, error) {
 }
 
 // RunPreparation is the bounded read-only boot phase. It stops after retaining
-// local evidence; it sends no callback and has no disk writer or shell escape.
+// local evidence. An explicitly delivered protected bootstrap enables signed
+// enrollment/preflight only; there is no disk writer or shell escape.
 func RunPreparation(ctx context.Context) (*Preparation, error) {
 	if MountRuntime() != nil {
 		return nil, ErrUnavailable
@@ -131,6 +132,13 @@ func RunPreparation(ctx context.Context) (*Preparation, error) {
 	roots, err := LoadBootRoots()
 	if err != nil {
 		return nil, ErrUnavailable
+	}
+	bootstrap, err := LoadBootstrap()
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	if bootstrap != nil {
+		defer func() { bootstrap.Token = "" }()
 	}
 	lease, err := ConfigureNetwork(ctx, input)
 	if err != nil {
@@ -147,14 +155,36 @@ func RunPreparation(ctx context.Context) (*Preparation, error) {
 		if err != nil {
 			return err
 		}
+		var session *BootSession
+		if bootstrap != nil {
+			session, err = EnrollBoot(ctx, input, files, bootstrap, filesClient)
+			if err != nil {
+				return err
+			}
+			defer session.Close()
+			bootstrap.Token = ""
+			if os.Remove(BootstrapPath) != nil {
+				return ErrUnavailable
+			}
+		}
 		preparation, err = Prepare(ctx, input, files, LinuxHelpers{}, time.Now)
+		if err == nil && session != nil {
+			preparation.BootCallbackStatus = "unknown"
+			preparation.BootAcknowledgment, err = session.Report(ctx, preparation, filesClient)
+			if err == nil {
+				preparation.BootCallbackStatus = "acknowledged"
+			}
+		}
 		return err
 	})
-	if err != nil || preparation == nil {
+	if preparation == nil {
 		return nil, ErrUnavailable
 	}
-	if err = storePreparation(preparation); err != nil {
+	if storeErr := storePreparation(preparation); storeErr != nil {
 		return nil, ErrUnavailable
+	}
+	if err != nil {
+		return preparation, ErrUnavailable
 	}
 	return preparation, nil
 }

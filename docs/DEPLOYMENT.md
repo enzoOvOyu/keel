@@ -1,6 +1,6 @@
 # 开发、验证与部署
 
-主工作区 `ubuntu@43.207.20.26:/opt/keel`。本文描述操作方法；当前分支、镜像、迁移与测试结果只维护在 [HANDOFF](HANDOFF.md)。固定工具链见 [TOOLCHAIN.json](TOOLCHAIN.json)、`go.mod`、`.nvmrc` 与 `package-lock.json`。
+主工作区为当前本地环境的 `/opt/keel`。本文描述操作方法；当前分支、镜像、迁移与测试结果只维护在 [HANDOFF](HANDOFF.md)。固定工具链见 [TOOLCHAIN.json](TOOLCHAIN.json)、`go.mod`、`.nvmrc` 与 `package-lock.json`。
 
 ## 1. 恢复既有开发环境
 
@@ -8,13 +8,11 @@
 cd /opt/keel
 git status -sb
 git log -1 --oneline
-tmux list-sessions
 docker compose --profile data ps
 curl --fail http://127.0.0.1:3000/healthz
-tmux attach -t codex-keel
 ```
 
-复用 `codex-keel`，不要覆盖已有窗口。当前 `scripts/dev-session.sh` 固定创建/复用的是 `keel`，与用户指定会话不同，不能用它代替恢复 `codex-keel`。需要启动 API/Vite 时先检查 3001/5173 是否已有本项目进程，再在自己的窗口使用 `make dev-api` / `make dev-web`；Go 源码修改不会自动重启 API，3000 镜像也不会随源码更新。
+用户于2026-10-26明确要求直接本地开发，不使用tmux或SSH绕转，不调用创建tmux会话的脚本。需要启动 API/Vite 时先检查 3001/5173 是否已有本项目进程，再使用直接启动命令；Go 源码修改不会自动重启 API，3000 镜像也不会随源码更新。
 
 ## 2. 配置与端口
 
@@ -32,7 +30,7 @@ tmux attach -t codex-keel
 
 配置目录700、秘密文件600；不打印配置内容。PostgreSQL/Redis/MinIO 命名卷保留；更新不使用 `down -v`。数据服务可用不等于其上业务已实现。开发 MinIO 采用仓库固定的官方源码构建，生产维护/备份/授权按发布要求另行验证。
 
-本机通过 SSH 隧道访问：
+当前环境直接访问loopback服务。只有从另一台电脑访问历史远端部署时才配置可选SSH隧道，本地开发不执行：
 
 ```sh
 ssh -i /path/to/enzo-using.pem -N -L 3000:127.0.0.1:3000 -L 5173:127.0.0.1:5173 ubuntu@43.207.20.26

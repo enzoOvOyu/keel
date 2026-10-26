@@ -18,12 +18,14 @@ type HelperRunner interface {
 	Run(context.Context, []byte, mediaboot.Artifact, string) ([]byte, int, error)
 }
 type Preparation struct {
-	Schema                string                     `json:"schema"`
-	ManifestSHA256        string                     `json:"manifest_sha256"`
-	ReportSHA256          string                     `json:"report_sha256"`
-	Status                string                     `json:"status"`
-	Report                *provisionpreflight.Report `json:"report"`
-	InstallationPerformed bool                       `json:"installation_performed"`
+	Schema                string                            `json:"schema"`
+	ManifestSHA256        string                            `json:"manifest_sha256"`
+	ReportSHA256          string                            `json:"report_sha256"`
+	Status                string                            `json:"status"`
+	Report                *provisionpreflight.Report        `json:"report"`
+	InstallationPerformed bool                              `json:"installation_performed"`
+	BootAcknowledgment    *provisionboot.BootAcknowledgment `json:"boot_acknowledgment,omitempty"`
+	BootCallbackStatus    string                            `json:"boot_callback_status,omitempty"`
 	// Exact verified report bytes are retained separately for evidence and a
 	// subsequent independently approved storage plan; never hash a re-encoding.
 	ReportBytes []byte `json:"-"`

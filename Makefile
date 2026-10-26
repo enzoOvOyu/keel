@@ -16,6 +16,7 @@ build:
 	go build -trimpath -o bin/keel-api ./cmd/keel-api
 	go build -trimpath -o bin/keel-admin ./cmd/keel-admin
 	go build -trimpath -o bin/keel-worker ./cmd/keel-worker
+	go build -trimpath -o bin/keel-provision ./cmd/keel-provision
 	go build -trimpath -o bin/keel-sim ./cmd/keel-sim
 	go build -trimpath -o bin/keel-ssh-runner ./cmd/keel-ssh-runner
 	go build -trimpath -ldflags="-X main.version=$(APP_VERSION)" -o bin/keel-agent ./cmd/keel-agent

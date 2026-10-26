@@ -99,6 +99,34 @@ func scanProvisionInstallation(row interface{ Scan(...any) error }) (*ProvisionI
 func LoadProvisionInstallationTx(ctx context.Context, tx *sql.Tx, project, id string) (*ProvisionInstallation, error) {
 	return scanProvisionInstallation(tx.QueryRowContext(ctx, "SELECT "+provisionInstallationColumns+" FROM provision_installations WHERE id=$1 AND project_id=$2", id, project))
 }
+
+const provisionInstallationBindingColumns = `id,project_id,request_id,machine_id,execution_id,scope_id,scope_sha256,snapshot_sha256,grant_id,created_by,expires_at,state,attempt_id,command_id,fencing_token,spec`
+
+func scanProvisionInstallationBinding(row interface{ Scan(...any) error }) (*ProvisionInstallation, error) {
+	x := &ProvisionInstallation{}
+	var spec []byte
+	err := row.Scan(&x.ID, &x.ProjectID, &x.RequestID, &x.MachineID, &x.ExecutionID, &x.ScopeID, &x.ScopeSHA256, &x.SnapshotSHA256, &x.GrantID, &x.CreatedBy, &x.ExpiresAt, &x.State, &x.AttemptID, &x.CommandID, &x.FencingToken, &spec)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if spec != nil {
+		x.Spec = &provisionpreflight.Spec{}
+		if json.Unmarshal(spec, x.Spec) != nil {
+			return nil, ErrProvisionBootDenied
+		}
+	}
+	return x, nil
+}
+
+// LoadProvisionInstallationBindingTx omits potentially multi-MiB historical
+// reports and storage plans from worker/transport liveness checks. It is an
+// internal binding view, never an API installation representation.
+func LoadProvisionInstallationBindingTx(ctx context.Context, tx *sql.Tx, project, id string) (*ProvisionInstallation, error) {
+	return scanProvisionInstallationBinding(tx.QueryRowContext(ctx, "SELECT "+provisionInstallationBindingColumns+" FROM provision_installations WHERE project_id=$1 AND id=$2", project, id))
+}
 func appendProvisionEventTx(ctx context.Context, tx *sql.Tx, x *ProvisionInstallation, kind string, payload map[string]any) error {
 	raw, err := json.Marshal(payload)
 	if err != nil || len(raw) > 12<<10 {

@@ -1,11 +1,15 @@
 package provisionboot
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/enzoOvOyu/keel/internal/provisionpreflight"
+	"time"
+	"unicode/utf8"
 )
 
 const BootProofSchema = "keel.provision-boot-proof/v1"
@@ -27,6 +31,57 @@ type BootEnrollment struct {
 	InstallationID string `json:"installation_id"`
 	BootID         string `json:"boot_id"`
 	PublicKey      string `json:"public_key"`
+}
+
+type BootAcknowledgment struct {
+	InstallationID string    `json:"installation_id"`
+	BootID         string    `json:"boot_id"`
+	Sequence       int64     `json:"sequence"`
+	State          string    `json:"state"`
+	ExpiresAt      time.Time `json:"expires_at"`
+}
+type EnrollmentSubmission struct {
+	Enrollment BootEnrollment `json:"enrollment"`
+	Proof      BootProof      `json:"proof"`
+}
+
+// Report is base64 in the envelope so the signed helper stdout bytes survive
+// JSON serialization exactly; it is decoded and recomputed by the authority.
+type PreflightSubmission struct {
+	Report []byte    `json:"report"`
+	Proof  BootProof `json:"proof"`
+}
+
+const MaximumCallbackBytes = (2<<20)*4/3 + 8192
+
+const BootstrapSchema = "keel.provision-boot-bootstrap/v1"
+
+type BootstrapBinding struct {
+	ID             string                  `json:"id"`
+	InstallationID string                  `json:"installation_id"`
+	ProjectID      string                  `json:"project_id"`
+	GrantID        string                  `json:"grant_id"`
+	Spec           provisionpreflight.Spec `json:"spec"`
+	ExpiresAt      time.Time               `json:"expires_at"`
+}
+type Bootstrap struct {
+	Schema  string           `json:"schema"`
+	Token   string           `json:"token"`
+	Binding BootstrapBinding `json:"binding"`
+}
+
+// The machine protocol emits canonical JSON, like public boot manifests.
+// Exact re-encoding rejects unknown, duplicate and case-aliased fields without
+// rewriting any signed report bytes inside the base64 field.
+func DecodeCallback(raw []byte, value any) error {
+	if len(raw) == 0 || len(raw) > MaximumCallbackBytes || !utf8.Valid(raw) || json.Unmarshal(raw, value) != nil {
+		return ErrDenied
+	}
+	canonical, err := json.Marshal(value)
+	if err != nil || !bytes.Equal(canonical, raw) {
+		return ErrDenied
+	}
+	return nil
 }
 
 func proofOperation(value string) bool {

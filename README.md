@@ -6,15 +6,14 @@
 
 ## 开发入口
 
-主工作区：`ubuntu@43.207.20.26:/opt/keel`，既有 tmux 会话：`codex-keel`。
+主工作区：当前本地环境的 `/opt/keel`，直接执行开发命令，不使用 tmux 或 SSH 绕转。
 
 ```sh
 cd /opt/keel
 git status -sb
-tmux attach -t codex-keel
 ```
 
-先读 [AGENTS](AGENTS.md) 与 [Codex 开发入口](docs/DEVELOPMENT.md)。Ctrl-b 再按 d 仅分离会话。当前 `scripts/dev-session.sh` 固定使用另一会话名 `keel`，恢复本项目时直接复用 `codex-keel`。
+先读 [AGENTS](AGENTS.md) 与 [Codex 开发入口](docs/DEVELOPMENT.md)。不调用会创建 tmux 会话的 `scripts/dev-session.sh`。
 
 | 文档 | 负责的内容 |
 |---|---|
@@ -30,7 +29,9 @@ tmux attach -t codex-keel
 
 ## 访问与检查
 
-部署预览为远端 3000；开发 API 为 3001，Vite 为 5173。源码更新不会自动更新已构建的 3000 镜像。
+当前环境部署预览为 3000；开发 API 为 3001，Vite 为 5173。源码更新不会自动更新已构建的 3000 镜像。
+
+需要从另一台电脑访问历史远端部署时，才按实际主机配置可选隧道；本地开发不执行：
 
 ```sh
 ssh -i /path/to/enzo-using.pem -N -L 3000:127.0.0.1:3000 -L 5173:127.0.0.1:5173 ubuntu@43.207.20.26

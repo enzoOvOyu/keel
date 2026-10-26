@@ -1,0 +1,274 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Keel isolated boot callback protocol",
+    "version": "0.1.0",
+    "description": "Source contract, opt-in server wiring only. Tokens never occur in URL, public boot resources or logs. Acknowledgment does not project asset/SSH trust. No writer or listener is enabled by this contract."
+  },
+  "paths": {
+    "/boot/{grantId}/enroll": {
+      "post": {
+        "operationId": "enrollInstallationBoot",
+        "description": "Separate isolated HTTPS origin on an approved direct-peer boot scope; no session cookies, Origin, proxy identity or automatic retry. Canonical JSON only. Exact current attempt/command/fence/exclusive lease/source/scope revalidated in the proof-consumption transaction. No write permission or installation success. Single-use out-of-band bootstrap token binds the per-boot Ed25519 key.",
+        "security": [
+          {
+            "bootBootstrap": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "grantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollmentSubmission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Proof consumed; this is not a write permit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Acknowledgment"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unavailable, unauthorized, changed scope/lease or replay; no secret/detail returned"
+          },
+          "413": {
+            "description": "Envelope too large"
+          },
+          "415": {
+            "description": "application/json required"
+          },
+          "503": {
+            "description": "Bounded callback capacity exhausted"
+          }
+        }
+      }
+    },
+    "/boot/{grantId}/preflight": {
+      "post": {
+        "operationId": "submitInstallationPreflight",
+        "description": "Separate isolated HTTPS origin on an approved direct-peer boot scope; no session cookies, Origin, proxy identity or automatic retry. Canonical JSON only. Exact current attempt/command/fence/exclusive lease/source/scope revalidated in the proof-consumption transaction. No write permission or installation success. No Authorization header; enrolled key signs exact decoded report and next sequence.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "grantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreflightSubmission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Proof consumed; this is not a write permit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Acknowledgment"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unavailable, unauthorized, changed scope/lease or replay; no secret/detail returned"
+          },
+          "413": {
+            "description": "Envelope too large"
+          },
+          "415": {
+            "description": "application/json required"
+          },
+          "503": {
+            "description": "Bounded callback capacity exhausted"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bootBootstrap": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "single-use 64 lowercase hexadecimal characters"
+      }
+    },
+    "schemas": {
+      "BootProof": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema",
+          "installation_id",
+          "boot_id",
+          "sequence",
+          "operation",
+          "payload_sha256",
+          "signature"
+        ],
+        "properties": {
+          "schema": {
+            "const": "keel.provision-boot-proof/v1"
+          },
+          "installation_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "boot_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "enroll",
+              "preflight",
+              "write-permit",
+              "install-stopped",
+              "first-boot"
+            ]
+          },
+          "payload_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "signature": {
+            "type": "string",
+            "contentEncoding": "base64"
+          }
+        }
+      },
+      "Enrollment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "installation_id",
+          "boot_id",
+          "public_key"
+        ],
+        "properties": {
+          "installation_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "boot_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "public_key": {
+            "type": "string",
+            "contentEncoding": "base64"
+          }
+        }
+      },
+      "EnrollmentSubmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "enrollment",
+          "proof"
+        ],
+        "properties": {
+          "enrollment": {
+            "$ref": "#/components/schemas/Enrollment"
+          },
+          "proof": {
+            "$ref": "#/components/schemas/BootProof"
+          }
+        }
+      },
+      "PreflightSubmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "report",
+          "proof"
+        ],
+        "properties": {
+          "report": {
+            "type": "string",
+            "contentEncoding": "base64",
+            "maxLength": 2796204,
+            "description": "Exact helper stdout, decoded length 1..2097152. Signature binds decoded bytes; recomputed against frozen Spec."
+          },
+          "proof": {
+            "$ref": "#/components/schemas/BootProof"
+          }
+        }
+      },
+      "Acknowledgment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "installation_id",
+          "boot_id",
+          "sequence",
+          "state",
+          "expires_at"
+        ],
+        "properties": {
+          "installation_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "boot_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "booting",
+              "preflight_ready",
+              "failed"
+            ]
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}

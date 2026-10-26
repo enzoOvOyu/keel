@@ -68,4 +68,7 @@ func TestOrdinaryProcessCannotActivatePrivilegedInitrdAdapters(t *testing.T) {
 	if _, err := LoadBootRoots(); err == nil {
 		t.Fatal("ordinary process read runtime trust file")
 	}
+	if _, err := LoadBootstrap(); err == nil {
+		t.Fatal("ordinary process read protected boot credentials")
+	}
 }

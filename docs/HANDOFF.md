@@ -1,8 +1,10 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～98。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～99。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，三小时开发窗口进行中）
+
+用户最新安排：直接在当前本地环境`/opt/keel`开发，不使用tmux或SSH绕转；相关AGENTS/README/DEPLOYMENT入口已修正。继续单Agent、集中验证。硬件/网络参数保持配置输入，PoC环节由用户后续提供，不阻断独立软件开发。当前HEAD接续3b84916，本批启动文件Authority/认证回调与显式隔离服务源码见§99。
 
 接续c0eb0c0，用户于2026-10-26 02:12:04 UTC授权继续三小时，窗口至05:12:04 UTC。单Agent，保持P1实现闭环后集中测试/浏览器/镜像策略；当前只执行必要编译和静态检查。本轮WP-1.7/FR-2.2～2.4先交付只读磁盘稳定身份与明确布局契约，再接受控安装环境、当前许可/一次性回调。输入为既有冻结申请、批准helper/配方和预检报告；磁盘计划绑定实际只读事实及独立选择，不自动选盘。输出为有界规范契约、采集和拒绝边界；后续API/持久审批/页面与真实执行分别落地，不把pure plan当授权。当前源码/服务与原草稿保护沿用§92。
 
@@ -1251,3 +1253,16 @@ Makefile新增双架构build-initrd，CI已有ARM编译列表加入新命令，�
 KEEL_PROVISION_INSTALL_ENABLED默认false，与准备开关分离；API/worker开启需独立KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE。此增量仅写盘前持久状态/准入：没有激活生产引导监听、文件Authority、签名回调HTTP接入、initrd凭据接收/续会话或实际写盘器。正常runner只能持锁等待或证明没有任何permit的写盘前失败/取消；不能生成成功。未来一旦发过permit，缺终态回执必须unknown并保留资源对账，不能借此分支解锁。启动后first-boot host-key绑定、真实SSH首连/修复、七阶段投影与真机PoC仍未完成，WP-1.7/P1保持partial。055未应用，运行库/3000/5173不变。
 
 启动签名错绑/重放/篡改/边界、原生Execution默认关闭/缺配方/幂等/无重试/与Agent互斥、无效initrd启动前失败/伪成功拒绝、未开始取消、撤域、未激活租约回收与资源对账用例只写入未运行；provision-only集中入口已覆盖新组。实际执行定向go test -run '^$'编译（/tmp/keel-install-session-{compile,final-compile}.log）、go vet（/tmp/keel-install-session-vet.log）、OpenAPI生成（/tmp/keel-install-session-api.log）和直接tsc（/tmp/keel-install-session-tsc.log），均退出0；生成首次从web目录查找不存在的本地binary退出127，改用仓库根既有工具成功。SQL/功能/CLI/浏览器/网络/镜像均未执行。保留026与fabric_precheck两份原未跟踪草稿。用户询问硬件资料，已说明优先提供一台代表性机器的启动MAC/网卡PCI身份、DHCP直连或relay拓扑、磁盘WWID/serial/精确几何及擦除授权；资料未到不阻断独立软件开发。
+
+
+## 99. 当前启动授权、隔离服务与签名预检回调接线（2026-10-26，源码待集中验证）
+
+接续3b84916。在当前本地`/opt/keel`完成，未使用tmux/SSH。新增平台ProvisionBootAuthority将ProxyDHCP、HTTP/TFTP文件和注册/预检回调接到真实DB安装会话；每次检查当前独占attempt/command/fence/lease、冻结BOM/SN/MAC/公钥/介质批准及完整scope摘要/直接peer，新增介质隔离状态门禁。Lookup保存标为auxiliary_only的DHCP指纹事件，不当作身份认证。文件仅批准角色或确定性渲染，不接受路径/URL；大文件复用原hash/重试/隔离核心，IO期间释放SQL连接与执行资源锁，250ms检查+hash后复查，避免挤占heartbeat连接。worker/文件liveness改读小绑定视图，不重复拉取多MiB历史报告。
+
+新增独立机器协议api/provision-boot.openapi.yaml与严格canonical JSON的HTTPS回调handler，固定enroll/preflight、实际TLS/Host/直接peer、无Cookie/Origin/转发信任、有界并发/正文/读超时；注册Token仅Authorization头，后续只用已注册Ed25519逐消息签名/递增sequence。预检报告以base64保留helper stdout精确字节。网络scope和当前权限在消费proof同一事务核对，不因先前HTTP检查放行。新增显式cmd/keel-provision，默认关闭，仅在两个开关、已批准项目scope、独立公钥、介质存储和受保护TLS证书/私钥齐备时源代码允许在固定批准接口/address运行HTTPS+ProxyDHCP+TFTP，scope失效或任何子服务退出取消全部。未调用该命令、未监听或改NIC/现网DHCP，未加入Compose自动服务。Make及既有ARM CI编译列表加入新命令，未实际构建镜像/运行CI。
+
+initrd复用原固定IP/interface/CA/hostname TLS客户端添加两种一次POST，无重定向/自动重发。受保护bootstrap文件保留为带外输入接口`/run/keel-bootstrap.json`：root PID1 ephemeral环境、tmpfs、单链接root 0600规则，必须在LoadBootstrap读取时已到位；实际硬件带外交付机制仍由PoC接入，不是已实现自动凭据分发。完整bootstrap Spec与独立验证manifest/seed/spec一致才注册新内存启动密钥，成功后删Token文件；缺文件仍只读本地证据，坏文件阻断。有凭据则只读Prepare后签精确报告，回包丢失不盲重发或新建身份；已有本地预检事实仍留tmpfs，callback_status=unknown不冒充控制器ACK。正常回执仅到preflight_ready/failed，不授予写盘。更正OpenAPI firmware枚举为实际uefi/bios并重生TS。
+
+新增HTTP/签名/重放/错源/重复字段/容量、客户端完整Spec错绑/回包丢失/POST不重定向、当前scope精确匹配、脱离SQL事务hash仍复查当前权限且撤销不重试、普通宿主不得读bootstrap等软件用例，均只写入未运行。实际定向go test -run '^$'编译（/tmp/keel-boot-{authority,callback,service,service-final}-compile.log）与定向vet（/tmp/keel-boot-service-vet.log）、OpenAPI类型生成（/tmp/keel-boot-service-api.log）、直接tsc（/tmp/keel-boot-service-tsc.log）退出0；纯JSON/Python脚本语法和文档检查另记录提交前结果。不执行新增功能/数据库/CLI/浏览器/网络用例，不应用SQL、不启服务/重建镜像/发布3000/推送。源迁移52条（不含026草稿，新增部分未应用）与运行46条保持差异；两份原未跟踪草稿和全部运行服务保留。
+
+WP-1.7/P1仍partial：下一步是同一启动身份下的互动预检刷新/审批状态衔接，以及受控writer的独立工具/镜像输入、当前写盘许可与真实写盘回执；随后首启host-key绑定、HTTP+DHCP辅助证据核对、SSH首连/修复及七阶段投影。当前客户端只完成一次注册/预检，不把30秒事实窗口自动延长或历史PASS当当前盘身份，也不把上述源码当实际启动或硬件验收。用户提供PoC环节后再接具体硬件/网络机制，软件正确性与硬件证据分别记录。

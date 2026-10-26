@@ -182,7 +182,7 @@ func (s *Service) runProvisionInstallationClaim(ctx context.Context, c *Claim) e
 				tx, e := s.DB.BeginTx(check, nil)
 				if e == nil {
 					var installation *platform.ProvisionInstallation
-					installation, e = platform.LoadProvisionInstallationTx(check, tx, c.Target.ProjectID, c.Target.ProvisionInstallationID)
+					installation, e = platform.LoadProvisionInstallationBindingTx(check, tx, c.Target.ProjectID, c.Target.ProvisionInstallationID)
 					if e == nil && installation.State != "failed" && installation.State != "canceled" {
 						_, _, _, e = platform.ValidateProvisionInstallationTx(check, tx, installation, time.Now())
 					}

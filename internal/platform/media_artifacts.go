@@ -207,6 +207,16 @@ func (s *Store) checkedMediaFile(ctx context.Context, tx *sql.Tx, m *MediaItemSu
 	if e = mediaIntegrityGate(ctx, tx, m.ID, false); e != nil {
 		return nil, e
 	}
+	return s.stagePinnedMedia(ctx, m, key, version, sha, size, nil, func() error { return mediaIntegrityGate(ctx, tx, m.ID, true) })
+}
+
+// stagePinnedMedia shares hashing, bounded retries and integrity observations.
+// Its caller chooses a final gate; detached boot reads hold no SQL connection
+// or execution/resource lock while object IO and live revalidation progress.
+func (s *Store) stagePinnedMedia(ctx context.Context, m *MediaItemSummary, key, version, sha string, size int64, check, finish func() error) (*stagedMedia, error) {
+	if s.MediaObjects == nil || finish == nil {
+		return nil, apiError(503, "MEDIA_STORAGE_UNAVAILABLE", "Media storage or final integrity gate is unavailable")
+	}
 	var last error
 	var mismatch *mediaIntegrityFailure
 	consecutive := 0
@@ -218,8 +228,17 @@ func (s *Store) checkedMediaFile(ctx context.Context, tx *sql.Tx, m *MediaItemSu
 		if err != nil {
 			last = apiError(503, "MEDIA_OBJECT_UNAVAILABLE", "Pinned media object is unavailable")
 		} else {
-			staged, err := stageMedia(body)
+			var reader io.Reader = body
+			var guarded *provisionGuardedBody
+			if check != nil {
+				guarded = &provisionGuardedBody{Reader: body, check: check, ctx: ctx}
+				reader = guarded
+			}
+			staged, err := stageMedia(reader)
 			body.Close()
+			if guarded != nil && guarded.failure != nil {
+				return nil, guarded.failure
+			}
 			if err != nil {
 				last = err
 			} else if staged.sha256 != m.Sha256 || staged.size != m.Size || staged.sha256 != sha || staged.size != size {
@@ -229,7 +248,7 @@ func (s *Store) checkedMediaFile(ctx context.Context, tx *sql.Tx, m *MediaItemSu
 				last = mismatch.cause
 			} else {
 				// Hold the final integrity gate through the caller's admission commit.
-				if err = mediaIntegrityGate(ctx, tx, m.ID, true); err != nil {
+				if err = finish(); err != nil {
 					staged.close()
 					return nil, err
 				}

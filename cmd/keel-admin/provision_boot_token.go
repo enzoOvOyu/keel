@@ -10,6 +10,7 @@ import (
 
 	"github.com/enzoOvOyu/keel/internal/agentpki"
 	"github.com/enzoOvOyu/keel/internal/platform"
+	"github.com/enzoOvOyu/keel/internal/provisionboot"
 )
 
 // This operator-only path never prints the secret or embeds it in public PXE
@@ -57,11 +58,7 @@ func runProvisionBootToken(command string, args []string) error {
 	if err != nil {
 		return err
 	}
-	raw, err := json.Marshal(struct {
-		Schema  string                       `json:"schema"`
-		Token   string                       `json:"token"`
-		Binding *platform.ProvisionBootToken `json:"binding"`
-	}{Schema: "keel.provision-boot-bootstrap/v1", Token: secret, Binding: metadata})
+	raw, err := json.Marshal(provisionboot.Bootstrap{Schema: provisionboot.BootstrapSchema, Token: secret, Binding: *metadata})
 	if err == nil {
 		err = agentpki.WriteNew(*output, append(raw, '\n'))
 	}

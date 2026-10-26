@@ -211,3 +211,14 @@ prepared只证明源准备完成，不能复用已经释放的准备锁开始装
 平台接口复核live独占租约及完整冻结来源，认证预检复算后存精确原始报告。`/provision/installations`列表/读取供Admin/DE/DL/SRE查看；`/{id}/storage`在30秒新鲜预检窗口显式选择WWID/serial/容量/扇区与擦盘意图，生成完整绑定Spec/原报告/设备号/diskseq的固定UEFI GPT/ext4布局；过期必须先在启动环境刷新预检，不能复用历史PASS。`/{id}/storage/approve`由另一当前Admin/DL批准确切版本，且不同于安装发起人与选盘人。人工批准不要求历史报告永远保持新鲜，但将来实际写入前必须重新采集验证并取得当前许可。每次变更重查scope审批、BOM、介质和公钥；失败或撤域不能制造安装成功/主机信任。
 
 当前没有生产文件Authority、注册/预检HTTP监听接线、initrd带外文件接收与互动预检刷新、write-permit端点、真实写盘、首启回调/host-key或SSH首连/修复、完整阶段投影。worker仅能证明从未发出写盘许可的失败/取消；将来发过permit而无终态证据须unknown，保留资源对账，不盲重试。055及新用例尚未运行，不能开启此源码增量当作已完成安装服务。
+
+
+### 当前授权与隔离引导服务（源码，尚未启用）
+
+`ProvisionBootAuthority`将已有隔离ProxyDHCP/HTTP/TFTP和签名注册/预检接到当前DB安装会话。公开MAC/Grant不提供回调权限；每次文件访问检查scope完整摘要、直接peer、当前执行租约/冻结来源及介质隔离状态。固定批准角色经真实字节校验后分发，iPXE/manifest/spec/seed确定性渲染；不接受客户端文件路径。对象IO期间不占SQL连接或attempt/resource锁，传输每250ms及hash后复查当前权限。DHCP指纹只记录辅助证据事件，不能代替一次凭据或启动私钥。后续真正完成注册仍须结合HTTP完成证据、指纹及首启/SSH验证，不在本阶段自动投影。
+
+独立协议见[provision-boot.openapi.yaml](../api/provision-boot.openapi.yaml)。POST `/boot/{grant}/enroll`使用单次Bearer Token，正文canonical `{enrollment,proof}`；POST `/boot/{grant}/preflight`不带Token，正文canonical `{report,proof}`，report为精确helper stdout的base64。原字节签名/重算，拒绝别名/重复字段、跨项目/启动/operation/sequence及过期/撤销。回调独立HTTPS、固定Host/直接peer、无Cookie/Origin/代理身份，scope当前状态在消费proof的同一事务重查。ACK只表示注册或预检入库，不是写盘许可。
+
+新增可执行源码`cmd/keel-provision`，仅显式启动，API/worker和Compose不自动拉起。须同时设置KEEL_PROVISION_SERVICE_ENABLED=true与KEEL_PROVISION_INSTALL_ENABLED=true、KEEL_PROVISION_PROJECT_ID/KEEL_PROVISION_SCOPE_ID、KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE、介质存储配置及KEEL_PROVISION_TLS_CERT_FILE/KEEL_PROVISION_TLS_KEY_FILE。scope须已独立批准并与实际服务器地址/接口/子网一致。证书须匹配批准origin且当前有效，私钥文件归当前操作者且0600；HTTPS仅TLS1.3，bind固定server IPv4及SO_BINDTODEVICE，UDP复用原ProxyDHCP与TFTP约束，不分配地址。scope失效/DB无法确认或子服务退出会取消其他listener；运行需显式网络端口/设备绑定权限，不自动提权/修改NIC。当前未执行该命令，未部署或验证监听。
+
+`/run/keel-bootstrap.json`是保留的可信带外输入，不在公共initrd/iPXE/seed中；必须由PoC确定的可信机制在runtime LoadBootstrap时交付，当前不提供自动交付。只在root PID1 ephemeral环境从tmpfs、root单链接私有文件读取；不存在则保持未注册只读准备，存在却无效则阻断。bootstrap整个Spec与独立验证boot files完全匹配才生成内存Ed25519密钥并注册。成功后删除Token文件，后续预检不再带Token。报告原字节签名；回包未知不重发、不重新注册、不声称成功，已采集事实仍保留本地tmpfs。当前只提供一次预检上报，后续互动刷新/审批/新网络会话与writer仍待接，不将历史事实当实时写盘依据。

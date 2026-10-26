@@ -58,6 +58,9 @@ func ValidateProvisionRequestMetadataTx(ctx context.Context, tx *sql.Tx, x *Prov
 		if current.State != "approved" || current.Sha256 != artifact.SHA256 || objectVersion != artifact.ObjectVersion {
 			return apiError(409, "PROVISION_MEDIA_CHANGED", "Frozen boot artifact is no longer approved with matching bytes")
 		}
+		if err = mediaIntegrityGate(ctx, tx, artifact.MediaID, true); err != nil {
+			return err
+		}
 	}
 	return nil
 }

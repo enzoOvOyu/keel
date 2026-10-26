@@ -2583,7 +2583,7 @@ export interface components {
         };
         ProvisionPreflightObservation: {
             /** @enum {string} */
-            firmware?: "UEFI" | "BIOS";
+            firmware?: "uefi" | "bios";
             source: string;
             /** Format: date-time */
             started_at: string;
