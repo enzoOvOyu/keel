@@ -19,7 +19,7 @@ from p1_evidence import go_test_evidence, repository_source, source_provenance, 
 
 os.umask(0o077)
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--run', default='TestOSBootMediaComposition|TestProvisionPreviewUsesCurrentBOMAndApprovedOS|TestProvisionRequest|TestCredentialMasterAtomicRewrapAndRecovery|TestAuditEvidence|TestCloudInit|TestMasterRewrap|TestSignedOSBootRoles|TestSSHCredentialCLI|TestWebhook|TestZTP|TestExecutionCircuitBreaker|TestDHCP6|TestMerge136|TestMock136|TestKeaDHCP6', help='Narrow only after a diagnosed failure; default covers this lifecycle batch')
+parser.add_argument('--run', default='TestOSBootMediaComposition|TestProvisionPreviewUsesCurrentBOMAndApprovedOS|TestProvisionRequest|TestCredentialMasterAtomicRewrapAndRecovery|TestAuditEvidence|TestCloudInit|TestMasterRewrap|TestSignedOSBootRoles|TestSSHCredentialCLI|TestWebhook|TestZTP|TestExecutionCircuitBreaker|TestDHCP6|TestMerge136|TestMock136|TestKeaDHCP6|TestBOM|TestModel|TestServerModel|TestSwitchPortCapability|TestOpticCompatibility', help='Narrow only after a diagnosed failure; default covers this lifecycle batch')
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 os.chdir(root)
@@ -52,6 +52,8 @@ try:
     evidence = go_test_evidence(transcript, result.returncode, {
         'owner_cli': ['TestCredentialMasterAtomicRewrapAndRecovery', 'TestAuditEvidenceDetectsOwnerChangesWithoutExportingMetadata', 'TestWebhookDurableOutboxDeliveryAndIsolation'],
         'ztp_200': ['TestZTPP1LogicalBatch200Postgres'],
+        'bom_identity': ['TestBOMPackageCommitAtomicIdentityAndIdempotency', 'TestBOMPackagePreviewIsReadOnlyAndDetectsBatchConflict', 'TestBOMMappingProfileApprovalAndVersionConflict', 'TestBOMMappedLineNumberAndManifestIdentity'],
+        'model_constraints': ['TestModelReferenceCounts', 'TestModelGlobalScope', 'TestServerModelHardwareDifferences', 'TestModelNICCountValidation', 'TestModelMACPrefixValidation', 'TestSwitchPortCapabilityChecks', 'TestOpticCompatibilityIssues'],
     })
     passed = evidence['passed_tests']
     owner_cli_verified = all(marker in transcript for marker in ['P1_LIFECYCLE_MASTER_CLI_OK', 'P1_LIFECYCLE_AUDIT_CLI_OK', 'P1_LIFECYCLE_WEBHOOK_CLI_OK']) and all(name in passed for name in ['TestCredentialMasterAtomicRewrapAndRecovery', 'TestAuditEvidenceDetectsOwnerChangesWithoutExportingMetadata', 'TestWebhookDurableOutboxDeliveryAndIsolation'])

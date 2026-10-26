@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～158。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～159。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
 当前用户规模调整（2026-10-26）：P1逻辑设备扇出按200台，原2,000台后续优化，不再阻断当前P1闭环；成功率/介质完整性/权限/恢复要求保留。默认脚本已改，尚未运行，详见§136。
 
-### 低Token接续入口（2026-10-26，接续§158）
+### 低Token接续入口（2026-10-26，接续§159）
 
 - 工作区`/opt/keel`、分支`dev/p1-network-bom`，单Agent。§137～140为批准制品/取回/未启动证明；§141～145为DHCPv6 136协议及项目模拟链、双通道版本化主机DAG/批准介质步骤和YAML定位；§146为重装/RMA身份历史。§147～150已补参数熔断默认值、无介质项目KV、独立RMA审批及200逻辑ZTP/H-15/H-16材料，最近提交`0c3bc0b`；§151～153已补通知可见性/邮件IM与原生DAG重跑，§154～155修正证据与KV领取，§156 Redis可重建队列源码检查点c3f0caf；§157补集中入口与证据完整性，不重做已有功能。
 - 用户要求直接推进至P1闭环；集中验证仍由用户另行安排。不运行测试、编译、静态检查、数据库、浏览器或镜像验证；必要gofmt/API生成只算源码产物。无tmux、SSH绕转、子Agent、工作树或推送。
@@ -1758,3 +1758,23 @@ P1当前按IMPLEMENTATION-PLAN§2退出判据继续收口：认证与项目隔�
 ## 158. worker健康绑定队列模式（2026-10-26，源码未验证）
 
 新增067而不改已提交066：exec_worker_heartbeats保存queue_mode，WorkerHealthy同时核对worker身份/执行模式/队列模式/10秒时效，DB-only心跳不能证明Redis模式健康，切换队列配置也不能沿用旧模式健康。实际Redis失败周期仍不更新心跳，原DB对账不中断。新增模式切换/过期心跳PG用例源码并纳入streams_postgresql组，未运行。源64迁移/运行46，059～067未应用；仅gofmt，无测试/编译/静态/SQL/服务/浏览器/镜像验证、部署或推送。
+
+## 159. P1退出判据与集中入口对应（2026-10-26，仅准备，未运行）
+
+集中验证授权仍待用户明确：已通过当前会话的异步问题请求是否开启P1验证，尚无答复时继续遵守不测试/不编译/不部署约束。不能把提问本身或等待时间当授权。新增BOM/型号默认过滤与独立组、首次SSH/密钥修复实际loopback传输组，复用原批次和编译入口，不启动新测试批次。
+
+| IMPLEMENTATION-PLAN§2的P1判据 | 已有集中入口/证据边界 | 本轮状态 |
+|---|---|---|
+| F-10.5/10.6登录会话 | check-auth-integration.py、check-oidc-integration.py、check-ldap-integration.py，各自隔离fixture | 未运行；本地成功不替代OIDC/LDAP |
+| F-17.2/17.5项目边界 | check-auth-integration.py、check-control-integration.py及各领域项目越界用例 | 未运行；需HTTP/UI与缓存/SSE证据 |
+| F-1.11/12可靠执行/锁 | check-agent-integration.py的Agent/原生DAG/队列/KV/PXE五组及check-ssh-integration.py | 未运行；Redis组需独立loopback16379，否则SKIP |
+| F-1.13受限正向路径 | 同一Agent/SSH/native/KV/PXE准入及unknown用例；后续G5/工单消费者按P2/P3依赖 | 未运行；不伪造后置服务 |
+| U-3/12/15共享Shell部分 | check-execution-workspace-integration.py、已有Shell/项目切换/登录浏览器入口 | 未运行；不以组件存在替代交互证据 |
+| 200逻辑执行≥99.5% | check-execution-workspace-integration.py默认200及simulation-report/resource-report | 未运行；历史2000结果不代替新源码 |
+| 介质校验失败0 | check-media-artifacts-integration.py及Agent/SSH制品/缓存/摘要隔离用例 | 未运行；无介质的sim容量结果不能证明完整性 |
+| 型号约束及BOM稳定身份/三级问题 | lifecycle新增bom_identity/model_constraints组、已有model-workspace/BOM浏览器 | 未运行；source组不替代CSV/UI定位 |
+| bootstrap/repair | check-ssh-integration.py及Agent入口的provision_loopback_ssh/provision_repair_rollout | 未运行；软件握手与真实PXE分列 |
+| ZTP≥99%/身份100% | lifecycle的ztp_200及逐设备分母复核、239/143/136/60-43协议用例 | 未运行；136项目sim非真实设备136准入 |
+| #P1、H-15/H-16执行材料 | docs/poc下既有执行包及材料校验入口 | 材料源码已备；真实H项NOT_RUN待用户PoC |
+
+这张表是验收路由，不是PASS报告。各组件报告仍full_p1_acceptance=false，只有按上述退出判据实际集中验证、处理缺口并留证后才能签署软件闭环。源码检查点6028ad2已含队列模式健康绑定，源64迁移/运行46；没有执行测试/构建/静态/SQL/服务探测/浏览器/镜像验证、迁移、部署或推送。

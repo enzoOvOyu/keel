@@ -67,6 +67,7 @@ try:
         'provision_ssh_configuration': ['TestProvisionInstallationFirstSSHPostgres', 'TestProvisionInstallationBaselinePostgres', 'TestProvisionInstallationConfigurationPostgres'],
         'provision_unknown_recovery': ['TestProvisionInstallationPrewriteRecoveryPostgres', 'TestProvisionInstallationRegisteredRecoveryPostgres', 'TestProvisionInstallationFirstSSHOrphanDispatchPostgres'],
         'provision_repair_rollout': ['TestProvisionInstallationKnownFailedSSHPostgres', 'TestProvisionInstallationSSHBatchPostgres', 'TestProvisionInstallationKeyRepairPostgres', 'TestProvisionInstallationRepairListPostgres', 'TestProvisionInstallationRolloutPostgres'],
+        'provision_loopback_ssh': ['TestProvisionFirstSSHUsesNewAuthenticatedPinAndVaultKey', 'TestProvisionFirstSSHRejectsWrongHostPeerAndLostReceipt', 'TestProvisionFirstSSHFailedQueryAllowsSeparateReadOnlyProbe', 'TestProvisionKeyRepairFreshDomainHandshake', 'TestProvisionKeyRepairRejectsImplicitBootstrap'],
     })
     (work / 'result.json').write_text(json.dumps({
         'exit_code': result.returncode, 'test_filter': args.run,
