@@ -228,6 +228,23 @@ func (a *authAPI) registerControl(r *gin.Engine) {
 		}
 		c.JSON(200, result)
 	})
+	r.GET("/api/v1/projects/:id/notifications/webhook-deliveries", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		p, ok := readPagination(c)
+		if !ok {
+			return
+		}
+		result, err := a.store.ListProjectWebhookDeliveries(c.Request.Context(), actor, c.Param("id"), p)
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.JSON(200, result)
+	})
+
 	r.GET("/api/v1/projects/:id/audits", func(c *gin.Context) {
 		s, ok := a.authenticated(c)
 		if !ok {

@@ -280,6 +280,68 @@ func TestWebhookDurableOutboxDeliveryAndIsolation(t *testing.T) {
 	if err != nil || empty.Total != 0 {
 		t.Fatal("status leaked across projects", empty, err)
 	}
+	t.Run("project_status_current_authority_and_redaction", func(t *testing.T) {
+		user, e := s.ControlCreateUser(ctx, owner, CreateUserInput{Username: "notification-project-admin", DisplayName: "Project Admin", Password: password}, "notification-reader")
+		if e != nil {
+			t.Fatal(e)
+		}
+		_, reader := testLogin(t, s, user.Username, password, "198.51.100.191")
+		_, e = s.ListProjectWebhookDeliveries(ctx, reader, project.ID, Pagination{1, 2})
+		assertErrorCode(t, e, "NOT_FOUND")
+		member, e := s.ControlCreateMember(ctx, owner, project.ID, CreateMemberInput{Username: user.Username, Role: "Viewer"}, "notification-member")
+		if e != nil {
+			t.Fatal(e)
+		}
+		_, reader = testLogin(t, s, user.Username, password, "198.51.100.191")
+		_, e = s.ListProjectWebhookDeliveries(ctx, reader, project.ID, Pagination{1, 2})
+		assertErrorCode(t, e, "FORBIDDEN")
+		member, e = s.ControlChangeMember(ctx, owner, project.ID, user.ID, UpdateMemberInput{Role: "Admin", Version: member.Version}, false, "notification-promote")
+		if e != nil {
+			t.Fatal(e)
+		}
+		// Refresh after the authorized membership update; subsequent reads must
+		// still consult current membership, never this session's cached roles.
+		_, reader = testLogin(t, s, user.Username, password, "198.51.100.191")
+		visible, e := s.ListProjectWebhookDeliveries(ctx, reader, project.ID, Pagination{1, 2})
+		if e != nil || visible.Total != 5 || len(visible.Items) != 2 || visible.Page != 1 || visible.PageSize != 2 {
+			t.Fatal("authorized project status", visible, e)
+		}
+		for _, item := range visible.Items {
+			if item.ExecutionID != execution || item.EventType != "execution.state_changed" {
+				t.Fatal("wrong source event projection", item)
+			}
+		}
+		raw, e := json.Marshal(visible)
+		if e != nil || bytes.Contains(raw, []byte(server.URL)) || bytes.Contains(raw, []byte("untrusted_metadata")) || bytes.Contains(raw, []byte("payload")) || bytes.Contains(raw, key) {
+			t.Fatal("status exposed private delivery data", e)
+		}
+		next, e := s.ListProjectWebhookDeliveries(ctx, reader, project.ID, Pagination{2, 2})
+		if e != nil || len(next.Items) != 2 || next.Items[0].EventID == visible.Items[0].EventID {
+			t.Fatal("status pagination", next, e)
+		}
+		_, e = s.ListProjectWebhookDeliveries(ctx, reader, other.ID, Pagination{1, 20})
+		assertErrorCode(t, e, "NOT_FOUND")
+		empty, e := s.ListProjectWebhookDeliveries(ctx, owner, other.ID, Pagination{1, 20})
+		if e != nil || empty.Total != 0 || len(empty.Items) != 0 {
+			t.Fatal("foreign-project delivery leaked", empty, e)
+		}
+		_, e = s.ListProjectWebhookDeliveries(ctx, owner, project.ID, Pagination{0, 20})
+		assertErrorCode(t, e, "VALIDATION_ERROR")
+		_, e = s.ControlChangeMember(ctx, owner, project.ID, user.ID, UpdateMemberInput{Role: "Viewer", Version: member.Version}, false, "notification-demote")
+		if e != nil {
+			t.Fatal(e)
+		}
+		_, e = s.ListProjectWebhookDeliveries(ctx, reader, project.ID, Pagination{1, 2})
+		assertErrorCode(t, e, "UNAUTHENTICATED")
+		_, reader = testLogin(t, s, user.Username, password, "198.51.100.191")
+		_, e = s.ListProjectWebhookDeliveries(ctx, reader, project.ID, Pagination{1, 2})
+		assertErrorCode(t, e, "FORBIDDEN")
+		if e = s.Logout(ctx, reader, "notification-reader-logout"); e != nil {
+			t.Fatal(e)
+		}
+		_, e = s.ListProjectWebhookDeliveries(ctx, reader, project.ID, Pagination{1, 2})
+		assertErrorCode(t, e, "UNAUTHENTICATED")
+	})
 	if binary := os.Getenv("KEEL_TEST_P1_ADMIN_BIN"); binary != "" {
 		command := exec.CommandContext(ctx, binary, "webhook-delivery-status", "--project", project.ID, "--limit", "2")
 		for _, value := range os.Environ() {

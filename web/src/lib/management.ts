@@ -45,3 +45,5 @@ export function managementSearch(search: Record<string, unknown>): { page?: numb
     ...(typeof search.q === 'string' && search.q.length <= 128 ? { q: search.q } : {}),
     ...(typeof search.action === 'string' && search.action.length <= 128 ? { action: search.action } : {}) }
 }
+
+export const listWebhookDeliveries = (projectId: string, page: number, signal: AbortSignal) => request<components['schemas']['WebhookDeliveryPage']>(`/projects/${encodeURIComponent(projectId)}/notifications/webhook-deliveries?${pageQuery(page)}`, { signal })

@@ -1,6 +1,6 @@
 # P1 出站执行通知（源码，待集中验证）
 
-WP-1.6 / PRD FR-10.4 的首个通知通道：现有执行 outbox 的项目级 Webhook。默认关闭，当前没有向外部接收人发送通知，也没有启用运行 worker。邮件、IM 专用适配、通知管理页面、工单/门禁/AI 告警来源和入站 Flow 触发器尚未完成；不能将此子集计为 F-10.3 或 P1 全部通过。
+WP-1.6 / PRD FR-10.4 的首个通知通道：现有执行 outbox 的项目级 Webhook。默认关闭，当前没有向外部接收人发送通知，也没有启用运行 worker。邮件、IM 专用适配、通知配置编辑页面、工单/门禁/AI 告警来源和入站 Flow 触发器尚未完成；不能将此子集计为 F-10.3 或 P1 全部通过。
 
 ## 配置与独立凭据
 
@@ -52,7 +52,9 @@ keel-admin webhook-signing-keygen --output /private/webhooks/project-failure.key
 
 2xx 记 delivered；408/429/5xx 和传输结果未知有界退避重试，最多6次，基础30秒指数增长、上限15分钟；其他状态（含重定向/403）立即 dead。响应正文不保存，状态/错误码不含目标 URL 或接收方敏感数据。至少一次投递意味着接收方可能已收件而平台未获响应，无法宣称恰好一次；接收方必须幂等。终态投递、原事件身份与 payload 不可修改/删除，不提供对 dead 的盲目重试入口。
 
-owner 可只读分页查看项目投递状态，不需要加载 HMAC 密钥：
+项目Admin/平台Admin可在项目审计页查看分页投递记录，通过`GET /api/v1/projects/{id}/notifications/webhook-deliveries?page=1&page_size=20`读取。沿用`project:audit:read`边界，每次请求同一只读事务复核当前账号、会话与项目Admin成员身份；其他项目无成员返回404、非Admin成员403，过期/撤销会话401。只返回接收配置ID、事件/执行ID、公开类型、状态、次数、通用错误和时间，不返回目标URL/载荷/密钥。项目切换重置页码，缓存键含用户/项目，失败记录可打开原执行。空列表不表示已启用通知或通道健康；不提供盲目重放按钮。此增量源码未验证。
+
+owner仍可独立只读分页查看项目投递状态，不需要加载 HMAC 密钥：
 
 ```sh
 keel-admin webhook-delivery-status --project 0123456789abcdef0123456789abcdef --limit 50 --offset 0

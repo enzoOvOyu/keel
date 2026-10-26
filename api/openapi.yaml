@@ -1545,6 +1545,40 @@ paths:
           $ref: '#/components/responses/NotFound'
         '503':
           $ref: '#/components/responses/Unavailable'
+  /api/v1/projects/{id}/notifications/webhook-deliveries:
+    get:
+      tags: [Audit]
+      operationId: listProjectWebhookDeliveries
+      description: Project Admin or platform Admin reads delivery facts in the requested project. Current session and membership are rechecked. Never returns recipient URLs, payloads, keys or signatures. Empty results do not establish that a notification channel is configured or healthy.
+      security:
+      - sessionCookie: []
+      x-permission: project:audit:read
+      x-resource-scope: path-project-admin
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/EntityID'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Bounded delivery facts; no mutation or retry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookDeliveryPage'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
   /api/v1/projects/{id}/audits:
     get:
       tags:
@@ -5460,6 +5494,8 @@ components:
           type: integer
           minimum: 1
           maximum: 100
+    WebhookDeliverySummary: {"type": "object", "additionalProperties": false, "required": ["sink_id", "event_id", "execution_id", "event_type", "state", "attempts", "next_attempt_at", "updated_at"], "properties": {"sink_id": {"type": "string", "maxLength": 64}, "event_id": {"$ref": "#/components/schemas/EntityID"}, "execution_id": {"$ref": "#/components/schemas/EntityID"}, "event_type": {"type": "string", "enum": ["execution.state_changed", "execution.circuit_breaker", "execution.authorization_blocked"]}, "state": {"type": "string", "enum": ["pending", "delivering", "delivered", "dead"]}, "attempts": {"type": "integer", "minimum": 0, "maximum": 6}, "http_status": {"type": "integer", "minimum": 100, "maximum": 599}, "last_error": {"type": "string", "enum": ["transport_unknown", "http_rejected", "attempts_exhausted"]}, "next_attempt_at": {"type": "string", "format": "date-time"}, "delivered_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"}}}
+    WebhookDeliveryPage: {"type": "object", "additionalProperties": false, "required": ["items", "total", "page", "page_size"], "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/WebhookDeliverySummary"}}, "total": {"type": "integer", "minimum": 0}, "page": {"type": "integer", "minimum": 1, "maximum": 1000000}, "page_size": {"type": "integer", "minimum": 1, "maximum": 100}}}
     AuditPage:
       type: object
       additionalProperties: false

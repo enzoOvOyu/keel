@@ -1463,6 +1463,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/notifications/webhook-deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Project Admin or platform Admin reads delivery facts in the requested project. Current session and membership are rechecked. Never returns recipient URLs, payloads, keys or signatures. Empty results do not establish that a notification channel is configured or healthy. */
+        get: operations["listProjectWebhookDeliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/audits": {
         parameters: {
             query?: never;
@@ -5779,6 +5796,31 @@ export interface components {
         };
         MemberPage: {
             items: components["schemas"]["ProjectMember"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        WebhookDeliverySummary: {
+            sink_id: string;
+            event_id: components["schemas"]["EntityID"];
+            execution_id: components["schemas"]["EntityID"];
+            /** @enum {string} */
+            event_type: "execution.state_changed" | "execution.circuit_breaker" | "execution.authorization_blocked";
+            /** @enum {string} */
+            state: "pending" | "delivering" | "delivered" | "dead";
+            attempts: number;
+            http_status?: number;
+            /** @enum {string} */
+            last_error?: "transport_unknown" | "http_rejected" | "attempts_exhausted";
+            /** Format: date-time */
+            next_attempt_at: string;
+            /** Format: date-time */
+            delivered_at?: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        WebhookDeliveryPage: {
+            items: components["schemas"]["WebhookDeliverySummary"][];
             total: number;
             page: number;
             page_size: number;
@@ -10549,6 +10591,36 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listProjectWebhookDeliveries: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded delivery facts; no mutation or retry. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDeliveryPage"];
                 };
             };
             400: components["responses"]["InvalidRequest"];
