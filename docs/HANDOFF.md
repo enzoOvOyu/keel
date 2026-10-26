@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～118。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～119。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
 用户最新安排（2026-10-26）：合并本轮四Agent工作后恢复单Agent开发，不再启动或续派子代理；此前四Agent并行安排已被本指令替代。直接在当前本地环境`/opt/keel`开发，不使用tmux或SSH绕转。硬件/网络参数保持配置输入，PoC由用户提供。用户进一步明确：集中验证由用户在P1闭环时另行安排；当前只推进实现，不逐步重复编译、静态或功能/数据库/浏览器/镜像验证。必要格式化/API类型生成只记为产物生成，不记作验证。
 
-源码接续39c353f，本轮统一集成见§108：机柜显式批量准备、七阶段事实投影/恢复页面、SSH已查询终态失败后的独立只读probe，以及重启失败不释放真实磁盘claim。前序目标UKI/写盘/首启链见§105～107。WP-1.7/P1仍partial，不把源码合并或编译通过记为装机/SSH/PoC验收。单Agent已补首装SSH allowlist无旧host pin的显式配置源码（§109）；已接`boot.file_served`真实完整HTTP响应事件生产者（§110）；已补注册后崩溃显式对账、无写许可隔离任务收尾与孤立SSH派发修复项（§111～113），并增加装机互信待修复筛选（§114）。TFTP实际发送/ACK门槛、普通SSH配置状态与显式批量只读核验见§115～117；本轮接OS/model金丝雀放量门禁（§118）。下一步推进完整互信修复及OS基线记录，集中验收等用户安排。3000最后健康检查仍返回6668a72c，源53迁移（不含026草稿）、运行46；未应用SQL、构建/部署镜像或推送。两份原fabric草稿保留且不纳入本次提交。
+源码接续39c353f，本轮统一集成见§108：机柜显式批量准备、七阶段事实投影/恢复页面、SSH已查询终态失败后的独立只读probe，以及重启失败不释放真实磁盘claim。前序目标UKI/写盘/首启链见§105～107。WP-1.7/P1仍partial，不把源码合并或编译通过记为装机/SSH/PoC验收。单Agent已补首装SSH allowlist无旧host pin的显式配置源码（§109）；已接`boot.file_served`真实完整HTTP响应事件生产者（§110）；已补注册后崩溃显式对账、无写许可隔离任务收尾与孤立SSH派发修复项（§111～113），并增加装机互信待修复筛选（§114）。TFTP实际发送/ACK门槛、普通SSH配置状态与显式批量只读核验见§115～117；本轮接OS/model金丝雀放量门禁（§118）。首启OS/驱动包历史基线记录见§119；下一步推进完整互信修复，集中验收等用户安排。3000最后健康检查仍返回6668a72c，源53迁移（不含026草稿）、运行46；未应用SQL、构建/部署镜像或推送。两份原fabric草稿保留且不纳入本次提交。
 
 - **累计未发布源码（§75～92）**：此前的续签/主密钥重包裹/审计/Webhook等增量继续保留；本次从e0a9467接续，单Agent完成持久装机准备/独立审批/共享独占Execution与页面、隔离ProxyDHCP/HTTP/TFTP传输、Linux只读硬件预检与双架构helper、固定固件/helper启动配方与iPXE/清单生成和消费校验，以及无最终镜像前置循环的离线helper overlay生产/反向校验。修正Linux槽位ABI、NVMe实际health输出、传输中失效和准备完成时的当前准入边界。新增用例与集中/CI入口已写入但未运行。必要Go/TS编译、静态检查和指定双架构构建通过，不等于功能/SQL/镜像/硬件验证。源迁移50、运行46；3000仍§74。原草稿保留。
 
@@ -1421,3 +1421,12 @@ initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新�
 金丝雀证据核对持久真实SSH事件转录承诺、精确原command/attempt/fence、实际host.identity终态/hostname/arch/域公钥身份、原native成功receipt及execution/attempt成功、原独占claim已released；replacement probe须有同原attempt/fence的不可变授权事件。持久历史OS成功证明与当前目标/介质/凭据审批分别检查，不从绿色状态或HTTP/TFTP写出推断成功。安装创建、派发和当前write-permit前接入门禁；不替代独立磁盘审批或签发写许可。
 
 原安装表单明确选择金丝雀/已验证放量，展示同组已有金丝雀及阻断状态；原进度API/UI展示冻结策略与证明ID。OpenAPI和生成TS同步；生成命令npm run api:generate成功只记产物生成（/tmp/keel-canary-api-generation.log），没有类型/构建验证。已有安装fixture显式选择canary；新增纯规范化/完整身份绑定与合成注册DB证据源码，覆盖未settle不放量、真实原执行收尾后可读证明、跨项目和不可变保护、坏转录拒绝，均未运行。源码53迁移、运行46；3000仍旧发布版。P1/WP-1.7保持partial，未宣称PXE、软件联调或硬件PoC完成。
+
+
+## 119. 装机OS与驱动包历史基线（2026-10-26，未验证源码）
+
+接续7a70931，沿FR-2.5/WP-1.7复用既有first_boot.identity_reported签名报告及DB事件，新增可选软件观测：OS ID/VERSION_ID、实际启动kernel release、明确dpkg-status/driver-packages-v1范围内已安装NVIDIA/MLX/OFED/RDMA包名/精确版本/架构。Linux helper只读root拥有的有界文件，不执行shell/dpkg/驱动工具；os-release只接标准vendor软链且仅解析数据。dpkg记录严格有界、去重、排序，只认install ok installed；读取失败、畸形、超限整体unknown，范围内空列表不等于没有驱动，库外/runfile安装不在采集覆盖范围。不由包版本推定兼容性或加载状态。
+
+可选字段纳入原签名和报告SHA承诺；旧v1 helper缺失字段仍保留未知，不推断性回填。进度API/UI关联原冻结snapshot/rootfs/kernel精确介质版本和摘要，以及首启观测事件/采集时间/报告摘要。投影只返回结构化公开软件信息，不暴露整个报告/公钥/凭据，不改SSH信任或native成功条件；当前库存与历史首启记录分开。无需新增SQL，源53/运行46维持。
+
+新增签名防篡改/旧报告兼容、dpkg范围/终态/重复拒绝、os-release数据解析及合成首启DB投影用例源码，并接集中入口；均未运行。按用户要求仅源码格式化和API类型生成，生成首次因schema误放responses而失败，已移回schemas后成功（/tmp/keel-baseline-api-generation.log）；未运行编译、静态、功能/DB/浏览器/镜像验证，不宣称P1或PXE闭环。3000/数据库/镜像不变，无push。

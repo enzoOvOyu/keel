@@ -157,31 +157,35 @@ func DecodeSecret(raw []byte, now time.Time) (*Secret, error) {
 }
 
 type Report struct {
-	Schema            string    `json:"schema"`
-	InstallationID    string    `json:"installation_id"`
-	BootID            string    `json:"boot_id"`
-	GrantID           string    `json:"grant_id"`
-	BindingSHA256     string    `json:"binding_sha256"`
-	Sequence          int64     `json:"sequence"`
-	Nonce             string    `json:"nonce"`
-	ObservedAt        time.Time `json:"observed_at"`
-	KernelBootID      string    `json:"kernel_boot_id"`
-	Hostname          string    `json:"hostname"`
-	Serial            string    `json:"serial_number"`
-	BootMAC           string    `json:"boot_mac"`
-	Arch              string    `json:"arch"`
-	DiskWWID          string    `json:"disk_wwid"`
-	DiskSerial        string    `json:"disk_serial"`
-	DiskSizeBytes     int64     `json:"disk_size_bytes"`
-	LogicalBlockBytes int       `json:"logical_block_bytes"`
-	RootPartitionGUID string    `json:"root_partition_guid"`
-	EFIPartitionGUID  string    `json:"efi_partition_guid"`
-	HostPublicKey     string    `json:"host_public_key"`
-	HostFingerprint   string    `json:"host_fingerprint"`
-	HostKeyModifiedAt time.Time `json:"host_key_modified_at"`
+	SoftwareBaseline  *SoftwareBaseline `json:"software_baseline,omitempty"`
+	Schema            string            `json:"schema"`
+	InstallationID    string            `json:"installation_id"`
+	BootID            string            `json:"boot_id"`
+	GrantID           string            `json:"grant_id"`
+	BindingSHA256     string            `json:"binding_sha256"`
+	Sequence          int64             `json:"sequence"`
+	Nonce             string            `json:"nonce"`
+	ObservedAt        time.Time         `json:"observed_at"`
+	KernelBootID      string            `json:"kernel_boot_id"`
+	Hostname          string            `json:"hostname"`
+	Serial            string            `json:"serial_number"`
+	BootMAC           string            `json:"boot_mac"`
+	Arch              string            `json:"arch"`
+	DiskWWID          string            `json:"disk_wwid"`
+	DiskSerial        string            `json:"disk_serial"`
+	DiskSizeBytes     int64             `json:"disk_size_bytes"`
+	LogicalBlockBytes int               `json:"logical_block_bytes"`
+	RootPartitionGUID string            `json:"root_partition_guid"`
+	EFIPartitionGUID  string            `json:"efi_partition_guid"`
+	HostPublicKey     string            `json:"host_public_key"`
+	HostFingerprint   string            `json:"host_fingerprint"`
+	HostKeyModifiedAt time.Time         `json:"host_key_modified_at"`
 }
 
 func ValidateReport(b Binding, r Report, now time.Time) error {
+	if r.SoftwareBaseline.Validate() != nil {
+		return ErrDenied
+	}
 	d := b.StoragePlan.Device
 	if b.Validate(now) != nil || r.Schema != ReportSchema || r.InstallationID != b.InstallationID || r.BootID != b.BootID || r.GrantID != b.GrantID || r.BindingSHA256 != b.SHA256() || r.Sequence != 1 || !id.MatchString(r.Nonce) || !bootID.MatchString(r.KernelBootID) || r.KernelBootID == b.InstallerKernelBootID || r.ObservedAt.Before(now.Add(-30*time.Second)) || r.ObservedAt.After(now.Add(time.Second)) || r.Hostname != b.Hostname || r.Serial != b.StoragePlan.Spec.Expected.Serial || r.BootMAC != b.StoragePlan.Spec.Expected.BootMAC || r.Arch != b.StoragePlan.Spec.Expected.Arch || r.DiskWWID != d.WWID || r.DiskSerial != d.Serial || r.DiskSizeBytes != d.SizeBytes || r.LogicalBlockBytes != d.LogicalBlockBytes || r.RootPartitionGUID != b.GPTIdentity.Root || r.EFIPartitionGUID != b.GPTIdentity.EFI || r.HostKeyModifiedAt.Before(b.CreatedAt) || r.HostKeyModifiedAt.After(r.ObservedAt.Add(time.Second)) || len(r.HostPublicKey) > 256 {
 		return ErrDenied

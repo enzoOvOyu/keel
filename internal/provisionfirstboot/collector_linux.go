@@ -121,7 +121,7 @@ func (LinuxCollector) Collect(ctx context.Context, b Binding) (Report, error) {
 	if err != nil || ctx.Err() != nil {
 		return out, ErrDenied
 	}
-	return Report{ObservedAt: time.Now().UTC().Truncate(time.Microsecond), KernelBootID: kernel, Hostname: name, Serial: serial, BootMAC: iface.HardwareAddr.String(), Arch: runtime.GOARCH, DiskWWID: wwid, DiskSerial: diskSerial, DiskSizeBytes: int64(size), LogicalBlockBytes: logical, RootPartitionGUID: b.GPTIdentity.Root, EFIPartitionGUID: b.GPTIdentity.EFI, HostPublicKey: public, HostFingerprint: fingerprint, HostKeyModifiedAt: modified}, nil
+	return Report{SoftwareBaseline: collectSoftwareBaseline(), ObservedAt: time.Now().UTC().Truncate(time.Microsecond), KernelBootID: kernel, Hostname: name, Serial: serial, BootMAC: iface.HardwareAddr.String(), Arch: runtime.GOARCH, DiskWWID: wwid, DiskSerial: diskSerial, DiskSizeBytes: int64(size), LogicalBlockBytes: logical, RootPartitionGUID: b.GPTIdentity.Root, EFIPartitionGUID: b.GPTIdentity.EFI, HostPublicKey: public, HostFingerprint: fingerprint, HostKeyModifiedAt: modified}, nil
 }
 
 func readSmall(path string, limit int64) (string, error) {

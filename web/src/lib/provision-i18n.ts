@@ -1,5 +1,15 @@
 export const provisionTranslations = {
  zh: {
+"installBaselineTitle": "装机 OS 与驱动基线",
+"installBaselineHint": "冻结介质与首启历史观测分别记录；不代表当前库存或兼容性结论，SSH 证明见上方阶段。驱动包范围仅限 dpkg 登记的 NVIDIA、MLX/OFED 与 RDMA 包，不覆盖库外安装。",
+"installBaselineMissing": "尚无首启软件观测；旧版 helper 未采集的字段保持未知。",
+"installBaselinePackages_observed": "已读取 dpkg 驱动包记录",
+"installBaselinePackages_unknown": "dpkg 驱动包记录未知",
+"installBaselineEmpty": "采集范围内没有已安装包记录；不能推定机器没有驱动。",
+"installBaselineKernel": "实际启动内核",
+"installBaselineOS": "首启 OS",
+"installBaselineMedia": "冻结 OS 介质",
+
 "installSSHVerifyTitle": "授权新的只读 SSH 核验",
 "installSSHVerifySubmit": "授权一次新核验",
 "installSSHVerifyImpact": "仅当最新固定主机密钥 SSH 查询已证实当前命令的回执为终态失败，才可授权一次新的只读身份核验。新核验使用独立命令标识，并保留原安装尝试、围栏和资源锁；不重放旧命令、不重装、不续租。请求已登记或已消费都不代表核验成功。",
@@ -183,6 +193,16 @@ export const provisionTranslations = {
   provisionTitle:'服务器装机准备', provisionDetail:'从 BOM 冻结装机配置，经独立审批后核验介质与公钥。',provisionPreparationOnly:'准备完成仅代表配置与介质校验完成；后续网络引导、安装和 SSH 首连仍需执行。',provisionFromBOM:'从 BOM 创建申请',provisionCreateRequest:'提交装机准备申请',provisionReason:'申请理由',provisionReinstall:'重新安装已有系统',provisionSerialConfirmation:'输入完整序列号以确认重装',provisionRequested:'申请已提交，请由另一位管理员或 DL 审批。',provisionReview:'审批准备申请',provisionCancel:'取消申请',provisionPrepare:'执行准备校验',provisionActionReason:'审批或取消理由',provisionExpiry:'有效期',provisionIdentity:'目标与冻结配置',provisionProof:'准备证据',provisionNoRequests:'暂无装机准备申请，请从 BOM 选择服务器创建。',provisionNoSelfApprove:'申请人不能审批自己的申请。',provisionExpired:'已过期，请重新申请',provisionPendingWorker:'准备校验依赖显式启用的工作节点。',provisionState_requested:'待审批',provisionState_approved:'已批准',provisionState_preparing:'准备中',provisionState_prepared:'准备完成',provisionState_failed:'准备失败',provisionState_canceled:'已取消',provisionState_expired:'已过期',
  },
  en: {
+"installBaselineTitle": "Installed OS and driver baseline",
+"installBaselineHint": "Frozen media and historical first-boot observations are separate. Neither is current inventory or a compatibility verdict; SSH evidence appears in the stages above. Driver scope is dpkg NVIDIA, MLX/OFED and RDMA packages; out-of-band installs are excluded.",
+"installBaselineMissing": "No first-boot software observation. Fields absent from older helpers remain unknown.",
+"installBaselinePackages_observed": "dpkg driver package records observed",
+"installBaselinePackages_unknown": "dpkg driver package records unknown",
+"installBaselineEmpty": "No installed packages in the collected scope; this does not prove drivers absent.",
+"installBaselineKernel": "Booted kernel",
+"installBaselineOS": "First-boot OS",
+"installBaselineMedia": "Frozen OS media",
+
 "installSSHVerifyTitle": "Authorize a new read-only SSH verification",
 "installSSHVerifySubmit": "Authorize one new verification",
 "installSSHVerifyImpact": "Authorize one new read-only identity verification only after the latest pinned SSH query proved the current command receipt terminal failed. The new probe has an independent command identity and retains the original installation attempt, fence and resource reservation. No old-command replay, reinstallation or lease renewal. Queued or consumed requests do not prove verification success.",

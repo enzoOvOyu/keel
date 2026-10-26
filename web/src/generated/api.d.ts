@@ -2898,6 +2898,37 @@ export interface components {
             failed_event_id?: number;
             verification_id?: string;
         };
+        ProvisionDriverPackage: {
+            name: string;
+            version: string;
+            arch: string;
+        };
+        ProvisionSoftwareBaseline: {
+            os_id: string;
+            os_version: string;
+            kernel_release: string;
+            /** @enum {string} */
+            package_source: "dpkg-status/driver-packages-v1";
+            /** @enum {string} */
+            package_status: "observed" | "unknown";
+            driver_packages: components["schemas"]["ProvisionDriverPackage"][];
+        };
+        ProvisionBaselineObservation: {
+            /** Format: int64 */
+            event_id: number;
+            /** Format: date-time */
+            recorded_at: string;
+            /** Format: date-time */
+            observed_at: string;
+            report_sha256: string;
+            software: components["schemas"]["ProvisionSoftwareBaseline"];
+        };
+        /** @description Historical frozen OS media and optional signed first-boot software observation. This is neither current inventory nor a compatibility verdict. Package scope excludes runfile and other non-dpkg drivers. Missing observations remain unknown. SSH verification is shown separately. */
+        ProvisionInstalledBaseline: {
+            snapshot_sha256: string;
+            media: components["schemas"]["MediaBootArtifact"][];
+            observation?: components["schemas"]["ProvisionBaselineObservation"];
+        };
         ProvisionInstallationProgress: {
             installation_id: string;
             state: string;
@@ -2915,6 +2946,7 @@ export interface components {
              */
             ssh_configuration?: "matched" | "configuration_required" | "identity_changed" | "credential_unavailable";
             rollout?: components["schemas"]["ProvisionRollout"];
+            installed_baseline?: components["schemas"]["ProvisionInstalledBaseline"];
         };
         ProvisionRackRequestItem: {
             asset_id: string;

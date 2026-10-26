@@ -32,16 +32,17 @@ type ProvisionProgressResource struct {
 	ReconciliationRequired bool       `json:"reconciliation_required"`
 }
 type ProvisionInstallationProgress struct {
-	Rollout          *ProvisionRollout         `json:"rollout,omitempty"`
-	InstallationID   string                    `json:"installation_id"`
-	State            string                    `json:"state"`
-	StateVersion     int64                     `json:"state_version"`
-	ObservedAt       time.Time                 `json:"observed_at"`
-	Stages           []ProvisionProgressStage  `json:"stages"`
-	Resource         ProvisionProgressResource `json:"resource"`
-	SSHConfiguration string                    `json:"ssh_configuration,omitempty"`
-	SSHRepair        *ProvisionSSHRepair       `json:"ssh_repair,omitempty"`
-	FailureReason    *string                   `json:"failure_reason,omitempty"`
+	InstalledBaseline *ProvisionInstalledBaseline `json:"installed_baseline,omitempty"`
+	Rollout           *ProvisionRollout           `json:"rollout,omitempty"`
+	InstallationID    string                      `json:"installation_id"`
+	State             string                      `json:"state"`
+	StateVersion      int64                       `json:"state_version"`
+	ObservedAt        time.Time                   `json:"observed_at"`
+	Stages            []ProvisionProgressStage    `json:"stages"`
+	Resource          ProvisionProgressResource   `json:"resource"`
+	SSHConfiguration  string                      `json:"ssh_configuration,omitempty"`
+	SSHRepair         *ProvisionSSHRepair         `json:"ssh_repair,omitempty"`
+	FailureReason     *string                     `json:"failure_reason,omitempty"`
 }
 type provisionProgressFact struct {
 	ProvisionProgressEvidence
@@ -186,6 +187,10 @@ func (s *Store) ReadProvisionInstallationProgress(ctx context.Context, a *AuthSe
 		return nil, err
 	}
 	out := projectProvisionProgress(x, facts, resource, now)
+	out.InstalledBaseline, err = readProvisionInstalledBaselineTx(ctx, tx, x)
+	if err != nil {
+		return nil, err
+	}
 	out.Rollout, err = readProvisionRolloutTx(ctx, tx, x.ID)
 	if errors.Is(err, ErrProvisionCanaryRequired) {
 		out.Rollout = nil
