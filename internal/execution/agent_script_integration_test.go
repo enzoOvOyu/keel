@@ -3,7 +3,9 @@ package execution
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -98,6 +100,11 @@ func TestAgentApprovedScriptPostgresAdmissionAndUnknown(t *testing.T) {
 	if _, err = f.service.CreateAgent(ctx, f.actor, f.project, SSHCreateInput{MachineIDs: in.MachineIDs, Operation: "script.run", ScriptMediaID: media.ID}, platform.RandomID(), "test"); err == nil {
 		t.Fatal("read-only endpoint accepted script")
 	}
+	pendingReport, err := f.service.Report(ctx, f.project, x.ID)
+	mustAgent(t, err)
+	if pendingReport.Complete || pendingReport.PlannedTaskSlots != 1 || pendingReport.UnobservedTaskSlots != 1 || pendingReport.ReceiptCount != 0 || pendingReport.HardwareAcceptance || pendingReport.GateEvidence {
+		t.Fatal("unobserved work became complete/evidence", pendingReport)
+	}
 	claim := f.claim(t, x.ID)
 	if claim == nil {
 		t.Fatal("script was not claimed")
@@ -172,6 +179,19 @@ func TestAgentApprovedScriptPostgresAdmissionAndUnknown(t *testing.T) {
 	mustAgent(t, f.store.DB.QueryRowContext(ctx, `SELECT state FROM exec_task_attempts WHERE id=$1`, current.ID).Scan(&state))
 	if state != "unknown" {
 		t.Fatal("request released unknown without proof", state)
+	}
+	report, err := f.service.Report(ctx, f.project, x.ID)
+	mustAgent(t, err)
+	if report.Complete || report.HardwareAcceptance || report.GateEvidence || report.Overview.Counts["unknown"] != 1 || report.QuarantinedResources != 2 || report.ReceiptCount != 0 || report.UnobservedTaskSlots != 0 {
+		t.Fatal("unknown execution misreported", report)
+	}
+	rawReport, err := json.Marshal(report)
+	mustAgent(t, err)
+	if strings.Contains(string(rawReport), "printf software-only-fixture") || report.Overview.FlowHash != x.Snapshot.Flow.ContentHash || report.Overview.Execution.TargetSetHash != x.TargetSetHash {
+		t.Fatal("report leaked body or lost frozen identity")
+	}
+	if _, err = f.service.Report(ctx, platform.RandomID(), x.ID); err == nil {
+		t.Fatal("report crossed project scope")
 	}
 	_, err = f.store.DB.ExecContext(ctx, `UPDATE users SET enabled=false WHERE id=$1`, f.actor.User.ID)
 	mustAgent(t, err)

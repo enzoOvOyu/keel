@@ -83,3 +83,10 @@ SSE 每条连接在25秒内轮换，低于现有 API 的30秒写超时；游标�
 实际验证：相关 execution/httpapi Go race、vet、前端契约生成/组件边界/TypeScript/Vite、设计引用检查通过。真实 API/隔离 PostgreSQL/Worker/浏览器证据 `/tmp/keel-views-y5o63831`：单目标与失败集合、来源不变、并发幂等/错误复用、陈旧版本/摘要、空集合/活动来源/外目标/跨项目/Viewer/unknown 拒绝、两个 UI 入口及来源链接；既有五 Tab、500目标暂停渲染样本、2目标实际运行、回执导出和 SSE 撤权回归通过。首轮新增脚本误从 overview 摘要读取 snapshot，修正为正式 relations 接口后通过；首轮不计通过。
 
 无迁移、部署或真机操作。通用能力仍限已实现的模拟任务；Agent/SSH、真实文件分发、rolling/分组与 NCCL GroupAttempt、完整 FR-1 和 P1 退出条件仍未完成。Go 检查沿用既有 overlay 排除原026/fabric_precheck草稿，未修改这些文件。
+
+
+## 执行事实报告导出（2026-10-26，源码未验证）
+
+执行中心增加「导出执行报告」，按当前项目成员/会话权限调用`GET /executions/{id}/report`，返回`execution-evidence-report/v1` JSON。同一repeatable-read事务复用原overview计算，固定Flow版本/hash、目标集合hash、冻结时间和当前执行/尝试状态，另列计划任务槽位、尚无尝试的槽位、匹配command/attempt/fence的历史终态回执数量及声明来源、unknown实际持有的资源数。报告完整仅表示全部计划槽位已终态，不表示成功或验收。
+
+报告固定`hardware_acceptance:false`与`gate_evidence:false`；未开始、运行中、未知和历史来源不被改写为PASS。输出只含汇总和原授权分页matrix/outputs/journal/relations引用，不打包原始日志、脚本正文、凭据或全量目标回执。页面请求时才生成，无后台轮询，无状态变更/自动解锁。此增量提供报告聚合基础与导出，不声称通用`report.aggregate` Flow任务、门禁签署或完整证据归档已完成。相关PG计划槽位/未知隔离/来源与冻结身份/范围/正文不泄露回归源码已补，尚未运行。

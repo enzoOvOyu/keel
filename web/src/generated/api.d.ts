@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{id}/executions/{executionId}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description A repeatable-read execution metadata report: frozen flow/target identity, latest slot counts, historical receipt provenance, unknown resource quarantine and authorized paged evidence links. Never hardware acceptance, GateEvidence or automatic state mutation. Omits raw logs, script bodies, credentials and per-target bulk payload. */
+        get: operations["getExecutionReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/executions/{executionId}/attempts/{attemptId}/script-nonstart-proof": {
         parameters: {
             query?: never;
@@ -5577,6 +5594,96 @@ export interface components {
             kind: "draft" | "delivery";
             expected_preflight_hash: string;
         };
+        ExecutionSummary: {
+            id: string;
+            project_id: string;
+            flow_version_id: string;
+            /** @enum {string} */
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
+            /** @enum {string} */
+            state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
+            state_version: number;
+            /** @enum {string} */
+            desired_state: "running" | "paused" | "killed";
+            target_set_hash: string;
+            concurrency: number;
+            circuit_breaker_percent: number;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: date-time */
+            finished_at: string | null;
+            target_count: number;
+            /** @description One-time approved first-connection verification; control requires Admin/DL/SRE. */
+            trust_verification: boolean;
+        };
+        ExecutionProgress: {
+            total_targets: number;
+            complete_targets: number;
+            success_targets: number;
+            failed_targets: number;
+            unknown_targets: number;
+        };
+        TaskTimeline: {
+            task_id: string;
+            task_type: string;
+            /** Format: date-time */
+            first_started_at: string | null;
+            /** Format: date-time */
+            last_observed_at: string | null;
+            counts: {
+                [key: string]: number;
+            };
+        };
+        ExecutionOverview: {
+            /** @constant */
+            version: "execution-overview/v1";
+            execution: components["schemas"]["ExecutionSummary"];
+            flow_id: string;
+            flow_name: string;
+            flow_version: number;
+            flow_hash: string;
+            counts: {
+                [key: string]: number;
+            };
+            progress: components["schemas"]["ExecutionProgress"];
+            timeline: components["schemas"]["TaskTimeline"][];
+            event_cursor: number;
+            /** Format: date-time */
+            observed_at: string;
+        };
+        ReceiptProvenance: {
+            mode: string;
+            source: string;
+            count: number;
+        };
+        ExecutionReport: {
+            /** @enum {string} */
+            version: "execution-evidence-report/v1";
+            /** Format: date-time */
+            generated_at: string;
+            /** Format: date-time */
+            frozen_at: string;
+            overview: components["schemas"]["ExecutionOverview"];
+            /** @description All planned target/task slots reached a terminal state; does not mean success or acceptance. */
+            complete: boolean;
+            /** @constant */
+            hardware_acceptance: false;
+            /** @constant */
+            gate_evidence: false;
+            planned_task_slots: number;
+            unobserved_task_slots: number;
+            receipt_count: number;
+            quarantined_resources: number;
+            receipt_provenance: components["schemas"]["ReceiptProvenance"][];
+            /** @description Scoped paginated evidence URLs, require current authorization; raw evidence is not embedded. */
+            references: {
+                [key: string]: string;
+            };
+            warnings: string[];
+        };
         ScriptNonstartProofInput: {
             expected_version: number;
             /** @constant */
@@ -5939,6 +6046,29 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getExecutionReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                executionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Execution evidence summary report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionReport"];
+                };
+            };
+        };
+    };
     requestScriptNonstartProof: {
         parameters: {
             query?: never;

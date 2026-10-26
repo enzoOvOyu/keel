@@ -68,8 +68,17 @@ func (s *Service) Overview(ctx context.Context, project, id string) (*ExecutionO
 	if e != nil {
 		return nil, e
 	}
+	out, e := overviewTx(ctx, tx, x)
+	if e != nil {
+		return nil, e
+	}
+	return out, tx.Commit()
+}
+
+func overviewTx(ctx context.Context, tx *sql.Tx, x Execution) (*ExecutionOverview, error) {
+	id := x.ID
 	out := &ExecutionOverview{Version: "execution-overview/v1", Execution: executionSummary(x), FlowID: x.Snapshot.Flow.FlowID, FlowName: x.Snapshot.Flow.Name, FlowVersion: x.Snapshot.Flow.Version, FlowHash: x.Snapshot.Flow.ContentHash, Counts: map[string]int{}, Timeline: []TaskTimeline{}, ObservedAt: time.Now().UTC(), Progress: ExecutionProgress{TotalTargets: len(x.Snapshot.Targets)}}
-	if e = tx.QueryRowContext(ctx, "SELECT coalesce(max(sequence),0) FROM exec_outbox WHERE execution_id=$1", id).Scan(&out.EventCursor); e != nil {
+	if e := tx.QueryRowContext(ctx, "SELECT coalesce(max(sequence),0) FROM exec_outbox WHERE execution_id=$1", id).Scan(&out.EventCursor); e != nil {
 		return nil, e
 	}
 	rows, e := tx.QueryContext(ctx, "SELECT task_id,state,count(*) FROM ("+latestAttemptsSQL+") latest GROUP BY task_id,state", id)
@@ -131,7 +140,7 @@ func (s *Service) Overview(ctx context.Context, project, id string) (*ExecutionO
 		}
 		out.Timeline = append(out.Timeline, line)
 	}
-	return out, tx.Commit()
+	return out, nil
 }
 
 type MatrixCell struct {

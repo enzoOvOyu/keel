@@ -2713,6 +2713,49 @@
           }
         }
       }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/report": {
+      "get": {
+        "operationId": "getExecutionReport",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Execution evidence summary report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionReport"
+                }
+              }
+            }
+          }
+        },
+        "description": "A repeatable-read execution metadata report: frozen flow/target identity, latest slot counts, historical receipt provenance, unknown resource quarantine and authorized paged evidence links. Never hardware acceptance, GateEvidence or automatic state mutation. Omits raw logs, script bodies, credentials and per-target bulk payload."
+      }
     }
   },
   "components": {
@@ -5965,6 +6008,113 @@
           "expires_at": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "ExecutionReport": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "generated_at",
+          "frozen_at",
+          "overview",
+          "complete",
+          "hardware_acceptance",
+          "gate_evidence",
+          "planned_task_slots",
+          "unobserved_task_slots",
+          "receipt_count",
+          "quarantined_resources",
+          "receipt_provenance",
+          "references",
+          "warnings"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "enum": [
+              "execution-evidence-report/v1"
+            ]
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "frozen_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "overview": {
+            "$ref": "#/components/schemas/ExecutionOverview"
+          },
+          "complete": {
+            "type": "boolean",
+            "description": "All planned target/task slots reached a terminal state; does not mean success or acceptance."
+          },
+          "hardware_acceptance": {
+            "type": "boolean",
+            "const": false
+          },
+          "gate_evidence": {
+            "type": "boolean",
+            "const": false
+          },
+          "planned_task_slots": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unobserved_task_slots": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "receipt_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "quarantined_resources": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "receipt_provenance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReceiptProvenance"
+            }
+          },
+          "references": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Scoped paginated evidence URLs, require current authorization; raw evidence is not embedded."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ReceiptProvenance": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "source",
+          "count"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       }

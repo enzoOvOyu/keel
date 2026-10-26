@@ -1,5 +1,7 @@
 export const executionViewsTranslations = {
   zh: {
+    executionReportDownload: "导出执行报告",
+    executionReportBoundary: "当前执行事实摘要，包含历史回执来源及隔离情况；不等同硬件验收或门禁证明，详细证据仍需授权查看。",
     sshTrustExecutionNotice: "受限 SSH 主机信任验证；仅 Admin、DL、SRE 可控制。只验证已安装的本平台公钥/helper；成功且有效的终态回执才可建立信任，未知结果保留对账。",
     agentExecutionNotice: "受限 Agent 只读任务；使用当前注册的 mTLS 身份及冻结的资产绑定。断线无终态回执时保留结果未知与资源隔离，仅凭真实回执显式对账，不作为硬件验收依据。",
     scriptNonstartBoundary: "仅适用于原脚本授权已过期、派发未知且目标没有持久接收记录的情形。请求由工作进程取得目标证明，不运行脚本；已有接收或运行记录仍保持未知。取得回执后仍须显式对账。",
@@ -66,6 +68,8 @@ export const executionViewsTranslations = {
       "按当前状态版本 {{version}} 提交控制请求；冲突后刷新，不自动重试。",
   },
   en: {
+    executionReportDownload: "Export execution report",
+    executionReportBoundary: "Execution facts, historical receipt provenance and quarantine summary. Hardware acceptance or gate evidence is not implied; detailed evidence requires authorization.",
     scriptNonstartBoundary: "Only for an expired original script dispatch with unknown outcome and no durable target acceptance. The worker obtains target proof without running the script. Existing acceptance or running records remain unknown; a terminal receipt still requires explicit reconciliation.",
     scriptNonstartConfirm: "Request proof for the original expired dispatch without executing the script again",
     scriptNonstartRequest: "Request non-start proof",

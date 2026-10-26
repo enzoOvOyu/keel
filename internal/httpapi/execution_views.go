@@ -51,6 +51,19 @@ func streamFrame(c *gin.Context, kind string, cursor int64, data any) bool {
 }
 func (a *authAPI) registerExecutionViews(r *gin.Engine) {
 	base := "/api/v1/projects/:id/executions/:executionId"
+	r.GET(base+"/report", func(c *gin.Context) {
+		_, s, ok := a.executionProject(c, false)
+		if !ok {
+			return
+		}
+		out, err := s.Report(c.Request.Context(), c.Param("id"), c.Param("executionId"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.Header("Cache-Control", "private, no-store")
+		c.JSON(200, out)
+	})
 	r.GET(base+"/overview", func(c *gin.Context) {
 		_, s, ok := a.executionProject(c, false)
 		if !ok {

@@ -564,6 +564,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/executions/{executionId}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description A repeatable-read execution metadata report: frozen flow/target identity, latest slot counts, historical receipt provenance, unknown resource quarantine and authorized paged evidence links. Never hardware acceptance, GateEvidence or automatic state mutation. Omits raw logs, script bodies, credentials and per-target bulk payload. */
+        get: operations["getExecutionReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1329,6 +1346,36 @@ export interface components {
             requested_at: string;
             /** Format: date-time */
             expires_at: string;
+        };
+        ExecutionReport: {
+            /** @enum {string} */
+            version: "execution-evidence-report/v1";
+            /** Format: date-time */
+            generated_at: string;
+            /** Format: date-time */
+            frozen_at: string;
+            overview: components["schemas"]["ExecutionOverview"];
+            /** @description All planned target/task slots reached a terminal state; does not mean success or acceptance. */
+            complete: boolean;
+            /** @constant */
+            hardware_acceptance: false;
+            /** @constant */
+            gate_evidence: false;
+            planned_task_slots: number;
+            unobserved_task_slots: number;
+            receipt_count: number;
+            quarantined_resources: number;
+            receipt_provenance: components["schemas"]["ReceiptProvenance"][];
+            /** @description Scoped paginated evidence URLs, require current authorization; raw evidence is not embedded. */
+            references: {
+                [key: string]: string;
+            };
+            warnings: string[];
+        };
+        ReceiptProvenance: {
+            mode: string;
+            source: string;
+            count: number;
         };
     };
     responses: {
@@ -2681,6 +2728,29 @@ export interface operations {
             413: components["responses"]["TooLarge"];
             415: components["responses"]["UnsupportedMediaType"];
             503: components["responses"]["Unavailable"];
+        };
+    };
+    getExecutionReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                executionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Execution evidence summary report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionReport"];
+                };
+            };
         };
     };
 }

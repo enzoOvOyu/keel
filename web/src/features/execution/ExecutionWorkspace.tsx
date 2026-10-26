@@ -1,5 +1,6 @@
 import {RerunDialog} from './RerunDialog'
 import { CacheOutput } from './CacheOutput'
+import { ExecutionReportDownload } from './ExecutionReportDownload'
 import { ScriptNonstartProof } from './ScriptNonstartProof'
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -635,6 +636,7 @@ export function ExecutionWorkspace({
         <Button variant="outline" className="secondary-button" onClick={onClose}>
           {t("backToList")}
         </Button>
+        <ExecutionReportDownload key={`${projectId}:${executionId}`} projectId={projectId} executionId={executionId} onDenied={error => setScopeDenied(error)} />
       </header>
       <p className="impact-notice">
         {t(

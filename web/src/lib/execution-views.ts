@@ -291,3 +291,6 @@ export function useExecutionStream(
   }, [project, execution, enabled, scope]);
   return state;
 }
+
+export type ExecutionReport = components['schemas']['ExecutionReport'];
+export const getExecutionReport = (project:string,execution:string,signal:AbortSignal) => request<ExecutionReport>(base(project,execution)+'/report',{signal});
