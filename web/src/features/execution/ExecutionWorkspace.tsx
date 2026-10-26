@@ -681,7 +681,7 @@ export function ExecutionWorkspace({
           ))}
         </div>
       )}
-      {canControl && current.execution.mode==='sim' && !active && <Button variant="outline" onClick={()=>setRerun({mode:'failed',targetIDs:[]})}>{t('rerunFailed')}</Button>}
+      {canControl && current.execution.rerun_supported && !active && <Button variant="outline" onClick={()=>setRerun({mode:'failed',targetIDs:[]})}>{t('rerunFailed')}</Button>}
       {rerun && <RerunDialog projectId={projectId} projectName={project.name} sourceExecutionId={executionId} mode={rerun.mode} targetIDs={rerun.targetIDs} onClose={()=>setRerun(null)} onDone={id=>{setRerun(null);void client.invalidateQueries({queryKey:['private',session.user.id,'project',projectId]});void navigate({to:'/p/$projectId/executions',params:{projectId},search:{execution:id,tab:'overview'}})}}/>}
       <div
         role="tablist"
@@ -864,7 +864,7 @@ export function ExecutionWorkspace({
           projectId={projectId}
           executionId={executionId}
           attempt={search.attempt}
-          onRerun={canControl && current.execution.mode==='sim' && !active ? targetID=>{go({attempt:undefined});setRerun({mode:'targets',targetIDs:[targetID]})}:undefined}
+          onRerun={canControl && current.execution.rerun_supported && !active ? targetID=>{go({attempt:undefined});setRerun({mode:'targets',targetIDs:[targetID]})}:undefined}
           onClose={() => go({ attempt: undefined })}
           onLogs={() =>
             go({ attempt: undefined, tab: "logs", logAttempt: search.attempt })

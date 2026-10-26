@@ -1784,7 +1784,7 @@
             }
           }
         },
-        "description": "Rerun only settled generic simulation workflows using the original immutable flow revision and parameters. Unknown, active and incomplete targets are excluded. Owned Kea/fabric workflows retain domain approval. Commit revalidates preview hash, source version, current catalog and target revisions; source execution is unchanged.",
+        "description": "Rerun settled generic simulation or published keel.host/v1 SSH/Agent DAGs through original native admission. Host reruns require confirm_full_workflow=true and repeat every task. Preview binds exact source version/hash, target UID/SN and selection; commit re-resolves current native trust, asset revision and independent media approvals and rejects changed facts. Unknown/active/incomplete evidence is excluded. Domain-owned provisioning, Kea, trust repair and control KV retain their business entry points. Source execution and receipts remain unchanged.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1875,7 +1875,7 @@
             }
           }
         },
-        "description": "Rerun only settled generic simulation workflows using the original immutable flow revision and parameters. Unknown, active and incomplete targets are excluded. Owned Kea/fabric workflows retain domain approval. Commit revalidates preview hash, source version, current catalog and target revisions; source execution is unchanged.",
+        "description": "Rerun settled generic simulation or published keel.host/v1 SSH/Agent DAGs through original native admission. Host reruns require confirm_full_workflow=true and repeat every task. Preview binds exact source version/hash, target UID/SN and selection; commit re-resolves current native trust, asset revision and independent media approvals and rejects changed facts. Unknown/active/incomplete evidence is excluded. Domain-owned provisioning, Kea, trust repair and control KV retain their business entry points. Source execution and receipts remain unchanged.",
         "requestBody": {
           "required": true,
           "content": {
@@ -4261,6 +4261,10 @@
           "trust_verification": {
             "type": "boolean",
             "description": "One-time approved first-connection verification; control requires Admin/DL/SRE."
+          },
+          "rerun_supported": {
+            "type": "boolean",
+            "description": "Presentation capability only. Rerun admission rechecks current authority and settled durable evidence."
           }
         },
         "required": [
@@ -4279,7 +4283,8 @@
           "started_at",
           "finished_at",
           "target_count",
-          "trust_verification"
+          "trust_verification",
+          "rerun_supported"
         ]
       },
       "ExecutionReceipt": {
@@ -5530,6 +5535,9 @@
             "type": "string",
             "minLength": 3,
             "maxLength": 1000
+          },
+          "confirmed_full_workflow": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -5597,6 +5605,11 @@
             "type": "string",
             "minLength": 3,
             "maxLength": 1000
+          },
+          "confirm_full_workflow": {
+            "type": "boolean",
+            "default": false,
+            "description": "Required true for native host DAGs. Creates a new run of every original task, including previously successful script/file steps; never resumes an unknown command."
           }
         },
         "required": [
@@ -5672,6 +5685,13 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "machine_id": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{32}$"
+                },
+                "serial_number": {
+                  "type": "string"
                 }
               },
               "required": [
@@ -5702,6 +5722,17 @@
           },
           "selection_hash": {
             "type": "string"
+          },
+          "execution_mode": {
+            "type": "string",
+            "enum": [
+              "sim",
+              "ssh",
+              "agent"
+            ]
+          },
+          "requires_full_workflow_confirmation": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -5715,7 +5746,9 @@
           "parameters",
           "targets",
           "excluded",
-          "selection_hash"
+          "selection_hash",
+          "execution_mode",
+          "requires_full_workflow_confirmation"
         ]
       },
       "CompatibilityMatrix": {

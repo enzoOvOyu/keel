@@ -55,7 +55,21 @@ func (s *Service) create(ctx context.Context, a *Actor, projectID string, in Cre
 		return &x, e
 	}
 	if origin != nil {
-		in, e = prepareRerunTx(ctx, tx, projectID, origin)
+		preview, parent, err := loadRerunCandidatesTx(ctx, tx, projectID, origin.SourceID, origin.Request)
+		if err != nil {
+			return nil, err
+		}
+		if parent.Mode != "sim" {
+			x, err := s.createNativeHostRerunTx(ctx, tx, a, projectID, origin, trace, preview, parent)
+			if err != nil {
+				return nil, err
+			}
+			if err = remember(ctx, tx, idem, rawInput, x); err != nil {
+				return nil, err
+			}
+			return x, tx.Commit()
+		}
+		in, e = prepareRerunInput(preview, parent, origin)
 		if e != nil {
 			return nil, e
 		}

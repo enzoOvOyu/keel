@@ -6073,6 +6073,7 @@ export interface components {
             mode: "failed" | "targets";
             selection_hash: string;
             change_reason: string;
+            confirmed_full_workflow?: boolean;
         };
         "schemas-MediaDependencies": {
             compatibility?: components["schemas"]["CompatibilityMatrix"];
@@ -6224,6 +6225,8 @@ export interface components {
             target_count: number;
             /** @description One-time approved first-connection verification; control requires Admin/DL/SRE. */
             trust_verification: boolean;
+            /** @description Presentation capability only. Rerun admission rechecks current authority and settled durable evidence. */
+            rerun_supported: boolean;
         };
         ExecutionProgress: {
             total_targets: number;

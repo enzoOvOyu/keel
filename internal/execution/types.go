@@ -131,11 +131,12 @@ type CreateInput struct {
 	Mode                  string         `json:"mode"`
 }
 type RerunSource struct {
-	ExecutionID   string `json:"execution_id"`
-	StateVersion  int64  `json:"state_version"`
-	Mode          string `json:"mode"`
-	SelectionHash string `json:"selection_hash"`
-	ChangeReason  string `json:"change_reason"`
+	ConfirmedFullWorkflow bool   `json:"confirmed_full_workflow,omitempty"`
+	ExecutionID           string `json:"execution_id"`
+	StateVersion          int64  `json:"state_version"`
+	Mode                  string `json:"mode"`
+	SelectionHash         string `json:"selection_hash"`
+	ChangeReason          string `json:"change_reason"`
 }
 type Snapshot struct {
 	CircuitBreakerPolicy  *platform.ExecutionCircuitBreakerPolicy `json:"circuit_breaker_policy,omitempty"`
@@ -188,6 +189,7 @@ type Attempt struct {
 }
 type ExecutionSummary struct {
 	TrustVerification     bool       `json:"trust_verification"`
+	RerunSupported        bool       `json:"rerun_supported"`
 	ID                    string     `json:"id"`
 	ProjectID             string     `json:"project_id"`
 	FlowVersionID         string     `json:"flow_version_id"`

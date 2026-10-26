@@ -363,7 +363,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Rerun only settled generic simulation workflows using the original immutable flow revision and parameters. Unknown, active and incomplete targets are excluded. Owned Kea/fabric workflows retain domain approval. Commit revalidates preview hash, source version, current catalog and target revisions; source execution is unchanged. */
+        /** @description Rerun settled generic simulation or published keel.host/v1 SSH/Agent DAGs through original native admission. Host reruns require confirm_full_workflow=true and repeat every task. Preview binds exact source version/hash, target UID/SN and selection; commit re-resolves current native trust, asset revision and independent media approvals and rejects changed facts. Unknown/active/incomplete evidence is excluded. Domain-owned provisioning, Kea, trust repair and control KV retain their business entry points. Source execution and receipts remain unchanged. */
         post: operations["previewExecutionRerun"];
         delete?: never;
         options?: never;
@@ -380,7 +380,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Rerun only settled generic simulation workflows using the original immutable flow revision and parameters. Unknown, active and incomplete targets are excluded. Owned Kea/fabric workflows retain domain approval. Commit revalidates preview hash, source version, current catalog and target revisions; source execution is unchanged. */
+        /** @description Rerun settled generic simulation or published keel.host/v1 SSH/Agent DAGs through original native admission. Host reruns require confirm_full_workflow=true and repeat every task. Preview binds exact source version/hash, target UID/SN and selection; commit re-resolves current native trust, asset revision and independent media approvals and rejects changed facts. Unknown/active/incomplete evidence is excluded. Domain-owned provisioning, Kea, trust repair and control KV retain their business entry points. Source execution and receipts remain unchanged. */
         post: operations["rerunExecution"];
         delete?: never;
         options?: never;
@@ -891,6 +891,8 @@ export interface components {
             target_count: number;
             /** @description One-time approved first-connection verification; control requires Admin/DL/SRE. */
             trust_verification: boolean;
+            /** @description Presentation capability only. Rerun admission rechecks current authority and settled durable evidence. */
+            rerun_supported: boolean;
         };
         /** @description Immutable durable runner proof tied to command, attempt and fencing token. cancelled is an attempt outcome; execution cancellation terminal is killed. Read-only Agent output is not hardware acceptance. */
         ExecutionReceipt: {
@@ -1205,6 +1207,7 @@ export interface components {
             mode: "failed" | "targets";
             selection_hash: string;
             change_reason: string;
+            confirmed_full_workflow?: boolean;
         };
         RerunPreviewInput: {
             /** @enum {string} */
@@ -1218,6 +1221,11 @@ export interface components {
             expected_version: number;
             selection_hash: string;
             change_reason: string;
+            /**
+             * @description Required true for native host DAGs. Creates a new run of every original task, including previously successful script/file steps; never resumes an unknown command.
+             * @default false
+             */
+            confirm_full_workflow: boolean;
         };
         RerunCandidates: {
             /** @constant */
@@ -1237,12 +1245,17 @@ export interface components {
                 id: string;
                 name: string;
                 states: string[];
+                machine_id?: string;
+                serial_number?: string;
             }[];
             excluded: {
                 target_id: string;
                 reason: string;
             }[];
             selection_hash: string;
+            /** @enum {string} */
+            execution_mode: "sim" | "ssh" | "agent";
+            requires_full_workflow_confirmation: boolean;
         };
         /** @description Common requirements AND one complete combination row. Rows have identical keys; values from different rows cannot be mixed. At least one nonempty rule is required. */
         CompatibilityMatrix: {

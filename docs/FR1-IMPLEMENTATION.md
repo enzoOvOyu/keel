@@ -85,3 +85,13 @@ tasks:
 put必须给expected_version，0只创建，更新提供原get回执的精确版本。冲突保留原值并失败，编辑后发布新版本才能发起新的意图；原Flow版本和回执不变。每任务100～5000ms、无自动重试，kv.get为幂等读、kv.put显式非幂等。没有任意SQL/文件路径/模板求值或设备写操作。
 
 同项目KV写独占原项目资源、读共享；值/版本、原命令不可变回执、执行结果与审计同一数据库事务提交。重复原命令只观察原结果，不再次递增版本；Pause停派发，已领取有限事务可达安全终点，Kill/当前权限撤销发生在事务前则不写入。租约/fence过期拒绝写；回收器持有原执行锁后确认无提交回执，才写`kv_transaction_not_committed`失败证明，保留unknown及资源隔离，管理员显式Reconcile才能释放，不自动重放。迁移063及相关用例未执行。
+
+## 原生主机DAG显式重跑（源码，未验证）
+
+原`/executions/{id}/rerun/preview`和`/rerun`扩展到已发布`keel.host/v1`的SSH/Agent执行，不对装机、互信修复、Kea或项目KV直接放开。候选必须来源终态且每个任务有完整状态；success/failed缺durable receipt，以及曾领取却cancelled/skipped且无回执的任务，按unknown排除。unknown原命令仍需显式对账。
+
+预览冻结来源版本、原frozen flow摘要、目标execution target ID/物理machine UID/当前SN、选择与排除项；页面按服务端`rerun_supported`能力呈现入口。原生重跑要求`confirm_full_workflow=true`及变更原因，页面明确会重复整个原DAG、包括之前已成功的脚本/文件步骤，可能重复副作用，不是从失败步骤恢复。SIM旧语义不变。
+
+同一当前授权/幂等事务中，重新解析原已发布版本、批准脚本/制品、当前SSH或Agent绑定、项目归属和资产版本，与原不可变快照逐项比较；批准介质/证书/配置/资产发生变化则拒绝，需通过原生入口重新审查。发布更新版本不替换原版本。新Execution/TaskAttempt/command_id与原执行分别持久化，RerunSource保留精确来源/选择摘要/确认，原执行和回执不修改。重复提交返回原child，当前账号撤销仍在幂等命中前拒绝。
+
+新增Agent真实DB软件fixture用例源码：失败DAG新执行/顺序/新命令/原历史不变、单目标与失败集、独立确认、更新发布不换版本、关闭transport的新准入拒绝、资产版本变化、退休制品拒绝、原unknown不进候选；纯定义用例覆盖SSH/Agent及业务域拒绝。未运行，不代表SSH真机或集中验收通过。

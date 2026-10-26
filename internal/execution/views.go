@@ -46,7 +46,7 @@ func executionSummary(x Execution) ExecutionSummary {
 			break
 		}
 	}
-	return ExecutionSummary{TrustVerification: trust, ID: x.ID, ProjectID: x.ProjectID, FlowVersionID: x.FlowVersionID, Mode: x.Mode, State: x.State, StateVersion: x.StateVersion, DesiredState: x.DesiredState, TargetSetHash: x.TargetSetHash, TargetCount: len(x.Snapshot.Targets), Concurrency: x.Concurrency, CircuitBreakerPercent: x.CircuitBreakerPercent, CreatedBy: x.CreatedBy, CreatedAt: x.CreatedAt, StartedAt: x.StartedAt, FinishedAt: x.FinishedAt}
+	return ExecutionSummary{RerunSupported: (x.Mode == "sim" && x.Snapshot.Flow.Definition.APIVersion == "keel.sim/v1") || validNativeHostRerun(&x), TrustVerification: trust, ID: x.ID, ProjectID: x.ProjectID, FlowVersionID: x.FlowVersionID, Mode: x.Mode, State: x.State, StateVersion: x.StateVersion, DesiredState: x.DesiredState, TargetSetHash: x.TargetSetHash, TargetCount: len(x.Snapshot.Targets), Concurrency: x.Concurrency, CircuitBreakerPercent: x.CircuitBreakerPercent, CreatedBy: x.CreatedBy, CreatedAt: x.CreatedAt, StartedAt: x.StartedAt, FinishedAt: x.FinishedAt}
 }
 func readViewExecution(ctx context.Context, tx *sql.Tx, project, id string) (Execution, error) {
 	x, e := scanExecution(tx.QueryRowContext(ctx, "SELECT "+executionColumns+" FROM exec_executions WHERE id=$1 AND project_id=$2", id, project))

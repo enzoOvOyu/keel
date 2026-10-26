@@ -62,6 +62,19 @@ func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, 
 		x, e := decode[Execution](prior)
 		return &x, e
 	}
+	x, err := s.createHostFlowTx(ctx, tx, a, project, in, trace, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err = remember(ctx, tx, idem, request, x); err != nil {
+		return nil, err
+	}
+	return x, tx.Commit()
+}
+
+// Shared admission under the caller's authorization/idempotency transaction.
+// Reruns re-resolve current trust and media and reject changes to frozen facts.
+func (s *Service) createHostFlowTx(ctx context.Context, tx *sql.Tx, a *Actor, project string, in HostFlowCreateInput, trace string, parent *Execution, origin *rerunOrigin) (*Execution, error) {
 	policy, err := platform.ResolveExecutionCircuitBreakerTx(ctx, tx, project)
 	if err != nil {
 		return nil, err
@@ -69,6 +82,7 @@ func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, 
 	if in.CircuitBreakerPercent == 0 {
 		in.CircuitBreakerPercent = policy.DefaultPercent
 	}
+	ids := in.MachineIDs
 	if in.Transport == "agent" && s.AgentRunner == nil && !s.AgentAdmissionOnly {
 		return nil, failure(503, "AGENT_DISABLED", "Agent task admission is not configured")
 	}
@@ -122,6 +136,9 @@ func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, 
 	}
 	flow.Definition = frozen
 	flow.ContentHash = hash(jsonBytes(frozen))
+	if parent != nil && (sourceHash != parent.Snapshot.SourceFlowContentHash || flow.ContentHash != parent.Snapshot.Flow.ContentHash || flow.ID != parent.Snapshot.Flow.ID) {
+		return nil, conflict("source flow or approved task media changed; create a newly reviewed execution")
+	}
 	targets := make([]Target, 0, len(ids))
 	targetIDs := make([]string, 0, len(ids))
 	for _, machine := range ids {
@@ -138,6 +155,18 @@ func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, 
 		if err != nil {
 			return nil, err
 		}
+		if parent != nil {
+			var previous *Target
+			for i := range parent.Snapshot.Targets {
+				if parent.Snapshot.Targets[i].ID == target.ID {
+					previous = &parent.Snapshot.Targets[i]
+					break
+				}
+			}
+			if previous == nil || hash(jsonBytes(*previous)) != hash(jsonBytes(target)) {
+				return nil, conflict("source target identity, trust or revision changed; create a newly reviewed execution")
+			}
+		}
 		targets = append(targets, target)
 		targetIDs = append(targetIDs, target.ID)
 	}
@@ -145,6 +174,9 @@ func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, 
 	params := map[string]any{}
 	x := &Execution{ID: platform.RandomID(), ProjectID: project, FlowVersionID: flow.ID, Mode: in.Transport, State: "created", StateVersion: 1, DesiredState: "running", Parameters: params, TargetSetHash: hash(jsonBytes(targetIDs)), Concurrency: in.Concurrency, CircuitBreakerPercent: in.CircuitBreakerPercent, CreatedBy: a.User.ID, CreatedAt: now}
 	x.Snapshot = Snapshot{CircuitBreakerPolicy: policy, SourceFlowContentHash: sourceHash, Mode: in.Transport, Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "Published bounded host DAG; exact current project machine/channel identities; frozen independent media approvals; shared or exclusive device and exclusive transport leases; no automatic replay or hardware acceptance", FrozenAt: now}
+	if origin != nil {
+		x.Snapshot.RerunSource = &RerunSource{ConfirmedFullWorkflow: origin.Request.ConfirmFullWorkflow, ExecutionID: origin.SourceID, StateVersion: origin.Request.ExpectedVersion, Mode: origin.Request.Mode, SelectionHash: origin.Request.SelectionHash, ChangeReason: origin.Request.ChangeReason}
+	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO exec_executions(id,project_id,flow_version_id,mode,parameters,snapshot,target_set_hash,concurrency,circuit_breaker_percent,created_by,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, x.ID, project, flow.ID, x.Mode, jsonBytes(params), jsonBytes(x.Snapshot), x.TargetSetHash, x.Concurrency, x.CircuitBreakerPercent, a.User.ID, now)
 	if err != nil {
 		return nil, err
@@ -166,8 +198,13 @@ func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, 
 	if err = audit(ctx, tx, a.User.ID, project, "execution.host.flow.create", x.ID, trace, details); err != nil {
 		return nil, err
 	}
-	if err = remember(ctx, tx, idem, request, x); err != nil {
-		return nil, err
+	if origin != nil {
+		if err = event(ctx, tx, x.ID, "execution.rerun", x.Snapshot.RerunSource); err != nil {
+			return nil, err
+		}
+		if err = audit(ctx, tx, a.User.ID, project, "execution.rerun", x.ID, trace, x.Snapshot.RerunSource); err != nil {
+			return nil, err
+		}
 	}
-	return x, tx.Commit()
+	return x, nil
 }

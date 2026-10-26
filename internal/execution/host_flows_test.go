@@ -132,6 +132,9 @@ func TestHostFlowUnknownBlocksDependencyUntilExplicitReconcilePostgres(t *testin
 	mustAgent(t, err)
 	_, err = f.service.ReapExpired(ctx)
 	mustAgent(t, err)
+	if _, err = f.service.RerunCandidates(ctx, f.actor, f.project, x.ID, "failed", nil); err == nil {
+		t.Fatal("unknown native command admitted to rerun candidates")
+	}
 	if f.claim(t, x.ID) != nil {
 		t.Fatal("unknown dependency dispatched next task")
 	}
