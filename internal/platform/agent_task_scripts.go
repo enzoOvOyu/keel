@@ -21,13 +21,14 @@ func (s *Store) agentScriptRequestTx(ctx context.Context, tx *sql.Tx, r taskrunn
 		return taskrunner.ErrRejected
 	}
 	var task struct {
-		Type       string              `json:"type"`
-		Idempotent bool                `json:"idempotent"`
-		Retry      int                 `json:"retry"`
-		TimeoutMS  int                 `json:"timeout_ms"`
-		Script     *TaskScriptArtifact `json:"script"`
+		ScriptResultFormat string              `json:"script_result_format"`
+		Type               string              `json:"type"`
+		Idempotent         bool                `json:"idempotent"`
+		Retry              int                 `json:"retry"`
+		TimeoutMS          int                 `json:"timeout_ms"`
+		Script             *TaskScriptArtifact `json:"script"`
 	}
-	if json.Unmarshal(taskRaw, &task) != nil || task.Script == nil || task.Type != "script.run" || task.Idempotent || task.Retry != 0 || task.TimeoutMS != c.TimeoutMS || task.Script.Command(c) != c {
+	if json.Unmarshal(taskRaw, &task) != nil || task.Script == nil || task.Type != "script.run" || task.Idempotent || task.Retry != 0 || task.TimeoutMS != c.TimeoutMS || task.ScriptResultFormat != c.ScriptResultFormat || task.Script.Command(c) != c {
 		return taskrunner.ErrRejected
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT payload FROM exec_outbox WHERE execution_id=$1 AND event_type='script.dispatch_committed' AND payload->>'attempt_id'=$2 ORDER BY sequence LIMIT 2`, executionID, c.AttemptID)

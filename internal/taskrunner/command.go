@@ -20,6 +20,7 @@ var idPattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
 const APIVersion = "keel.task/v1"
 
 type TaskCommand struct {
+	ScriptResultFormat     string `json:"script_result_format,omitempty"`
 	ScriptMediaID          string `json:"script_media_id,omitempty"`
 	ScriptObjectVersion    string `json:"script_object_version,omitempty"`
 	ScriptSHA256           string `json:"script_sha256,omitempty"`
@@ -46,10 +47,10 @@ func (c TaskCommand) Validate() error {
 		return ErrRejected
 	}
 	if c.Operation == "script.run" {
-		if !idPattern.MatchString(c.ScriptMediaID) || !scriptDigestPattern.MatchString(c.ScriptSHA256) || c.ScriptSize < 1 || c.ScriptSize > MaxScriptBytes || c.AuthorizationExpiresAt < 1 || !validScriptVersion(c.ScriptObjectVersion) || (c.ScriptInterpreter != "shell" && c.ScriptInterpreter != "python") {
+		if (c.ScriptResultFormat != "" && c.ScriptResultFormat != "json") || !idPattern.MatchString(c.ScriptMediaID) || !scriptDigestPattern.MatchString(c.ScriptSHA256) || c.ScriptSize < 1 || c.ScriptSize > MaxScriptBytes || c.AuthorizationExpiresAt < 1 || !validScriptVersion(c.ScriptObjectVersion) || (c.ScriptInterpreter != "shell" && c.ScriptInterpreter != "python") {
 			return ErrRejected
 		}
-	} else if c.ScriptMediaID != "" || c.ScriptObjectVersion != "" || c.ScriptSHA256 != "" || c.ScriptSize != 0 || c.ScriptInterpreter != "" {
+	} else if c.ScriptResultFormat != "" || c.ScriptMediaID != "" || c.ScriptObjectVersion != "" || c.ScriptSHA256 != "" || c.ScriptSize != 0 || c.ScriptInterpreter != "" {
 		return ErrRejected
 	}
 	if c.Operation == "trust.install" {

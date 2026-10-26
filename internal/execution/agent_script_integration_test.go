@@ -73,7 +73,7 @@ func TestAgentApprovedScriptPostgresAdmissionAndUnknown(t *testing.T) {
 		media, err = f.store.TransitionMedia(ctx, approver, project, media.ID, state, "agent-script-test")
 		mustAgent(t, err)
 	}
-	in := SSHScriptCreateInput{MachineIDs: []string{f.machine}, MediaID: media.ID, TimeoutMS: 5000}
+	in := SSHScriptCreateInput{ResultFormat: "json", MachineIDs: []string{f.machine}, MediaID: media.ID, TimeoutMS: 5000}
 	if _, err = f.service.CreateAgentScript(ctx, f.actor, f.project, in, platform.RandomID(), "test"); err == nil {
 		t.Fatal("default-off Agent script admitted")
 	}
@@ -101,7 +101,7 @@ func TestAgentApprovedScriptPostgresAdmissionAndUnknown(t *testing.T) {
 	runner := &agentScriptLostRunner{base: f.runner, store: f.store, credential: f.credential}
 	f.service.AgentRunner = runner
 	_ = f.service.RunClaim(ctx, claim)
-	if runner.runs != 1 || runner.admission != nil || runner.request.Validate() != nil {
+	if runner.runs != 1 || runner.admission != nil || runner.request.Validate() != nil || runner.request.Command.ScriptResultFormat != "json" {
 		t.Fatal("committed Agent dispatch rejected", runner.runs, runner.admission)
 	}
 	var state string

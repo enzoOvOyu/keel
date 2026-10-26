@@ -32,13 +32,14 @@ func PrepareScriptProcess() error {
 }
 
 type scriptCapture struct {
-	prefix   []byte
-	digest   string
-	size     int64
-	complete bool
+	jsonSource []byte
+	prefix     []byte
+	digest     string
+	size       int64
+	complete   bool
 }
 
-func captureScriptOutput(reader *os.File, overflow chan<- struct{}) <-chan scriptCapture {
+func captureScriptOutput(reader *os.File, overflow chan<- struct{}, structured bool) <-chan scriptCapture {
 	done := make(chan scriptCapture, 1)
 	go func() {
 		defer reader.Close()
@@ -50,6 +51,13 @@ func captureScriptOutput(reader *os.File, overflow chan<- struct{}) <-chan scrip
 			if n > 0 {
 				c.size += int64(n)
 				h.Write(buf[:n])
+				if structured && len(c.jsonSource) <= MaxScriptJSONBytes {
+					take := n
+					if take > MaxScriptJSONBytes+1-len(c.jsonSource) {
+						take = MaxScriptJSONBytes + 1 - len(c.jsonSource)
+					}
+					c.jsonSource = append(c.jsonSource, buf[:take]...)
+				}
 				if len(c.prefix) < 512 {
 					take := n
 					if take > 512-len(c.prefix) {
@@ -185,8 +193,8 @@ func executeScriptProcess(ctx context.Context, dir string, c TaskCommand, body [
 	outW.Close()
 	errW.Close()
 	overflow := make(chan struct{}, 2)
-	stdout := captureScriptOutput(outR, overflow)
-	stderr := captureScriptOutput(errR, overflow)
+	stdout := captureScriptOutput(outR, overflow, c.ScriptResultFormat == "json")
+	stderr := captureScriptOutput(errR, overflow, false)
 	result, reason := "success", "script_completed"
 	mainDone, stopping := false, false
 	exitCode := -1
@@ -298,5 +306,14 @@ func executeScriptProcess(ctx context.Context, dir string, c TaskCommand, body [
 		return nil, "", "", ErrUnknown
 	}
 	output := map[string]any{"script_media_id": c.ScriptMediaID, "script_object_version": c.ScriptObjectVersion, "script_sha256": c.ScriptSHA256, "script_interpreter": c.ScriptInterpreter, "exit_code": exitCode, "process_tree_stopped": true, "process_started": true, "stdout_prefix_base64": base64.StdEncoding.EncodeToString(out.prefix), "stdout_sha256": out.digest, "stdout_bytes": out.size, "stdout_complete": out.complete, "stderr_prefix_base64": base64.StdEncoding.EncodeToString(errOut.prefix), "stderr_sha256": errOut.digest, "stderr_bytes": errOut.size, "stderr_complete": errOut.complete}
+	if c.ScriptResultFormat == "json" && result == "success" {
+		normalized, parseErr := normalizedScriptJSON(out.jsonSource)
+		if parseErr != nil {
+			result, reason = "failed", "script_json_invalid"
+		} else {
+			output["structured_result_json"] = normalized
+			output["structured_stdout_base64"] = base64.StdEncoding.EncodeToString(out.jsonSource)
+		}
+	}
 	return output, result, reason, nil
 }

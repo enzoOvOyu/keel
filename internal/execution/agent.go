@@ -97,7 +97,7 @@ func (s *Service) agentReceiptAllowedTx(ctx context.Context, tx *sql.Tx, r Recei
 // CreateAgent admits only bounded host queries, then creates an ordinary
 // execution consumed by the existing scheduler/outbox/lease machinery.
 func (s *Service) CreateAgent(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (*Execution, error) {
-	if in.ScriptMediaID != "" || in.Operation != "host.identity" && in.Operation != "host.wait" {
+	if in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" {
 		return nil, invalid("Only bounded host queries are admitted by this endpoint")
 	}
 	return s.createAgent(ctx, a, project, in, key, trace)
@@ -107,7 +107,7 @@ func (s *Service) CreateAgentScript(ctx context.Context, a *Actor, project strin
 	if s.MediaStore == nil || !s.MediaStore.AgentScriptsEnabled {
 		return nil, failure(409, "AGENT_SCRIPTS_DISABLED", "Approved Agent scripts are not enabled")
 	}
-	return s.createAgent(ctx, a, project, SSHCreateInput{MachineIDs: in.MachineIDs, Operation: "script.run", ScriptMediaID: in.MediaID, TimeoutMS: in.TimeoutMS}, key, trace)
+	return s.createAgent(ctx, a, project, SSHCreateInput{MachineIDs: in.MachineIDs, Operation: "script.run", ScriptMediaID: in.MediaID, TimeoutMS: in.TimeoutMS, ScriptResultFormat: in.ResultFormat}, key, trace)
 }
 
 func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (_ *Execution, resultErr error) {
@@ -118,7 +118,7 @@ func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in 
 		in.TimeoutMS = 5000
 	}
 	check := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: project, MachineID: "00000000000000000000000000000000", CommandID: "00000000000000000000000000000000", AttemptID: "00000000000000000000000000000000", FencingToken: 1, Operation: in.Operation, TimeoutMS: in.TimeoutMS, WaitMS: in.WaitMS}
-	if (in.Operation != "script.run" && check.Validate() != nil) || (in.Operation == "script.run" && (!opaqueID.MatchString(in.ScriptMediaID) || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0)) || len(in.MachineIDs) < 1 || len(in.MachineIDs) > 32 {
+	if (in.Operation != "script.run" && check.Validate() != nil) || (in.Operation == "script.run" && (in.ScriptResultFormat != "" && in.ScriptResultFormat != "json" || !opaqueID.MatchString(in.ScriptMediaID) || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0)) || len(in.MachineIDs) < 1 || len(in.MachineIDs) > 32 {
 		return nil, invalid("1..32 machine IDs and bounded Agent host queries are required")
 	}
 	ids := append([]string{}, in.MachineIDs...)
@@ -178,7 +178,7 @@ func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in 
 		targetIDs = append(targetIDs, target.ID)
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	task := Task{Script: script, ID: "agent-query", Type: in.Operation, Idempotent: true, Retry: 0, TimeoutMS: in.TimeoutMS, Resources: []string{"device", "agent"}}
+	task := Task{ScriptResultFormat: in.ScriptResultFormat, Script: script, ID: "agent-query", Type: in.Operation, Idempotent: true, Retry: 0, TimeoutMS: in.TimeoutMS, Resources: []string{"device", "agent"}}
 	if script != nil {
 		task.ID = "agent-script"
 		task.Idempotent = false

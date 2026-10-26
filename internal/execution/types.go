@@ -55,15 +55,16 @@ type SimSpec struct {
 	Uncancellable bool   `json:"uncancellable,omitempty" yaml:"uncancellable,omitempty"`
 }
 type Task struct {
-	Script     *platform.TaskScriptArtifact `json:"script,omitempty" yaml:"script,omitempty"`
-	ID         string                       `json:"id" yaml:"id"`
-	Type       string                       `json:"type" yaml:"type"`
-	DependsOn  []string                     `json:"depends_on,omitempty" yaml:"depends_on,omitempty"`
-	Retry      int                          `json:"retry" yaml:"retry"`
-	Idempotent bool                         `json:"idempotent" yaml:"idempotent"`
-	TimeoutMS  int                          `json:"timeout_ms" yaml:"timeout_ms"`
-	Resources  []string                     `json:"resources" yaml:"resources"`
-	Sim        SimSpec                      `json:"sim" yaml:"sim"`
+	ScriptResultFormat string                       `json:"script_result_format,omitempty" yaml:"script_result_format,omitempty"`
+	Script             *platform.TaskScriptArtifact `json:"script,omitempty" yaml:"script,omitempty"`
+	ID                 string                       `json:"id" yaml:"id"`
+	Type               string                       `json:"type" yaml:"type"`
+	DependsOn          []string                     `json:"depends_on,omitempty" yaml:"depends_on,omitempty"`
+	Retry              int                          `json:"retry" yaml:"retry"`
+	Idempotent         bool                         `json:"idempotent" yaml:"idempotent"`
+	TimeoutMS          int                          `json:"timeout_ms" yaml:"timeout_ms"`
+	Resources          []string                     `json:"resources" yaml:"resources"`
+	Sim                SimSpec                      `json:"sim" yaml:"sim"`
 }
 type Definition struct {
 	APIVersion string           `json:"api_version" yaml:"api_version"`
@@ -304,7 +305,7 @@ func (d Definition) Validate() error {
 	}
 	ids := map[string]Task{}
 	for _, t := range d.Tasks {
-		if t.Script != nil {
+		if t.Script != nil || t.ScriptResultFormat != "" {
 			return invalid("simulation flows cannot embed real script artifacts")
 		}
 		if !identifier.MatchString(t.ID) {

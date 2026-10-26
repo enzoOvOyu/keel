@@ -5562,6 +5562,11 @@ export interface components {
             resources: ("machine" | "gpu" | "nic" | "device" | "ssh")[];
             sim: components["schemas"]["SimTaskOptions"];
             script?: components["schemas"]["TaskScriptArtifact"];
+            /**
+             * @description Immutable script stdout result contract; omitted retains text receipts.
+             * @enum {string}
+             */
+            script_result_format?: "" | "json";
         };
         FlowDefinition: {
             /** @enum {string} */

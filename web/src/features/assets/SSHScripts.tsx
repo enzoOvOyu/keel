@@ -21,6 +21,7 @@ type Transport = 'ssh' | 'agent'
 function LaunchScript({ assets, transport, onClose, onDenied }: { assets: ScriptTarget[]; transport: Transport; onClose: () => void; onDenied: (error: ApiError) => void }) {
   const { t } = useTranslation(), project = useProject(), session = useSession(), action = useAction(), navigate = useNavigate(), client = useQueryClient()
   const [targets, setTargets] = useState<string[]>([]), [media, setMedia] = useState(''), [page, setPage] = useState(1), [timeout, setTimeout] = useState('5000'), [confirmed, setConfirmed] = useState(false), [invalid, setInvalid] = useState(false)
+  const [resultFormat, setResultFormat] = useState<'' | 'json'>('')
   const attempt = useRef({ body: '', key: '' }), mounted = useRef(true)
   const catalog = useQuery({ queryKey: ['private', session.user.id, project.id, 'task-scripts', transport, page], queryFn: ({ signal }) => listTaskScripts(project.id, page, signal, transport), retry: false, refetchOnWindowFocus: false })
   useExpireOnUnauthorized(catalog.error ?? action.error)
@@ -29,7 +30,7 @@ function LaunchScript({ assets, transport, onClose, onDenied }: { assets: Script
   const chosen = !catalog.isError && !catalog.isFetching ? catalog.data?.items.find(item => item.media_id === media) : undefined
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   useEffect(() => { setTargets(previous => previous.filter(id => eligible.some(asset => asset.machine_id === id))) }, [assets])
-  useEffect(() => { setConfirmed(false) }, [targets, media, timeout, catalog.dataUpdatedAt])
+  useEffect(() => { setConfirmed(false) }, [targets, media, timeout, resultFormat, catalog.dataUpdatedAt])
   useEffect(() => { if (catalog.isError) { setMedia(''); setConfirmed(false) } }, [catalog.isError])
   useEffect(() => { const error = action.error ?? catalog.error; if (error instanceof ApiError && [401, 403, 404].includes(error.status)) onDenied(error) }, [action.error, catalog.error])
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -37,7 +38,7 @@ function LaunchScript({ assets, transport, onClose, onDenied }: { assets: Script
     const timeoutMS = Number(timeout)
     if (!catalog.data?.enabled || !chosen || !confirmed || !targets.length || targets.length > 32 || targets.some(id => !eligible.some(asset => asset.machine_id === id)) || !Number.isSafeInteger(timeoutMS) || timeoutMS < 100 || timeoutMS > 30000) { setInvalid(true); return }
     setInvalid(false)
-    const body: SSHScriptCreateInput = { machine_ids: [...targets].sort(), media_id: chosen.media_id, timeout_ms: timeoutMS }
+    const body: SSHScriptCreateInput = { machine_ids: [...targets].sort(), media_id: chosen.media_id, timeout_ms: timeoutMS, result_format: resultFormat }
     const serialized = JSON.stringify(body)
     if (attempt.current.body !== serialized) attempt.current = { body: serialized, key: crypto.randomUUID() }
     const result = await action.run(() => (transport === 'agent' ? createAgentScriptExecution : createSSHScriptExecution)(project.id, body, session.csrf_token, attempt.current.key))
@@ -59,6 +60,7 @@ function LaunchScript({ assets, transport, onClose, onDenied }: { assets: Script
     {catalog.data && <Pagination offset={(page - 1) * catalog.data.page_size} limit={catalog.data.page_size} total={catalog.data.total} busy={action.busy || catalog.isFetching} onChange={offset => { setPage(offset / pageSize + 1); setMedia('') }} />}
     {catalog.data?.enabled && !catalog.data.items.length && <p>{t('sshScriptEmpty')}</p>}
     {chosen && <div className="impact-notice"><p>{chosen.name} · {chosen.version} · {chosen.size} B</p><code className="ui:break-all">{chosen.sha256}</code></div>}
+    <div className="field"><Label htmlFor="script-result-format">{t('scriptResultFormat')}</Label><NativeSelect id="script-result-format" value={resultFormat} disabled={action.busy} onChange={event => setResultFormat(event.target.value === 'json' ? 'json' : '')}><NativeSelectOption value="">{t('scriptResultText')}</NativeSelectOption><NativeSelectOption value="json">{t('scriptResultJSON')}</NativeSelectOption></NativeSelect><p className="field-hint">{t(resultFormat === 'json' ? 'scriptResultJSONBoundary' : 'scriptResultTextBoundary')}</p></div>
     <div className="field"><Label htmlFor="ssh-script-timeout">{t('sshLaunchTimeout')}</Label><Input id="ssh-script-timeout" type="number" min={100} max={30000} step={1} required value={timeout} disabled={action.busy} onChange={event => setTimeout(event.target.value)} /></div>
     <div className="ui:flex ui:items-start ui:gap-2"><Checkbox id="ssh-script-confirm" checked={confirmed} disabled={action.busy || !chosen || !targets.length} onCheckedChange={value => setConfirmed(value === true)} /><Label htmlFor="ssh-script-confirm">{t('sshScriptConfirm')}</Label></div>
   </ActionDialog>

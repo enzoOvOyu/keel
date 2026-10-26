@@ -62,6 +62,12 @@ func validateScriptObservation(o Observation) error {
 		}
 		switch o.Output["reason"] {
 		case "script_interpreter_unavailable", "script_process_not_started", "script_workspace_unavailable", "script_authorization_expired_before_start":
+			if _, exists := o.Output["structured_result_json"]; exists {
+				return ErrRejected
+			}
+			if _, exists := o.Output["structured_stdout_base64"]; exists {
+				return ErrRejected
+			}
 			return nil
 		default:
 			return ErrRejected
@@ -96,5 +102,5 @@ func validateScriptObservation(o Observation) error {
 			return ErrRejected
 		}
 	}
-	return nil
+	return validateScriptJSONObservation(o)
 }

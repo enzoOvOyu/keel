@@ -130,6 +130,16 @@ function Timeline({ overview }: { overview: ExecutionOverview }) {
     </section>
   );
 }
+function ScriptResult({ output }: { output: unknown }) {
+  const { t } = useTranslation()
+  if (!output || typeof output !== 'object' || !('observation' in output)) return null
+  const observed = output.observation
+  if (!observed || typeof observed !== 'object') return null
+  if ('structured_result_json' in observed && typeof observed.structured_result_json === 'string') return <details open><summary>{t('executionStructuredResult')}</summary><pre>{observed.structured_result_json}</pre></details>
+  if ('reason' in observed && observed.reason === 'script_json_invalid') return <p role="status">{t('executionStructuredResultInvalid')}</p>
+  return null
+}
+
 function Outputs({
   projectId,
   executionId,
@@ -207,7 +217,8 @@ function Outputs({
                       </Button>
                       <details>
                         <summary>{t("executionViewStructuredOutput")}</summary>
-                        <pre>
+                        <ScriptResult output={item.receipt.output} />
+                      <pre>
                           {JSON.stringify(item.receipt.output, null, 2)}
                         </pre>
                         <code>{item.digest}</code>

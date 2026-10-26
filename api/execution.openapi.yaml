@@ -2787,6 +2787,14 @@
           },
           "script": {
             "$ref": "#/components/schemas/TaskScriptArtifact"
+          },
+          "script_result_format": {
+            "type": "string",
+            "enum": [
+              "",
+              "json"
+            ],
+            "description": "Immutable script stdout result contract; omitted retains text receipts."
           }
         },
         "required": [
@@ -5387,6 +5395,15 @@
             "minimum": 100,
             "maximum": 30000,
             "default": 5000
+          },
+          "result_format": {
+            "type": "string",
+            "enum": [
+              "",
+              "json"
+            ],
+            "default": "",
+            "description": "Empty keeps bounded text output. json requires one UTF-8 JSON object of at most 2048 bytes, depth at most 8 and at most 128 values; duplicate keys, trailing documents and nonfinite numbers fail the task. The command and receipt freeze this choice."
           }
         },
         "description": "Explicit selection of 1..32 trusted provisioned machines and an independently approved fixed-interpreter script artifact. Non-idempotent; no automatic retry."

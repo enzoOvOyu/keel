@@ -9,9 +9,10 @@ import (
 )
 
 type SSHScriptCreateInput struct {
-	MachineIDs []string `json:"machine_ids"`
-	MediaID    string   `json:"media_id"`
-	TimeoutMS  int      `json:"timeout_ms"`
+	ResultFormat string   `json:"result_format,omitempty"`
+	MachineIDs   []string `json:"machine_ids"`
+	MediaID      string   `json:"media_id"`
+	TimeoutMS    int      `json:"timeout_ms"`
 }
 
 func (s *Service) CreateSSHScript(ctx context.Context, a *Actor, project string, in SSHScriptCreateInput, key, trace string) (*Execution, error) {
@@ -21,7 +22,7 @@ func (s *Service) CreateSSHScript(ctx context.Context, a *Actor, project string,
 	if !opaqueID.MatchString(in.MediaID) {
 		return nil, invalid("An approved script media ID is required")
 	}
-	return s.createSSH(ctx, a, project, SSHCreateInput{MachineIDs: in.MachineIDs, Operation: "script.run", ScriptMediaID: in.MediaID, TimeoutMS: in.TimeoutMS}, "", 0, key, trace)
+	return s.createSSH(ctx, a, project, SSHCreateInput{MachineIDs: in.MachineIDs, Operation: "script.run", ScriptMediaID: in.MediaID, TimeoutMS: in.TimeoutMS, ScriptResultFormat: in.ResultFormat}, "", 0, key, trace)
 }
 
 func (s *Service) scriptFrozenTx(ctx context.Context, tx *sql.Tx, project, mode string, task Task) error {
@@ -31,7 +32,7 @@ func (s *Service) scriptFrozenTx(ctx context.Context, tx *sql.Tx, project, mode 
 		}
 		return nil
 	}
-	if (mode != "ssh" && mode != "agent") || task.Type != "script.run" || task.Retry != 0 || task.Idempotent || s.MediaStore == nil {
+	if (task.ScriptResultFormat != "" && task.ScriptResultFormat != "json") || (mode != "ssh" && mode != "agent") || task.Type != "script.run" || task.Retry != 0 || task.Idempotent || s.MediaStore == nil {
 		return failure(409, "TASK_SCRIPT_DISABLED", "Script adapter or frozen execution policy is unavailable")
 	}
 	if mode == "ssh" && !s.MediaStore.SSHScriptsEnabled || mode == "agent" && !s.MediaStore.AgentScriptsEnabled {

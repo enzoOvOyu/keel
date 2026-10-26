@@ -547,6 +547,11 @@ export interface components {
             resources: ("machine" | "gpu" | "nic" | "device" | "ssh")[];
             sim: components["schemas"]["SimTaskOptions"];
             script?: components["schemas"]["TaskScriptArtifact"];
+            /**
+             * @description Immutable script stdout result contract; omitted retains text receipts.
+             * @enum {string}
+             */
+            script_result_format?: "" | "json";
         };
         FlowDefinition: {
             /** @enum {string} */
@@ -1173,6 +1178,12 @@ export interface components {
             media_id: string;
             /** @default 5000 */
             timeout_ms: number;
+            /**
+             * @description Empty keeps bounded text output. json requires one UTF-8 JSON object of at most 2048 bytes, depth at most 8 and at most 128 values; duplicate keys, trailing documents and nonfinite numbers fail the task. The command and receipt freeze this choice.
+             * @default
+             * @enum {string}
+             */
+            result_format: "" | "json";
         };
     };
     responses: {

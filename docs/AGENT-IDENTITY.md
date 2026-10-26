@@ -164,3 +164,5 @@ owner复核可用 `keel-admin agent-credential-status --project PROJECT_ID --id 
 脚本同时持有设备及 Agent exclusive 租约，与 SSH/PXE 使用相同设备 ID。原 attempt 派发前持久记录唯一命令/授权期限，实际传输再次核对原事件、当前批准及两项 exclusive claim。帧不超过 14336 字节，沿用 16KiB gRPC 上限。Agent 在落 fence 前校验原正文摘要，重复 run 只查原回执。续约/重连不更新脚本授权期限；缺失原派发事件不可补发。查询/取消不含正文，关闭脚本或介质退役后仍允许读取原命令回执；当前 mTLS 身份/项目/尝试约束继续生效。未知结果保持隔离，操作者凭真实终态回执显式对账。
 
 这仍是有界前台脚本子集，不等于 FR-5.7 G3+ 批量 Agent 安装/systemd、软件升级、通用文件分发或完整任务目录。相关 PostgreSQL 授权/排他/派发丢失与本地 opt-out/历史查询用例已写入既有 Agent 集中入口，尚未执行；目标 helper 运行语义由共享脚本用例覆盖，尚无 Agent 脚本端到端验收结论。
+
+批准脚本也可显式选择 `result_format:"json"`，严格有界 stdout 对象、原文摘要绑定及失败语义与 SSH 共用，见 [SSH-RUNNER](SSH-RUNNER.md) 的结构化脚本结果；不新增 Agent 操作或绕过独立批准。

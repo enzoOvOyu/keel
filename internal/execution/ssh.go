@@ -14,11 +14,12 @@ import (
 )
 
 type SSHCreateInput struct {
-	ScriptMediaID string   `json:"script_media_id,omitempty"`
-	MachineIDs    []string `json:"machine_ids"`
-	Operation     string   `json:"operation"`
-	TimeoutMS     int      `json:"timeout_ms"`
-	WaitMS        int      `json:"wait_ms"`
+	ScriptResultFormat string   `json:"script_result_format,omitempty"`
+	ScriptMediaID      string   `json:"script_media_id,omitempty"`
+	MachineIDs         []string `json:"machine_ids"`
+	Operation          string   `json:"operation"`
+	TimeoutMS          int      `json:"timeout_ms"`
+	WaitMS             int      `json:"wait_ms"`
 }
 
 func (s *Service) sshTargetTx(ctx context.Context, tx *sql.Tx, project, machine string) (Target, error) {
@@ -62,7 +63,7 @@ func (s *Service) sshFrozenTx(ctx context.Context, tx *sql.Tx, t Target) error {
 }
 
 func (s *Service) CreateSSH(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (*Execution, error) {
-	if in.ScriptMediaID != "" || in.Operation != "host.identity" && in.Operation != "host.wait" {
+	if in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" {
 		return nil, invalid("Only host.identity and host.wait are admitted by this endpoint")
 	}
 	return s.createSSH(ctx, a, project, in, "", 0, key, trace)
@@ -80,7 +81,7 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 		in.TimeoutMS = 5000
 	}
 	check := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: project, MachineID: "00000000000000000000000000000000", CommandID: "00000000000000000000000000000000", AttemptID: "00000000000000000000000000000000", FencingToken: 1, Operation: in.Operation, TimeoutMS: in.TimeoutMS, WaitMS: in.WaitMS}
-	if (in.Operation != "script.run" && check.Validate() != nil) || (in.Operation == "script.run" && (in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0 || requestID != "" || !opaqueID.MatchString(in.ScriptMediaID))) || (requestID == "" && len(in.MachineIDs) == 0) || len(in.MachineIDs) > 32 {
+	if (in.Operation != "script.run" && check.Validate() != nil) || (in.Operation == "script.run" && (in.ScriptResultFormat != "" && in.ScriptResultFormat != "json" || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0 || requestID != "" || !opaqueID.MatchString(in.ScriptMediaID))) || (requestID == "" && len(in.MachineIDs) == 0) || len(in.MachineIDs) > 32 {
 		return nil, invalid("1..32 machine IDs and a bounded host.identity or host.wait operation are required")
 	}
 	tx, e := s.DB.BeginTx(ctx, nil)
@@ -186,7 +187,7 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 	if requestID != "" && targets[0].SSHInstallKey != nil {
 		in.Operation = "trust.install"
 	}
-	task := Task{Script: script, ID: "ssh-query", Type: in.Operation, Idempotent: true, Retry: 0, TimeoutMS: in.TimeoutMS, Resources: []string{"device", "ssh"}}
+	task := Task{ScriptResultFormat: in.ScriptResultFormat, Script: script, ID: "ssh-query", Type: in.Operation, Idempotent: true, Retry: 0, TimeoutMS: in.TimeoutMS, Resources: []string{"device", "ssh"}}
 	if script != nil {
 		task.ID = "ssh-script"
 		task.Idempotent = false
@@ -261,6 +262,7 @@ func sshCommand(c *Claim) taskrunner.TaskCommand {
 	}
 	if c.Task.Script != nil {
 		command = c.Task.Script.Command(command)
+		command.ScriptResultFormat = c.Task.ScriptResultFormat
 	}
 	return command
 }
