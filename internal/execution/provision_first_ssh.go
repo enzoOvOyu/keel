@@ -109,8 +109,29 @@ func registeredInstallationReceiptTarget(ctx context.Context, tx *sql.Tx, target
 	if r.Output["first_ssh_proof_sha256"] != platform.ProvisionFirstSSHTranscriptSHA256(raw) {
 		return conflict("Registered installation SSH transcript commitment differs")
 	}
+	// Registration and this native receipt were committed together before
+	// Complete. After a worker crash, the reaper may quarantine this same
+	// attempt; authorized Reconcile must consume the existing proof without
+	// reviving its lease, rerunning SSH or admitting a new installation.
 	var current bool
-	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM exec_task_attempts a JOIN exec_resource_leases r ON r.attempt_id=a.id JOIN exec_executions e ON e.id=a.execution_id JOIN provision_requests p ON p.id=$6 JOIN project_assets asset ON asset.id=p.asset_id JOIN machines m ON m.id=asset.machine_id WHERE a.id=$1 AND a.command_id=$2 AND a.fencing_token=$3 AND a.execution_id=$4 AND a.runner='provision' AND a.state='running' AND a.lease_until>now() AND e.mode='provision' AND e.project_id=$7 AND e.state IN('running','dispatching') AND e.desired_state='running' AND r.resource_id=$5 AND r.mode='exclusive' AND r.state='held' AND r.fencing_token=a.fencing_token AND r.expires_at>now() AND asset.project_id=e.project_id AND asset.machine_id=$8 AND asset.state='provisioned' AND asset.version=$9 AND m.ssh_trust='established' AND m.ssh_trust_source='ssh' AND m.host_key_fingerprint=$10 AND m.ssh_domain_credential=$11::jsonb)`, a.ID, a.CommandID, a.FencingToken, a.ExecutionID, "device:machine:"+x.MachineID, x.RequestID, x.ProjectID, x.MachineID, ev.AssetVersion, ev.HostFingerprint, jsonBytes(ev.Credential)).Scan(&current); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(
+ SELECT 1 FROM exec_task_attempts a
+ JOIN exec_resource_leases r ON r.attempt_id=a.id
+ JOIN exec_executions e ON e.id=a.execution_id
+ JOIN provision_requests p ON p.id=$6
+ JOIN project_assets asset ON asset.id=p.asset_id
+ JOIN machines m ON m.id=asset.machine_id
+ WHERE a.id=$1 AND a.command_id=$2 AND a.fencing_token=$3 AND a.execution_id=$4
+ AND a.runner='provision' AND e.mode='provision' AND e.project_id=$7
+ AND r.resource_id=$5 AND r.mode='exclusive' AND r.fencing_token=a.fencing_token
+ AND ((a.state='running' AND a.lease_until>now() AND r.state='held' AND r.expires_at>now()
+       AND e.state IN('running','dispatching') AND e.desired_state='running')
+   OR (a.state='unknown' AND r.state='reconciling' AND e.state='reconciling'))
+ AND asset.project_id=e.project_id AND asset.machine_id=$8 AND asset.state='provisioned'
+ AND asset.version=$9 AND m.ssh_trust='established' AND m.ssh_trust_source='ssh'
+ AND m.host_key_fingerprint=$10 AND m.ssh_domain_credential=$11::jsonb
+ FOR SHARE OF r,asset,m
+ )`, a.ID, a.CommandID, a.FencingToken, a.ExecutionID, "device:machine:"+x.MachineID, x.RequestID, x.ProjectID, x.MachineID, ev.AssetVersion, ev.HostFingerprint, jsonBytes(ev.Credential)).Scan(&current); err != nil {
 		return err
 	}
 	if !current {

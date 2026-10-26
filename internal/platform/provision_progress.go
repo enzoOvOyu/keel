@@ -50,6 +50,12 @@ var provisionProgressKinds = []string{
 }
 
 func projectProvisionProgress(x *ProvisionInstallation, facts []provisionProgressFact, resource ProvisionProgressResource, now time.Time) *ProvisionInstallationProgress {
+	// A registered domain projection may precede native execution settlement.
+	// Only a released actual lease removes that reservation; state names alone
+	// cannot erase an exclusive claim left by a crashed worker.
+	if resource.LeaseState == "held" || resource.LeaseState == "reconciling" {
+		resource.MachineReserved = true
+	}
 	out := &ProvisionInstallationProgress{InstallationID: x.ID, State: x.State, StateVersion: x.StateVersion, ObservedAt: now, Resource: resource, FailureReason: x.FailureReason}
 	for _, id := range []string{"dhcp", "ipxe", "distribution", "installation", "first_boot", "registration", "ssh"} {
 		out.Stages = append(out.Stages, ProvisionProgressStage{ID: id, Status: "pending", Reason: "evidence_missing", Evidence: []ProvisionProgressEvidence{}})
@@ -117,7 +123,7 @@ func projectProvisionProgress(x *ProvisionInstallation, facts []provisionProgres
 	}
 	// Unknown retains the machine reservation even if a timed lease has expired.
 	// Actual lease state is read separately; no state-name inference claims it held.
-	if x.State == "unknown" || out.Stages[6].Status == "unknown" || (out.Stages[6].Status == "observed" && resource.LeaseExpired) {
+	if x.State == "unknown" || resource.LeaseState == "reconciling" || out.Stages[6].Status == "unknown" || ((out.Stages[6].Status == "observed" || x.State == "registered") && resource.LeaseState == "held" && resource.LeaseExpired) {
 		out.Resource.ReconciliationRequired = true
 	}
 	return out

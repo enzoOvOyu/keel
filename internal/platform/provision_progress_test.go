@@ -93,3 +93,19 @@ func TestProvisionProgressResolvedSSHDoesNotRetainStaleRepairFlag(t *testing.T) 
 		t.Fatal("resolved SSH must replace the earlier repair candidate")
 	}
 }
+
+func TestProvisionProgressRegisteredProofDoesNotReleaseNativeClaim(t *testing.T) {
+	now := time.Now().UTC()
+	x := &ProvisionInstallation{State: "registered"}
+	facts := []provisionProgressFact{{ProvisionProgressEvidence: ProvisionProgressEvidence{ID: 1, Kind: "first_boot.ssh_verified", At: now}}}
+	for _, state := range []string{"held", "reconciling", "released"} {
+		p := projectProvisionProgress(x, facts, ProvisionProgressResource{LeaseState: state, LeaseExpired: true}, now)
+		if p.Stages[6].Status != "verified" {
+			t.Fatal("durable success lost after native lease expiry")
+		}
+		reserved := state != "released"
+		if p.Resource.MachineReserved != reserved || p.Resource.ReconciliationRequired != reserved {
+			t.Fatal("registered state hid pending native settlement", state, p.Resource)
+		}
+	}
+}

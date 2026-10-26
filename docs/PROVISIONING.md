@@ -289,3 +289,8 @@ SSH未知结果仅显式query原helper回执；只有当前fresh pinned query证
 ### 完整文件分发事实生产者（当前源码）
 
 前节预留的`boot.file_served`现由隔离HTTP Gateway生产：固定版本全hash后，仅GET/200完整服务器写出且最终当前权限仍有效，数据库再核scope/lease/冻结sha、size和objectVersion才去重追加server_write_only事实。不记录HEAD、缓存命中、Range、短写或取消，证据持久化失败则保持阶段缺证据。普通文件分发不改变安装许可/版本/trust。它只证明服务器完整写入ResponseWriter，不能证明客户端接收、执行或boot；TFTP完成仍另计。配置与传输用例均未运行，编译/vet证据见HANDOFF 109～110。
+
+
+### 已注册成功后的worker崩溃对账（当前源码）
+
+若注册/trust和native receipt已原子提交而Complete前worker退出，原attempt/lease会由reaper隔离。授权用户可通过既有执行Reconcile消费该份已存证明：必须原native身份、exclusive reconciling资源、reconciling执行、准确SSH事件承诺和当前投影身份/资产版本一致；错误、失去claim或没有证明均拒绝。该路径不续租、不调用SSH、不重装，也不适用于尚无成功证明的unknown安装。页面区分registered投影与实际资源释放。仅编译/vet，崩溃边界fixture未运行，见HANDOFF 111。

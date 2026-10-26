@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～110。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～111。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
@@ -1357,3 +1357,10 @@ initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新�
 证据只证明服务器ResponseWriter完整接受了文件体，不证明客户端收齐、校验、执行iPXE或真实启动。回包已提交后若证据落库失败，只留下缺失事实，不修改HTTP响应或伪造成功。进度沿用observed/reported，实际启动与SSH另证；TFTP尚无完整传输记录，本节不替它推断成功。
 
 新增Gateway边界及signed-format/live-DB/真实HTTP软件composition回归用例源码，含并发去重、无状态提升、错误冻结身份/peer/撤销拒绝，已接provision-only集中regex；尚未执行用例。初轮发现新测试误用不存在的fixture.db，已改store.DB；必要复验/tmp/keel-file-delivery-final-{compile,vet}.log三包退出0，git diff --check和脚本AST解析通过。无listener/网络/写盘/SSH/镜像/迁移/push，P1 partial。
+
+
+## 111. 注册已提交但native完成前崩溃的显式对账（2026-10-26）
+
+从e5aa77e继续。复核发现：真实SSH核验/资产trust/registered/native receipt已同事务提交后，worker可能在Complete前退出；reaper将原attempt置unknown、原独占lease置reconciling，而原注册回执准入仅接受running/live lease，导致既有不可变成功证据也无法走通既有Reconcile。现仅扩展registered分支：在原command/attempt/fence、原机器exclusive reconciling资源、reconciling execution、完整SSH事件转录承诺与实际当前asset版本/hostpin/domain身份全部吻合时，允许原授权Reconcile应用已有native receipt。正常live Complete路径保持原限制；没有续租、重新SSH、写盘、另建attempt或新资源授权。实际资源/资产行在准入事务锁住，错fence/已释放/改变版本/转录不符拒绝。
+
+七阶段资源显示同时修正：registered只说明域投影成功，实际held/reconciling lease仍显示保留；到期或reconciling提示需要执行对账，只有真实released才解除，不覆盖已存SSH成功事实。新增真实DB下游崩溃边界源码fixture明确手工种已提交记录，不冒充实际SSH；覆盖显式对账/幂等/不续租不建attempt及上述拒绝项，已接集中regex。progress pure回归同样只写入。必要两包仅编译与vet退出0，日志/tmp/keel-registered-recovery-{compile,vet}.log；无功能/SQL/浏览器/镜像/硬件测试，P1 partial。
