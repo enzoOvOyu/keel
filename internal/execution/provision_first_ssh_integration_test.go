@@ -153,3 +153,35 @@ func TestProvisionFirstSSHTranscriptCanonicalNumbers(t *testing.T) {
 		t.Fatal("large fence precision was lost")
 	}
 }
+
+func TestProvisionInstallationFirstSSHOrphanDispatchPostgres(t *testing.T) {
+	ctx := context.Background()
+	f, secret, _ := firstBootReadyFixture(t, true)
+	reportFirstBootSSHFixture(t, f, secret)
+	c := f.claim
+	work, err := f.store.PrepareProvisionFirstSSH(ctx, f.project, f.installation.ID, c.Attempt.ExecutionID, c.Attempt.ID, c.Attempt.CommandID, c.Attempt.FencingToken)
+	mustAgent(t, err)
+	if work == nil {
+		t.Fatal("dispatch missing")
+	}
+	// Emulate a committed dispatch whose transport/repair write never returned.
+	// The next tick can expose query-only recovery, never infer a safe new run.
+	for range 2 {
+		finished, err := f.service.runProvisionFirstSSH(ctx, c)
+		mustAgent(t, err)
+		if finished {
+			t.Fatal("orphan dispatch became successful")
+		}
+	}
+	var repairs, dispatches, receipts int
+	mustAgent(t, f.store.DB.QueryRowContext(ctx, `SELECT count(*) FILTER(WHERE event_type='first_boot.ssh_repair_required'),count(*) FILTER(WHERE event_type='first_boot.ssh_started') FROM provision_installation_events WHERE installation_id=$1`, f.installation.ID).Scan(&repairs, &dispatches))
+	mustAgent(t, f.store.DB.QueryRowContext(ctx, `SELECT count(*) FROM exec_runner_receipts WHERE attempt_id=$1`, c.Attempt.ID).Scan(&receipts))
+	progress, err := f.store.ReadProvisionInstallationProgress(ctx, f.actor, f.project, f.installation.ID)
+	mustAgent(t, err)
+	if repairs != 1 || dispatches != 1 || receipts != 0 || progress.SSHRepair == nil || progress.SSHRepair.Status != "available" || progress.SSHRepair.FailedEventID != nil {
+		t.Fatal("orphan dispatch did not expose exactly one query-only repair")
+	}
+	if f.read(t).State != "awaiting_first_boot" {
+		t.Fatal("missing outcome changed installation state")
+	}
+}

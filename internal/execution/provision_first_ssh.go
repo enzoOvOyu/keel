@@ -22,14 +22,21 @@ func (s *Service) runProvisionFirstSSH(ctx context.Context, c *Claim) (bool, err
 	if state != "awaiting_first_boot" || !ready {
 		return false, nil
 	}
-	work, err := s.ProvisionStore.PrepareProvisionFirstSSH(ctx, c.Target.ProjectID, c.Target.ProvisionInstallationID, c.Attempt.ExecutionID, c.Attempt.ID, c.Attempt.CommandID, c.Attempt.FencingToken)
-	if err != nil || work == nil {
-		return false, err
-	}
 	repair := func(reason string) {
 		cleanup, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		_ = s.ProvisionStore.RecordProvisionFirstSSHRepair(cleanup, c.Target.ProjectID, c.Target.ProvisionInstallationID, c.Attempt.ID, c.Attempt.CommandID, c.Attempt.FencingToken, reason)
+	}
+	work, err := s.ProvisionStore.PrepareProvisionFirstSSH(ctx, c.Target.ProjectID, c.Target.ProvisionInstallationID, c.Attempt.ExecutionID, c.Attempt.ID, c.Attempt.CommandID, c.Attempt.FencingToken)
+	if err != nil {
+		return false, err
+	}
+	if work == nil {
+		// The durable dispatch may have outlived its transport or a failed
+		// repair-event write. Surface that ambiguity once for explicit query;
+		// never replay run merely because the prior outcome is absent.
+		repair("verification_unknown")
+		return false, nil
 	}
 	runner, ok := s.SSHRunner.(interface {
 		VerifyProvisionIdentity(context.Context, taskrunner.TaskCommand, taskrunner.ProvisionSSHPlan) (taskrunner.ProvisionSSHProof, error)

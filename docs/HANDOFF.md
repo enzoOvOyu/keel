@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～112。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～113。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
@@ -1373,3 +1373,8 @@ initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新�
 进度面板仅在unknown/未签许可/实际reconciling、当前版本和权限吻合时提供显式确认入口，表单网络未知时相同原因保留幂等键。服务端验证始终权威。API/OpenAPI/TS保持一致，安装创建旧描述同步到当前受控writer/首启/SSH源码边界。
 
 新增数据库软件用例源码覆盖并发幂等/一次proof/一次停止、不动资产信任/不重试，以及上述拒绝项；已接集中regex，未运行。必要execution/httpapi仅编译、vet、API生成、TypeScript与UI边界均退出0，日志/tmp/keel-prewrite-recovery-{compile,vet,api,tsc,ui}.log；git diff --check、脚本AST和设计检查通过。3000/SQL/镜像/生产开关未变，P1 partial。
+
+
+## 113. 孤立首次SSH派发补显式修复项（2026-10-26）
+
+接续2b7ec12。首次SSH派发已持久化，但传输/修复事件写入异常时，后续轮询原来只看见已消费dispatch并返回nil，可能永久不展示query入口。现仅对已认证firstboot、最新dispatch尚无repair且无新授权工作时，补一条verification_unknown修复项；沿原attempt/command/fence，无网络IO、重发run、成功回执或新attempt。事件去重后后续轮询停止重复处理，用户可显式query原receipt。新增DB边界fixture仅模拟已提交dispatch而未做SSH，不冒充真实传输；覆盖两轮只补一次repair、无新receipt或状态成功、无knownfailed新probe授权。源码已接集中regex。必要execution仅编译/vet退出0，日志/tmp/keel-first-ssh-orphan-{compile,vet}.log，未运行用例；P1 partial、3000未更新。
