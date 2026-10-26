@@ -59,7 +59,7 @@ try:
         'native_host_dag': ['TestHostFlowDAGAgentAdmissionAndReceiptsPostgres', 'TestHostFlowUnknownBlocksDependencyUntilExplicitReconcilePostgres', 'TestHostFlowFailureSkipsDependentAndPauseStopsDispatchPostgres'],
         'native_host_rerun': ['TestHostFlowRerunCreatesIndependentAgentDAGPostgres', 'TestHostFlowRerunRefusesRetiredFrozenArtifactPostgres', 'TestHostFlowRerunSnapshotRejectsOwnedWorkflows'],
         'control_kv': ['TestControlKVAtomicReceiptCASAndProjectIsolationPostgres', 'TestControlKVExpiredClaimHasNonCommitProofPostgres', 'TestControlKVPauseKillAndCurrentAuthorityPostgres'],
-        'streams_postgresql': ['TestExecutionStreamsCommitBeforeACKAndDuplicatePostgres', 'TestExecutionStreamsRejectAndBusyRecoveryPostgres', 'TestExecutionStreamsRebuildAndFailureIsolationPostgres'],
+        'streams_postgresql': ['TestExecutionStreamsCommitBeforeACKAndDuplicatePostgres', 'TestExecutionStreamsRejectAndBusyRecoveryPostgres', 'TestExecutionStreamsRebuildAndFailureIsolationPostgres', 'TestExecutionStreamsHeartbeatDistinguishesQueueModePostgres'],
         'redis_streams_protocol': ['TestExecutionQueueRedisStreamsRecovery'],
         'redis_postgresql_scheduler': ['TestExecutionStreamsRedisPostgresScheduler'],
         'provision_admission': ['TestProvisionExecutionKernelPostgres', 'TestProvisionInstallationKernelPostgres'],

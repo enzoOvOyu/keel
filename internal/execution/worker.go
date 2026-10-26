@@ -756,7 +756,7 @@ func (s *Service) WorkerHeartbeat(ctx context.Context, id string, active int) er
 	if s.KeaStore != nil || s.NetworkStore != nil || s.SSHRunner != nil || s.AgentRunner != nil || s.ProvisionStore != nil {
 		mode = "mixed"
 	}
-	_, e := s.DB.ExecContext(ctx, "INSERT INTO exec_worker_heartbeats(id,mode,active_count,observed_at) VALUES($1,$2,$3,now()) ON CONFLICT(id) DO UPDATE SET mode=EXCLUDED.mode,active_count=EXCLUDED.active_count,observed_at=EXCLUDED.observed_at", id, mode, active)
+	_, e := s.DB.ExecContext(ctx, "INSERT INTO exec_worker_heartbeats(id,mode,queue_mode,active_count,observed_at) VALUES($1,$2,$3,$4,now()) ON CONFLICT(id) DO UPDATE SET mode=EXCLUDED.mode,queue_mode=EXCLUDED.queue_mode,active_count=EXCLUDED.active_count,observed_at=EXCLUDED.observed_at", id, mode, s.queueMode(), active)
 	return e
 }
 func (s *Service) WorkerHealthy(ctx context.Context, id string) error {
@@ -765,7 +765,7 @@ func (s *Service) WorkerHealthy(ctx context.Context, id string) error {
 	if s.KeaStore != nil || s.NetworkStore != nil || s.SSHRunner != nil || s.AgentRunner != nil || s.ProvisionStore != nil {
 		mode = "mixed"
 	}
-	e := s.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM exec_worker_heartbeats WHERE id=$1 AND mode=$2 AND observed_at>now()-interval '10 seconds')", id, mode).Scan(&yes)
+	e := s.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM exec_worker_heartbeats WHERE id=$1 AND mode=$2 AND queue_mode=$3 AND observed_at>now()-interval '10 seconds')", id, mode, s.queueMode()).Scan(&yes)
 	if e != nil {
 		return e
 	}
@@ -773,6 +773,13 @@ func (s *Service) WorkerHealthy(ctx context.Context, id string) error {
 		return errors.New("execution worker heartbeat stale")
 	}
 	return nil
+}
+
+func (s *Service) queueMode() string {
+	if s.Queue != nil {
+		return "redis-streams"
+	}
+	return "postgresql-only"
 }
 
 var _ = json.Valid

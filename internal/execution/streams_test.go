@@ -271,3 +271,27 @@ func TestExecutionStreamsRedisPostgresScheduler(t *testing.T) {
 		t.Fatal("rebuild replayed an aggregate transition")
 	}
 }
+
+func TestExecutionStreamsHeartbeatDistinguishesQueueModePostgres(t *testing.T) {
+	f := agentKernel(t)
+	ctx := context.Background()
+	id := "queue-health-" + platform.RandomID()
+	mustAgent(t, f.service.WorkerHeartbeat(ctx, id, 0))
+	mustAgent(t, f.service.WorkerHealthy(ctx, id))
+	f.service.Queue = &streamFixture{epoch: platform.RandomID()}
+	if err := f.service.WorkerHealthy(ctx, id); err == nil {
+		t.Fatal("DB-only heartbeat established Redis queue health")
+	}
+	mustAgent(t, f.service.WorkerHeartbeat(ctx, id, 0))
+	mustAgent(t, f.service.WorkerHealthy(ctx, id))
+	f.service.Queue = nil
+	if err := f.service.WorkerHealthy(ctx, id); err == nil {
+		t.Fatal("Redis heartbeat established DB-only configuration health")
+	}
+	f.service.Queue = &streamFixture{epoch: platform.RandomID()}
+	_, err := f.service.DB.ExecContext(ctx, `UPDATE exec_worker_heartbeats SET observed_at=now()-interval '11 seconds' WHERE id=$1`, id)
+	mustAgent(t, err)
+	if err := f.service.WorkerHealthy(ctx, id); err == nil {
+		t.Fatal("failed queue cycle could retain stale health")
+	}
+}
