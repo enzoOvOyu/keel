@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～84。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～85。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本次两小时开发窗口）
 
 用户于2026-10-26 00:11:10 UTC授权继续两小时开发，当前窗口至02:11:10 UTC。保持单Agent，不启动子代理；P1实现完成后集中联调/全量测试/浏览器验证/镜像发布，开发只做必要编译与静态检查。此前收工/暂停记录是历史快照。
 
-- **本窗口源码尚未发布（§75～84）**：单Agent完成同密钥续签/状态、OS引导介质/BOM配置预览、owner主密钥重包裹、独立审计留证、默认关闭的执行Webhook及其owner查询入口，以及持久装机准备/独立审批/共享独占Execution和页面；新增用例和集中验证入口已写入，除§75早期续签安全检查外均未运行。必要Go/TS编译与静态检查已完成，不等于功能/SQL迁移通过。源迁移50、运行46；3000仍§74。原草稿保留。
+- **本窗口源码尚未发布（§75～85）**：单Agent完成同密钥续签/状态、OS引导介质/BOM配置预览、owner主密钥重包裹、独立审计留证、默认关闭的执行Webhook及其owner查询入口，以及持久装机准备/独立审批/共享独占Execution和页面；新增用例和集中验证入口已写入，除§75早期续签安全检查外均未运行。必要Go/TS编译与静态检查已完成，不等于功能/SQL迁移通过。源迁移50、运行46；3000仍§74。原草稿保留。
 
 - **Agent网页只读链路已发布（§74）**：既有mTLS任务通过认证API/资产页启动并进入原执行五Tab，unknown由当前操作员凭worker查询的真实回执显式对账；实际HTTP/Agent/浏览器和完整CI通过。生产HTTP任务准入、listener及worker继续关闭。
 
@@ -1146,3 +1146,10 @@ Make新增build-installer-helpers跨架构生产两份实际helper；CLI不接DB
 接续3b6118a，对照Linux/pciutils官方源码发现§81初稿对通用devices/<BDF>/physical_slot属性的假设不成立，已改读/sys/bus/pci/slots/<name>/address；明确槽位聚合多功能网卡，PCIe桥下按真实sysfs父链的最近映射归组，不把BDF/端口本身当物理NIC。两段bus占位地址不算卡，同地址多槽位/无来源保持unknown；槽位名0合法。PCI域支持规范4～8位并限有符号domain范围，设备00～1f/function0～7；不可解析条目及未支持非PCI物理网卡记缺失、非法port PCI不形成通过。无内核槽位事实的onboard仍BLOCKED，尚无猜测式fallback。
 
 删除采集fixture虚构的per-device physical_slot属性，增加真实slots ABI、多功能/桥下设备/零槽名/占位/冲突/扩展域/非法路径用例；均只写入未运行。实际仅执行带原overlay/内存限制的go test -p=1 ./internal/provisionpreflight ./cmd/keel-preflight -run '^$'编译、同范围go vet及check-design，均退出0（/tmp/keel-preflight-slots-{compile,vet,design}.log）。没有宿主采集、SMART、网络监听或镜像/SQL变化；P1集中验证策略和原两份草稿保护不变。
+
+
+## 85. 集中验证入口补齐新模块与真实离线CLI（2026-10-26，仅源码接线）
+
+接续a7a8e81，既有--provision-only集中入口加入完整mediaboot/provisionboot/provisionpreflight/provisionimage软件组，签名配方/overlay/seed及平台模型/申请/共享Execution组；为离线CLI预编译CGO_DISABLED静态native预检/SSH helper，显式路径传给TestInstallerOverlayRealHelperCLI。后者实际运行admin create/verify/禁止覆盖/错误独立公钥，但不执行helper、不接DB/网络或硬件；未显式提供三条二进制路径则skip。普通完整media入口补齐基础/准备域；browser-only不新增Go运行。CI源码增加实际helper/admin离线CLI专步，尚未推送触发。
+
+本批仅实际编译mediamanifest新增用例（go test -p=1 -run '^$'）和定向go vet、Python AST/CI YAML语法检查；编译/vet退出0，日志/tmp/keel-provision-milestone-{compile,vet}.log。没有运行集成脚本、新用例、CLI、浏览器或镜像，遵守用户P1完成再集中测试。仍无生产监听/SQL迁移/发布，P1/WP-1.7保持partial。

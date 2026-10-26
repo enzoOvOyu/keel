@@ -62,6 +62,20 @@ jobs:
           go build -trimpath -ldflags="-X main.version=$GITHUB_SHA" -o "$keel_agent_build_dir/keel-agent" ./cmd/keel-agent
           go build -trimpath -o "$keel_agent_build_dir/keel-preflight" ./cmd/keel-preflight
           "$keel_agent_build_dir/keel-agent" version
+      - name: Provisioning offline overlay with actual static helper binaries
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          set -euo pipefail
+          keel_provision_cli_dir="$(mktemp -d /tmp/keel-provision-cli.XXXXXXXX)"
+          trap 'rm -rf "$keel_provision_cli_dir"' EXIT
+          go build -trimpath -o "$keel_provision_cli_dir/" ./cmd/keel-admin ./cmd/keel-preflight ./cmd/keel-ssh-runner
+          export KEEL_TEST_PROVISION_ADMIN_BIN="$keel_provision_cli_dir/keel-admin"
+          export KEEL_TEST_PROVISION_PREFLIGHT_BIN="$keel_provision_cli_dir/keel-preflight"
+          export KEEL_TEST_PROVISION_SSH_HELPER_BIN="$keel_provision_cli_dir/keel-ssh-runner"
+          go test -p=1 -count=1 -v ./internal/mediamanifest -run '^TestInstallerOverlayRealHelperCLI$'
       - name: Agent one-time enrollment, mTLS, CLI and restricted-role integration
         env:
           KEEL_TEST_AGENT_DATABASE_URL: postgresql://keel_test:isolated-ci-only@127.0.0.1:15433/keel_test_agent_ci?sslmode=disable

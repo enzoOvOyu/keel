@@ -106,3 +106,10 @@ v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud
 ### Linux 物理槽位事实来源修正
 
 预检使用 `/sys/bus/pci/slots/<kernel-slot-name>/address` 解析精确device地址；不读取不存在的通用`devices/<BDF>/physical_slot`属性。`domain:bus`占位地址不能证明一张物理卡；同一device映射多个槽位时保持unknown。多端口/多功能共用槽位，卡内PCIe桥的子设备沿实际sysfs父链匹配最近的显式槽位；没有内核槽位事实的onboard设备继续BLOCKED，不把BDF或一条MAC直接算一张卡。名为`0`的真实内核槽位本身合法。支持规范4～8位PCI域，设备号限00～1f、function限0～7，无法解析的实际PCI条目和未支持的非PCI物理网卡记缺失而非静默忽略。参考 [Linux PCI slot ABI实现](https://github.com/torvalds/linux/blob/master/drivers/pci/slot.c) 与 [pciutils sysfs槽位读取](https://github.com/pciutils/pciutils/blob/master/lib/sysfs.c)。仍仅源码与编译检查，未采集宿主或真机。
+
+
+## P1 集中验证入口（已接线，尚未执行）
+
+`scripts/check-media-artifacts-integration.py --provision-only`在既有disposable PostgreSQL/MinIO保护下使用随机测试库，先运行mediaboot/provisionboot/provisionpreflight/provisionimage的完整软件用例，再验证签名配方/overlay/seed与平台独立申请审批、共享Execution/unknown/设备锁及实际浏览器路径。入口为归档测试编译静态预检/SSH helper；`TestInstallerOverlayRealHelperCLI`仅在三个显式测试二进制路径齐备时运行真实admin创建→反向核验→拒绝覆盖→错误独立公钥的离线链。它不会运行硬件helper，也不会引导或安装OS；未传路径时会明确skip，不冒充CLI证明。
+
+普通完整media入口也补齐新的基础和准备域用例，`--browser-only`保持跳过Go检查。CI源码增加实际静态helper/真实admin离线CLI步骤，原make check仍覆盖软件用例；当前没有推送/触发CI或运行这些入口。P1实现闭环后的集中测试仍须单独记录真实PG/HTTP/浏览器、归档CLI、可启动镜像/协议与真机/规模的各自证据，不能混写。
