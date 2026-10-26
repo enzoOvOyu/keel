@@ -346,7 +346,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 			}
 			sort.Strings(resources)
 			mode := "exclusive"
-			if task.Type == "sim.read" || (x.Mode == "ssh" || x.Mode == "agent") && task.Script == nil {
+			if task.Type == "sim.read" || (x.Mode == "ssh" || x.Mode == "agent") && task.Script == nil && task.Artifact == nil {
 				mode = "shared"
 			}
 			if _, e = tx.ExecContext(ctx, "SAVEPOINT resource_candidate"); e != nil {

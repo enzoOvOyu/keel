@@ -1580,3 +1580,15 @@ host.cache.inventory接原SSH/Agent只读API/Execution/同设备资源键/回执
 用户明确将当前P1逻辑设备扇出由2,000台降为200台，后续再优化。PRD阶段说明、IMPLEMENTATION-PLAN P1出口/WP-1.2/WP-1.9/CI档及ACCEPTANCE规模口径同步；当前P1以200台验收，原2,000不是本轮闭环前置，万台与其他领域规模指标不变，不将小档结果标为大档通过。成功率≥99.5%、介质校验失败0和权限/恢复要求保留。
 
 keel-sim及两份执行模拟/工作台集成脚本默认200，显式2,000档和CLI上界保留，200台使用capacity场景标识并记录实际targets。AGENTS/追踪同步。本步仅编辑及CLI源gofmt，未运行模拟、测试、设计检查、编译或浏览器/镜像，不改变运行服务/数据库。接续任务为批准介质的可恢复文件分发，单Agent继续。
+
+
+## 137. 批准制品双通道分发与显式检查点续传（2026-10-26，未验证源码）
+
+- 工作区 `/opt/keel`、分支 `dev/p1-network-bom`，接续 `b694265`，单Agent。所属 WP-1.5/1.10、FR-1.2/1.8：输入为现有独立批准固定对象、双通道身份、Execution/TaskAttempt/outbox、设备资源锁及持久回执。本次输出为控制面→目标固定缓存的首批有界分发，不扩展到P2/P3安装依赖。当前P1逻辑设备范围仍200台，未执行规模验证。
+- 新增 `POST .../artifact-distributions`，显式1～32目标、介质、SSH/Agent及100～30000ms窗口。冻结批准/更新时间/对象版本/大小/SHA；创建审计 `media.distribute`，派发事件 `artifact.dispatch_committed` 只消费一次；原exclusive设备与通道锁、当前权限/身份、默认关闭、unknown隔离及人工恢复复用。原只读API与sim Flow不接受制品执行字段。源读取在短事务提交后进行，完整校验固定源对象，结尾重核审批；连续源摘要错误走原隔离逻辑。
+- 目标固定 `/opt/keel-cache/artifacts`，运维预配非root0700，无symlink。新缓存与小脚本缓存分离，当前脚本清单/心跳不包含它。单对象1GiB、分块8192B、最多64摘要且预留8GiB；受保护owner与实际内容先后fsync，重复已确认分块只核对。完整实际文件大小/SHA匹配后才0400/verified/success；已验证缓存命中重核完整文件并免传源正文。取消/到期query持锁保存paused/停止证明，partial永不标完整；新显式较高fence任务可续传。无归属/落盘与owner不一致保留unknown，不自动覆盖/截断/删除。损坏前缀明确失败，需人工核验。
+- Agent append/commit持全局run锁检查当前fence，原连接累计256帧限制改为在途8+最近完成256帧的有界去重窗口，持久命令/摘要/偏移仍防写入重放；单帧/gRPC上限保留。目标 `artifact_transfers_enabled:false` 须配 `tasks_enabled:true`；API/worker与SSH helper `KEEL_TASK_ARTIFACT_TRANSFERS_ENABLED=false`，实际 `.env` 未改。
+- 资产页复用当前可信SSH/近期Agent目标和批准已存储介质分页目录，显式确认/稳定幂等键/超时，不接受任意路径或URL。回执页显示checkpoint/完整校验/写入停止，不误标为只读查询、安装或硬件/Gate成功。未知任务先核验，再创建新任务续传，不自动续发旧run。
+- 新增协议/帧大小/偏移溢出/停止证明、真实私有文件夹接收→重复分块→暂停→高fence续传→完整校验→缓存命中、损坏前缀/未归属/symlink/过期拒绝、PG独立审批/冻结/独占/原派发消费/unknown及长连接窗口用例源码，全部未执行。只执行源码编辑、定向阅读diff、带既有overlay的gofmt和API类型生成（`/tmp/keel-artifact-distribution-api-generation.log`）；首次编辑脚本因主契约没有预期旧锚点中断，按实际根paths位置补入，无生产操作。生成成功不等于验证通过。
+- 无测试/编译/静态/浏览器/镜像/服务探测，无SQL/迁移执行，无部署/push。源56/运行46，059仍未应用，3000最后已知仍 `6668a72c1adaeb2444b8c28a3f4db4f038db49dd`；本轮未重新探测。原fabric两份未跟踪草稿未修改/暂存。
+- 待续：WP-1.5完整任务目录/目标→控制面文件通道及WP-1.10缓存生命周期/分发优化仍partial。当前源全文件暂存后发送缺失部分，不宣称免源读或原带宽SLO；SSH逐块调用尚无性能优化。下一块先接制品缓存的有界实际清单/新鲜度观测，复用已完成分发归属事实，不将小脚本清单冒充制品清单；最终统一完成用户安排的P1集中功能/恢复/权限/200台与介质完整性验证，硬件PoC独立记录。

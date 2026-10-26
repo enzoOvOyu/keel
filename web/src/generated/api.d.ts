@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{id}/artifact-distributions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Distribute independently approved immutable media to a fixed target cache
+         * @description Explicit SSH or Agent targets, bounded original authorization, resumable owned checkpoints. Does not execute or install content. Only full size/SHA256 verification proves success. Disabled by default.
+         */
+        post: operations["createArtifactDistribution"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/executions/{executionId}/report": {
         parameters: {
             query?: never;
@@ -5594,6 +5614,206 @@ export interface components {
             kind: "draft" | "delivery";
             expected_preflight_hash: string;
         };
+        ArtifactCreateInput: {
+            machine_ids: string[];
+            media_id: string;
+            /** @enum {string} */
+            transport: "ssh" | "agent";
+            timeout_ms: number;
+        };
+        FlowInput: {
+            /** @enum {string} */
+            type: "string" | "number" | "boolean" | "enum";
+            required: boolean;
+            default?: string | number | boolean;
+            enum?: string[];
+        };
+        SimTaskOptions: {
+            /** @enum {string} */
+            outcome: "success" | "failed" | "drop_receipt";
+            duration_ms: number;
+            /** @default 0 */
+            fail_first: number;
+            /** Format: int64 */
+            seed: number;
+            /** @default false */
+            uncancellable: boolean;
+        };
+        /** @description Frozen independently approved Linux tool script. Immutable bytes come from media storage; no inline commands or secret parameters. */
+        TaskScriptArtifact: {
+            media_id: string;
+            name: string;
+            version: string;
+            sha256: string;
+            size: number;
+            object_version: string;
+            /** @enum {string} */
+            interpreter: "shell" | "python";
+            approved_by: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        TaskArtifact: {
+            media_id: string;
+            name: string;
+            version: string;
+            sha256: string;
+            size: number;
+            object_version: string;
+            approved_by: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description Acyclic dependencies. Every task includes machine resource; sim.read shared, sim.write exclusive. Retry>0 requires idempotent=true and an explicit failed receipt; never retries unknown. */
+        FlowTask: {
+            id: string;
+            /** @enum {string} */
+            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare" | "script.run";
+            depends_on?: string[];
+            retry: number;
+            idempotent: boolean;
+            timeout_ms: number;
+            resources: ("machine" | "gpu" | "nic" | "device" | "ssh")[];
+            sim: components["schemas"]["SimTaskOptions"];
+            script?: components["schemas"]["TaskScriptArtifact"];
+            /**
+             * @description Immutable script stdout result contract; omitted retains text receipts.
+             * @enum {string}
+             */
+            script_result_format?: "" | "json";
+            /** @description Frozen policy for approved native script executions only; rejected by simulation flow admission. */
+            script_prefer_cache?: boolean;
+            artifact?: components["schemas"]["TaskArtifact"];
+        };
+        FlowDefinition: {
+            /** @enum {string} */
+            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1" | "keel.ssh/v1" | "keel.agent/v1" | "keel.provision-preparation/v1";
+            inputs: {
+                [key: string]: components["schemas"]["FlowInput"];
+            };
+            tasks: components["schemas"]["FlowTask"][];
+        };
+        FlowVersion: {
+            id: string;
+            flow_id: string;
+            project_id: string;
+            name: string;
+            version: number;
+            definition: components["schemas"]["FlowDefinition"];
+            yaml_source: string;
+            content_hash: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        SSHBinding: {
+            host_key: string;
+            config_hash: string;
+        };
+        AgentBinding: {
+            /** @description Registered credential ID; shared transport-neutral binding field name, not an SSH fingerprint. */
+            host_key: string;
+            /** @description SHA256 of the exact registered certificate DER. */
+            config_hash: string;
+        };
+        SimTarget: {
+            id: string;
+            project_id: string;
+            name: string;
+            /** Format: int64 */
+            seed: number;
+            revision: number;
+            /** @description Frozen model version identity; simulation uses sim-model-v1. */
+            model_version: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
+            /** @description Stable controller/device identity for non-simulation targets. */
+            resource_key?: string;
+            ssh?: components["schemas"]["SSHBinding"];
+            /** @description Frozen approved one-time first-connection verification request; absent for ordinary queries. */
+            ssh_trust_request_id?: string;
+            agent?: components["schemas"]["AgentBinding"];
+            provision_request_id?: string;
+            provision_snapshot_sha256?: string;
+        };
+        RerunSource: {
+            execution_id: string;
+            state_version: number;
+            /** @enum {string} */
+            mode: "failed" | "targets";
+            selection_hash: string;
+            change_reason: string;
+        };
+        "schemas-MediaDependencies": {
+            compatibility?: components["schemas"]["CompatibilityMatrix"];
+            /** @description Exact approved artifact identities. Server records canonical labels; no latest-version lookup. Closure is bounded to 128 dependencies and 16 edges deep. */
+            artifacts?: components["schemas"]["MediaArtifactDependency"][];
+        };
+        "schemas-CatalogMedia": {
+            id: string;
+            uri: string;
+            version: string;
+            arch: string;
+            hw_scope: string;
+            os_scope: string;
+            sha256: string;
+            object_version: string;
+            deps: components["schemas"]["schemas-MediaDependencies"];
+        };
+        "schemas-CatalogSelection": {
+            key_id: string;
+            key: string;
+            value: string;
+            /** Format: date-time */
+            updated_at: string;
+            deps: components["schemas"]["CatalogDependencies"];
+            media?: components["schemas"]["schemas-CatalogMedia"];
+        };
+        /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
+        ExecutionSnapshot: {
+            /** @enum {string} */
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
+            flow: components["schemas"]["FlowVersion"];
+            targets: components["schemas"]["SimTarget"][];
+            /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
+            parameters: {
+                [key: string]: string | number | boolean;
+            };
+            target_set_hash: string;
+            admission: string;
+            /** Format: date-time */
+            frozen_at: string;
+            rerun_source?: components["schemas"]["RerunSource"];
+            catalog?: components["schemas"]["schemas-CatalogSelection"][];
+        };
+        Execution: {
+            id: string;
+            project_id: string;
+            flow_version_id: string;
+            /** @enum {string} */
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
+            /** @enum {string} */
+            state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
+            state_version: number;
+            /** @enum {string} */
+            desired_state: "running" | "paused" | "killed";
+            target_set_hash: string;
+            concurrency: number;
+            circuit_breaker_percent: number;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: date-time */
+            finished_at: string | null;
+            /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
+            parameters: {
+                [key: string]: string | number | boolean;
+            };
+            snapshot: components["schemas"]["ExecutionSnapshot"];
+        };
         ExecutionSummary: {
             id: string;
             project_id: string;
@@ -5763,187 +5983,6 @@ export interface components {
             /** @constant */
             ttl_seconds: 30;
         };
-        FlowInput: {
-            /** @enum {string} */
-            type: "string" | "number" | "boolean" | "enum";
-            required: boolean;
-            default?: string | number | boolean;
-            enum?: string[];
-        };
-        SimTaskOptions: {
-            /** @enum {string} */
-            outcome: "success" | "failed" | "drop_receipt";
-            duration_ms: number;
-            /** @default 0 */
-            fail_first: number;
-            /** Format: int64 */
-            seed: number;
-            /** @default false */
-            uncancellable: boolean;
-        };
-        /** @description Frozen independently approved Linux tool script. Immutable bytes come from media storage; no inline commands or secret parameters. */
-        TaskScriptArtifact: {
-            media_id: string;
-            name: string;
-            version: string;
-            sha256: string;
-            size: number;
-            object_version: string;
-            /** @enum {string} */
-            interpreter: "shell" | "python";
-            approved_by: string;
-            /** Format: date-time */
-            updated_at: string;
-        };
-        /** @description Acyclic dependencies. Every task includes machine resource; sim.read shared, sim.write exclusive. Retry>0 requires idempotent=true and an explicit failed receipt; never retries unknown. */
-        FlowTask: {
-            id: string;
-            /** @enum {string} */
-            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare" | "script.run";
-            depends_on?: string[];
-            retry: number;
-            idempotent: boolean;
-            timeout_ms: number;
-            resources: ("machine" | "gpu" | "nic" | "device" | "ssh")[];
-            sim: components["schemas"]["SimTaskOptions"];
-            script?: components["schemas"]["TaskScriptArtifact"];
-            /**
-             * @description Immutable script stdout result contract; omitted retains text receipts.
-             * @enum {string}
-             */
-            script_result_format?: "" | "json";
-            /** @description Frozen policy for approved native script executions only; rejected by simulation flow admission. */
-            script_prefer_cache?: boolean;
-        };
-        FlowDefinition: {
-            /** @enum {string} */
-            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1" | "keel.ssh/v1" | "keel.agent/v1" | "keel.provision-preparation/v1";
-            inputs: {
-                [key: string]: components["schemas"]["FlowInput"];
-            };
-            tasks: components["schemas"]["FlowTask"][];
-        };
-        FlowVersion: {
-            id: string;
-            flow_id: string;
-            project_id: string;
-            name: string;
-            version: number;
-            definition: components["schemas"]["FlowDefinition"];
-            yaml_source: string;
-            content_hash: string;
-            /** Format: date-time */
-            created_at: string;
-        };
-        SSHBinding: {
-            host_key: string;
-            config_hash: string;
-        };
-        AgentBinding: {
-            /** @description Registered credential ID; shared transport-neutral binding field name, not an SSH fingerprint. */
-            host_key: string;
-            /** @description SHA256 of the exact registered certificate DER. */
-            config_hash: string;
-        };
-        SimTarget: {
-            id: string;
-            project_id: string;
-            name: string;
-            /** Format: int64 */
-            seed: number;
-            revision: number;
-            /** @description Frozen model version identity; simulation uses sim-model-v1. */
-            model_version: string;
-            /** Format: date-time */
-            created_at: string;
-            /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
-            /** @description Stable controller/device identity for non-simulation targets. */
-            resource_key?: string;
-            ssh?: components["schemas"]["SSHBinding"];
-            /** @description Frozen approved one-time first-connection verification request; absent for ordinary queries. */
-            ssh_trust_request_id?: string;
-            agent?: components["schemas"]["AgentBinding"];
-            provision_request_id?: string;
-            provision_snapshot_sha256?: string;
-        };
-        RerunSource: {
-            execution_id: string;
-            state_version: number;
-            /** @enum {string} */
-            mode: "failed" | "targets";
-            selection_hash: string;
-            change_reason: string;
-        };
-        "schemas-MediaDependencies": {
-            compatibility?: components["schemas"]["CompatibilityMatrix"];
-            /** @description Exact approved artifact identities. Server records canonical labels; no latest-version lookup. Closure is bounded to 128 dependencies and 16 edges deep. */
-            artifacts?: components["schemas"]["MediaArtifactDependency"][];
-        };
-        "schemas-CatalogMedia": {
-            id: string;
-            uri: string;
-            version: string;
-            arch: string;
-            hw_scope: string;
-            os_scope: string;
-            sha256: string;
-            object_version: string;
-            deps: components["schemas"]["schemas-MediaDependencies"];
-        };
-        "schemas-CatalogSelection": {
-            key_id: string;
-            key: string;
-            value: string;
-            /** Format: date-time */
-            updated_at: string;
-            deps: components["schemas"]["CatalogDependencies"];
-            media?: components["schemas"]["schemas-CatalogMedia"];
-        };
-        /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
-        ExecutionSnapshot: {
-            /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
-            flow: components["schemas"]["FlowVersion"];
-            targets: components["schemas"]["SimTarget"][];
-            /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
-            parameters: {
-                [key: string]: string | number | boolean;
-            };
-            target_set_hash: string;
-            admission: string;
-            /** Format: date-time */
-            frozen_at: string;
-            rerun_source?: components["schemas"]["RerunSource"];
-            catalog?: components["schemas"]["schemas-CatalogSelection"][];
-        };
-        Execution: {
-            id: string;
-            project_id: string;
-            flow_version_id: string;
-            /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
-            /** @enum {string} */
-            state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
-            state_version: number;
-            /** @enum {string} */
-            desired_state: "running" | "paused" | "killed";
-            target_set_hash: string;
-            concurrency: number;
-            circuit_breaker_percent: number;
-            created_by: string;
-            /** Format: date-time */
-            created_at: string;
-            /** Format: date-time */
-            started_at: string | null;
-            /** Format: date-time */
-            finished_at: string | null;
-            /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
-            parameters: {
-                [key: string]: string | number | boolean;
-            };
-            snapshot: components["schemas"]["ExecutionSnapshot"];
-        };
     };
     responses: {
         /** @description Invalid JSON, unsupported fields, validation failure, or missing idempotency key. */
@@ -6046,6 +6085,47 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    createArtifactDistribution: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArtifactCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Created immutable SSH or Agent artifact distribution execution */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
     getExecutionReport: {
         parameters: {
             query?: never;

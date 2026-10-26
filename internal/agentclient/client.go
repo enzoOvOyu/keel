@@ -27,21 +27,22 @@ import (
 )
 
 type Config struct {
-	MediaCacheEnabled       bool   `json:"media_cache_enabled"`
-	CacheInventoryEnabled   bool   `json:"cache_inventory_enabled"`
-	NetworkInventoryEnabled bool   `json:"network_inventory_enabled"`
-	RenewalEnabled          bool   `json:"renewal_enabled"`
-	TasksEnabled            bool   `json:"tasks_enabled"`
-	ScriptsEnabled          bool   `json:"scripts_enabled"`
-	Endpoint                string `json:"endpoint"`
-	ServerName              string `json:"server_name"`
-	ServerCA                string `json:"server_ca"`
-	AgentCA                 string `json:"agent_ca"`
-	ProjectID               string `json:"project_id"`
-	MachineID               string `json:"machine_id"`
-	Serial                  string `json:"serial_number"`
-	StateDirectory          string `json:"state_directory"`
-	TokenFile               string `json:"enrollment_token_file"`
+	ArtifactTransfersEnabled bool   `json:"artifact_transfers_enabled"`
+	MediaCacheEnabled        bool   `json:"media_cache_enabled"`
+	CacheInventoryEnabled    bool   `json:"cache_inventory_enabled"`
+	NetworkInventoryEnabled  bool   `json:"network_inventory_enabled"`
+	RenewalEnabled           bool   `json:"renewal_enabled"`
+	TasksEnabled             bool   `json:"tasks_enabled"`
+	ScriptsEnabled           bool   `json:"scripts_enabled"`
+	Endpoint                 string `json:"endpoint"`
+	ServerName               string `json:"server_name"`
+	ServerCA                 string `json:"server_ca"`
+	AgentCA                  string `json:"agent_ca"`
+	ProjectID                string `json:"project_id"`
+	MachineID                string `json:"machine_id"`
+	Serial                   string `json:"serial_number"`
+	StateDirectory           string `json:"state_directory"`
+	TokenFile                string `json:"enrollment_token_file"`
 }
 type Identity struct {
 	CredentialID string `json:"credential_id"`
@@ -68,7 +69,7 @@ func Load(path string) (Config, error) {
 	return c, c.Validate()
 }
 func (c Config) Validate() error {
-	if c.MediaCacheEnabled && !c.ScriptsEnabled || c.CacheInventoryEnabled && !c.TasksEnabled || c.ScriptsEnabled && !c.TasksEnabled || (c.TasksEnabled || c.NetworkInventoryEnabled) && os.Geteuid() == 0 {
+	if c.ArtifactTransfersEnabled && !c.TasksEnabled || c.MediaCacheEnabled && !c.ScriptsEnabled || c.CacheInventoryEnabled && !c.TasksEnabled || c.ScriptsEnabled && !c.TasksEnabled || (c.TasksEnabled || c.NetworkInventoryEnabled) && os.Geteuid() == 0 {
 		return ErrIdentity
 	}
 	host, port, e := net.SplitHostPort(c.Endpoint)

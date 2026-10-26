@@ -16,5 +16,8 @@ func (s *Service) hostTaskFrozenTx(ctx context.Context, tx *sql.Tx, project, mod
 	if err := s.cacheInventoryAdmission(task.Type); err != nil {
 		return err
 	}
+	if err := s.artifactFrozenTx(ctx, tx, project, task); err != nil {
+		return err
+	}
 	return s.scriptFrozenTx(ctx, tx, project, mode, task)
 }

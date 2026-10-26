@@ -207,3 +207,15 @@ worker仅保存目标终态证明，**不执行Reconcile、不释放unknown资�
 ```
 
 `202 requested`只证明请求已登记，5分钟有效；不能把它当作未启动或释放隔离证明。等待拥有通道的worker取得并保存目标回执后，通过原attempt读取/刷新检查，再按现有Reconcile操作显式对账；此请求不重新执行脚本。演示版本号是占位，必须使用当前尝试版本。当前执行事实摘要可只读`GET /api/v1/projects/{id}/executions/{executionId}/report`，详细内容与边界见FR1-EXECUTION-VIEWS。上述请求未在当前3000旧版执行，本节不是运行或验收记录。
+
+### 批准制品分块分发（2026-10-26，未验证源码）
+
+`POST /api/v1/projects/{id}/artifact-distributions` 显式提交 `transport=ssh|agent`、`media_id`、1～32 个当前可用 `machine_ids` 和 100～30000ms 原授权窗口。复用原 Execution/TaskAttempt/outbox、设备/通道 exclusive 租约、fencing、幂等创建、unknown 隔离与回执核验。原只读端点不接受制品字段。审批、实际对象版本、大小/SHA、当前提交人权限冻结并在派发/心跳重新核对；Agent 分块请求另逐次核对原授权和当前准入。`media.distribute` 审计关联原执行、目标集合摘要及固定对象，不输出对象库凭据。
+
+控制面 API/worker 的 `KEEL_TASK_ARTIFACT_TRANSFERS_ENABLED` 默认 false；SSH 目标 helper 须独立显式开启同名开关。目标由运维预建 `/opt/keel-cache/artifacts`，归运行 helper 的非 root 平台账号所有、0700，祖先/叶均不允许 symlink。不自动创建账号、修复权限或写客户指定路径。制品独立于原 `/opt/keel-cache/media` 小脚本缓存；当前脚本清单、缓存心跳不包含此新目录。
+
+当前工程子集：单制品 1 B～1 GiB，8KiB 分块，最多64个已归属摘要对象，合计预留8GiB。私有 SHA 目录含 `owner.json`（0600）和 `content`（接收0600，完整校验后0400）。run 只消费一次；append 严格绑定原命令、分块 SHA 和精确偏移，内容 fsync 后再原子持久检查点；相同已确认分块只核对并返回原进度。commit 对实际完整文件核对大小/SHA 才记 success。已有 verified 缓存仍完整读回核对，可省略正文传输。所有写入保持原授权截止时间，不因分块/心跳延长。
+
+窗口到期/传输失败后，控制端只作有界 cancel/query；目标持锁保存 paused 检查点和 `writer_stopped=true` 的 failed 回执，不将部分内容标为成功。失联无停止证明则 unknown 隔离，先核验原任务。只有新显式任务、较高 fencing 且旧持有者已 paused 或原授权到期才可接续；同一 run 重发仅回旧回执。落盘/owner 提交不一致、无归属文件、损坏清单等保留 unknown，不自动截断/覆盖/删除，需运维核验。SHA 不符明确 failed，不自动重发损坏前缀。
+
+当前只做控制面→目标固定缓存，不执行/安装内容，不处理依赖闭包；没有目标→控制面通用文件下载、HTTP Range 拉取接线、缓存淘汰或性能通过证据。SSH 每块仍经既有会话调用；没有声称达到原大规模介质 SLO。所有新增测试源码待 P1 集中执行。

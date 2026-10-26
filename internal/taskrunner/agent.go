@@ -19,12 +19,13 @@ import (
 // separate operator-installed helper, never inside the persistent Agent. Its own
 // global process lock is supplemental to the control plane's resource leases.
 type Agent struct {
-	StateDirectory        string
-	ProjectID             string
-	MachineID             string
-	ScriptsEnabled        bool
-	MediaCacheEnabled     bool
-	CacheInventoryEnabled bool
+	ArtifactTransfersEnabled bool
+	StateDirectory           string
+	ProjectID                string
+	MachineID                string
+	ScriptsEnabled           bool
+	MediaCacheEnabled        bool
+	CacheInventoryEnabled    bool
 }
 
 // PrepareAgentState creates only the local tasks child of an already protected
@@ -168,7 +169,10 @@ func writeAgentFence(dir string, fence agentFence) error {
 }
 func (a Agent) Handle(ctx context.Context, r Request) (Observation, error) {
 	var zero Observation
-	if os.Geteuid() == 0 || !idPattern.MatchString(a.ProjectID) || !idPattern.MatchString(a.MachineID) || r.Validate() != nil || r.Command.ProjectID != a.ProjectID || r.Command.MachineID != a.MachineID || (r.Command.Operation != "host.identity" && r.Command.Operation != "host.wait" && r.Command.Operation != "script.run" && r.Command.Operation != "host.cache.inventory") {
+	if os.Geteuid() == 0 || !idPattern.MatchString(a.ProjectID) || !idPattern.MatchString(a.MachineID) || r.Validate() != nil || r.Command.ProjectID != a.ProjectID || r.Command.MachineID != a.MachineID || (r.Command.Operation != "host.identity" && r.Command.Operation != "host.wait" && r.Command.Operation != "script.run" && r.Command.Operation != "host.cache.inventory" && r.Command.Operation != "media.stage") {
+		return zero, ErrRejected
+	}
+	if r.Command.Operation == "media.stage" && (r.Action == "run" || r.Action == "append" || r.Action == "commit") && !a.ArtifactTransfersEnabled {
 		return zero, ErrRejected
 	}
 	if r.Action == "run" && r.Command.Operation == "script.run" && !a.ScriptsEnabled {
@@ -193,7 +197,23 @@ func (a Agent) Handle(ctx context.Context, r Request) (Observation, error) {
 	} else if !errors.Is(e, os.ErrNotExist) {
 		return zero, ErrRejected
 	}
-	wrapper := Wrapper{StateDirectory: a.StateDirectory, CacheInventoryEnabled: a.CacheInventoryEnabled}
+	wrapper := Wrapper{StateDirectory: a.StateDirectory, CacheInventoryEnabled: a.CacheInventoryEnabled, ArtifactTransfersEnabled: a.ArtifactTransfersEnabled}
+	if r.Action == "append" || r.Action == "commit" {
+		lock, err := agentFile(fd, ".agent-run.lock", true)
+		if err != nil {
+			return zero, ErrRejected
+		}
+		defer unix.Close(lock)
+		if unix.Flock(lock, unix.LOCK_EX|unix.LOCK_NB) != nil {
+			return zero, ErrUnknown
+		}
+		defer unix.Flock(lock, unix.LOCK_UN)
+		fence, err := readAgentFence(filepath.Join(a.StateDirectory, ".agent-fence.json"))
+		if err != nil || fence.Command != r.Command {
+			return zero, ErrRejected
+		}
+		return wrapper.Handle(ctx, r)
+	}
 	if r.Action != "run" {
 		return wrapper.Handle(ctx, r)
 	}

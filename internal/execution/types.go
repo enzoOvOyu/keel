@@ -57,6 +57,7 @@ type SimSpec struct {
 	Uncancellable bool   `json:"uncancellable,omitempty" yaml:"uncancellable,omitempty"`
 }
 type Task struct {
+	Artifact           *platform.TaskArtifact       `json:"artifact,omitempty" yaml:"artifact,omitempty"`
 	ScriptPreferCache  bool                         `json:"script_prefer_cache,omitempty" yaml:"script_prefer_cache,omitempty"`
 	ScriptResultFormat string                       `json:"script_result_format,omitempty" yaml:"script_result_format,omitempty"`
 	Script             *platform.TaskScriptArtifact `json:"script,omitempty" yaml:"script,omitempty"`
@@ -308,7 +309,7 @@ func (d Definition) Validate() error {
 	}
 	ids := map[string]Task{}
 	for _, t := range d.Tasks {
-		if t.Script != nil || t.ScriptResultFormat != "" || t.ScriptPreferCache {
+		if t.Artifact != nil || t.Script != nil || t.ScriptResultFormat != "" || t.ScriptPreferCache {
 			return invalid("simulation flows cannot embed real script artifacts")
 		}
 		if !identifier.MatchString(t.ID) {

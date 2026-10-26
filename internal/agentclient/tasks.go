@@ -29,7 +29,7 @@ func (c Config) taskStream(ctx context.Context, pair tls.Certificate, connection
 	if e != nil {
 		return ErrIdentity
 	}
-	handler := taskrunner.Agent{StateDirectory: dir, ProjectID: c.ProjectID, MachineID: c.MachineID, ScriptsEnabled: c.ScriptsEnabled, MediaCacheEnabled: c.MediaCacheEnabled, CacheInventoryEnabled: c.CacheInventoryEnabled}
+	handler := taskrunner.Agent{ArtifactTransfersEnabled: c.ArtifactTransfersEnabled, StateDirectory: dir, ProjectID: c.ProjectID, MachineID: c.MachineID, ScriptsEnabled: c.ScriptsEnabled, MediaCacheEnabled: c.MediaCacheEnabled, CacheInventoryEnabled: c.CacheInventoryEnabled}
 	connection, e := c.connect([]tls.Certificate{pair})
 	if e != nil {
 		return ErrIdentity
@@ -71,7 +71,7 @@ func (c Config) taskStream(ctx context.Context, pair tls.Certificate, connection
 			}
 		}
 	}()
-	seen := map[string]bool{}
+	seen := taskRequestWindow{active: map[string]bool{}, recent: map[string]bool{}}
 	for {
 		request, err := stream.Recv()
 		if err != nil {
@@ -83,12 +83,12 @@ func (c Config) taskStream(ctx context.Context, pair tls.Certificate, connection
 			}
 		}
 		id := request.GetRequestId()
-		if !identityID.MatchString(id) || seen[id] || len(seen) >= 256 || len(request.GetRequestJson()) == 0 || len(request.GetRequestJson()) > 14336 {
+		if !identityID.MatchString(id) || !seen.admit(id) || len(request.GetRequestJson()) == 0 || len(request.GetRequestJson()) > 14336 {
 			return ErrIdentity
 		}
-		seen[id] = true
 		expires := request.GetExpiresAtUnixMilli()
 		if !taskFrameCurrent(expires, time.Now()) {
+			seen.complete(id)
 			select {
 			case reports <- &pb.TaskReport{ConnectionId: connectionID, RequestId: id, Error: "unknown"}:
 			case <-ctx.Done():
@@ -111,6 +111,7 @@ func (c Config) taskStream(ctx context.Context, pair tls.Certificate, connection
 		workers.Add(1)
 		go func(id string, expires int64, command taskrunner.Request) {
 			defer workers.Done()
+			defer seen.complete(id)
 			defer func() { <-slots }()
 			report := &pb.TaskReport{ConnectionId: connectionID, RequestId: id}
 			if !taskFrameCurrent(expires, time.Now()) {
@@ -141,4 +142,38 @@ func (c Config) taskStream(ctx context.Context, pair tls.Certificate, connection
 			}
 		}(id, expires, command)
 	}
+}
+
+// Frame IDs deduplicate transport responses, not write authority. Keep active IDs
+// and the last 256 completed frames; durable command/fence/checkpoint validation
+// remains authoritative even when a very old frame falls outside this window.
+type taskRequestWindow struct {
+	mu     sync.Mutex
+	active map[string]bool
+	recent map[string]bool
+	order  []string
+}
+
+func (w *taskRequestWindow) admit(id string) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.active[id] || w.recent[id] {
+		return false
+	}
+	w.active[id] = true
+	return true
+}
+func (w *taskRequestWindow) complete(id string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	delete(w.active, id)
+	if w.recent[id] {
+		return
+	}
+	if len(w.order) == 256 {
+		delete(w.recent, w.order[0])
+		w.order = w.order[1:]
+	}
+	w.order = append(w.order, id)
+	w.recent[id] = true
 }

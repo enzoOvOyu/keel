@@ -1,3 +1,4 @@
+import { ArtifactDistribution } from './ArtifactDistribution'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -109,5 +110,5 @@ export function AgentExecutions() {
     {open && canLaunch && !denied && !records.isError && records.data?.enabled && <Launch targets={records.data.items} now={now} onClose={() => setOpen(false)} onDenied={onDenied} onRefresh={refresh} />}
     {cacheTarget && !denied && <AgentCacheInventoryDialog key={`${project.id}:${session.user.id}:${cacheTarget.machine_id}`} target={cacheTarget} onClose={() => setCacheTarget(null)} onDenied={onDenied} />}
     {networkTarget && !denied && <AgentNetworkInventoryDialog key={`${project.id}:${session.user.id}:${networkTarget.machine_id}`} target={networkTarget} onClose={() => setNetworkTarget(null)} onDenied={onDenied} />}
-  </section><ApprovedScripts transport="agent" assets={!records.isError && !denied && !records.isFetching && records.data?.enabled ? records.data.items.filter(target => connected(target, now)) : []} /></>
+  </section><ApprovedScripts transport="agent" assets={!records.isError && !denied && !records.isFetching && records.data?.enabled ? records.data.items.filter(target => connected(target, now)) : []} /><ArtifactDistribution transport="agent" assets={!records.isError && !denied && !records.isFetching && records.data?.enabled ? records.data.items.filter(target => connected(target, now)) : []} /></>
 }

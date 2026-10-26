@@ -44,8 +44,11 @@ func (s *Service) scriptFrozenTx(ctx context.Context, tx *sql.Tx, project, mode 
 }
 
 func (s *Service) scriptHeartbeatTx(ctx context.Context, tx *sql.Tx, c *Claim) bool {
-	if c.Task.Script == nil {
+	if c.Task.Script == nil && c.Task.Artifact == nil {
 		return false
+	}
+	if c.Task.Artifact != nil && s.artifactFrozenTx(ctx, tx, c.Target.ProjectID, c.Task) != nil {
+		return true
 	}
 	if s.scriptFrozenTx(ctx, tx, c.Target.ProjectID, c.Target.Mode, c.Task) != nil {
 		return true
@@ -58,6 +61,9 @@ func (s *Service) scriptHeartbeatTx(ctx context.Context, tx *sql.Tx, c *Claim) b
 // The attempt row serializes consumption. Once committed, an orphan dispatch
 // can only be queried, even if transport IO never got a chance to start.
 func (s *Service) commitScriptDispatchTx(ctx context.Context, tx *sql.Tx, c *Claim) (taskrunner.TaskCommand, error) {
+	return s.commitBoundedDispatchTx(ctx, tx, c, "script.dispatch_committed")
+}
+func (s *Service) commitBoundedDispatchTx(ctx context.Context, tx *sql.Tx, c *Claim, kind string) (taskrunner.TaskCommand, error) {
 	command := sshCommand(c)
 	var until, now time.Time
 	err := tx.QueryRowContext(ctx, `SELECT a.lease_until,clock_timestamp() FROM exec_task_attempts a JOIN exec_executions x ON x.id=a.execution_id WHERE a.id=$1 AND a.execution_id=$2 AND a.command_id=$3 AND a.fencing_token=$4 AND a.lease_owner=$5 AND a.state='running' AND a.lease_until>clock_timestamp() AND x.desired_state='running' FOR UPDATE OF a FOR SHARE OF x`, c.Attempt.ID, c.Attempt.ExecutionID, c.Attempt.CommandID, c.Attempt.FencingToken, c.Attempt.LeaseOwner).Scan(&until, &now)
@@ -65,7 +71,7 @@ func (s *Service) commitScriptDispatchTx(ctx context.Context, tx *sql.Tx, c *Cla
 		return command, err
 	}
 	var consumed bool
-	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM exec_outbox WHERE execution_id=$1 AND event_type='script.dispatch_committed' AND payload->>'attempt_id'=$2)`, c.Attempt.ExecutionID, c.Attempt.ID).Scan(&consumed); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM exec_outbox WHERE execution_id=$1 AND event_type=$3 AND payload->>'attempt_id'=$2)`, c.Attempt.ExecutionID, c.Attempt.ID, kind).Scan(&consumed); err != nil {
 		return command, err
 	}
 	if consumed {
@@ -90,13 +96,16 @@ func (s *Service) commitScriptDispatchTx(ctx context.Context, tx *sql.Tx, c *Cla
 	if command.Validate() != nil {
 		return command, taskrunner.ErrRejected
 	}
-	err = event(ctx, tx, c.Attempt.ExecutionID, "script.dispatch_committed", map[string]any{"attempt_id": c.Attempt.ID, "command": command, "authorized_at": now, "lease_until": until})
+	err = event(ctx, tx, c.Attempt.ExecutionID, kind, map[string]any{"attempt_id": c.Attempt.ID, "command": command, "authorized_at": now, "lease_until": until})
 	return command, err
 }
 
 func originalScriptCommandTx(ctx context.Context, tx *sql.Tx, c *Claim) (taskrunner.TaskCommand, error) {
+	return originalDispatchCommandTx(ctx, tx, c, "script.dispatch_committed")
+}
+func originalDispatchCommandTx(ctx context.Context, tx *sql.Tx, c *Claim, kind string) (taskrunner.TaskCommand, error) {
 	base := sshCommand(c)
-	rows, err := tx.QueryContext(ctx, `SELECT payload FROM exec_outbox WHERE execution_id=$1 AND event_type='script.dispatch_committed' AND payload->>'attempt_id'=$2 ORDER BY sequence LIMIT 2`, c.Attempt.ExecutionID, c.Attempt.ID)
+	rows, err := tx.QueryContext(ctx, `SELECT payload FROM exec_outbox WHERE execution_id=$1 AND event_type=$3 AND payload->>'attempt_id'=$2 ORDER BY sequence LIMIT 2`, c.Attempt.ExecutionID, c.Attempt.ID, kind)
 	if err != nil {
 		return base, err
 	}

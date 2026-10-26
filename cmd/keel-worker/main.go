@@ -46,6 +46,7 @@ func main() {
 	store.AgentScriptsEnabled = os.Getenv("KEEL_AGENT_SCRIPTS_ENABLED") == "true"
 	store.AgentNetworkInventoryEnabled = os.Getenv("KEEL_AGENT_NETWORK_INVENTORY_ENABLED") == "true"
 	store.TaskCacheInventoryEnabled = os.Getenv("KEEL_TASK_CACHE_INVENTORY_ENABLED") == "true"
+	store.ArtifactTransfersEnabled = os.Getenv("KEEL_TASK_ARTIFACT_TRANSFERS_ENABLED") == "true"
 	e = store.ConfigureSSHRunner(os.Getenv("KEEL_SSH_RUNNER_FILE"), os.Getenv("KEEL_CREDENTIAL_MASTER_KEY_FILE"))
 	if e != nil {
 		slog.Error("SSH runner configuration rejected")
@@ -59,7 +60,7 @@ func main() {
 	if e = store.ConfigureProvisionInstall(os.Getenv("KEEL_PROVISION_INSTALL_ENABLED") == "true", os.Getenv("KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE")); e != nil {
 		fail("provision installer public trust configuration rejected")
 	}
-	if store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled || store.SSHScriptsEnabled || store.AgentScriptsEnabled {
+	if store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled || store.SSHScriptsEnabled || store.AgentScriptsEnabled || store.ArtifactTransfersEnabled {
 		store.MediaObjects, e = mediaartifact.Load()
 		if e != nil || store.MediaObjects == nil {
 			fail("Provision preparation requires configured media storage")

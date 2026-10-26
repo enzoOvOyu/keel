@@ -1,3 +1,4 @@
+import { ArtifactDistribution } from './ArtifactDistribution'
 import { ProvisionPreviewDialog } from './ProvisionPreviewDialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -150,6 +151,7 @@ function AssetsContent() {
     <SSHTrustRequests assets={assets.isError ? [] : assets.data?.items ?? []} />
     <SSHExecutions assets={assets.isError ? [] : assets.data?.items ?? []} />
     <SSHScripts assets={assets.isError ? [] : assets.data?.items ?? []} />
+    <ArtifactDistribution transport="ssh" assets={assets.isError || assets.isFetching ? [] : (assets.data?.items ?? []).filter(asset => asset.state === 'provisioned' && asset.ssh_trust === 'established' && asset.ssh_trust_source === 'ssh')} />
     <AgentExecutions />
     <SSHDomainKeys />
     {provisionTarget && <ProvisionPreviewDialog key={`${project.id}:${provisionTarget.id}`} projectId={project.id} asset={provisionTarget} onClose={() => setProvisionTarget(null)} />}

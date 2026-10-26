@@ -1,3 +1,4 @@
+import { ArtifactReceiptSummary } from './ArtifactReceiptSummary'
 import {RerunDialog} from './RerunDialog'
 import { CacheOutput } from './CacheOutput'
 import { ScriptReceiptSummary } from './ScriptReceiptSummary'
@@ -221,7 +222,7 @@ function Outputs({
                       </Button>
                       <details>
                         <summary>{t("executionViewStructuredOutput")}</summary>
-                        <ScriptReceiptSummary output={item.receipt.output} />
+                        <ScriptReceiptSummary output={item.receipt.output} /><ArtifactReceiptSummary output={item.receipt.output} />
                         <ScriptResult output={item.receipt.output} />
                         <CacheOutput key={item.attempt_id} output={item.receipt.output} />
                       <pre>
@@ -443,7 +444,7 @@ function AttemptDrawer({
           </Button>
           {onRerun && <Button variant="outline" onClick={()=>onRerun(query.data!.target.id)}>{t('rerunTarget')}</Button>}
           <h3>{t("executionViewReceipt")}</h3>
-          {query.data.attempt.receipt && <ScriptReceiptSummary output={query.data.attempt.receipt.output} />}
+          {query.data.attempt.receipt && <><ScriptReceiptSummary output={query.data.attempt.receipt.output} /><ArtifactReceiptSummary output={query.data.attempt.receipt.output} /></>}
           <pre>
             {query.data.attempt.receipt
               ? JSON.stringify(query.data.attempt.receipt, null, 2)
@@ -643,7 +644,9 @@ export function ExecutionWorkspace({
       </header>
       <p className="impact-notice">
         {t(
-          ["ssh", "agent"].includes(current.execution.mode) && current.timeline.some(task => task.task_type === "script.run")
+          ["ssh", "agent"].includes(current.execution.mode) && current.timeline.some(task => task.task_type === "media.stage")
+            ? "artifactExecutionNotice"
+            : ["ssh", "agent"].includes(current.execution.mode) && current.timeline.some(task => task.task_type === "script.run")
             ? "scriptExecutionNotice"
             : current.execution.mode === "provision"
             ? "provisionPreparationOnly"

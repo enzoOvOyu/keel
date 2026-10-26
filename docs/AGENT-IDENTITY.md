@@ -201,3 +201,9 @@ Heartbeat proto 增加可选 `network_inventory_json`，严格版本 `agent-netw
 
 
 历史脚本可由当前Admin/DL/SRE显式请求过期派发未启动证明；API仅记既有outbox，worker才使用本机持有的mTLS通道。broker要求原派发、unknown版本、5分钟人类请求及请求人当前权限一致；目标仅在过期、独占原命令锁且从未持久accepted时产生未启动终态，不改全局fence。旧accepted/running/锁忙/坏回执继续未知，已有终态原样返回。脚本关闭后可取历史证明，但请求本身不执行脚本、不自动Reconcile或释放资源。具体协议见SSH-RUNNER「过期脚本派发的显式未启动证明」；源码未验证。
+
+### 批准制品分发窗口（2026-10-26，未验证源码）
+
+沿用已注册 mTLS Agent、当前项目资产身份、任务 broker 和原执行器，增加独立 `media.stage` 的 run/append/commit/query/cancel。目标 `artifact_transfers_enabled:false`，开启须同时 `tasks_enabled:true`；控制面开关另行配置，详见 [SSH-RUNNER](SSH-RUNNER.md) 的固定目录/限额/检查点协议。常驻 Agent 不执行内容、不启脚本 helper、不设置 subreaper。append/commit 持 Agent 全局 run 锁核对原 fence，再进入目标缓存锁；新命令不能与旧分块交叉写入。历史 query/cancel 在关闭分发后仍可取原证明，不重新取源正文/审批或延长授权。
+
+原每连接累计256请求的限制改为有界去重窗口：在途任务仍最多8个，另保留最近256个已完成帧 ID，不让分块传输必然在256帧断开。帧 ID 仅负责关联/近期去重；持久命令、原授权、fence 和检查点提供写入防重放，超出窗口的旧命令仍不能再次执行或跨偏移写入。单帧上限14336字节及既有gRPC上限保留。此制品缓存不计入现有小脚本缓存 inventory/心跳。完整双向文件通道、进程目录、证书CA轮换及实测仍待后续 WP-1.5 工作；不要求先实现 P2 G3+ 安装依赖。

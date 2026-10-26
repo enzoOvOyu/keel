@@ -1,3 +1,4 @@
+import { artifactTranslations } from './artifact-i18n'
 import { provisionTranslations } from './provision-i18n'
 import { catalogManagementTranslations } from './catalog-management-i18n'
 import { modelReviewTranslations } from './model-review-i18n'
@@ -27,6 +28,7 @@ import { readPreference } from './preferences'
 
 export const resources = {
   zh: { translation: {
+    ...artifactTranslations.zh,
     ...managementTranslations.zh,...provisionTranslations.zh,
     ...fabricTranslations.zh,
     ...networkDeliveryTranslations.zh,
@@ -136,6 +138,7 @@ export const resources = {
     skip: '跳转到登录表单',
   } },
   en: { translation: {
+    ...artifactTranslations.en,
     ...managementTranslations.en,...provisionTranslations.en,
     ...fabricTranslations.en,
     ...networkDeliveryTranslations.en,

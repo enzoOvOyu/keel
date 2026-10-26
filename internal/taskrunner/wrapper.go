@@ -17,10 +17,11 @@ import (
 // Wrapper is a per-invocation helper, not a persistent agent. StateDirectory is
 // provisioned by the operator for keel-ctrl, mode0700. Never use a shared /tmp.
 type Wrapper struct {
-	ScriptMediaCacheEnabled bool
-	CacheInventoryEnabled   bool
-	StateDirectory          string
-	AuthorizedKeysFile      string
+	ArtifactTransfersEnabled bool
+	ScriptMediaCacheEnabled  bool
+	CacheInventoryEnabled    bool
+	StateDirectory           string
+	AuthorizedKeysFile       string
 	// Set only by a dedicated helper process after PrepareScriptProcess.
 	ScriptProcessIsolation bool
 }
@@ -104,6 +105,9 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 	}
 	if r.Validate() != nil || privateDirectory(w.StateDirectory) != nil {
 		return zero, ErrRejected
+	}
+	if r.Command.Operation == "media.stage" {
+		return handleArtifactTransfer(ctx, w.StateDirectory, ArtifactCacheDirectory, r, w.ArtifactTransfersEnabled)
 	}
 	if r.Action == "settle" && (ctx.Err() != nil || time.UnixMicro(r.Command.AuthorizationExpiresAt).After(time.Now())) {
 		return zero, ErrRejected

@@ -93,7 +93,7 @@ func (b *Broker) Binding(project, machine string) (taskrunner.Binding, error) {
 }
 func (b *Broker) Do(ctx context.Context, r taskrunner.Request) (taskrunner.Observation, error) {
 	var zero taskrunner.Observation
-	if r.Validate() != nil || (r.Command.Operation != "host.identity" && r.Command.Operation != "host.wait" && r.Command.Operation != "script.run" && r.Command.Operation != "host.cache.inventory") {
+	if r.Validate() != nil || (r.Command.Operation != "host.identity" && r.Command.Operation != "host.wait" && r.Command.Operation != "script.run" && r.Command.Operation != "host.cache.inventory" && r.Command.Operation != "media.stage") {
 		return zero, taskrunner.ErrRejected
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(r.Command.TimeoutMS)*time.Millisecond+5*time.Second)

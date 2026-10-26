@@ -67,3 +67,6 @@ export const getAgentNetworkInventory = (projectId:string,machineId:string,signa
 export type ScriptNonstartProofInput = components['schemas']['ScriptNonstartProofInput']
 export type ScriptNonstartProofRequest = components['schemas']['ScriptNonstartProofRequest']
 export const requestScriptNonstartProof = (projectId:string,executionId:string,attemptId:string,body:ScriptNonstartProofInput,csrf:string,key:string) => request<ScriptNonstartProofRequest>(`/projects/${encodeURIComponent(projectId)}/executions/${encodeURIComponent(executionId)}/attempts/${encodeURIComponent(attemptId)}/script-nonstart-proof`,{method:'POST',headers:{'X-CSRF-Token':csrf,'Idempotency-Key':key},body:JSON.stringify(body)})
+
+export type ArtifactCreateInput = components['schemas']['ArtifactCreateInput']
+export const createArtifactDistribution = (projectId:string, body:ArtifactCreateInput, csrf:string, key:string) => request<components['schemas']['Execution']>(`/projects/${encodeURIComponent(projectId)}/artifact-distributions`, {method:'POST', headers:{'X-CSRF-Token':csrf, 'Idempotency-Key':key}, body:JSON.stringify(body)})

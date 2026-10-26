@@ -97,7 +97,7 @@ func (s *Service) agentReceiptAllowedTx(ctx context.Context, tx *sql.Tx, r Recei
 // CreateAgent admits only bounded host queries, then creates an ordinary
 // execution consumed by the existing scheduler/outbox/lease machinery.
 func (s *Service) CreateAgent(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (*Execution, error) {
-	if in.PreferScriptCache || in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" {
+	if in.ArtifactMediaID != "" || in.PreferScriptCache || in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" {
 		return nil, invalid("Only bounded host queries are admitted by this endpoint")
 	}
 	return s.createAgent(ctx, a, project, in, key, trace)
@@ -111,14 +111,17 @@ func (s *Service) CreateAgentScript(ctx context.Context, a *Actor, project strin
 }
 
 func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (_ *Execution, resultErr error) {
-	if in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" && in.Operation != "script.run" {
+	if in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" && in.Operation != "script.run" && in.Operation != "media.stage" {
 		return nil, invalid("Only allowlisted bounded host operations are admitted by the Agent channel")
 	}
 	if in.TimeoutMS == 0 {
 		in.TimeoutMS = 5000
 	}
+	if err := validateArtifactCreate(in, ""); err != nil {
+		return nil, err
+	}
 	check := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: project, MachineID: "00000000000000000000000000000000", CommandID: "00000000000000000000000000000000", AttemptID: "00000000000000000000000000000000", FencingToken: 1, Operation: in.Operation, TimeoutMS: in.TimeoutMS, WaitMS: in.WaitMS, CacheCursor: in.CacheCursor, CacheManifestSHA256: in.CacheManifestSHA256}
-	if (in.Operation != "script.run" && (in.PreferScriptCache || check.Validate() != nil)) || (in.Operation == "script.run" && (in.CacheCursor != "" || in.CacheManifestSHA256 != "" || in.ScriptResultFormat != "" && in.ScriptResultFormat != "json" || !opaqueID.MatchString(in.ScriptMediaID) || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0)) || len(in.MachineIDs) < 1 || len(in.MachineIDs) > 32 || in.CacheCursor != "" && len(in.MachineIDs) != 1 {
+	if (in.Operation != "script.run" && in.Operation != "media.stage" && (in.PreferScriptCache || check.Validate() != nil)) || (in.Operation == "script.run" && (in.CacheCursor != "" || in.CacheManifestSHA256 != "" || in.ScriptResultFormat != "" && in.ScriptResultFormat != "json" || !opaqueID.MatchString(in.ScriptMediaID) || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0)) || len(in.MachineIDs) < 1 || len(in.MachineIDs) > 32 || in.CacheCursor != "" && len(in.MachineIDs) != 1 {
 		return nil, invalid("1..32 machine IDs and bounded Agent host queries are required")
 	}
 	ids := append([]string{}, in.MachineIDs...)
@@ -156,6 +159,16 @@ func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in 
 		x, e := decode[Execution](prior)
 		return &x, e
 	}
+	var artifact *platform.TaskArtifact
+	if in.Operation == "media.stage" {
+		if s.MediaStore == nil {
+			return nil, failure(409, "ARTIFACT_TRANSFERS_DISABLED", "Artifact media service unavailable")
+		}
+		artifact, e = s.MediaStore.ResolveTaskArtifactTx(ctx, tx, project, in.ArtifactMediaID, nil)
+		if e != nil {
+			return nil, e
+		}
+	}
 	var script *platform.TaskScriptArtifact
 	if in.Operation == "script.run" {
 		if s.MediaStore == nil || !s.MediaStore.AgentScriptsEnabled {
@@ -181,7 +194,11 @@ func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in 
 		targetIDs = append(targetIDs, target.ID)
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	task := Task{ScriptPreferCache: in.PreferScriptCache, ScriptResultFormat: in.ScriptResultFormat, Script: script, ID: "agent-query", Type: in.Operation, Idempotent: true, Retry: 0, TimeoutMS: in.TimeoutMS, Resources: []string{"device", "agent"}}
+	task := Task{Artifact: artifact, ScriptPreferCache: in.PreferScriptCache, ScriptResultFormat: in.ScriptResultFormat, Script: script, ID: "agent-query", Type: in.Operation, Idempotent: true, Retry: 0, TimeoutMS: in.TimeoutMS, Resources: []string{"device", "agent"}}
+	if artifact != nil {
+		task.ID = "agent-artifact"
+		task.Idempotent = false
+	}
 	if script != nil {
 		task.ID = "agent-script"
 		task.Idempotent = false
@@ -204,6 +221,9 @@ func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in 
 	}
 	x := &Execution{ID: platform.RandomID(), ProjectID: project, FlowVersionID: flow.ID, Mode: "agent", State: "created", StateVersion: 1, DesiredState: "running", Parameters: params, Concurrency: 1, CircuitBreakerPercent: 100, CreatedBy: a.User.ID, CreatedAt: now, TargetSetHash: hash(jsonBytes(targetIDs))}
 	x.Snapshot = Snapshot{Mode: "agent", Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "Bounded read-only host query through a current registered mTLS Agent and exact provisioned project asset; no hardware/G3/installation acceptance", FrozenAt: now}
+	if artifact != nil {
+		x.Snapshot.Admission = "Independently approved immutable media; exclusive target lease and original bounded authorization; resumable owned fixed-cache checkpoints; success requires full SHA256/size verification; no installation or execution"
+	}
 	if script != nil {
 		x.Snapshot.Admission = "Independently approved immutable bounded script through the pinned mTLS Agent; exclusive device lease, one dispatch, no automatic retry; unknown effects retain isolation"
 	}
@@ -223,6 +243,11 @@ func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in 
 	}
 	if e = audit(ctx, tx, a.User.ID, project, "execution.agent.create", x.ID, trace, map[string]any{"operation": in.Operation, "target_count": len(targets), "target_hash": x.TargetSetHash}); e != nil {
 		return nil, e
+	}
+	if artifact != nil {
+		if e = audit(ctx, tx, a.User.ID, project, "media.distribute", artifact.MediaID, trace, map[string]any{"execution_id": x.ID, "transport": x.Mode, "sha256": artifact.SHA256, "size": artifact.Size, "object_version": artifact.ObjectVersion, "target_count": len(targets), "target_hash": x.TargetSetHash}); e != nil {
+			return nil, e
+		}
 	}
 	if e = remember(ctx, tx, idem, in, x); e != nil {
 		return nil, e
@@ -294,6 +319,12 @@ func (s *Service) FetchAgentReceipt(ctx context.Context, a *Actor, project, id, 
 	query, stop := context.WithTimeout(ctx, 5*time.Second)
 	defer stop()
 	command := sshCommand(claim)
+	if task.Artifact != nil {
+		command, e = originalDispatchCommandTx(ctx, tx, claim, "artifact.dispatch_committed")
+		if e != nil {
+			return nil, e
+		}
+	}
 	if task.Script != nil {
 		command, e = originalScriptCommandTx(ctx, tx, claim)
 		if e != nil {
@@ -407,6 +438,12 @@ func (s *Service) refreshAgentReceipt(ctx context.Context, executionID, attemptI
 	}
 	claim := &Claim{Attempt: attempt, Target: target, Task: task, Parameters: x.Parameters}
 	command := sshCommand(claim)
+	if task.Artifact != nil {
+		command, e = originalDispatchCommandTx(ctx, tx, claim, "artifact.dispatch_committed")
+		if e != nil {
+			return e
+		}
+	}
 	if task.Script != nil {
 		command, e = originalScriptCommandTx(ctx, tx, claim)
 		if e != nil {

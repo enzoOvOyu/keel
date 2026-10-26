@@ -52,6 +52,22 @@ func (a *authAPI) registerSSHExecution(r *gin.Engine, base string) {
 		}
 		c.JSON(201, x)
 	})
+	r.POST(base+"/artifact-distributions", func(c *gin.Context) {
+		actor, service, ok := a.executionProject(c, true)
+		if !ok {
+			return
+		}
+		var in execution.ArtifactCreateInput
+		if !decodeExecutionBody(c, &in) {
+			return
+		}
+		out, err := service.CreateArtifactDistribution(c.Request.Context(), actor, c.Param("id"), in, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.JSON(201, out)
+	})
 	r.POST(base+"/ssh-script-executions", func(c *gin.Context) {
 		actor, s, ok := a.executionProject(c, true)
 		if !ok {

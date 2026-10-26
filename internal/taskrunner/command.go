@@ -20,6 +20,10 @@ var idPattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
 const APIVersion = "keel.task/v1"
 
 type TaskCommand struct {
+	ArtifactMediaID        string `json:"artifact_media_id,omitempty"`
+	ArtifactObjectVersion  string `json:"artifact_object_version,omitempty"`
+	ArtifactSHA256         string `json:"artifact_sha256,omitempty"`
+	ArtifactSize           int64  `json:"artifact_size,omitempty"`
 	ScriptCacheAllowed     bool   `json:"script_cache_allowed,omitempty"`
 	CacheCursor            string `json:"cache_cursor,omitempty"`
 	CacheManifestSHA256    string `json:"cache_manifest_sha256,omitempty"`
@@ -46,7 +50,14 @@ func (c TaskCommand) Validate() error {
 	if c.APIVersion != APIVersion || !idPattern.MatchString(c.ProjectID) || !idPattern.MatchString(c.MachineID) || !idPattern.MatchString(c.CommandID) || !idPattern.MatchString(c.AttemptID) || c.FencingToken < 1 || c.TimeoutMS < 100 || c.TimeoutMS > 30000 {
 		return ErrRejected
 	}
-	if c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "trust.verify" && c.Operation != "trust.install" && c.Operation != "script.run" && c.Operation != "host.cache.inventory" {
+	if c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "trust.verify" && c.Operation != "trust.install" && c.Operation != "script.run" && c.Operation != "host.cache.inventory" && c.Operation != "media.stage" {
+		return ErrRejected
+	}
+	if c.Operation == "media.stage" {
+		if validateArtifactCommand(c) != nil {
+			return ErrRejected
+		}
+	} else if c.ArtifactMediaID != "" || c.ArtifactObjectVersion != "" || c.ArtifactSHA256 != "" || c.ArtifactSize != 0 {
 		return ErrRejected
 	}
 	if c.Operation == "host.cache.inventory" {
@@ -67,7 +78,7 @@ func (c TaskCommand) Validate() error {
 		if _, err := installPublicIdentity(c.PublicKey, c.ProjectID); err != nil || c.AuthorizationExpiresAt < 1 {
 			return ErrRejected
 		}
-	} else if c.PublicKey != "" || c.Operation != "script.run" && c.AuthorizationExpiresAt != 0 {
+	} else if c.PublicKey != "" || c.Operation != "script.run" && c.Operation != "media.stage" && c.AuthorizationExpiresAt != 0 {
 		return ErrRejected
 	}
 	if (c.Operation != "host.wait" && c.WaitMS != 0) || c.WaitMS < 0 || c.WaitMS > 30000 {
@@ -83,6 +94,9 @@ func (c TaskCommand) Digest() string {
 }
 
 type Request struct {
+	ChunkOffset     int64       `json:"chunk_offset,omitempty"`
+	ChunkSHA256     string      `json:"chunk_sha256,omitempty"`
+	Chunk           []byte      `json:"chunk,omitempty"`
 	UseCachedScript bool        `json:"use_cached_script,omitempty"`
 	Action          string      `json:"action"`
 	Command         TaskCommand `json:"command"`
@@ -93,7 +107,16 @@ type Request struct {
 // receipt state can be consumed. Query/cancel/cache/settle never carry executable bytes.
 // Cached runs carry only frozen metadata; the target verifies actual owned bytes.
 func (r Request) Validate() error {
-	if r.Command.Validate() != nil || (r.Action != "run" && r.Action != "query" && r.Action != "cancel" && r.Action != "cache" && r.Action != "settle") {
+	if r.Command.Validate() != nil || (r.Action != "run" && r.Action != "query" && r.Action != "cancel" && r.Action != "cache" && r.Action != "settle" && r.Action != "append" && r.Action != "commit") {
+		return ErrRejected
+	}
+	if r.Action == "append" {
+		if r.Command.Operation != "media.stage" || len(r.Script) != 0 || r.UseCachedScript || validateArtifactChunk(r) != nil {
+			return ErrRejected
+		}
+		return nil
+	}
+	if len(r.Chunk) != 0 || r.ChunkOffset != 0 || r.ChunkSHA256 != "" || r.Action == "commit" && r.Command.Operation != "media.stage" {
 		return ErrRejected
 	}
 	if r.Action == "settle" && r.Command.Operation != "script.run" {
@@ -137,6 +160,9 @@ func (o Observation) Validate(c TaskCommand) error {
 		return ErrRejected
 	}
 	if c.Operation == "script.run" && o.Terminal() && validateScriptObservation(o) != nil {
+		return ErrRejected
+	}
+	if c.Operation == "media.stage" && o.Terminal() && validateArtifactObservation(o) != nil {
 		return ErrRejected
 	}
 	if c.Operation == "host.cache.inventory" && o.Terminal() && validateCacheObservation(o) != nil {
