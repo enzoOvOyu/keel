@@ -42,15 +42,15 @@ func (w *Linux) Reboot(ctx context.Context, ack *provisionboot.BootAcknowledgmen
 	}
 	deadline := *ack.RebootBefore
 	w.rebootAttempted = true
-	w.mu.Unlock()
 	// All filesystem sync/unmount and on-device readback already succeeded in
-	// Run. Close only detaches these owned clean loop mappings and descriptors;
-	// it does not run a global sync or touch unrelated filesystems.
-	if w.Close() != nil {
+	// Run. Detach only owned clean mappings. Keep the whole-disk O_EXCL FD
+	// until the kernel actually restarts: a failed or expired restart must not
+	// silently release the claim before Quarantine can preserve it.
+	if w.closeOwnedLoopsLocked() != nil {
+		w.mu.Unlock()
 		w.Quarantine()
 		return ErrDenied
 	}
-	w.mu.Lock()
 	if w.quarantined || ctx.Err() != nil || !deadline.After(time.Now()) {
 		w.mu.Unlock()
 		w.Quarantine()

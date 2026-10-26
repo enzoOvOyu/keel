@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～107。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～108。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
-用户最新安排：直接在当前本地环境`/opt/keel`开发，不使用tmux或SSH绕转；相关AGENTS/README/DEPLOYMENT入口已修正。继续单Agent、集中验证。硬件/网络参数保持配置输入，PoC环节由用户后续提供，不阻断独立软件开发。当前提交接续e500c2a，本批v2批准工具输入归档见§104；本轮依次提交4f176f5、2276f9b、b25d290、ed1906b、e500c2a及§104对应提交。启动文件Authority/认证回调、页面与互动预检源码见§99～101，新增集中用例见§102，GPT字节核心见§103。
+用户最新安排（2026-10-26）：合并本轮四Agent工作后恢复单Agent开发，不再启动或续派子代理；此前四Agent并行安排已被本指令替代。直接在当前本地环境`/opt/keel`开发，不使用tmux或SSH绕转。硬件/网络参数保持配置输入，PoC由用户提供。保留P1实现后集中功能/数据库/浏览器/镜像验证策略，目前仅必要编译和静态检查。
 
-接续c0eb0c0，用户于2026-10-26 02:12:04 UTC授权继续三小时，窗口至05:12:04 UTC。单Agent，保持P1实现闭环后集中测试/浏览器/镜像策略；当前只执行必要编译和静态检查。截至本轮检查点，WP-1.7/FR-2.2～2.4已接通启动授权、认证预检/互动刷新、显式选盘和独立布局审批源码，并完成无设备操作的GPT字节核心及独立批准writer工具的v2归档输入。P1仍partial，以上不是实际安装完成。下一步先明确目标OS启动内容契约，再实现当前写盘许可、受控设备写入和回执，随后首启host-key/SSH、七阶段投影与集中验收。3000仍运行6668a72c，源52迁移（不含026草稿）、运行46；未应用SQL、构建/部署镜像或推送，两份原草稿保留。
+源码接续39c353f，本轮统一集成见§108：机柜显式批量准备、七阶段事实投影/恢复页面、SSH已查询终态失败后的独立只读probe，以及重启失败不释放真实磁盘claim。前序目标UKI/写盘/首启链见§105～107。WP-1.7/P1仍partial，不把源码合并或编译通过记为装机/SSH/PoC验收。下一步由单Agent补齐首装SSH allowlist无旧host pin的显式配置边界，以及`boot.file_served`真实传输事件生产者（投影已预留，但生产者尚未实现）；再按实施计划补剩余闭环和集中验收。3000健康检查仍返回6668a72c，源52迁移（不含026草稿）、运行46；未应用SQL、构建/部署镜像或推送。两份原fabric草稿保留且不纳入本次提交。
 
 - **累计未发布源码（§75～92）**：此前的续签/主密钥重包裹/审计/Webhook等增量继续保留；本次从e0a9467接续，单Agent完成持久装机准备/独立审批/共享独占Execution与页面、隔离ProxyDHCP/HTTP/TFTP传输、Linux只读硬件预检与双架构helper、固定固件/helper启动配方与iPXE/清单生成和消费校验，以及无最终镜像前置循环的离线helper overlay生产/反向校验。修正Linux槽位ABI、NVMe实际health输出、传输中失效和准备完成时的当前准入边界。新增用例与集中/CI入口已写入但未运行。必要Go/TS编译、静态检查和指定双架构构建通过，不等于功能/SQL/镜像/硬件验证。源迁移50、运行46；3000仍§74。原草稿保留。
 
@@ -1326,3 +1326,16 @@ initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新�
 失败进入明确repair事件；Admin/DL/SRE显式请求仅fresh握手query原不可变receipt，不重发run/重装/续租，同repair并发去重。请求人与原审批/域凭据权限在消费及最终注册再次核对。native command/fence保持原值；unknown/missing始终持资源。已证明terminal failed后的新一次显式只读probe是后续单元，不能靠重复query假造旧失败回执成功。静态协议/loopback/DB角色/过期/stale事件用例均只写入未运行。必要定向编译/vet日志/tmp/keel-first-ssh-query-{final-compile,vet}.log退出0，source/no-network。3000/SQL/镜像未改，P1仍partial。
 
 同批writer交界复查修复受控reboot早退未quarantine，Makefile增加独立build-firstboot并接installer-helpers；仅静态编译amd64/arm64的initrd/firstboot四binary，读ELF头确认静态，/tmp/keel-writer-cross-v0pvsppw，无任何CLI/归档/镜像/设备执行。written回执ACK的最长2秒当前lease重启许可已接入root运行链；失ACK、unknown、过期或重启失败不重试。
+
+
+## 108. 四Agent成果统一集成并恢复单Agent（2026-10-26）
+
+接续39c353f。三个子Agent均完成并停止，无后续派工；用户要求合并后保持单Agent，已同步AGENTS及本文件恢复入口。同一工作区直接统一集成，无需创建分支或重做各模块。
+
+- 机柜批量准备：当前BOM精确rack、1～50个显式资产与逐机完整SN/version/网口/OS/域公钥；后端统一事务、排序machine mutex、完整输入幂等与批次审计，复用原请求创建和独立逐机审批。API/OpenAPI/生成TS/双语shadcn页面同步，支持直达单请求，批量准备不自动审批或启动安装。
+- 进度与恢复：七阶段只读投影仅展示持久事实，辅助DHCP、认证环境、写盘自报、首启登记及真实SSH严格分开，缺失证据不补成功；展示实际租约与资源隔离。显式query仅查询当前不可变receipt。只有fresh pinned query证明当前probe终态failed并经人工授权，才产生新只读probe ID；原native command/attempt/fence不变，unknown/missing保持query-only，同一失败和并发恢复互斥。成功注册、资产/trust投影和native receipt仍原子落库。
+- 重启边界修复：重启前只清理已卸载的owned loop映射，整盘O_EXCL FD和sealed source保留至真实内核重启。超时、取消或重启syscall失败时Quarantine仍持有真实claim，避免先Close后隔离的资源窗口。
+
+集中入口补入known-failed SSH、机柜与进度用例组，以及writer/firstboot基础包。上述pure/loopback/PG回归用例源码已写入，按用户要求未运行功能测试/真实SSH/磁盘/重启/浏览器。统一编译使用GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json、GOMEMLIMIT=768MiB、GOMAXPROCS=2；统一7个相关包/命令的go test -p=1 -run '^$'编译退出0、6个相关包go vet退出0；TypeScript tsc --noEmit、UI边界、设计检查退出0，git diff --check与集成脚本AST解析通过。日志为/tmp/keel-agent-merge-{compile,vet,tsc,ui,design}.log；编译输出[no tests to run]不记作功能测试通过。没有SQL迁移、镜像构建/发布或push；3000进程健康检查返回6668a72c，数据服务及其他项目保留。P1仍partial。
+
+剩余明确边界：首装临时SSH endpoint虽使用已认证新host pin，operator allowlist加载仍依赖旧pin/旧signer，需独立实现显式provision-only配置，不能要求伪造旧pin。进度投影接受`boot.file_served`白名单结构，但实际完整响应事件生产者尚未落盘，分发阶段缺证据保持pending。受保护bootstrap凭据交付/实际启动环境、完整软件联调及硬件PoC继续按原计划保留，不能因本次合并标闭环。

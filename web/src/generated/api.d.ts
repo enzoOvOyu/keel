@@ -21,6 +21,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/provision/installations/{installationId}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Project-scoped read-only projection of durable installation facts. Missing stages remain pending; DHCP fingerprints are auxiliary. File delivery does not prove execution. Signed first-boot registration does not establish SSH trust. Lease state comes from the actual execution resource lease; expired leases do not release an unknown installation machine reservation. Raw event payloads, credentials and private keys are never returned. */
+        get: operations["getProvisionInstallationProgress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/installations/{installationId}/ssh-repair/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Admin/DL/SRE explicit read-only repair query. Latest repair event and exact version require the live original exclusive lease. One request per repair event; pending requests are deduplicated. Query the original immutable host.identity receipt using a fresh pinned SSH handshake. Never resend run, reinstall, renew a lease or reuse stale authority. Acceptance is not verification success. */
+        post: operations["requestProvisionSSHReceiptQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/rack-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Explicit same-rack reinstallation preparation for 1..50 distinct project assets. Rack is the exact current BOM value. Every item requires its current asset version, complete exact serial confirmation, approved boot port, compatible OS media and domain key. No implicit rack-wide selection or default image/disk. Atomic all-or-nothing creation of ordinary requested records with reinstall=true; never approves, starts installation or selects storage. Items are canonically sorted by asset_id for idempotency. Changing a frozen input requires a new Idempotency-Key. */
+        post: operations["createProvisionRackRequests"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/installations/{installationId}/ssh-repair/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Admin/DL/SRE explicitly authorize one new read-only host.identity probe only after a fresh pinned SSH query proved the active immutable helper receipt terminal failed. Bind exact latest repair/failed events and installation version. Unknown, missing and unqueried failures never permit this action. Revalidate current approved credentials and live original native attempt/exclusive lease; native command/attempt/fence stay unchanged while the new verification has an independent command identity. Deduplicate pending requests; reject a consumed failure until a fresh query proves a new terminal failure. No installation, lease renewal, automatic command replay or SSH trust on acceptance. */
+        post: operations["requestProvisionSSHVerification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/provision/installations": {
         parameters: {
             query?: never;
@@ -2724,6 +2792,117 @@ export interface components {
             permit_issued_at?: string;
             failure_reason?: string;
         };
+        ProvisionProgressEvidence: {
+            /** Format: int64 */
+            id: number;
+            kind: string;
+            /** Format: date-time */
+            at: string;
+        };
+        ProvisionProgressStage: {
+            /** @enum {string} */
+            id: "dhcp" | "ipxe" | "distribution" | "installation" | "first_boot" | "registration" | "ssh";
+            /** @enum {string} */
+            status: "pending" | "observed" | "reported" | "verified" | "failed" | "unknown";
+            reason: string;
+            evidence: components["schemas"]["ProvisionProgressEvidence"][];
+        };
+        ProvisionProgressResource: {
+            machine_reserved: boolean;
+            /** @enum {string} */
+            lease_state: "none" | "held" | "reconciling" | "released";
+            /** Format: date-time */
+            lease_expires_at?: string;
+            lease_expired: boolean;
+            reconciliation_required: boolean;
+        };
+        ProvisionSSHRetryInput: {
+            /** Format: int64 */
+            expected_version: number;
+            /** Format: int64 */
+            repair_event_id: number;
+            reason: string;
+        };
+        ProvisionSSHRetry: {
+            id: string;
+            installation_id: string;
+            /** Format: int64 */
+            repair_event_id: number;
+            /** @enum {string} */
+            status: "pending" | "consumed";
+            /** @enum {string} */
+            mode: "query";
+        };
+        ProvisionSSHRepair: {
+            /** Format: int64 */
+            event_id: number;
+            /** @enum {string} */
+            reason: "runner_unavailable" | "verification_unknown" | "finalization_rejected";
+            /** Format: date-time */
+            at: string;
+            /** @enum {string} */
+            status: "available" | "pending" | "consumed";
+            retry_id?: string;
+            /** Format: int64 */
+            failed_event_id?: number;
+            verification_id?: string;
+        };
+        ProvisionInstallationProgress: {
+            installation_id: string;
+            state: string;
+            /** Format: int64 */
+            state_version: number;
+            /** Format: date-time */
+            observed_at: string;
+            stages: components["schemas"]["ProvisionProgressStage"][];
+            resource: components["schemas"]["ProvisionProgressResource"];
+            failure_reason?: string;
+            ssh_repair?: components["schemas"]["ProvisionSSHRepair"];
+        };
+        ProvisionRackRequestItem: {
+            asset_id: string;
+            boot_port_id: string;
+            media_id: string;
+            domain_key_id: string;
+            /** Format: int64 */
+            asset_version: number;
+            confirm_serial: string;
+        };
+        CreateProvisionRackRequestsInput: {
+            rack: string;
+            reason: string;
+            items: components["schemas"]["ProvisionRackRequestItem"][];
+        };
+        ProvisionRackRequests: {
+            batch_id: string;
+            project_id: string;
+            rack: string;
+            request_sha256: string;
+            /** Format: date-time */
+            created_at: string;
+            requests: components["schemas"]["ProvisionRequest"][];
+        };
+        ProvisionSSHVerificationInput: {
+            /** Format: int64 */
+            expected_version: number;
+            /** Format: int64 */
+            repair_event_id: number;
+            /** Format: int64 */
+            failed_event_id: number;
+            reason: string;
+        };
+        ProvisionSSHVerification: {
+            id: string;
+            installation_id: string;
+            /** Format: int64 */
+            repair_event_id: number;
+            /** Format: int64 */
+            failed_event_id: number;
+            /** @enum {string} */
+            status: "pending";
+            /** @enum {string} */
+            mode: "run";
+        };
         ProvisionInstallationPage: {
             items: components["schemas"]["ProvisionInstallation"][];
             total: number;
@@ -5299,6 +5478,165 @@ export interface operations {
                 content?: never;
             };
             /** @description Installation feature disabled, image trust missing or service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getProvisionInstallationProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                installationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Seven stages and resource reconciliation state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionInstallationProgress"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    requestProvisionSSHReceiptQuery: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+                installationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionSSHRetryInput"];
+            };
+        };
+        responses: {
+            /** @description Read-only receipt query pending under the original fenced attempt */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionSSHRetry"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Installation runtime or approved SSH credentials unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createProvisionRackRequests: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProvisionRackRequestsInput"];
+            };
+        };
+        responses: {
+            /** @description Immutable batch of individual requested preparation records */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionRackRequests"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Wrong rack, serial, asset version or frozen per-machine dependency */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestProvisionSSHVerification: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+                installationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionSSHVerificationInput"];
+            };
+        };
+        responses: {
+            /** @description Explicit read-only verification authorized; success remains unproven */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionSSHVerification"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Installation runtime or approved SSH configuration unavailable */
             503: {
                 headers: {
                     [name: string]: unknown;

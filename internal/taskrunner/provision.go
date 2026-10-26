@@ -33,11 +33,13 @@ func (p ProvisionSSHPlan) digest() string {
 
 // ProvisionSSHProof cannot be manufactured by consumers: valid proof is created
 // only after a fresh pinned connection with the selected domain vault signer and
-// a validated successful host.identity receipt from the existing helper.
+// a validated terminal host.identity receipt from the existing helper.
+// Success and queried terminal failure require separate explicit validators.
 type ProvisionSSHProof struct {
 	planSHA256  string
 	observation Observation
 	verifiedAt  time.Time
+	queried     bool
 }
 
 func (p ProvisionSSHProof) Observation() Observation {
@@ -47,8 +49,23 @@ func (p ProvisionSSHProof) Observation() Observation {
 	_ = json.Unmarshal(b, &o)
 	return o
 }
+func (p ProvisionSSHProof) validateTerminal(command TaskCommand, plan ProvisionSSHPlan, now time.Time) error {
+	if p.planSHA256 != plan.digest() || p.verifiedAt.IsZero() || p.verifiedAt.After(now.Add(time.Second)) || now.Sub(p.verifiedAt) > time.Minute || !plan.ExpiresAt.After(now) || p.observation.Validate(command) != nil || !p.observation.Terminal() || p.observation.FinishedAt.After(p.verifiedAt.Add(time.Second)) {
+		return ErrRejected
+	}
+	return nil
+}
 func (p ProvisionSSHProof) Validate(command TaskCommand, plan ProvisionSSHPlan, now time.Time) error {
-	if p.planSHA256 != plan.digest() || p.verifiedAt.IsZero() || p.verifiedAt.After(now.Add(time.Second)) || now.Sub(p.verifiedAt) > time.Minute || !plan.ExpiresAt.After(now) || p.observation.Validate(command) != nil || p.observation.State != "success" || p.observation.FinishedAt.After(p.verifiedAt.Add(time.Second)) || p.observation.Output["hostname"] != plan.Hostname || p.observation.Output["os"] != "linux" || p.observation.Output["arch"] != plan.Arch {
+	if p.validateTerminal(command, plan, now) != nil || p.observation.State != "success" || p.observation.Output["hostname"] != plan.Hostname || p.observation.Output["os"] != "linux" || p.observation.Output["arch"] != plan.Arch {
+		return ErrRejected
+	}
+	return nil
+}
+
+// ValidateQueriedFailure proves a terminal failure read from the immutable
+// helper journal by a real pinned query, not an inference from a timeout.
+func (p ProvisionSSHProof) ValidateQueriedFailure(command TaskCommand, plan ProvisionSSHPlan, now time.Time) error {
+	if !p.queried || p.validateTerminal(command, plan, now) != nil || p.observation.State != "failed" {
 		return ErrRejected
 	}
 	return nil
@@ -128,14 +145,16 @@ func (s *SSH) provisionIdentity(ctx context.Context, command TaskCommand, p Prov
 	}
 	// Query the existing fenced read-only command once; never replay run on a
 	// missing/ambiguous response. A controller restart leaves a repair event.
+	queried := action == "query"
 	if action == "run" && !o.Terminal() {
+		queried = true
 		o, err = s.doEndpoint(work, Request{Action: "query", Command: command}, id, ep)
 	}
 	if err != nil {
 		return ProvisionSSHProof{}, err
 	}
-	proof := ProvisionSSHProof{planSHA256: p.digest(), observation: o, verifiedAt: time.Now().UTC()}
-	if proof.Validate(command, p, time.Now()) != nil {
+	proof := ProvisionSSHProof{planSHA256: p.digest(), observation: o, verifiedAt: time.Now().UTC(), queried: queried}
+	if proof.validateTerminal(command, p, time.Now()) != nil {
 		return ProvisionSSHProof{}, ErrUnknown
 	}
 	return proof, nil

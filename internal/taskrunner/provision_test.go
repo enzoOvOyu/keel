@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -148,4 +149,50 @@ func TestProvisionFirstSSHRejectsWrongHostPeerAndLostReceipt(t *testing.T) {
 			t.Fatal("query recovery replayed run")
 		}
 	})
+}
+
+func TestProvisionFirstSSHFailedQueryAllowsSeparateReadOnlyProbe(t *testing.T) {
+	f, runner, _, p := provisionSSHFixture(t)
+	original := command()
+	first, err := runner.VerifyProvisionIdentity(context.Background(), original, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.ValidateQueriedFailure(original, p, time.Now()) == nil {
+		t.Fatal("ordinary success became known query failure")
+	}
+	// Fixture-only target journal state: reproduce a terminal helper failure.
+	// The production controller has no write access to this private host journal.
+	raw, err := os.ReadFile(filepath.Join(f.root, original.CommandID, "receipt.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var failed taskrunner.Observation
+	if json.Unmarshal(raw, &failed) != nil {
+		t.Fatal("bad fixture journal")
+	}
+	failed.State = "failed"
+	failed.Output = map[string]any{"reason": "software fixture terminal failure"}
+	failed.FinishedAt = time.Now().UTC()
+	raw, _ = json.Marshal(failed)
+	if err = os.WriteFile(filepath.Join(f.root, original.CommandID, "receipt.json"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	known, err := runner.QueryProvisionIdentity(context.Background(), original, p)
+	if err != nil || known.ValidateQueriedFailure(original, p, time.Now()) != nil || known.Validate(original, p, time.Now()) == nil {
+		t.Fatal("authenticated failed query classification incorrect", err)
+	}
+	probe := original
+	probe.CommandID = strings.Repeat("7", 32)
+	fresh, err := runner.VerifyProvisionIdentity(context.Background(), probe, p)
+	if err != nil || fresh.Validate(probe, p, time.Now()) != nil || fresh.Validate(original, p, time.Now()) == nil {
+		t.Fatal("replacement probe escaped immutable command binding", err)
+	}
+	old, err := runner.QueryProvisionIdentity(context.Background(), original, p)
+	if err != nil || old.ValidateQueriedFailure(original, p, time.Now()) != nil || old.Observation().State != "failed" {
+		t.Fatal("new probe rewrote original failed receipt", err)
+	}
+	if f.runs.Load() != 2 {
+		t.Fatal("unexpected read-only run replay")
+	}
 }

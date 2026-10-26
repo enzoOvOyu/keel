@@ -3,6 +3,7 @@ package platform
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"strconv"
 	"time"
@@ -21,11 +22,13 @@ type ProvisionSSHRetry struct {
 	Mode           string `json:"mode"`
 }
 type ProvisionSSHRepair struct {
-	EventID int64     `json:"event_id"`
-	Reason  string    `json:"reason"`
-	At      time.Time `json:"at"`
-	Status  string    `json:"status"`
-	RetryID string    `json:"retry_id,omitempty"`
+	FailedEventID  *int64    `json:"failed_event_id,omitempty"`
+	VerificationID string    `json:"verification_id,omitempty"`
+	EventID        int64     `json:"event_id"`
+	Reason         string    `json:"reason"`
+	At             time.Time `json:"at"`
+	Status         string    `json:"status"`
+	RetryID        string    `json:"retry_id,omitempty"`
 }
 
 func readProvisionSSHRepairTx(ctx context.Context, tx *sql.Tx, x *ProvisionInstallation) (*ProvisionSSHRepair, error) {
@@ -42,20 +45,39 @@ func readProvisionSSHRepairTx(ctx context.Context, tx *sql.Tx, x *ProvisionInsta
 	default:
 		out.Reason = "verification_unknown"
 	}
+	var kind, operationID string
 	var consumed bool
-	err = tx.QueryRowContext(ctx, `SELECT r.payload->>'retry_id',EXISTS(SELECT 1 FROM provision_installation_events c WHERE c.installation_id=r.installation_id AND c.event_type='first_boot.ssh_retry_consumed' AND c.payload->>'retry_id'=r.payload->>'retry_id') FROM provision_installation_events r WHERE r.installation_id=$1 AND r.event_type='first_boot.ssh_retry_requested' AND r.payload->>'repair_event_id'=$2 ORDER BY r.id DESC LIMIT 1`, x.ID, strconv.FormatInt(out.EventID, 10)).Scan(&out.RetryID, &consumed)
-	if errors.Is(err, sql.ErrNoRows) {
-		return out, nil
-	}
-	if err != nil {
+	err = tx.QueryRowContext(ctx, `SELECT r.event_type,CASE WHEN r.event_type='first_boot.ssh_retry_requested' THEN r.payload->>'retry_id' ELSE r.payload->>'verification_id' END,CASE WHEN r.event_type='first_boot.ssh_retry_requested' THEN EXISTS(SELECT 1 FROM provision_installation_events c WHERE c.installation_id=r.installation_id AND c.event_type='first_boot.ssh_retry_consumed' AND c.payload->>'retry_id'=r.payload->>'retry_id') ELSE EXISTS(SELECT 1 FROM provision_installation_events c WHERE c.installation_id=r.installation_id AND c.event_type='first_boot.ssh_verification_consumed' AND c.payload->>'verification_id'=r.payload->>'verification_id') END FROM provision_installation_events r WHERE r.installation_id=$1 AND r.event_type IN('first_boot.ssh_retry_requested','first_boot.ssh_verification_requested') AND r.payload->>'repair_event_id'=$2 ORDER BY r.id DESC LIMIT 1`, x.ID, strconv.FormatInt(out.EventID, 10)).Scan(&kind, &operationID, &consumed)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
-	if !modelIDPattern.MatchString(out.RetryID) {
-		return nil, ErrProvisionBootDenied
+	if err == nil {
+		if !modelIDPattern.MatchString(operationID) {
+			return nil, ErrProvisionBootDenied
+		}
+		if kind == "first_boot.ssh_retry_requested" {
+			out.RetryID = operationID
+		} else {
+			out.VerificationID = operationID
+		}
+		out.Status = "pending"
+		if consumed {
+			out.Status = "consumed"
+		}
 	}
-	out.Status = "pending"
-	if consumed {
-		out.Status = "consumed"
+	if x.State == "awaiting_first_boot" && x.CommandID != nil {
+		active, activeErr := provisionActiveFirstSSHCommandTx(ctx, tx, x)
+		if activeErr == nil {
+			var id int64
+			var raw []byte
+			if err = tx.QueryRowContext(ctx, `SELECT id,payload FROM provision_installation_events WHERE installation_id=$1 AND event_type='first_boot.ssh_terminal_failed' ORDER BY id DESC LIMIT 1`, x.ID).Scan(&id, &raw); err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return nil, err
+			}
+			var failed provisionSSHFailedEvidence
+			if err == nil && json.Unmarshal(raw, &failed) == nil && failed.Queried && failed.NativeCommandID == *x.CommandID && failed.Command == active.Command && failed.Observation.Validate(failed.Command) == nil && failed.Observation.State == "failed" && failed.BindingSHA256 == active.Plan.BindingSHA256 {
+				out.FailedEventID = &id
+			}
+		}
 	}
 	return out, nil
 }
@@ -102,10 +124,20 @@ func (s *Store) RequestProvisionSSHRetry(ctx context.Context, a *AuthSession, pr
 	}
 	out := &ProvisionSSHRetry{ID: repair.RetryID, InstallationID: x.ID, RepairEventID: repair.EventID, Status: repair.Status, Mode: "query"}
 	if repair.Status == "pending" {
+		if repair.RetryID == "" {
+			return nil, apiError(409, "PROVISION_SSH_WORK_PENDING", "An explicitly authorized read-only verification is already pending")
+		}
 		return out, tx.Commit()
 	}
 	if repair.Status == "consumed" {
 		return nil, apiError(409, "PROVISION_SSH_QUERY_CONSUMED", "This repair was already consumed; await its outcome before requesting another query")
+	}
+	pending, pendingErr := provisionPendingFirstSSHWorkTx(ctx, tx, x.ID)
+	if pendingErr != nil {
+		return nil, pendingErr
+	}
+	if pending {
+		return nil, apiError(409, "PROVISION_SSH_WORK_PENDING", "A read-only recovery operation is already pending")
 	}
 	// Current domain credentials, pinned report, original binding and approved
 	// sources must still validate. The worker repeats these checks before query.

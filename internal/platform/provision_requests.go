@@ -149,6 +149,19 @@ func (s *Store) CreateProvisionRequest(ctx context.Context, a *AuthSession, proj
 	if prior != nil {
 		return prior, nil
 	}
+	out, err = s.createProvisionRequestTx(ctx, tx, a, project, asset, in, trace)
+	if err != nil {
+		return nil, err
+	}
+	if err = saveProvisionMutation(ctx, tx, a, idem, hash, out); err != nil {
+		return nil, err
+	}
+	return out, tx.Commit()
+}
+
+// createProvisionRequestTx is the single creation path for individual and atomic
+// rack requests. The caller owns authority, idempotency and transaction commit.
+func (s *Store) createProvisionRequestTx(ctx context.Context, tx *sql.Tx, a *AuthSession, project *ProjectSummary, asset string, in CreateProvisionRequestInput, trace string) (*ProvisionRequest, error) {
 	target, err := provisionTargetTx(ctx, tx, a, project, asset)
 	if err != nil {
 		return nil, err
@@ -209,7 +222,7 @@ func (s *Store) CreateProvisionRequest(ctx context.Context, a *AuthSession, proj
 	if in.Reinstall && in.ConfirmSerial != target.Serial {
 		return nil, apiError(422, "PROVISION_SERIAL_CONFIRM_REQUIRED", "Confirm the exact BOM serial for reinstall intent")
 	}
-	out = &ProvisionRequest{ID: RandomID(), ProjectID: project.ID, MachineID: target.MachineID, AssetID: asset, CreatedBy: a.User.ID, Reason: in.Reason, Reinstall: in.Reinstall, State: "requested", StateVersion: 1, CreatedAt: now, UpdatedAt: now, ExpiresAt: now.Add(30 * time.Minute)}
+	out := &ProvisionRequest{ID: RandomID(), ProjectID: project.ID, MachineID: target.MachineID, AssetID: asset, CreatedBy: a.User.ID, Reason: in.Reason, Reinstall: in.Reinstall, State: "requested", StateVersion: 1, CreatedAt: now, UpdatedAt: now, ExpiresAt: now.Add(30 * time.Minute)}
 	frozen, err := s.FreezeProvisionTx(ctx, tx, a, project, asset, in.ProvisionPreviewInput, out.ID)
 	if err != nil {
 		return nil, err
@@ -227,10 +240,7 @@ func (s *Store) CreateProvisionRequest(ctx context.Context, a *AuthSession, proj
 	if err = appendAudit(ctx, tx, a.User.ID, project.ID, "provision.request.created", out.ID, trace, map[string]any{"machine_id": out.MachineID, "snapshot_sha256": out.SnapshotSHA256, "reinstall": out.Reinstall}); err != nil {
 		return nil, err
 	}
-	if err = saveProvisionMutation(ctx, tx, a, idem, hash, out); err != nil {
-		return nil, err
-	}
-	return out, tx.Commit()
+	return out, nil
 }
 func (s *Store) ReadProvisionRequest(ctx context.Context, a *AuthSession, project, id string) (*ProvisionRequest, error) {
 	if !modelIDPattern.MatchString(id) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/enzoOvOyu/keel/internal/platform"
@@ -15,7 +16,7 @@ func (s *Service) runProvisionFirstSSH(ctx context.Context, c *Claim) (bool, err
 	// any SSH connection. Only an installed-system identity enters this branch.
 	var state string
 	var ready bool
-	if err := s.DB.QueryRowContext(ctx, `SELECT state,EXISTS(SELECT 1 FROM provision_installation_events WHERE installation_id=$2 AND event_type='first_boot.identity_reported') AND (NOT EXISTS(SELECT 1 FROM provision_installation_events WHERE installation_id=$2 AND event_type='first_boot.ssh_started') OR EXISTS(SELECT 1 FROM provision_installation_events q WHERE q.installation_id=$2 AND q.event_type='first_boot.ssh_retry_requested' AND NOT EXISTS(SELECT 1 FROM provision_installation_events c WHERE c.installation_id=q.installation_id AND c.event_type='first_boot.ssh_retry_consumed' AND c.payload->>'retry_id'=q.payload->>'retry_id')) OR COALESCE((SELECT max(id) FROM provision_installation_events WHERE installation_id=$2 AND event_type IN('first_boot.ssh_started','first_boot.ssh_retry_consumed')),0)>COALESCE((SELECT max(id) FROM provision_installation_events WHERE installation_id=$2 AND event_type='first_boot.ssh_repair_required'),0)) FROM provision_installations WHERE project_id=$1 AND id=$2`, c.Target.ProjectID, c.Target.ProvisionInstallationID).Scan(&state, &ready); err != nil {
+	if err := s.DB.QueryRowContext(ctx, `SELECT state,EXISTS(SELECT 1 FROM provision_installation_events WHERE installation_id=$2 AND event_type='first_boot.identity_reported') AND (NOT EXISTS(SELECT 1 FROM provision_installation_events WHERE installation_id=$2 AND event_type='first_boot.ssh_started') OR EXISTS(SELECT 1 FROM provision_installation_events q WHERE q.installation_id=$2 AND q.event_type='first_boot.ssh_retry_requested' AND NOT EXISTS(SELECT 1 FROM provision_installation_events c WHERE c.installation_id=q.installation_id AND c.event_type='first_boot.ssh_retry_consumed' AND c.payload->>'retry_id'=q.payload->>'retry_id')) OR EXISTS(SELECT 1 FROM provision_installation_events q WHERE q.installation_id=$2 AND q.event_type='first_boot.ssh_verification_requested' AND NOT EXISTS(SELECT 1 FROM provision_installation_events c WHERE c.installation_id=q.installation_id AND c.event_type='first_boot.ssh_verification_consumed' AND c.payload->>'verification_id'=q.payload->>'verification_id')) OR COALESCE((SELECT max(id) FROM provision_installation_events WHERE installation_id=$2 AND event_type IN('first_boot.ssh_started','first_boot.ssh_retry_consumed','first_boot.ssh_verification_consumed')),0)>COALESCE((SELECT max(id) FROM provision_installation_events WHERE installation_id=$2 AND event_type='first_boot.ssh_repair_required'),0)) FROM provision_installations WHERE project_id=$1 AND id=$2`, c.Target.ProjectID, c.Target.ProvisionInstallationID).Scan(&state, &ready); err != nil {
 		return false, err
 	}
 	if state != "awaiting_first_boot" || !ready {
@@ -54,6 +55,16 @@ func (s *Service) runProvisionFirstSSH(ctx context.Context, c *Claim) (bool, err
 		repair("verification_unknown")
 		return false, nil
 	}
+	if proof.Observation().State == "failed" {
+		if work.Mode == "query" {
+			if err = s.ProvisionStore.RecordProvisionFirstSSHFailure(ctx, c.Target.ProjectID, c.Target.ProvisionInstallationID, proof); err != nil {
+				repair("finalization_rejected")
+				return false, nil
+			}
+		}
+		repair("verification_unknown")
+		return false, nil
+	}
 	if _, err = s.ProvisionStore.FinalizeProvisionFirstSSH(ctx, c.Target.ProjectID, c.Target.ProvisionInstallationID, proof); err != nil {
 		repair("finalization_rejected")
 		return false, nil
@@ -72,16 +83,28 @@ func registeredInstallationReceiptTarget(ctx context.Context, tx *sql.Tx, target
 		return err
 	}
 	var ev struct {
-		Command         taskrunner.TaskCommand       `json:"command"`
-		Observation     taskrunner.Observation       `json:"observation"`
-		BindingSHA256   string                       `json:"binding_sha256"`
-		HostFingerprint string                       `json:"host_fingerprint"`
-		Transport       string                       `json:"verified_transport"`
-		Credential      taskrunner.InstallCredential `json:"domain_credential"`
-		AssetVersion    int64                        `json:"asset_version"`
+		NativeCommandID       string                       `json:"native_command_id"`
+		VerificationCommandID string                       `json:"verification_command_id"`
+		VerificationID        string                       `json:"verification_id"`
+		Command               taskrunner.TaskCommand       `json:"command"`
+		Observation           taskrunner.Observation       `json:"observation"`
+		BindingSHA256         string                       `json:"binding_sha256"`
+		HostFingerprint       string                       `json:"host_fingerprint"`
+		Transport             string                       `json:"verified_transport"`
+		Credential            taskrunner.InstallCredential `json:"domain_credential"`
+		AssetVersion          int64                        `json:"asset_version"`
 	}
-	if json.Unmarshal(raw, &ev) != nil || ev.Command.ProjectID != x.ProjectID || ev.Command.MachineID != x.MachineID || ev.Command.AttemptID != a.ID || ev.Command.CommandID != a.CommandID || ev.Command.FencingToken != a.FencingToken || ev.Command.Operation != "host.identity" || ev.Observation.Validate(ev.Command) != nil || ev.Observation.State != "success" || ev.Transport != "ssh" || !taskrunner.IsValidHostKey(ev.HostFingerprint) || len(ev.BindingSHA256) != 64 {
+	if json.Unmarshal(raw, &ev) != nil || ev.Command.ProjectID != x.ProjectID || ev.Command.MachineID != x.MachineID || ev.Command.AttemptID != a.ID || ev.NativeCommandID != a.CommandID || ev.VerificationCommandID != ev.Command.CommandID || ev.Command.FencingToken != a.FencingToken || ev.Command.Operation != "host.identity" || ev.Observation.Validate(ev.Command) != nil || ev.Observation.State != "success" || ev.Transport != "ssh" || !taskrunner.IsValidHostKey(ev.HostFingerprint) || len(ev.BindingSHA256) != 64 {
 		return conflict("Registered installation SSH proof differs from native attempt")
+	}
+	if ev.Command.CommandID != a.CommandID {
+		var bound bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM provision_installation_events WHERE installation_id=$1 AND event_type='first_boot.ssh_verification_consumed' AND payload->>'native_command_id'=$2 AND payload->>'verification_command_id'=$3 AND payload->>'verification_id'=$4 AND payload->>'attempt_id'=$5 AND payload->>'fencing_token'=$6)`, x.ID, a.CommandID, ev.Command.CommandID, ev.VerificationID, a.ID, strconv.FormatInt(a.FencingToken, 10)).Scan(&bound); err != nil {
+			return err
+		}
+		if !bound {
+			return conflict("Replacement SSH probe has no immutable native-attempt authorization")
+		}
 	}
 	if r.Output["first_ssh_proof_sha256"] != platform.ProvisionFirstSSHTranscriptSHA256(raw) {
 		return conflict("Registered installation SSH transcript commitment differs")

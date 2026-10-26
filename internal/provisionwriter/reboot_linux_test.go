@@ -51,3 +51,32 @@ func TestRebootAdapterRejectsOrdinaryHostBeforeAnyDeviceOperation(t *testing.T) 
 		t.Fatal("ordinary host accepted a restart")
 	}
 }
+
+func TestRebootMappingCleanupPreservesExclusiveDescriptorOnUnknown(t *testing.T) {
+	// A regular temporary file stands in only for descriptor ownership. This
+	// regression test never opens a block device or creates a loop mapping.
+	disk, err := os.CreateTemp(t.TempDir(), "retained-descriptor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer disk.Close()
+	w := &Linux{disk: disk, completed: true}
+	w.mu.Lock()
+	err = w.closeOwnedLoopsLocked()
+	w.mu.Unlock()
+	if err != nil || w.disk != disk {
+		t.Fatal("pre-reboot mapping cleanup dropped the exclusive descriptor")
+	}
+	w.Quarantine()
+	defer func() {
+		heldUnknown.Lock()
+		delete(heldUnknown.writers, w)
+		heldUnknown.Unlock()
+	}()
+	if w.Close() == nil {
+		t.Fatal("uncertain reboot released descriptor ownership")
+	}
+	if _, err = disk.Stat(); err != nil {
+		t.Fatal("uncertain reboot closed the retained descriptor", err)
+	}
+}

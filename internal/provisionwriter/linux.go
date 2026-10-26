@@ -306,17 +306,12 @@ func (w *Linux) Close() error {
 			return ErrDenied
 		}
 	}
-	for i, l := range w.loops {
-		if l != nil {
-			if l.Close() != nil {
-				w.quarantined = true
-				heldUnknown.Lock()
-				heldUnknown.writers[w] = struct{}{}
-				heldUnknown.Unlock()
-				return ErrDenied
-			}
-			w.loops[i] = nil
-		}
+	if w.closeOwnedLoopsLocked() != nil {
+		w.quarantined = true
+		heldUnknown.Lock()
+		heldUnknown.writers[w] = struct{}{}
+		heldUnknown.Unlock()
+		return ErrDenied
 	}
 	for _, file := range []*os.File{w.disk, w.rootfs, w.uki, w.self} {
 		if file != nil {
@@ -336,6 +331,22 @@ func (w *Linux) Close() error {
 		_ = os.Remove(filepath.Join(w.work, "root"))
 		_ = os.Remove(filepath.Join(w.work, "efi"))
 		_ = os.Remove(w.work)
+	}
+	return nil
+}
+
+// closeOwnedLoopsLocked detaches only already-unmounted owned mappings. It
+// deliberately leaves the exclusive whole-disk FD and sealed sources alive:
+// a pending restart can fail and must still retain its real disk claim.
+// The caller holds w.mu and has checked that no filesystem remains mounted.
+func (w *Linux) closeOwnedLoopsLocked() error {
+	for i, loop := range w.loops {
+		if loop != nil {
+			if loop.Close() != nil {
+				return ErrDenied
+			}
+			w.loops[i] = nil
+		}
 	}
 	return nil
 }

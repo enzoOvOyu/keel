@@ -273,3 +273,14 @@ rootfs还须包含`usr/lib/os-release`、对应`usr/lib/modules/<release>/module
 Linux writer仅root PID1 initramfs可启用，持整盘O_EXCL FD并核对设备号/diskseq/几何，使用同一FD精确offset/sizelimit的专属loop映射两分区，不释放整盘后重开动态分区名。固定8阶段为GPT、EFI格式化、根格式化、rootfs提取、UKI安装、seed/首启配置、同步、回读。静态sealed工具在私有PID/mount/net/IPC/UTS namespace的只读jail内运行，不执行rootfs脚本；目标文件写入有路径边界。回读覆盖主备GPT、FS/UUID、UKI/SSH/首启/NoCloud/模块关键文件、seed/fstab及同步卸载；rootfs摘要表示来源绑定，不表示全文件系统逐字节或数据安全擦除证明。任何异常quarantine强持本地设备/挂载引用及控制面资源；即使本地written而ACK未知也不释放或重写。
 
 首启使用安装时新生成的独立Ed25519 key，公开binding由原boot key签入permit，私钥仅通过受控writer写入root-owned 0600文件，不进入公共seed、下载或日志。固定systemd oneshot在cloud-final完成后执行同批准rootfs中的firstboot helper，不自动重试；要求实际kernel boot ID不同于安装环境，核对主机名/SN/MAC/CPU、根盘身份/几何/GPT分区及真正新SSH host key。固定TLS CA/主机名/IP/interface发送一次签名报告，本地durable intent先于IO，丢ACK保留unknown；ACK落盘才删除单次私钥binding。控制面同时核对当前同installation的实际DHCP辅助事件，但不把DHCP当认证。身份登记后仍awaiting_first_boot、SSH trust未建立；仅后续真实SSH首连证明才能registered。以上源协议与格式/DB/HTTP/工作流用例均尚未运行，不等同镜像启动、设备写入或P1验收。
+
+
+## 当前源码集成：机柜准备、事实进度与SSH受控恢复（2026-10-26）
+
+机柜入口仅在当前项目/BOM精确rack内显式选1～50台，逐机确认完整SN、版本、网口、批准OS和域公钥；单事务与幂等缓存返回一批原requested请求。每台仍独立审批、准备、安装会话和显式选盘；不提供自动整柜执行或跨机授权。
+
+安装进度API/双语页面按七阶段投影持久事实，显示证据ID与当前实际租约；不从后阶段反推早阶段，也不把DHCP、环境注册、自报written变成实际启动/安装/SSH成功。`boot.file_served`投影为预留输入，实际HTTP完整响应记录生产者仍待实现。
+
+SSH未知结果仅显式query原helper回执；只有当前fresh pinned query证明终态failed、repair快照仍可用、权限及原lease有效，人工授权才允许独立新只读probe。新verification command只作为append-only绑定，原native command/attempt/fence不变。未知或missing禁止借新ID重发；成功native receipt与注册/trust仍同事务。重启失败的隔离保留真实整盘独占FD。
+
+当前仅源码/编译/静态证据，功能测试及硬件PoC未执行。首次装机无旧host pin的operator allowlist配置边界仍待补齐；不应以伪造旧pin解决前提。用户最新要求统一合并后单Agent开发，后续以HANDOFF当前恢复入口为准。

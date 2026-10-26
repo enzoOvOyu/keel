@@ -39,7 +39,7 @@ try:
   for target in ['preflight','ssh-runner']:
    executable=evidence/('keel-'+target);checked(['go','build','-o',str(executable),'./cmd/keel-'+target],helper_env)
   env.update(KEEL_TEST_PROVISION_ADMIN_BIN=str(work/'keel-admin'),KEEL_TEST_PROVISION_PREFLIGHT_BIN=str(evidence/'keel-preflight'),KEEL_TEST_PROVISION_SSH_HELPER_BIN=str(evidence/'keel-ssh-runner'))
-  result=checked(['go','test','-p=1','-race','-count=1','-v','./internal/mediaboot','./internal/provisionboot','./internal/provisionpreflight','./internal/provisionimage','./internal/provisionstorage','./internal/provisioninitrd'],env)
+  result=checked(['go','test','-p=1','-race','-count=1','-v','./internal/mediaboot','./internal/provisionboot','./internal/provisionpreflight','./internal/provisionimage','./internal/provisionstorage','./internal/provisioninitrd','./internal/provisionwriter','./internal/provisionfirstboot'],env)
   (work/'go-provision-foundation.log').write_text(result)
  checked([str(work/'keel-admin'),'media-init'],env)
  if args.source_only or full_browser:
@@ -52,7 +52,7 @@ try:
  if args.provision_only or full_browser:
   env.update(KEEL_PROVISION_PREPARE_ENABLED='true',KEEL_TEST_AGENT_DATABASE_URL=dsn+provision_database+'?sslmode=disable')
  if args.provision_only:
-  result=checked(['go','test','-p=1','-race','./internal/mediamanifest','./internal/provisionseed','./internal/platform','./internal/execution','-run','TestOSBoot|TestSignedOSBootRoles|TestSignedBootRecipe|TestInstallerOverlay|TestInstallerInitrd|TestProvisionPreview|TestProvisionRequest|TestProvisionBootScope|TestProvisionBootAuthority|TestProvisionBootDetached|TestProvisionExecutionKernelPostgres|TestProvisionInstallationKernelPostgres|TestProvisionInstallationLiveBootPostgres|TestProvisionInstallationWritePermitPostgres|TestProvisionInstallationFirstBootPostgres|TestProvisionInstallationFirstSSHPostgres|TestCloudInit|TestModelPreflight','-count=1'],env)
+  result=checked(['go','test','-p=1','-race','./internal/mediamanifest','./internal/provisionseed','./internal/platform','./internal/execution','-run','TestOSBoot|TestSignedOSBootRoles|TestSignedBootRecipe|TestInstallerOverlay|TestInstallerInitrd|TestProvisionPreview|TestProvisionRequest|TestProvisionBootScope|TestProvisionBootAuthority|TestProvisionBootDetached|TestProvisionExecutionKernelPostgres|TestProvisionInstallationKernelPostgres|TestProvisionInstallationLiveBootPostgres|TestProvisionInstallationWritePermitPostgres|TestProvisionInstallationFirstBootPostgres|TestProvisionInstallationFirstSSHPostgres|TestProvisionInstallationKnownFailedSSHPostgres|TestProvisionRack|TestProvisionProgress|TestCloudInit|TestModelPreflight','-count=1'],env)
   (work/'go-integration.log').write_text(result);print(result,flush=True)
  elif args.filters_only:
   result=checked(['go','test','-race','./internal/platform','-run','TestMediaIntegrityRetriesAndQuarantine','-count=1'],env)
@@ -70,7 +70,7 @@ try:
   result=checked(['go','test','-race','./internal/mediaartifact','./internal/mediamanifest','./internal/mediasource','./internal/platform','-run','TestSource|TestMediaSourceFetch|TestMediaIntegrity|TestSignedManifest|TestMediaBundle|TestSigning|TestSignedOSBootRoles|TestSignedBootRecipe|TestInstallerOverlay|TestInstallerInitrd|TestSignedMediaManifest|TestRejectUnsafeMediaConfiguration|TestRealMinIOVersionPinning|TestMediaArtifactsLifecycleAndIntegrity|TestMediaArtifactDependenc|TestMediaConditionalTransitions|TestCatalogArtifactAdmission|TestCatalogCorrelatedCombinations|TestCatalogManagement|TestGlobalCatalogScopeBoundaries|TestCompatibility|TestZTP239ApprovedIsolationScript|TestSZTP143|TestZTPMockKeaDurableStageCommit|TestBOMPackage','-count=1'],env)
   (work/'go-integration.log').write_text(result);print(result,flush=True)
  if full_browser and not args.browser_only:
-  result=checked(['go','test','-p=1','-race','-count=1','./internal/platform','./internal/execution','-run','TestOSBoot|TestProvisionPreview|TestProvisionRequest|TestProvisionBootScope|TestProvisionBootAuthority|TestProvisionBootDetached|TestProvisionExecutionKernelPostgres|TestProvisionInstallationKernelPostgres|TestProvisionInstallationLiveBootPostgres|TestProvisionInstallationWritePermitPostgres|TestProvisionInstallationFirstBootPostgres|TestProvisionInstallationFirstSSHPostgres|TestModelPreflight'],env)
+  result=checked(['go','test','-p=1','-race','-count=1','./internal/platform','./internal/execution','-run','TestOSBoot|TestProvisionPreview|TestProvisionRequest|TestProvisionBootScope|TestProvisionBootAuthority|TestProvisionBootDetached|TestProvisionExecutionKernelPostgres|TestProvisionInstallationKernelPostgres|TestProvisionInstallationLiveBootPostgres|TestProvisionInstallationWritePermitPostgres|TestProvisionInstallationFirstBootPostgres|TestProvisionInstallationFirstSSHPostgres|TestProvisionInstallationKnownFailedSSHPostgres|TestProvisionRack|TestProvisionProgress|TestModelPreflight'],env)
   (work/'go-provision-domain.log').write_text(result)
  checked([str(work/'keel-admin'),'migrate'],env)
  if args.provision_only or full_browser:

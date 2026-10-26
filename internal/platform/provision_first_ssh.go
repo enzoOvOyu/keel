@@ -17,11 +17,13 @@ import (
 // ProvisionFirstSSHWork is pinned to the original native attempt. It is never
 // admitted as a second ordinary SSH execution or granted a second device lease.
 type ProvisionFirstSSHWork struct {
-	Mode         string                      `json:"mode"`
-	RetryID      string                      `json:"retry_id,omitempty"`
-	Command      taskrunner.TaskCommand      `json:"command"`
-	Plan         taskrunner.ProvisionSSHPlan `json:"plan"`
-	ReportSHA256 string                      `json:"report_sha256"`
+	NativeCommandID string                      `json:"native_command_id"`
+	VerificationID  string                      `json:"verification_id,omitempty"`
+	Mode            string                      `json:"mode"`
+	RetryID         string                      `json:"retry_id,omitempty"`
+	Command         taskrunner.TaskCommand      `json:"command"`
+	Plan            taskrunner.ProvisionSSHPlan `json:"plan"`
+	ReportSHA256    string                      `json:"report_sha256"`
 }
 
 type provisionFirstBootEvidence struct {
@@ -97,7 +99,7 @@ func provisionFirstSSHPlanTx(ctx context.Context, tx *sql.Tx, x *ProvisionInstal
 	if !expiry.After(now.Add(time.Second)) {
 		return nil, ErrProvisionBootDenied
 	}
-	return &ProvisionFirstSSHWork{Mode: "run", Command: taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: x.ProjectID, MachineID: x.MachineID, CommandID: *x.CommandID, AttemptID: *x.AttemptID, FencingToken: *x.FencingToken, Operation: "host.identity", TimeoutMS: 5000}, Plan: taskrunner.ProvisionSSHPlan{BindingSHA256: binding.SHA256(), Peer: peer, Clients: scope.Scope.Clients, HostKey: ev.Report.HostFingerprint, Hostname: binding.Hostname, Arch: binding.StoragePlan.Spec.Expected.Arch, Credential: *key, ExpiresAt: expiry}, ReportSHA256: ev.ReportSHA256}, nil
+	return &ProvisionFirstSSHWork{NativeCommandID: *x.CommandID, Mode: "run", Command: taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: x.ProjectID, MachineID: x.MachineID, CommandID: *x.CommandID, AttemptID: *x.AttemptID, FencingToken: *x.FencingToken, Operation: "host.identity", TimeoutMS: 5000}, Plan: taskrunner.ProvisionSSHPlan{BindingSHA256: binding.SHA256(), Peer: peer, Clients: scope.Scope.Clients, HostKey: ev.Report.HostFingerprint, Hostname: binding.Hostname, Arch: binding.StoragePlan.Spec.Expected.Arch, Credential: *key, ExpiresAt: expiry}, ReportSHA256: ev.ReportSHA256}, nil
 }
 
 // PrepareProvisionFirstSSH durably consumes the one automatic first-SSH try
@@ -121,13 +123,17 @@ func (s *Store) PrepareProvisionFirstSSH(ctx context.Context, project, id, execu
 		return nil, err
 	}
 	if already {
+		work, verificationErr := prepareProvisionFirstSSHVerificationTx(ctx, tx, x, request, scope, until)
+		if verificationErr != nil || work != nil {
+			return work, verificationErr
+		}
 		return prepareProvisionFirstSSHRetryTx(ctx, tx, x, request, scope, until)
 	}
 	work, err := provisionFirstSSHPlanTx(ctx, tx, x, request, scope, until)
 	if err != nil || work == nil {
 		return nil, err
 	}
-	if err = appendProvisionEventTx(ctx, tx, x, "first_boot.ssh_started", map[string]any{"command": work.Command, "plan": work.Plan, "report_sha256": work.ReportSHA256, "mode": "run"}); err != nil {
+	if err = appendProvisionEventTx(ctx, tx, x, "first_boot.ssh_started", map[string]any{"native_command_id": *x.CommandID, "command": work.Command, "plan": work.Plan, "report_sha256": work.ReportSHA256, "mode": "run"}); err != nil {
 		return nil, err
 	}
 	return work, tx.Commit()
@@ -150,7 +156,7 @@ func (s *Store) RecordProvisionFirstSSHRepair(ctx context.Context, project, id, 
 		return ErrProvisionBootDenied
 	}
 	var dispatchID, repairID int64
-	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(max(id) FILTER(WHERE event_type IN('first_boot.ssh_started','first_boot.ssh_retry_consumed')),0),COALESCE(max(id) FILTER(WHERE event_type='first_boot.ssh_repair_required'),0) FROM provision_installation_events WHERE installation_id=$1`, x.ID).Scan(&dispatchID, &repairID); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(max(id) FILTER(WHERE event_type IN('first_boot.ssh_started','first_boot.ssh_retry_consumed','first_boot.ssh_verification_consumed')),0),COALESCE(max(id) FILTER(WHERE event_type='first_boot.ssh_repair_required'),0) FROM provision_installation_events WHERE installation_id=$1`, x.ID).Scan(&dispatchID, &repairID); err != nil {
 		return err
 	}
 	if dispatchID == 0 {
@@ -175,41 +181,11 @@ func (s *Store) FinalizeProvisionFirstSSH(ctx context.Context, project, id strin
 	if err != nil {
 		return nil, err
 	}
-	current, err := provisionFirstSSHPlanTx(ctx, tx, x, request, scope, until)
-	if err != nil || current == nil {
+	work, err := provisionCurrentFirstSSHWorkTx(ctx, tx, x, request, scope, until)
+	if err != nil || proof.Validate(work.Command, work.Plan, time.Now()) != nil {
 		return nil, ErrProvisionBootDenied
 	}
 	var raw []byte
-	if err = tx.QueryRowContext(ctx, `SELECT payload FROM provision_installation_events WHERE installation_id=$1 AND event_type IN('first_boot.ssh_started','first_boot.ssh_retry_consumed') ORDER BY id DESC LIMIT 1`, x.ID).Scan(&raw); err != nil {
-		return nil, err
-	}
-	var work ProvisionFirstSSHWork
-	if json.Unmarshal(raw, &work) != nil {
-		return nil, ErrProvisionBootDenied
-	}
-	// The time-bounded plan is frozen at dispatch. Everything else is recomputed
-	// from current authorities and immutable first-boot evidence.
-	current.Plan.ExpiresAt = work.Plan.ExpiresAt
-	if work.Mode != "run" && work.Mode != "query" {
-		return nil, ErrProvisionBootDenied
-	}
-	current.Mode = work.Mode
-	current.RetryID = work.RetryID
-	if work.Mode == "query" {
-		var requester string
-		if !modelIDPattern.MatchString(work.RetryID) {
-			return nil, ErrProvisionBootDenied
-		}
-		if err = tx.QueryRowContext(ctx, `SELECT payload->>'requested_by' FROM provision_installation_events WHERE installation_id=$1 AND event_type='first_boot.ssh_retry_requested' AND payload->>'retry_id'=$2 ORDER BY id DESC LIMIT 1`, x.ID, work.RetryID).Scan(&requester); err != nil {
-			return nil, err
-		}
-		if err = validateProvisionSSHRetryActorTx(ctx, tx, x.ProjectID, requester); err != nil {
-			return nil, err
-		}
-	}
-	if string(provisionFirstSSHJSON(current)) != string(provisionFirstSSHJSON(work)) || proof.Validate(work.Command, work.Plan, time.Now()) != nil {
-		return nil, ErrProvisionBootDenied
-	}
 	var asset provisionActivatedAsset
 	if err = tx.QueryRowContext(ctx, `SELECT payload->'asset' FROM provision_installation_events WHERE installation_id=$1 AND event_type='write.permit_issued' ORDER BY id LIMIT 1`, x.ID).Scan(&raw); err != nil {
 		return nil, err
@@ -236,7 +212,7 @@ func (s *Store) FinalizeProvisionFirstSSH(ctx context.Context, project, id strin
 		return nil, err
 	}
 	observation := proof.Observation()
-	verified := map[string]any{"command": work.Command, "observation": observation, "binding_sha256": work.Plan.BindingSHA256, "report_sha256": work.ReportSHA256, "host_fingerprint": work.Plan.HostKey, "domain_credential": work.Plan.Credential, "asset_version": asset.ActiveVersion + 1, "verified_transport": "ssh", "hardware_evidence": false}
+	verified := map[string]any{"native_command_id": *x.CommandID, "verification_command_id": work.Command.CommandID, "verification_id": work.VerificationID, "command": work.Command, "observation": observation, "binding_sha256": work.Plan.BindingSHA256, "report_sha256": work.ReportSHA256, "host_fingerprint": work.Plan.HostKey, "domain_credential": work.Plan.Credential, "asset_version": asset.ActiveVersion + 1, "verified_transport": "ssh", "hardware_evidence": false}
 	verifiedSHA := ProvisionFirstSSHTranscriptSHA256(provisionFirstSSHJSON(verified))
 	if err = appendProvisionEventTx(ctx, tx, x, "first_boot.ssh_verified", verified); err != nil {
 		return nil, err
@@ -252,7 +228,7 @@ func (s *Store) FinalizeProvisionFirstSSH(ctx context.Context, project, id strin
 	}
 	// Persist the native success proof in the same commit as registration. A
 	// crash before Complete can be recovered from this immutable runner receipt.
-	receipt := provisionRegisteredReceipt{CommandID: work.Command.CommandID, AttemptID: work.Command.AttemptID, FencingToken: work.Command.FencingToken, Result: "success", Output: map[string]any{"schema": "keel.provision-installation-proof/v1", "installation_id": x.ID, "request_id": x.RequestID, "snapshot_sha256": x.SnapshotSHA256, "installation_performed": true, "first_ssh_proof_sha256": verifiedSHA}, StartedAt: observation.StartedAt, FinishedAt: now}
+	receipt := provisionRegisteredReceipt{CommandID: *x.CommandID, AttemptID: work.Command.AttemptID, FencingToken: work.Command.FencingToken, Result: "success", Output: map[string]any{"schema": "keel.provision-installation-proof/v1", "installation_id": x.ID, "request_id": x.RequestID, "snapshot_sha256": x.SnapshotSHA256, "installation_performed": true, "first_ssh_proof_sha256": verifiedSHA}, StartedAt: observation.StartedAt, FinishedAt: now}
 	receiptRaw := provisionFirstSSHJSON(receipt)
 	if _, err = tx.ExecContext(ctx, `INSERT INTO exec_runner_receipts(command_id,attempt_id,fencing_token,result,payload,digest,observed_at) VALUES($1,$2,$3,'success',$4,$5,now())`, receipt.CommandID, receipt.AttemptID, receipt.FencingToken, receiptRaw, digest(string(receiptRaw))); err != nil {
 		return nil, err
@@ -300,7 +276,7 @@ func prepareProvisionFirstSSHRetryTx(ctx context.Context, tx *sql.Tx, x *Provisi
 		// A single dispatch with no terminal/repair event is uncertain. Record that
 		// evidence once; never infer that the helper did not execute and rerun it.
 		var dispatchID, repairID int64
-		if err = tx.QueryRowContext(ctx, `SELECT COALESCE(max(id) FILTER(WHERE event_type IN('first_boot.ssh_started','first_boot.ssh_retry_consumed')),0),COALESCE(max(id) FILTER(WHERE event_type='first_boot.ssh_repair_required'),0) FROM provision_installation_events WHERE installation_id=$1`, x.ID).Scan(&dispatchID, &repairID); err != nil {
+		if err = tx.QueryRowContext(ctx, `SELECT COALESCE(max(id) FILTER(WHERE event_type IN('first_boot.ssh_started','first_boot.ssh_retry_consumed','first_boot.ssh_verification_consumed')),0),COALESCE(max(id) FILTER(WHERE event_type='first_boot.ssh_repair_required'),0) FROM provision_installation_events WHERE installation_id=$1`, x.ID).Scan(&dispatchID, &repairID); err != nil {
 			return nil, err
 		}
 		if dispatchID > repairID {
@@ -340,9 +316,15 @@ func prepareProvisionFirstSSHRetryTx(ctx context.Context, tx *sql.Tx, x *Provisi
 	if err != nil || work == nil {
 		return nil, ErrProvisionBootDenied
 	}
+	active, activeErr := provisionActiveFirstSSHCommandTx(ctx, tx, x)
+	if activeErr != nil {
+		return nil, activeErr
+	}
+	work.Command = active.Command
+	work.VerificationID = active.VerificationID
 	work.Mode = "query"
 	work.RetryID = retry.ID
-	if err = appendProvisionEventTx(ctx, tx, x, "first_boot.ssh_retry_consumed", map[string]any{"retry_id": retry.ID, "repair_event_id": retry.RepairEventID, "attempt_id": *x.AttemptID, "command_id": *x.CommandID, "fencing_token": *x.FencingToken, "command": work.Command, "plan": work.Plan, "report_sha256": work.ReportSHA256, "mode": "query"}); err != nil {
+	if err = appendProvisionEventTx(ctx, tx, x, "first_boot.ssh_retry_consumed", map[string]any{"native_command_id": *x.CommandID, "verification_id": work.VerificationID, "retry_id": retry.ID, "repair_event_id": retry.RepairEventID, "attempt_id": *x.AttemptID, "command_id": *x.CommandID, "fencing_token": *x.FencingToken, "command": work.Command, "plan": work.Plan, "report_sha256": work.ReportSHA256, "mode": "query"}); err != nil {
 		return nil, err
 	}
 	return work, tx.Commit()
