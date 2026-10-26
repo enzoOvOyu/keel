@@ -85,13 +85,13 @@ func checkZTPSimArtifactTx(ctx context.Context, tx *sql.Tx, projectID string, cf
 	if digest != fabricboot.IsolationScriptDigest() || size != int64(len(fabricboot.IsolationScriptV1)) {
 		return "", apiError(409, "ZTP_SCRIPT_DIGEST_MISMATCH", "Approved isolation script digest or size differs")
 	}
-	if channel == "143" {
+	if channel == "143" || channel == "136" {
 		cms, encodeErr := fabricboot.UnsignedIsolationOnboarding(false)
 		if encodeErr != nil {
 			return "", encodeErr
 		}
 		sum := sha256.Sum256(cms)
-		return "mock-sztp143:" + hex.EncodeToString(sum[:]), nil
+		return "mock-sztp" + channel + ":" + hex.EncodeToString(sum[:]), nil
 	}
 	return "mock-boot239:" + digest, nil
 }

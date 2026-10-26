@@ -4782,6 +4782,7 @@ export interface components {
             script: string;
         };
         ZTPMockKeaOptions: {
+            dhcp6?: components["schemas"]["ZTPDHCP6MockOptions"];
             batch_ref: string;
             stage_ref: string;
             management_cidr: string;
@@ -4793,6 +4794,17 @@ export interface components {
                 nos: string;
                 version_intent: string;
             };
+        };
+        ZTPDHCP6MockOptions: {
+            /** @description Explicit IPv6 scope supplied for simulation; no automatic allocation. */
+            management_cidr: string;
+            bindings: {
+                switch_id: components["schemas"]["EntityID"];
+                duid: string;
+                /** Format: ipv6 */
+                address: string;
+                hostname: string;
+            }[];
         };
         ZTPMockKeaPlan: {
             batch_ref: string;
@@ -4822,11 +4834,19 @@ export interface components {
             batch_ref: string;
             stage_ref: string;
             interface: string;
-            /** Format: ipv4 */
+            /** @description Explicit IPv4 or IPv6 management link address. */
             link_ip: string;
             vendor_class: string;
+            /** @description Explicit DUID for the IPv6 mock adapter only. */
+            duid?: string;
         };
         ZTPDORAResult: {
+            /** @enum {string} */
+            protocol?: "dhcp6";
+            /** Format: ipv6 */
+            address?: string;
+            switch_id?: components["schemas"]["EntityID"];
+            option_136_uris?: string[];
             /** @enum {string} */
             outcome: "ack" | "no_offer";
             reason?: string;
@@ -4905,7 +4925,7 @@ export interface components {
         ZTPSimSessionInput: {
             batch_ref: string;
             /** @enum {string} */
-            boot_channel: "239" | "143" | "60-43";
+            boot_channel: "239" | "143" | "60-43" | "136";
             identity: components["schemas"]["ZTPIdentityInput"];
         };
         ZTPSimRunInput: {
@@ -4950,7 +4970,7 @@ export interface components {
             /** @enum {string} */
             mode: "sim" | "device";
             /** @enum {string} */
-            boot_channel: "239" | "143" | "60-43";
+            boot_channel: "239" | "143" | "60-43" | "136";
             /** @enum {string} */
             state: "powered" | "dhcp" | "booturl" | "identity" | "lookup" | "fetch" | "config" | "restart" | "managed" | "isolated" | "conflict" | "failed";
             state_version: number;

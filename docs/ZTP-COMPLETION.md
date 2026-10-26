@@ -63,3 +63,9 @@ KeaDHCP6Control独立绑定dhcp6服务；候选测试、两次漂移检查、写
 `keel-admin ztp-dhcp6-probe --input-file <private.json> --confirm-canary`提供显式运维PoC入口：输入version=dhcp6-canary/v1、canary_reserved=true、bootstrap_origins和config。config字段server/listen（明确IPv6地址:端口）、link_address（所选管理网段中继地址）、duid/server_duid（实测、不同、规范化小写冒号十六进制）、iaid/address/timeout_seconds；专用canary身份及地址必须与设备SoT隔离。实现单轮Relay-forward/Relay-reply内的Solicit/Advertise→Request/Reply，核对中继地址/peer、事务、客户端/服务器DUID、IAID/IAADDR/租期及完整136 URI载荷，错误或超时即返回，不自动重试或改设备。输出是operator_canary观察，不自动写ZTP会话或NP，也不能作为装机成功。
 
 依据[RFC8572 §8](https://www.rfc-editor.org/rfc/rfc8572.html#section-8)、[RFC8415](https://www.rfc-editor.org/rfc/rfc8415.html)及[Kea DHCPv6预约/选项](https://kea.readthedocs.io/en/kea-2.7.0/arm/dhcp6-srv.html)。新增保留配置/冲突/错误绑定/载荷/写后丢响应与隔离UDP6完整收发、CLI私有输入/不覆盖用例源码，均未执行。未运行CLI、未发包、未应用配置。完整IPv6规划仍在WP-2.15；136尚未接入项目级批准执行/N-S3及ZTP会话，P1/WP-1.17不能据此标记闭环。
+
+### 项目级136模拟接入（2026-10-26，源码未验证）
+
+既有mock Kea接口可选dhcp6={management_cidr,bindings:[{switch_id,duid,address,hostname}]}，136使用同一明确批准SZTP origin列表。stage与commit检查每个switch_id属于本项目BOM；commit仍重查独立批准隔离介质，冲突作用域拒绝。模拟请求新增duid，IPv6管理link地址触发136适配，只向精确DUID绑定返回136 URI/预约，不输出IPv4 options。创建136模拟会话后，DHCP必须匹配已解析SwitchID，后续沿原九态与当前offer hash/批准介质/凭据检查推进；成功仅mode=sim，取回证据mock-sztp136，不生成真实设备观察或NP。
+
+页面先创建并选择同批次136模拟会话，再填写DUID及IPv6明确网段/预约/主机名，既有staging→commit按钮和模拟运行入口可用；不猜测DUID、不自动分配地址。061为136增加仅sim约束，原真实239/143路由不变。新增用例源码未执行，未运行网络/SQL，不能据此声称136现场通过。

@@ -21,8 +21,9 @@ var (
 
 // DHCPOptions is a mock Kea configuration contract. It does not send changes
 // to a live DHCP server. Option 60 selects the vendor class; option 43 carries
-// NOS and version intent. DHCPv6 option 136 needs a separate adapter.
+// NOS and version intent. Optional DHCP6 uses explicit DUID reservations.
 type DHCPOptions struct {
+	DHCP6          *DHCP6MockOptions `json:"dhcp6,omitempty"`
 	ProjectID      string            `json:"project_id"`
 	BatchRef       string            `json:"batch_ref"`
 	StageRef       string            `json:"stage_ref"`
@@ -31,6 +32,11 @@ type DHCPOptions struct {
 	Option143URIs  []string          `json:"option_143_uris"`
 	Option60VCI    string            `json:"option_60_vci"`
 	Option43       map[string]string `json:"option_43"`
+}
+
+type DHCP6MockOptions struct {
+	ManagementCIDR string                `json:"management_cidr"`
+	Bindings       []KeaDHCP6Reservation `json:"bindings"`
 }
 
 type stagedPlan struct {
@@ -112,6 +118,13 @@ func validateOptions(input DHCPOptions) (DHCPOptions, error) {
 			return input, errors.New("invalid option 43 value")
 		}
 	}
+	if input.DHCP6 != nil {
+		live, _ := json.Marshal(map[string]any{"Dhcp6": map[string]any{"subnet6": []any{map[string]any{"subnet": input.DHCP6.ManagementCIDR}}}})
+		if _, err = MergeBootstrap136(live, input.DHCP6.ManagementCIDR, input.ProjectID, input.DHCP6.Bindings, input.Option143URIs); err != nil {
+			return input, err
+		}
+		input.DHCP6 = &DHCP6MockOptions{ManagementCIDR: input.DHCP6.ManagementCIDR, Bindings: append([]KeaDHCP6Reservation(nil), input.DHCP6.Bindings...)}
+	}
 	input.Option143URIs = append([]string(nil), input.Option143URIs...)
 	input.Option43 = map[string]string{"nos": input.Option43["nos"], "version_intent": input.Option43["version_intent"]}
 	return input, nil
@@ -159,6 +172,7 @@ func (m *MockKea) Commit(projectID, batchRef, stageRef, digest string) error {
 }
 
 type DORARequest struct {
+	DUID        string `json:"duid,omitempty"`
 	ProjectID   string `json:"project_id"`
 	BatchRef    string `json:"batch_ref"`
 	StageRef    string `json:"stage_ref"`
@@ -168,6 +182,10 @@ type DORARequest struct {
 }
 
 type DORAResult struct {
+	Protocol      string            `json:"protocol,omitempty"`
+	Address       string            `json:"address,omitempty"`
+	SwitchID      string            `json:"switch_id,omitempty"`
+	Option136URIs []string          `json:"option_136_uris,omitempty"`
 	Outcome       string            `json:"outcome"`
 	Reason        string            `json:"reason,omitempty"`
 	ConfigHash    string            `json:"config_hash,omitempty"`
@@ -187,8 +205,8 @@ func (m *MockKea) DORA(req DORARequest) (DORAResult, error) {
 		return DORAResult{}, errors.New("invalid project, batch or stage")
 	}
 	addr, err := netip.ParseAddr(req.LinkIP)
-	if err != nil || !addr.Is4() {
-		return DORAResult{}, fmt.Errorf("invalid DHCP management-link IPv4 address")
+	if err != nil || !addr.Is4() && (addr.Is4In6() || addr.Zone() != "" || !addr.IsGlobalUnicast()) {
+		return DORAResult{}, fmt.Errorf("invalid DHCP management-link address")
 	}
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -197,6 +215,28 @@ func (m *MockKea) DORA(req DORARequest) (DORAResult, error) {
 		return DORAResult{Outcome: "no_offer", Reason: "no_active_plan"}, nil
 	}
 	cfg := plan.active
+
+	if addr.Is6() {
+		if cfg.DHCP6 == nil {
+			return DORAResult{Outcome: "no_offer", Reason: "dhcp6_not_configured"}, nil
+		}
+		prefix, _ := netip.ParsePrefix(cfg.DHCP6.ManagementCIDR)
+		if req.Interface != "eth0" || !prefix.Contains(addr) {
+			return DORAResult{Outcome: "no_offer", Reason: "outside_management_pool"}, nil
+		}
+		if _, err := decodeDUID(req.DUID); err != nil {
+			return DORAResult{}, err
+		}
+		for _, binding := range cfg.DHCP6.Bindings {
+			if binding.DUID == req.DUID {
+				return DORAResult{Outcome: "ack", Protocol: "dhcp6", Address: binding.Address, SwitchID: binding.SwitchID, ConfigHash: plan.activeHash, Option136URIs: append([]string(nil), cfg.Option143URIs...)}, nil
+			}
+		}
+		return DORAResult{Outcome: "no_offer", Reason: "unknown_duid"}, nil
+	}
+	if req.DUID != "" {
+		return DORAResult{}, errors.New("DUID is only valid on the DHCPv6 adapter")
+	}
 	prefix, _ := netip.ParsePrefix(cfg.ManagementCIDR)
 	if req.Interface != "eth0" || !prefix.Contains(addr) {
 		return DORAResult{Outcome: "no_offer", Reason: "outside_management_pool"}, nil

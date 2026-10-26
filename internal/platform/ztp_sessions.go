@@ -299,6 +299,14 @@ func (s *Store) advanceZTPSimSessionTx(ctx context.Context, tx *sql.Tx, projectI
 			if offerErr != nil {
 				return nil, offerErr
 			}
+
+			if out.BootChannel == "136" {
+				if offer.Protocol != "dhcp6" || offer.SwitchID != out.SwitchID || len(offer.Option136URIs) == 0 {
+					return nil, apiError(409, "ZTP_DHCP6_BINDING_MISMATCH", "IPv6 session requires an exact DUID and resolved switch binding")
+				}
+			} else if offer.Protocol == "dhcp6" {
+				return nil, apiError(409, "ZTP_DHCP_CHANNEL_MISMATCH", "IPv6 offers cannot satisfy an IPv4 session")
+			}
 			if offer.Outcome != "ack" {
 				return nil, apiError(409, "ZTP_DHCP_NO_OFFER", "No committed mock Kea offer for management interface")
 			}
@@ -312,10 +320,10 @@ func (s *Store) advanceZTPSimSessionTx(ctx context.Context, tx *sql.Tx, projectI
 				return nil, loadErr
 			}
 			if next == "booturl" {
-				if out.BootChannel == "143" && len(cfg.Option143URIs) == 0 {
+				if (out.BootChannel == "143" || out.BootChannel == "136") && len(cfg.Option143URIs) == 0 {
 					return nil, apiError(409, "ZTP_BOOT_URI_MISSING", "No active SZTP URI")
 				}
-				if out.BootChannel != "143" && cfg.Option239URL == "" {
+				if out.BootChannel != "143" && out.BootChannel != "136" && cfg.Option239URL == "" {
 					return nil, apiError(409, "ZTP_BOOT_URI_MISSING", "No active Cumulus boot URL")
 				}
 				evidence = "mock-kea-url:" + activeHash

@@ -16,7 +16,7 @@ func nextZTPStage(state string) string {
 	return ""
 }
 func validZTPChannel(channel string) bool {
-	return channel == "239" || channel == "143" || channel == "60-43"
+	return channel == "136" || channel == "239" || channel == "143" || channel == "60-43"
 }
 func validZTPEvidence(value string) bool {
 	value = strings.TrimSpace(value)

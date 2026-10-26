@@ -18,10 +18,11 @@ import { actZTPSimSession, runZTPSimSession, createZTPSimSession, getZTPSimSessi
 const stages = ['powered', 'dhcp', 'booturl', 'identity', 'lookup', 'fetch', 'config', 'restart', 'managed']
 function Board() {
   const { t } = useTranslation(), project = useProject(), session = useSession(), client = useQueryClient(), action = useAction()
-  const [selectedId, setSelectedId] = useState(''), [batch, setBatch] = useState(''), [channel, setChannel] = useState<'239' | '143' | '60-43'>('239')
+  const [selectedId, setSelectedId] = useState(''), [batch, setBatch] = useState(''), [channel, setChannel] = useState<'239' | '143' | '60-43' | '136'>('239')
   const [serial, setSerial] = useState(''), [mgmtMac, setMgmtMac] = useState(''), [baseMac, setBaseMac] = useState('')
   const [evidence, setEvidence] = useState(''), [phenomenon, setPhenomenon] = useState(''), [cause, setCause] = useState(''), [nextAction, setNextAction] = useState('')
   const [clock, setClock] = useState(Date.now())
+  const [pool6,setPool6]=useState(''),[duid6,setDuid6]=useState(''),[address6,setAddress6]=useState(''),[hostname6,setHostname6]=useState('')
   const [pool, setPool] = useState(''), [bootURL, setBootURL] = useState(''), [redirectURI, setRedirectURI] = useState('')
   const [vci, setVci] = useState('cumulus-linux x86_64'), [nos, setNos] = useState('cumulus-linux'), [versionIntent, setVersionIntent] = useState('')
   const [linkIP, setLinkIP] = useState(''), [plan, setPlan] = useState<ZTPMockKeaPlan | null>(null)
@@ -35,10 +36,11 @@ function Board() {
   const issues = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-identity-issues'], queryFn: ({ signal }) => listZTPIdentityIssues(project.id, signal) })
   const credentialIssues = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-credential-issues'], queryFn: ({ signal }) => listZTPCredentialIssues(project.id, signal) })
   const detail = useQuery({ queryKey: ['private', session.user.id, project.id, 'ztp-sim', selectedId], queryFn: ({ signal }) => getZTPSimSession(project.id, selectedId, signal), enabled: !!selectedId, refetchInterval: selectedId ? 2000 : false })
+  useEffect(()=>{setPlan(null)},[selectedId])
   useExpireOnUnauthorized(scriptManifest.error ?? list.error ?? detail.error ?? observations.error ?? issues.error ?? credentialIssues.error)
   async function stagePlan(event: FormEvent) {
     event.preventDefault()
-    const result = await action.run(() => stageZTPMockKea(project.id, { batch_ref: batch.trim(), stage_ref: 'N-S4', management_cidr: pool.trim(), option_239_url: bootURL.trim(), option_143_uris: [redirectURI.trim()], option_60_vci: vci.trim(), option_43: { nos: nos.trim(), version_intent: versionIntent.trim() } }, session.csrf_token))
+    const result = await action.run(() => stageZTPMockKea(project.id, { batch_ref: batch.trim(), stage_ref: 'N-S4', management_cidr: pool.trim(), option_239_url: bootURL.trim(), option_143_uris: [redirectURI.trim()], option_60_vci: vci.trim(), option_43: { nos: nos.trim(), version_intent: versionIntent.trim() },...(pool6.trim()?{dhcp6:{management_cidr:pool6.trim(),bindings:[{switch_id:detail.data?.switch_id??'',duid:duid6.trim(),address:address6.trim(),hostname:hostname6.trim()}]}}:{}) }, session.csrf_token))
     if (result.ok) setPlan(result.value)
   }
   async function commitPlan() {
@@ -66,7 +68,7 @@ function Board() {
   }
   async function change(kind: ZTPAction['action']) {
     if (!detail.data) return
-    const payload: ZTPAction = { action: kind, expected_version: detail.data.state_version, ...(kind === 'advance' && detail.data.state === 'powered' ? { dora: { batch_ref: detail.data.batch_ref, stage_ref: 'N-S4', interface: 'eth0', link_ip: linkIP.trim(), vendor_class: vci.trim() } } : {}), ...(kind === 'advance' && detail.data.state !== 'powered' ? { evidence_ref: evidence.trim() } : {}), ...(kind === 'advance' && detail.data.state === 'restart' ? { credential_verdict: credentialVerdict } : {}), ...(kind === 'fail' ? { phenomenon: phenomenon.trim(), cause: cause.trim(), next_action: nextAction.trim() } : {}) }
+    const payload: ZTPAction = { action: kind, expected_version: detail.data.state_version, ...(kind === 'advance' && detail.data.state === 'powered' ? { dora: { batch_ref: detail.data.batch_ref, stage_ref: 'N-S4', interface: 'eth0', link_ip: linkIP.trim(), vendor_class: vci.trim(),...(detail.data?.boot_channel==='136'?{duid:duid6.trim()}:{}) } } : {}), ...(kind === 'advance' && detail.data.state !== 'powered' ? { evidence_ref: evidence.trim() } : {}), ...(kind === 'advance' && detail.data.state === 'restart' ? { credential_verdict: credentialVerdict } : {}), ...(kind === 'fail' ? { phenomenon: phenomenon.trim(), cause: cause.trim(), next_action: nextAction.trim() } : {}) }
     const result = await action.run(() => actZTPSimSession(project.id, detail.data!.id, payload, session.csrf_token))
     if (!result.ok) { void detail.refetch(); return }
     client.setQueryData(['private', session.user.id, project.id, 'ztp-sim', result.value.id], result.value)
@@ -75,7 +77,7 @@ function Board() {
   async function runAll() {
     if (!detail.data) return
     const current = detail.data
-    const result = await action.run(() => runZTPSimSession(project.id, current.id, { expected_version: current.state_version, dora: { batch_ref: current.batch_ref, stage_ref: 'N-S4', interface: 'eth0', link_ip: linkIP.trim(), vendor_class: vci.trim() }, credential_verdict: credentialVerdict }, session.csrf_token))
+    const result = await action.run(() => runZTPSimSession(project.id, current.id, { expected_version: current.state_version, dora: { batch_ref: current.batch_ref, stage_ref: 'N-S4', interface: 'eth0', link_ip: linkIP.trim(), vendor_class: vci.trim(),...(detail.data?.boot_channel==='136'?{duid:duid6.trim()}:{}) }, credential_verdict: credentialVerdict }, session.csrf_token))
     if (!result.ok) { void detail.refetch(); return }
     client.setQueryData(['private', session.user.id, project.id, 'ztp-sim', result.value.id], result.value)
     void list.refetch(); void credentialIssues.refetch()
@@ -102,14 +104,19 @@ function Board() {
       <div className="field"><Label className="ui:block ui:leading-normal" htmlFor="kea-vci">{t('ztpKea60')}</Label><Input id="kea-vci" required value={vci} onChange={e => { setVci(e.target.value); setPlan(null) }} /></div>
       <div className="field"><Label className="ui:block ui:leading-normal" htmlFor="kea-nos">{t('ztpKeaNOS')}</Label><Input id="kea-nos" required value={nos} onChange={e => { setNos(e.target.value); setPlan(null) }} /></div>
       <div className="field"><Label className="ui:block ui:leading-normal" htmlFor="kea-version">{t('ztpKeaVersion')}</Label><Input id="kea-version" required value={versionIntent} onChange={e => { setVersionIntent(e.target.value); setPlan(null) }} /></div>
-      <Button variant="default" disabled={action.busy}>{t('ztpKeaStage')}</Button>
+      <details><summary>{t('ztpDHCP6Mock')}</summary><p>{t('ztpDHCP6MockBoundary')}</p>
+      <Label htmlFor="kea6-pool">{t('ztpDHCP6Pool')}</Label><Input id="kea6-pool" value={pool6} onChange={e=>{setPool6(e.target.value);setPlan(null)}} placeholder="2001:db8:1::/64"/>
+      <Label htmlFor="kea6-duid">DUID</Label><Input id="kea6-duid" value={duid6} onChange={e=>{setDuid6(e.target.value);setPlan(null)}} maxLength={383}/>
+      <Label htmlFor="kea6-address">{t('ztpDHCP6Address')}</Label><Input id="kea6-address" value={address6} onChange={e=>{setAddress6(e.target.value);setPlan(null)}}/>
+      <Label htmlFor="kea6-hostname">{t('ztpDHCP6Hostname')}</Label><Input id="kea6-hostname" value={hostname6} onChange={e=>{setHostname6(e.target.value);setPlan(null)}} maxLength={63}/>
+      </details><Button variant="default" disabled={action.busy||!!pool6.trim()&&(!detail.data?.switch_id||detail.data.boot_channel!=='136'||detail.data.batch_ref!==batch.trim()||!duid6.trim()||!address6.trim()||!hostname6.trim())}>{t('ztpKeaStage')}</Button>
       {plan?.staged_hash && <p>{t('ztpKeaStaged')}: <code>{plan.staged_hash}</code> <Button variant="default" type="button" disabled={action.busy} onClick={() => void commitPlan()}>{t('ztpKeaCommit')}</Button></p>}
       {plan?.active_hash && <><p>{t('ztpKeaActive')}: <code>{plan.active_hash}</code></p><details><summary>{t('ztpKeaDeactivate')}</summary><p>{t('ztpKeaDeactivateBoundary')}</p><div className="field"><Label className="ui:block ui:leading-normal" htmlFor="ztp-deactivate-reason">{t('ztpKeaDeactivateReason')}</Label><Input id="ztp-deactivate-reason" maxLength={300} value={deactivateReason} onChange={e => setDeactivateReason(e.target.value)} /></div><Label className="ui:inline-flex ui:leading-normal"><NativeCheckbox checked={deactivateConfirmed} onChange={e => setDeactivateConfirmed(e.target.checked)} />{t('ztpKeaDeactivateConfirm')}</Label><Button variant="outline" type="button" className="secondary-button" disabled={action.busy || !deactivateConfirmed || !deactivateReason.trim()} onClick={() => void deactivatePlan()}>{t('ztpKeaDeactivate')}</Button></details></>}
     </form>}
     {canManage && <form onSubmit={(event) => void create(event)} className="panel">
       <h2>{t('ztpCreate')}</h2>
       <div className="field"><Label className="ui:block ui:leading-normal" htmlFor="ztp-batch">{t('ztpBatch')}</Label><Input id="ztp-batch" required maxLength={160} value={batch} onChange={e => { setBatch(e.target.value); setPlan(null) }} /></div>
-      <div className="field"><Label className="ui:block ui:leading-normal" htmlFor="ztp-channel">{t('ztpChannel')}</Label><NativeSelect id="ztp-channel" value={channel} onChange={e => setChannel(e.target.value as typeof channel)}><NativeSelectOption value="239">239</NativeSelectOption><NativeSelectOption value="143">143</NativeSelectOption><NativeSelectOption value="60-43">60/43</NativeSelectOption></NativeSelect></div>
+      <div className="field"><Label className="ui:block ui:leading-normal" htmlFor="ztp-channel">{t('ztpChannel')}</Label><NativeSelect id="ztp-channel" value={channel} onChange={e => setChannel(e.target.value as typeof channel)}><NativeSelectOption value="239">239</NativeSelectOption><NativeSelectOption value="143">143</NativeSelectOption><NativeSelectOption value="136">136 · IPv6 sim</NativeSelectOption><NativeSelectOption value="60-43">60/43</NativeSelectOption></NativeSelect></div>
       <div className="field"><Label className="ui:block ui:leading-normal" htmlFor="ztp-serial">{t('ztpSerial')}</Label><Input id="ztp-serial" value={serial} onChange={e => setSerial(e.target.value)} /></div>
       <div className="field"><Label className="ui:block ui:leading-normal" htmlFor="ztp-mgmt">{t('ztpMgmtMac')}</Label><Input id="ztp-mgmt" value={mgmtMac} onChange={e => setMgmtMac(e.target.value)} /></div>
       <div className="field"><Label className="ui:block ui:leading-normal" htmlFor="ztp-base">{t('ztpBaseMac')}</Label><Input id="ztp-base" value={baseMac} onChange={e => setBaseMac(e.target.value)} /></div>

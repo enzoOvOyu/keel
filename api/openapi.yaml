@@ -4243,6 +4243,8 @@ components:
       type: object
       required: [batch_ref, stage_ref, management_cidr, option_239_url, option_143_uris, option_60_vci, option_43]
       properties:
+        dhcp6:
+          $ref: '#/components/schemas/ZTPDHCP6MockOptions'
         batch_ref: { type: string, maxLength: 160 }
         stage_ref: { type: string, maxLength: 160 }
         management_cidr: { type: string }
@@ -4259,6 +4261,25 @@ components:
           properties:
             nos: { type: string }
             version_intent: { type: string }
+    ZTPDHCP6MockOptions:
+      type: object
+      additionalProperties: false
+      required: [management_cidr, bindings]
+      properties:
+        management_cidr: { type: string, description: Explicit IPv6 scope supplied for simulation; no automatic allocation. }
+        bindings:
+          type: array
+          minItems: 1
+          maxItems: 2000
+          items:
+            type: object
+            additionalProperties: false
+            required: [switch_id, duid, address, hostname]
+            properties:
+              switch_id: { $ref: '#/components/schemas/EntityID' }
+              duid: { type: string, maxLength: 383 }
+              address: { type: string, format: ipv6 }
+              hostname: { type: string, maxLength: 63 }
     ZTPMockKeaPlan:
       type: object
       required: [batch_ref, stage_ref, version, updated_at]
@@ -4294,12 +4315,17 @@ components:
         batch_ref: { type: string }
         stage_ref: { type: string }
         interface: { type: string }
-        link_ip: { type: string, format: ipv4 }
+        link_ip: { type: string, description: Explicit IPv4 or IPv6 management link address. }
         vendor_class: { type: string }
+        duid: { type: string, maxLength: 383, description: Explicit DUID for the IPv6 mock adapter only. }
     ZTPDORAResult:
       type: object
       required: [outcome]
       properties:
+        protocol: { type: string, enum: [dhcp6] }
+        address: { type: string, format: ipv6 }
+        switch_id: { $ref: '#/components/schemas/EntityID' }
+        option_136_uris: { type: array, items: { type: string } }
         outcome: { type: string, enum: [ack, no_offer] }
         reason: { type: string }
         config_hash: { type: string }
@@ -4385,7 +4411,7 @@ components:
       required: [batch_ref, boot_channel, identity]
       properties:
         batch_ref: { type: string, minLength: 1, maxLength: 160 }
-        boot_channel: { type: string, enum: ['239', '143', '60-43'] }
+        boot_channel: { type: string, enum: ['239', '143', '60-43', '136'] }
         identity: { $ref: '#/components/schemas/ZTPIdentityInput' }
     ZTPSimRunInput:
       type: object
@@ -4430,7 +4456,7 @@ components:
         switch_id: { $ref: '#/components/schemas/EntityID' }
         batch_ref: { type: string }
         mode: { type: string, enum: [sim, device] }
-        boot_channel: { type: string, enum: ['239', '143', '60-43'] }
+        boot_channel: { type: string, enum: ['239', '143', '60-43', '136'] }
         state: { type: string, enum: [powered, dhcp, booturl, identity, lookup, fetch, config, restart, managed, isolated, conflict, failed] }
         state_version: { type: integer, minimum: 1 }
         attempt: { type: integer, minimum: 1 }

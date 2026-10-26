@@ -56,6 +56,9 @@ func (s *Store) StageZTPMockKeaPlan(ctx context.Context, a *AuthSession, project
 	if err = requireFabricPermission(ctx, tx, a, project.ID, "fabric:plan"); err != nil {
 		return nil, err
 	}
+	if err = validateZTPSimDHCP6ScopeTx(ctx, tx, project.ID, &input); err != nil {
+		return nil, err
+	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	var out ZTPMockKeaPlan
 	err = tx.QueryRowContext(ctx, `INSERT INTO ztp_mock_kea_plans(project_id,batch_ref,stage_ref,staged_config,staged_hash,updated_by,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7)
@@ -114,6 +117,9 @@ func (s *Store) CommitZTPMockKeaPlan(ctx context.Context, a *AuthSession, projec
 	recomputed, validationErr := mock.Stage(cfg)
 	if validationErr != nil || recomputed != stagedHash {
 		return nil, apiError(409, "ZTP_KEA_STAGE_INVALID", "Staged Kea configuration failed validation")
+	}
+	if err = validateZTPSimDHCP6ScopeTx(ctx, tx, project.ID, &cfg); err != nil {
+		return nil, err
 	}
 	// A committed simulated offer must never advertise an unapproved or changed
 	// bootstrap artifact. Device fetch rechecks this gate after commit as well.
@@ -221,7 +227,16 @@ func rejectOverlappingSZTPRouteTx(ctx context.Context, tx *sql.Tx, projectID str
 		if parseErr != nil {
 			return apiError(409, "ZTP_KEA_ROUTE_INVALID", "Active management subnet cannot be validated")
 		}
-		if !candidate.Overlaps(otherPrefix) {
+		overlap := candidate.Overlaps(otherPrefix)
+		if cfg.DHCP6 != nil && other.DHCP6 != nil {
+			v6, e1 := netip.ParsePrefix(cfg.DHCP6.ManagementCIDR)
+			v6other, e2 := netip.ParsePrefix(other.DHCP6.ManagementCIDR)
+			if e1 != nil || e2 != nil {
+				return apiError(409, "ZTP_KEA_ROUTE_INVALID", "Invalid IPv6 mock scope")
+			}
+			overlap = overlap || v6.Overlaps(v6other)
+		}
+		if !overlap {
 			continue
 		}
 		for _, uri := range cfg.Option143URIs {
