@@ -2715,9 +2715,9 @@
     }
   ],
   "implementation_checkpoint": {
-    "stage": "P1 remains partial. Dual-channel bounded approved scripts, owned cache inventories, approved artifact staging/checkpoint resume, target artifact retrieval and explicit non-start recovery are implemented as source (HANDOFF sections125-140). Remaining P1 protocol/orchestration gaps and consolidated 200-target acceptance must be tracked against actual WP exits; later G3+ dependencies are not P1 prerequisites.",
-    "scope": "Single-agent development only in local /opt/keel. FR-0 spans P1-P4; do not claim full network health, later gates or real hardware acceptance from P1 source.",
-    "runtime": "Source57 migrations excluding original026 draft; runtime remains last recorded 6668a72/schema46. Current additions including059/060 are unapplied. No new tests/build/static/database/browser/container validation or deployment; formatting and API generation are source artifacts only."
+      "stage": "P1 remains partial. Sections125-146 record bounded approved scripts, artifact transfer/recovery, versioned dual-channel host DAGs with frozen approved media, YAML error coordinates, DHCPv6 136 protocol/project simulation and immutable reinstall/RMA history. Source implementation is not acceptance PASS; consolidate 200-target software acceptance against the actual P1 exits. Later G3+/P2-P4 consumers are not P1 prerequisites.",
+      "scope": "Single-agent development only in local /opt/keel. FR-0 spans P1-P4; real hardware PoC and actual IPv6 device admission are distinct from simulation. Do not claim device/network PASS from source or operator history declarations.",
+      "runtime": "Source59 migrations excluding original026 draft; runtime remains last recorded 6668a72/schema46. New059-062 are unapplied. No new tests/build/static/database/browser/container validation or deployment; formatting and API generation are source artifacts only."
   },
   "execution_guide": "docs/DEVELOPMENT.md"
 }

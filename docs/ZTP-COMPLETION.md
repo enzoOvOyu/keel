@@ -69,3 +69,9 @@ KeaDHCP6Control独立绑定dhcp6服务；候选测试、两次漂移检查、写
 既有mock Kea接口可选dhcp6={management_cidr,bindings:[{switch_id,duid,address,hostname}]}，136使用同一明确批准SZTP origin列表。stage与commit检查每个switch_id属于本项目BOM；commit仍重查独立批准隔离介质，冲突作用域拒绝。模拟请求新增duid，IPv6管理link地址触发136适配，只向精确DUID绑定返回136 URI/预约，不输出IPv4 options。创建136模拟会话后，DHCP必须匹配已解析SwitchID，后续沿原九态与当前offer hash/批准介质/凭据检查推进；成功仅mode=sim，取回证据mock-sztp136，不生成真实设备观察或NP。
 
 页面先创建并选择同批次136模拟会话，再填写DUID及IPv6明确网段/预约/主机名，既有staging→commit按钮和模拟运行入口可用；不猜测DUID、不自动分配地址。061为136增加仅sim约束，原真实239/143路由不变。新增用例源码未执行，未运行网络/SQL，不能据此声称136现场通过。
+
+## 重装/RMA历史（WP-1.17，源码未验证）
+
+项目接口`GET/POST /api/v1/projects/{id}/ztp/identity-history`只关联已managed且身份matched的前后两次会话。POST提供kind(reinstall/rma)、from/to_session_id、双方expected_version、3～1000字单行reason、confirmed=true；当前fabric:plan权限、同项目同模式、前一次完成不晚于新会话开始为前置。重装保留同一物理UID；RMA使用不同UID和SN，旧SN不改写。每个新会话只有一个不可变前驱；相同请求可安全重试。返回operator_declared历史，不是新设备配置、旧凭据撤销或生产NP证据。
+
+页面在已完成模拟会话中选择前驱并确认，列表区分sim/device。API契约和迁移062已写，迁移及PG用例未执行；不能由历史声明冒充真实RMA PoC。

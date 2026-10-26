@@ -1,3 +1,4 @@
+import {ZTPIdentityHistory} from './ZTPIdentityHistory'
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { NativeCheckbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -142,6 +143,7 @@ function Board() {
       {observations.data?.length === 0 && <p>{t('ztpDeviceObservationsNone')}</p>}
       <ol>{observations.data?.map(item => <li key={item.id}><time>{new Date(item.occurred_at).toLocaleString()}</time> · {item.serial_number} · {item.batch_ref} · {item.event_type}{item.progress_type && <> · {item.progress_type}</>}{item.message && <> · {item.message}</>} · <code>{item.evidence_sha256}</code></li>)}</ol>
     </section>
+    <ZTPIdentityHistory projectId={project.id} current={detail.data} sessions={list.data??[]} canManage={canManage} onRecorded={()=>{void detail.refetch();void list.refetch()}}/>
     {detail.isError && <p role="alert">{t('ztpLoadError')}</p>}
     {current && <section className="panel"><h2>{current.batch_ref} · {current.id}</h2>
       <p>{t('ztpState')}: <strong>{current.state}</strong> · {t('ztpVerdict')}: {current.identity_resolution.verdict} · {t('ztpAttempt')}: {current.attempt}/{current.retry_max + 1}</p>

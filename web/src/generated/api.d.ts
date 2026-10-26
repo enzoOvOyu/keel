@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{id}/ztp/identity-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listZTPIdentityHistory"];
+        put?: never;
+        /** @description Declare lineage between two completed, chronologically ordered sessions in the same project/mode. Reinstall preserves physical identity; RMA links distinct BOM identities. No identity rewrite, credential transfer or device mutation. Identical same-author requests return the original declaration; a target session has only one immutable predecessor. */
+        post: operations["recordZTPIdentityHistory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/host-flow-executions": {
         parameters: {
             query?: never;
@@ -4996,6 +5013,46 @@ export interface components {
             base_mac?: string;
             other_macs?: string[];
         };
+        ZTPIdentityHistorySnapshot: {
+            session_id: components["schemas"]["EntityID"];
+            state_version: number;
+            switch_id: components["schemas"]["EntityID"];
+            serial: string;
+            batch_ref: string;
+            /** @enum {string} */
+            boot_channel: "239" | "143" | "60-43" | "136";
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            managed_at: string;
+        };
+        ZTPIdentityHistoryInput: {
+            /** @enum {string} */
+            kind: "reinstall" | "rma";
+            from_session_id: components["schemas"]["EntityID"];
+            to_session_id: components["schemas"]["EntityID"];
+            from_expected_version: number;
+            to_expected_version: number;
+            reason: string;
+            /** @constant */
+            confirmed: true;
+        };
+        ZTPIdentityHistory: {
+            id: components["schemas"]["EntityID"];
+            project_id: components["schemas"]["EntityID"];
+            /** @enum {string} */
+            kind: "reinstall" | "rma";
+            /** @enum {string} */
+            mode: "sim" | "device";
+            source: components["schemas"]["ZTPIdentityHistorySnapshot"];
+            target: components["schemas"]["ZTPIdentityHistorySnapshot"];
+            reason: string;
+            recorded_by: components["schemas"]["EntityID"];
+            /** Format: date-time */
+            recorded_at: string;
+            /** @enum {string} */
+            declaration_source: "operator_declared";
+        };
         ZTPIdentityResolution: {
             /** @enum {string} */
             verdict: "matched" | "isolated" | "conflict";
@@ -6297,6 +6354,147 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listZTPIdentityHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project scoped identity lineage */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPIdentityHistory"][];
+                };
+            };
+            /** @description Invalid declaration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Current project permission required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Project session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Session state, mode, order or predecessor conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    recordZTPIdentityHistory: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: string;
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZTPIdentityHistoryInput"];
+            };
+        };
+        responses: {
+            /** @description Project scoped identity lineage */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPIdentityHistory"];
+                };
+            };
+            /** @description Invalid declaration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Current project permission required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Project session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Session state, mode, order or predecessor conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     createHostFlowExecution: {
         parameters: {
             query?: never;

@@ -30,3 +30,7 @@ export type ZTPCredentialIssue = components['schemas']['ZTPCredentialIssue']
 export const listZTPCredentialIssues = (projectId: string, signal?: AbortSignal) => request<ZTPCredentialIssue[]>(`/projects/${encodeURIComponent(projectId)}/ztp/credential-issues`, { signal })
 
 export const runZTPSimSession = (projectId: string, id: string, input: components['schemas']['ZTPSimRunInput'], csrf: string) => request<ZTPDetail>(`${base(projectId)}/${encodeURIComponent(id)}/run`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: JSON.stringify(input) })
+
+export type ZTPIdentityHistory=components['schemas']['ZTPIdentityHistory']
+export const listZTPIdentityHistory=(project:string,signal:AbortSignal)=>request<ZTPIdentityHistory[]>(`/projects/${encodeURIComponent(project)}/ztp/identity-history`,{signal})
+export const recordZTPIdentityHistory=(project:string,body:components['schemas']['ZTPIdentityHistoryInput'],csrf:string)=>request<ZTPIdentityHistory>(`/projects/${encodeURIComponent(project)}/ztp/identity-history`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify(body)})

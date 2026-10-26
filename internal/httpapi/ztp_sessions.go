@@ -7,6 +7,7 @@ import (
 )
 
 func (a *authAPI) registerZTPSimSessions(r *gin.Engine) {
+	a.registerZTPIdentityHistory(r)
 	base := "/api/v1/projects/:id/ztp/sim-sessions"
 	r.GET("/api/v1/projects/:id/ztp/credential-issues", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
