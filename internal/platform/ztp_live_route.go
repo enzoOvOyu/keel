@@ -40,6 +40,9 @@ func (s *Store) liveBootRouteTx(ctx context.Context, tx *sql.Tx, project, batch,
 	if job.State != "boot_ready" || job.ActiveHash != live.Hash || job.DORA == nil || job.Spec.ProbeHash != s.FabricProbes.Fingerprint || job.Spec.ControllerKey != key || job.SpecHash != fabricboot.ManagementPlanDigest(job.Spec) || job.DORA.Option239URL != job.Spec.Options.Option239URL {
 		return nil, ErrNotFound
 	}
+	if job.Spec.VendorProfile != nil && !job.Spec.VendorProfile.MatchesProof(job.DORA) {
+		return nil, ErrNotFound
+	}
 	plan, e := currentManagementPlanTx(ctx, tx, project, batch)
 	if e != nil {
 		return nil, e

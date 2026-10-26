@@ -29,6 +29,7 @@ type ProbeTarget struct {
 	SHA256              string `json:"sha256,omitempty"`
 }
 type ProbeConfig struct {
+	Vendor  *DHCPVendorProfile     `json:"dhcp_vendor,omitempty"`
 	DHCP    *DHCPProbeConfig       `json:"dhcp,omitempty"`
 	Version string                 `json:"version"`
 	Targets map[string]ProbeTarget `json:"targets"`
@@ -38,6 +39,7 @@ type environmentProbe struct {
 	client *http.Client
 }
 type ProbeSuite struct {
+	vendor      *DHCPVendorProfile
 	Fingerprint string
 	dhcp        *DHCPProbeConfig
 	targets     map[string]environmentProbe
@@ -78,6 +80,13 @@ func NewProbeSuite(cfg ProbeConfig) (*ProbeSuite, error) {
 		return nil, errors.New("invalid probe protocol configuration version")
 	}
 	out := &ProbeSuite{targets: map[string]environmentProbe{}}
+	if cfg.Vendor != nil {
+		if _, err := cfg.Vendor.Payload(); err != nil {
+			return nil, err
+		}
+		profile := *cfg.Vendor
+		out.vendor = &profile
+	}
 	if cfg.DHCP != nil {
 		if e := cfg.DHCP.Validate(); e != nil {
 			return nil, e

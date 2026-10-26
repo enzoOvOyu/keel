@@ -4441,6 +4441,18 @@ components:
         reasons:
           type: array
           items: { type: string }
+    DHCPVendorProfile:
+      type: object
+      additionalProperties: false
+      required: [version, source_ref, vci, nos, version_intent, nos_suboption, version_suboption]
+      properties:
+        version: { type: string, enum: [dhcp-vendor-tlv/v1] }
+        source_ref: { type: string, minLength: 1, maxLength: 128 }
+        vci: { type: string, minLength: 1, maxLength: 128 }
+        nos: { type: string, minLength: 1, maxLength: 128 }
+        version_intent: { type: string, minLength: 1, maxLength: 128 }
+        nos_suboption: { type: integer, minimum: 1, maximum: 254 }
+        version_suboption: { type: integer, minimum: 1, maximum: 254 }
     KeaDeployment:
       type: object
       required: [id, project_id, state, spec, spec_hash, before_hash, candidate_hash, created_at]
@@ -4459,6 +4471,9 @@ components:
           type: object
           required: [address, mac, server_id, option_239_url, transcript_sha256, lease_seconds, verified_at]
           properties:
+            option_60_vci: { type: string, description: Client VCI sent in both canary requests; not a server echo or device proof. }
+            option_43_hex: { type: string, pattern: '^[a-f0-9]+$' }
+            vendor_profile_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
             option_143_uris: { type: array, items: { type: string } }
             address: { type: string }
             mac: { type: string }
@@ -4480,6 +4495,7 @@ components:
                 management_mac: { type: string }
                 management_ip: { type: string }
                 hostname: { type: string }
+            vendor_profile: { $ref: '#/components/schemas/DHCPVendorProfile' }
             sztp_environment_id: { type: string }
             plan_id: { type: string }
             environment_id: { type: string }

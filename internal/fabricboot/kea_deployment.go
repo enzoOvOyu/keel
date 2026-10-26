@@ -123,7 +123,7 @@ type KeaReservation struct {
 // management subnet. Global settings, other subnets and unrelated reservations
 // are preserved; foreign/ambiguous bindings are rejected instead of overwritten.
 func MergeBootstrap239(live json.RawMessage, cidr, bootURL, owner string, bindings []KeaReservation) (json.RawMessage, error) {
-	return mergeBootstrap239(live, cidr, bootURL, owner, bindings, nil)
+	return mergeBootstrap239(live, cidr, bootURL, owner, bindings, nil, nil)
 }
 func MergeBootstrapDual(live json.RawMessage, cidr, bootURL, owner string, bindings []KeaReservation, uris []string) (json.RawMessage, error) {
 	redirect, e := EncodeSZTPRedirect(uris)
@@ -133,9 +133,26 @@ func MergeBootstrapDual(live json.RawMessage, cidr, bootURL, owner string, bindi
 	if len(redirect) > 255 {
 		return nil, errors.New("option143 payload exceeds the single-option capability")
 	}
-	return mergeBootstrap239(live, cidr, bootURL, owner, bindings, redirect)
+	return mergeBootstrap239(live, cidr, bootURL, owner, bindings, redirect, nil)
 }
-func mergeBootstrap239(live json.RawMessage, cidr, bootURL, owner string, bindings []KeaReservation, redirect []byte) (json.RawMessage, error) {
+
+// MergeBootstrapVendor adds the operator-defined option43 TLV to the exact
+// managed reservations. Option60 remains client-supplied, not a server echo.
+func MergeBootstrapVendor(live json.RawMessage, cidr, bootURL, owner string, bindings []KeaReservation, uris []string, profile DHCPVendorProfile) (json.RawMessage, error) {
+	var redirect []byte
+	if len(uris) > 0 {
+		var err error
+		redirect, err = EncodeSZTPRedirect(uris)
+		if err != nil || len(redirect) > 255 {
+			return nil, errors.New("invalid option143 redirect")
+		}
+	}
+	if _, err := profile.Payload(); err != nil {
+		return nil, err
+	}
+	return mergeBootstrap239(live, cidr, bootURL, owner, bindings, redirect, &profile)
+}
+func mergeBootstrap239(live json.RawMessage, cidr, bootURL, owner string, bindings []KeaReservation, redirect []byte, profile *DHCPVendorProfile) (json.RawMessage, error) {
 	if len(bootURL) > 255 || !strings.HasPrefix(bootURL, "https://") {
 		return nil, errors.New("239 URL must be HTTPS and fit one DHCP option")
 	}
@@ -148,6 +165,14 @@ func mergeBootstrap239(live json.RawMessage, cidr, bootURL, owner string, bindin
 	dhcp, ok := config["Dhcp4"].(map[string]any)
 	if !ok {
 		return nil, errors.New("missing Dhcp4")
+	}
+	if profile != nil {
+		// This adapter uses the built-in RFC2132 TLV interpretation. A controller
+		// with custom option43 definitions needs its own vendor adapter; never
+		// overwrite definitions used by unrelated clients.
+		if err := rejectCustomVendorDefinitions(dhcp); err != nil {
+			return nil, err
+		}
 	}
 	// Shared-network subnets and external host databases require their own
 	// adapter. Fail explicitly, never add a parallel shadow subnet or reservation.
@@ -204,6 +229,11 @@ func mergeBootstrap239(live json.RawMessage, cidr, bootURL, owner string, bindin
 			options := record["option-data"].([]any)
 			record["option-data"] = append(options, map[string]any{"code": 143, "space": "dhcp4", "csv-format": false, "data": hex.EncodeToString(redirect), "always-send": true})
 		}
+		if profile != nil {
+			payload, _ := profile.Payload()
+			record["user-context"].(map[string]any)["keel-vendor-profile"] = ManagementPlanDigest(*profile)
+			record["option-data"] = append(record["option-data"].([]any), map[string]any{"code": 43, "space": "dhcp4", "csv-format": false, "data": hex.EncodeToString(payload), "always-send": true})
+		}
 		replaced := false
 		for i, entry := range existing {
 			current, ok := entry.(map[string]any)
@@ -221,11 +251,22 @@ func mergeBootstrap239(live json.RawMessage, cidr, bootURL, owner string, bindin
 				if !matchMAC || context["keel-owner"] != owner || context["keel-switch"] != binding.SwitchID {
 					return nil, fmt.Errorf("conflicting existing reservation for switch %s", binding.SwitchID)
 				}
-				if len(context) != 2 {
+				vendorOwned := false
+				if marker, ok := context["keel-vendor-profile"].(string); ok && len(marker) == 64 {
+					decoded, err := hex.DecodeString(marker)
+					vendorOwned = err == nil && len(decoded) == 32
+				}
+				if len(context) != 2 && !(profile != nil && vendorOwned && len(context) == 3) {
 					return nil, errors.New("managed reservation contains independent metadata")
 				}
+				if profile == nil && vendorOwned {
+					return nil, errors.New("vendor-managed reservation requires an explicit vendor profile")
+				}
 				options, ok := current["option-data"].([]any)
-				if !ok || len(options) < 1 || len(options) > 2 || len(redirect) == 0 && len(options) != 1 {
+				if !ok || len(options) < 1 || len(options) > 3 || len(redirect) == 0 && len(options) > 1 && !vendorOwned {
+					return nil, errors.New("managed reservation contains independent options")
+				}
+				if profile == nil && len(options) > 2 {
 					return nil, errors.New("managed reservation contains independent options")
 				}
 				seenCodes := map[string]bool{}
@@ -235,7 +276,7 @@ func mergeBootstrap239(live json.RawMessage, cidr, bootURL, owner string, bindin
 						return nil, errors.New("invalid managed option")
 					}
 					code := fmt.Sprint(option["code"])
-					if seenCodes[code] || code != "239" && (code != "143" || len(redirect) == 0) {
+					if seenCodes[code] || code != "239" && (code != "143" || len(redirect) == 0) && (code != "43" || profile == nil || !vendorOwned) {
 						return nil, errors.New("managed reservation contains independent options")
 					}
 					seenCodes[code] = true
@@ -274,4 +315,36 @@ func KeaConfigDigest(raw json.RawMessage) string {
 		return ""
 	}
 	return ManagementPlanDigest(value)
+}
+
+// Definitions may occur in global, subnet and class scopes. Refuse ambiguous
+// semantics even when the immediate managed reservation could be overwritten.
+func rejectCustomVendorDefinitions(value any) error {
+	switch v := value.(type) {
+	case map[string]any:
+		if defs, ok := v["option-def"].([]any); ok {
+			for _, raw := range defs {
+				def, ok := raw.(map[string]any)
+				if !ok {
+					return errors.New("invalid Kea option definition")
+				}
+				space, _ := def["space"].(string)
+				if (fmt.Sprint(def["code"]) == "43" && (space == "" || space == "dhcp4")) || space == "vendor-encapsulated-options-space" {
+					return errors.New("custom option43 definitions require a dedicated vendor adapter")
+				}
+			}
+		}
+		for _, child := range v {
+			if err := rejectCustomVendorDefinitions(child); err != nil {
+				return err
+			}
+		}
+	case []any:
+		for _, child := range v {
+			if err := rejectCustomVendorDefinitions(child); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

@@ -37,7 +37,7 @@ WP-1.17 当前增量：把 N-S2/N-S3 准备结果接入真实 Kea 控制协议�
 
 当前适配器只处理已有顶层`Dhcp4.subnet4`管理网中、带唯一SoT管理MAC的Cumulus 239隔离脚本预留。保留其他子网、全局设置和第三方预留；冲突、外部host数据库、独立附加配置均显式拒绝。完整内容读回采用严格规范化JSON比较，实际Kea默认字段规范化差异需在PoC记录原始脱敏样本并改协议适配器，不能放宽准入。媒体必须与服务端生成的已批准隔离脚本SHA256/大小一致，不承接生产网络配置。
 
-**尚未交付**：租约后端独立查询、43厂商profile/IPv6生产适配、个性化最小管理渲染、凭据取用/轮换、无回执未知写入核实恢复。新增独立DORA探针和239真实路由，`boot_ready`才允许引导；`config_persisted`绝不激活设备路由，也不投影managed/IN_SYNC/NP-2。PoC部署前按剩余功能核对；不能把本次协议桩连通写成设备开通验收。
+**尚未交付**：租约后端独立查询、IPv6生产适配、凭据完整生命周期、无回执未知写入核实恢复（个性化最小管理渲染与可管理确认已接续，见ZTP-COMPLETION）。新增独立DORA探针和239真实路由，`boot_ready`才允许引导；`config_persisted`绝不激活设备路由，也不投影managed/IN_SYNC/NP-2。PoC部署前按剩余功能核对；不能把本次协议桩连通写成设备开通验收。
 
 ## 验证与复现
 
@@ -73,3 +73,13 @@ RFC8572§8.3采用每条URI的2字节网络序长度前缀；Kea预留写入二�
 补充防护：最终DORA证据落库前重新读取并锁定执行意图、账号是否启用/是否平台管理员及项目成员资格；途中取消/撤权不开放新路由。只要配置了真实Kea端点，关闭写入也不会重新开放mock路由。
 
 已验证：239+143协议桩DORA和真实API/Worker/数据库浏览器链，证据`/tmp/keel-shell-7ly7d7cy`，含Store真实143准入、错误设备源拒绝、陈旧/未知写入阻断。URI二进制编码/136封装/独立选项保护与DORA错误143负例定向检查已执行。协议依据：[RFC8572§8](https://www.rfc-editor.org/rfc/rfc8572.html#section-8)。未做真机PoC。
+
+## 显式厂商60/43契约（2026-10-26，源码未验证）
+
+`fabric-probes/v1`增加可选的顶层`dhcp_vendor`：`version=dhcp-vendor-tlv/v1`、`source_ref`、`vci`、`nos`、`version_intent`、`nos_suboption`、`version_suboption`。后两个编号必须由目标厂商契约/PoC明确提供，范围1～254且不同；不提供Cumulus或其他厂商的猜测编号/默认格式。`source_ref`是公开协议出处，不填秘密。这里仅支持RFC2132的两项code/length/value文本子选项，总包络≤255字节；其他厂商编码需独立适配。
+
+配置在API/worker加载时校验并复制，完整内容进入N-S3指纹和暂存spec摘要；来源或格式改变，旧自检/待执行快照不能继续。真实reservation增加二进制option43及`keel-vendor-profile`所有权摘要，沿原config-test、共享Execution、控制端资源锁、持久化/读回路径执行。既有平台239/143预留可显式升级；第三方43、附加字段、全局/类/其他层自定义43或默认vendor子空间定义均拒绝，不重定义其他客户的协议解释。已有厂商标记不允许通过关闭配置静默删除。
+
+option60按[RFC2132§9.13](https://www.rfc-editor.org/rfc/rfc2132.html#section-9.13)由客户端发送，服务器使用43返回厂商信息；不伪造server echo，不将VCI作认证凭据。独立canary的Discover/Request发送冻结VCI并请求43，Offer与Ack均必须实际返回精确冻结43字节；回执记录发送的VCI、观测43 hex、profile摘要和原始报文转录摘要。只有这些证据与spec一致，才可开放对应真实引导路由。未配置profile保留既有239/143功能，页面明确不证明43已配置/生效。当前适配不对未知VCI客户端宣称分类隔离，也不证明设备理解了NOS意向、安装了该版本或已经可管理。
+
+协议依据：[RFC2132§8.4](https://www.rfc-editor.org/rfc/rfc2132.html#section-8.4)、[ISC二进制选项与厂商格式](https://kea.readthedocs.io/en/kea-2.6.3/arm/dhcp4-srv.html)。新增契约/所有权/配置指纹和真实UDP协议fixture反例源码；按用户安排未执行。仅格式化和API类型生成，不代表Kea版本支持或硬件PoC通过。

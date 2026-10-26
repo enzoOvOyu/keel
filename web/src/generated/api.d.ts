@@ -4814,6 +4814,16 @@ export interface components {
             identity_priority?: "sn" | "mgmt" | "base" | "other";
             reasons: string[];
         };
+        DHCPVendorProfile: {
+            /** @enum {string} */
+            version: "dhcp-vendor-tlv/v1";
+            source_ref: string;
+            vci: string;
+            nos: string;
+            version_intent: string;
+            nos_suboption: number;
+            version_suboption: number;
+        };
         KeaDeployment: {
             id: string;
             project_id: string;
@@ -4827,6 +4837,10 @@ export interface components {
             failure_code?: string;
             verification_code?: string;
             dora?: {
+                /** @description Client VCI sent in both canary requests; not a server echo or device proof. */
+                option_60_vci?: string;
+                option_43_hex?: string;
+                vendor_profile_sha256?: string;
                 option_143_uris?: string[];
                 address: string;
                 mac: string;
@@ -4846,6 +4860,7 @@ export interface components {
                     management_ip: string;
                     hostname: string;
                 };
+                vendor_profile?: components["schemas"]["DHCPVendorProfile"];
                 sztp_environment_id?: string;
                 plan_id: string;
                 environment_id: string;

@@ -25,14 +25,17 @@ type DHCPProbeConfig struct {
 	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
 }
 type DHCPProof struct {
-	Option143URIs    []string  `json:"option_143_uris,omitempty"`
-	Address          string    `json:"address"`
-	MAC              string    `json:"mac"`
-	ServerID         string    `json:"server_id"`
-	Option239URL     string    `json:"option_239_url"`
-	TranscriptSHA256 string    `json:"transcript_sha256"`
-	LeaseSeconds     uint32    `json:"lease_seconds"`
-	VerifiedAt       time.Time `json:"verified_at"`
+	Option60VCI         string    `json:"option_60_vci,omitempty"`
+	Option43Hex         string    `json:"option_43_hex,omitempty"`
+	VendorProfileSHA256 string    `json:"vendor_profile_sha256,omitempty"`
+	Option143URIs       []string  `json:"option_143_uris,omitempty"`
+	Address             string    `json:"address"`
+	MAC                 string    `json:"mac"`
+	ServerID            string    `json:"server_id"`
+	Option239URL        string    `json:"option_239_url"`
+	TranscriptSHA256    string    `json:"transcript_sha256"`
+	LeaseSeconds        uint32    `json:"lease_seconds"`
+	VerifiedAt          time.Time `json:"verified_at"`
 }
 
 func (p DHCPProbeConfig) Validate() error {
@@ -74,7 +77,7 @@ func dhcpPacket(xid []byte, mac net.HardwareAddr, relay netip.Addr, kind byte, r
 	copy(b[236:240], []byte{99, 130, 83, 99})
 	b = append(b, 53, 1, kind, 61, 7, 1)
 	b = append(b, mac...)
-	b = append(b, 55, 6, 1, 3, 51, 54, 239, 143)
+	b = append(b, 55, 7, 1, 3, 43, 51, 54, 239, 143)
 	if len(vendor) > 0 {
 		b = append(b, 60, byte(len(vendor)))
 		b = append(b, []byte(vendor)...)
@@ -133,8 +136,27 @@ func (p DHCPProbeConfig) Verify239(ctx context.Context, url, vendor string) (*DH
 	return p.VerifyBootstrap(ctx, url, vendor, nil)
 }
 func (p DHCPProbeConfig) VerifyBootstrap(ctx context.Context, url, vendor string, uris []string) (*DHCPProof, error) {
+	return p.verifyBootstrap(ctx, url, vendor, uris, nil)
+}
+
+func (p DHCPProbeConfig) VerifyVendorBootstrap(ctx context.Context, url string, uris []string, profile DHCPVendorProfile) (*DHCPProof, error) {
+	if _, err := profile.Payload(); err != nil {
+		return nil, err
+	}
+	return p.verifyBootstrap(ctx, url, profile.VCI, uris, &profile)
+}
+
+func (p DHCPProbeConfig) verifyBootstrap(ctx context.Context, url, vendor string, uris []string, profile *DHCPVendorProfile) (*DHCPProof, error) {
 	if e := ctx.Err(); e != nil {
 		return nil, e
+	}
+	var vendorData []byte
+	if profile != nil {
+		var err error
+		vendorData, err = profile.Payload()
+		if err != nil {
+			return nil, err
+		}
 	}
 	var redirect []byte
 	if len(uris) > 0 {
@@ -204,6 +226,9 @@ func (p DHCPProbeConfig) VerifyBootstrap(ctx context.Context, url, vendor string
 			if err != nil {
 				return nil, nil, err
 			}
+			if err := verifyVendorReply(options, vendorData); err != nil {
+				return nil, nil, err
+			}
 			if len(redirect) > 0 && !bytes.Equal(options[143], redirect) {
 				return nil, nil, errors.New("DHCP SZTP redirect does not match the approved bootstrap server")
 			}
@@ -224,7 +249,13 @@ func (p DHCPProbeConfig) VerifyBootstrap(ctx context.Context, url, vendor string
 	}
 	var serverIP [4]byte
 	copy(serverIP[:], ack[54])
-	return &DHCPProof{Option143URIs: append([]string(nil), uris...), Address: p.Address, MAC: mac.String(), ServerID: netip.AddrFrom4(serverIP).String(), Option239URL: url, TranscriptSHA256: hex.EncodeToString(transcript.Sum(nil)), LeaseSeconds: binary.BigEndian.Uint32(ack[51]), VerifiedAt: time.Now().UTC()}, nil
+	proof := &DHCPProof{Option143URIs: append([]string(nil), uris...), Address: p.Address, MAC: mac.String(), ServerID: netip.AddrFrom4(serverIP).String(), Option239URL: url, TranscriptSHA256: hex.EncodeToString(transcript.Sum(nil)), LeaseSeconds: binary.BigEndian.Uint32(ack[51]), VerifiedAt: time.Now().UTC()}
+	if profile != nil {
+		proof.Option60VCI = vendor
+		proof.Option43Hex = hex.EncodeToString(vendorData)
+		proof.VendorProfileSHA256 = ManagementPlanDigest(*profile)
+	}
+	return proof, nil
 }
 func (s *ProbeSuite) DHCPProbe() *DHCPProbeConfig {
 	if s == nil || s.dhcp == nil {

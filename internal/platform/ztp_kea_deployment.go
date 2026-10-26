@@ -18,14 +18,15 @@ type KeaDeploymentInput struct {
 	PolicyMediaID string `json:"policy_media_id"`
 }
 type KeaDeploymentSpec struct {
-	SZTPEnvironmentID string                      `json:"sztp_environment_id,omitempty"`
-	Canary            *fabricboot.KeaReservation  `json:"canary,omitempty"`
-	PlanID            string                      `json:"plan_id"`
-	EnvironmentID     string                      `json:"environment_id"`
-	ProbeHash         string                      `json:"probe_hash"`
-	ControllerKey     string                      `json:"controller_key"`
-	Options           fabricboot.DHCPOptions      `json:"options"`
-	Bindings          []fabricboot.KeaReservation `json:"bindings"`
+	VendorProfile     *fabricboot.DHCPVendorProfile `json:"vendor_profile,omitempty"`
+	SZTPEnvironmentID string                        `json:"sztp_environment_id,omitempty"`
+	Canary            *fabricboot.KeaReservation    `json:"canary,omitempty"`
+	PlanID            string                        `json:"plan_id"`
+	EnvironmentID     string                        `json:"environment_id"`
+	ProbeHash         string                        `json:"probe_hash"`
+	ControllerKey     string                        `json:"controller_key"`
+	Options           fabricboot.DHCPOptions        `json:"options"`
+	Bindings          []fabricboot.KeaReservation   `json:"bindings"`
 }
 type KeaDeployment struct {
 	DORA             *fabricboot.DHCPProof `json:"dora,omitempty"`
@@ -93,6 +94,11 @@ func (s *Store) keaDeploymentFactsTx(ctx context.Context, tx *sql.Tx, a *AuthSes
 	}
 	query := url.Values{"project": {projectID}, "batch": {input.BatchRef}, "stage": {"N-S4"}, "policy": {input.PolicyMediaID}}
 	cfg := fabricboot.DHCPOptions{ProjectID: projectID, BatchRef: input.BatchRef, StageRef: "N-S4", ManagementCIDR: plan.Rules.CIDR, Option239URL: origin + "/api/v1/boot/ztp?" + query.Encode(), Option143URIs: []string{origin}, Option60VCI: "cumulus-linux x86_64", Option43: map[string]string{"nos": "cumulus-linux", "version_intent": "5.x"}}
+	vendorProfile := s.FabricProbes.DHCPVendorProfile()
+	if vendorProfile != nil {
+		cfg.Option60VCI = vendorProfile.VCI
+		cfg.Option43 = map[string]string{"nos": vendorProfile.NOS, "version_intent": vendorProfile.VersionIntent}
+	}
 	sztpEnvironmentID := ""
 	if sztpOrigin, enabled := s.FabricProbes.SZTPOrigin(); enabled {
 		cfg.Option143URIs = []string{sztpOrigin}
@@ -117,7 +123,7 @@ func (s *Store) keaDeploymentFactsTx(ctx context.Context, tx *sql.Tx, a *AuthSes
 	if e != nil {
 		return nil, e
 	}
-	out := &KeaDeploymentSpec{SZTPEnvironmentID: sztpEnvironmentID, PlanID: plan.ID, EnvironmentID: report.ID, ProbeHash: report.ConfigHash, ControllerKey: key, Options: cfg, Bindings: []fabricboot.KeaReservation{}}
+	out := &KeaDeploymentSpec{VendorProfile: vendorProfile, SZTPEnvironmentID: sztpEnvironmentID, PlanID: plan.ID, EnvironmentID: report.ID, ProbeHash: report.ConfigHash, ControllerKey: key, Options: cfg, Bindings: []fabricboot.KeaReservation{}}
 	for _, assignment := range plan.Assignments {
 		if assignment.Batch != input.BatchRef {
 			continue
@@ -348,7 +354,13 @@ func (s *Store) RunKeaDeployment(ctx context.Context, jobID, executionID string)
 		if facts.SZTPEnvironmentID != "" {
 			redirects = facts.Options.Option143URIs
 		}
-		proof, verifyErr := s.FabricProbes.DHCPProbe().VerifyBootstrap(ctx, facts.Options.Option239URL, facts.Options.Option60VCI, redirects)
+		var proof *fabricboot.DHCPProof
+		var verifyErr error
+		if facts.VendorProfile != nil {
+			proof, verifyErr = s.FabricProbes.DHCPProbe().VerifyVendorBootstrap(ctx, facts.Options.Option239URL, redirects, *facts.VendorProfile)
+		} else {
+			proof, verifyErr = s.FabricProbes.DHCPProbe().VerifyBootstrap(ctx, facts.Options.Option239URL, facts.Options.Option60VCI, redirects)
+		}
 		if verifyErr != nil {
 			verificationCode = "dora_failed"
 		} else {
@@ -456,6 +468,13 @@ func (s *Store) KeaPolicyOptions(ctx context.Context, a *AuthSession, p *Project
 }
 
 func renderKeaCandidate(live json.RawMessage, spec *KeaDeploymentSpec) (json.RawMessage, error) {
+	if spec.VendorProfile != nil {
+		var uris []string
+		if spec.SZTPEnvironmentID != "" {
+			uris = spec.Options.Option143URIs
+		}
+		return fabricboot.MergeBootstrapVendor(live, spec.Options.ManagementCIDR, spec.Options.Option239URL, spec.Options.ProjectID, keaDeploymentBindings(spec), uris, *spec.VendorProfile)
+	}
 	if spec.SZTPEnvironmentID != "" {
 		return fabricboot.MergeBootstrapDual(live, spec.Options.ManagementCIDR, spec.Options.Option239URL, spec.Options.ProjectID, keaDeploymentBindings(spec), spec.Options.Option143URIs)
 	}

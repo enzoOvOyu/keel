@@ -10,7 +10,7 @@ import (
 )
 
 func TestDHCPWireDORA(t *testing.T) {
-	for _, scenario := range []string{"ok", "dual-ok", "dual-mismatch", "wrong-url", "wrong-identity", "nak", "changed-server", "truncated"} {
+	for _, scenario := range []string{"ok", "dual-ok", "dual-mismatch", "vendor-ok", "vendor-missing", "vendor-wrong-ack", "wrong-url", "wrong-identity", "nak", "changed-server", "truncated"} {
 		t.Run(scenario, func(t *testing.T) {
 			server, e := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 			if e != nil {
@@ -76,6 +76,14 @@ func TestDHCPWireDORA(t *testing.T) {
 						response = append(response, 143, byte(len(data)))
 						response = append(response, data...)
 					}
+					if strings.HasPrefix(scenario, "vendor-") && scenario != "vendor-missing" {
+						data, _ := testDHCPVendorProfile().Payload()
+						if scenario == "vendor-wrong-ack" && i == 1 {
+							data[len(data)-1] ^= 1
+						}
+						response = append(response, 43, byte(len(data)))
+						response = append(response, data...)
+					}
 					response = append(response, 255)
 					if scenario == "truncated" {
 						response = response[:len(response)-3]
@@ -88,8 +96,16 @@ func TestDHCPWireDORA(t *testing.T) {
 			if strings.HasPrefix(scenario, "dual-") {
 				redirects = []string{"https://sztp.example.invalid:8443"}
 			}
-			proof, e := cfg.VerifyBootstrap(context.Background(), "https://boot.example.invalid/ztp", "cumulus-linux x86_64", redirects)
-			if scenario == "ok" || scenario == "dual-ok" {
+			var proof *DHCPProof
+			if strings.HasPrefix(scenario, "vendor-") {
+				proof, e = cfg.VerifyVendorBootstrap(context.Background(), "https://boot.example.invalid/ztp", redirects, testDHCPVendorProfile())
+			} else {
+				proof, e = cfg.VerifyBootstrap(context.Background(), "https://boot.example.invalid/ztp", "cumulus-linux x86_64", redirects)
+			}
+			if scenario == "vendor-ok" && !testDHCPVendorProfile().MatchesProof(proof) {
+				t.Fatal("missing exact vendor observation")
+			}
+			if scenario == "ok" || scenario == "dual-ok" || scenario == "vendor-ok" {
 				if e != nil || proof == nil || len(proof.TranscriptSHA256) != 64 || proof.LeaseSeconds != 600 {
 					t.Fatalf("proof=%+v err=%v", proof, e)
 				}
