@@ -147,11 +147,12 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer artifact.File.Close()
-	if err = verifyArtifact(ctx, artifact, resource); err != nil {
+	guard := &fileGuard{ctx: ctx, scope: g.Scope, authority: g.Authority, grant: grant, peer: peer, resource: resource}
+	if err = verifyArtifact(ctx, artifact, resource, guard); err != nil {
 		unavailable()
 		return
 	}
-	if grant.Validate(g.Scope, time.Now()) != nil || g.Authority.CheckFile(ctx, g.Scope, grant, peer, resource) != nil || ctx.Err() != nil || grant.Validate(g.Scope, time.Now()) != nil {
+	if grant.Validate(g.Scope, time.Now()) != nil || ctx.Err() != nil {
 		unavailable()
 		return
 	}
@@ -165,19 +166,30 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	// ServeContent implements conditional/Range/HEAD over the verified exact
 	// version. Authentication and full verification always precede any 304/206.
-	http.ServeContent(w, r.WithContext(ctx), resource, time.Time{}, contextSeeker{ctx: ctx, reader: artifact.File, guard: &fileGuard{ctx: ctx, scope: g.Scope, authority: g.Authority, grant: grant, peer: peer, resource: resource}})
+	http.ServeContent(w, r.WithContext(ctx), resource, time.Time{}, contextSeeker{ctx: ctx, reader: artifact.File, guard: guard})
 }
-func verifyArtifact(ctx context.Context, a Artifact, resource string) error {
+func verifyArtifact(ctx context.Context, a Artifact, resource string, guard *fileGuard) error {
 	if a.File == nil || !sha256ID.MatchString(a.SHA256) || a.Size < 1 || a.Size > resourceLimit(resource) || resourceLimit(resource) == 0 || len(a.ObjectVersion) < 1 || len(a.ObjectVersion) > 4096 || a.ObjectVersion == "null" {
+		return ErrDenied
+	}
+	if guard != nil && !guard.check() {
 		return ErrDenied
 	}
 	if _, err := a.File.Seek(0, io.SeekStart); err != nil {
 		return ErrDenied
 	}
 	h := sha256.New()
-	n, err := io.Copy(h, io.LimitReader(contextReader{ctx, a.File}, a.Size+1))
+	n, err := io.Copy(h, io.LimitReader(contextSeeker{ctx: ctx, reader: a.File, guard: guard}, a.Size+1))
 	if err != nil || n != a.Size || hex.EncodeToString(h.Sum(nil)) != a.SHA256 {
 		return ErrDenied
+	}
+	// Always recheck the live authority after hashing, including tiny objects
+	// that finish inside the normal 250ms revalidation interval.
+	if guard != nil {
+		guard.checked = time.Time{}
+		if !guard.check() {
+			return ErrDenied
+		}
 	}
 	_, err = a.File.Seek(0, io.SeekStart)
 	if err != nil {
@@ -234,6 +246,7 @@ type fileGuard struct {
 func (g *fileGuard) check() bool {
 	now := time.Now()
 	if g.denied || g.ctx.Err() != nil || !g.grant.ExpiresAt.After(now) {
+		g.denied = true
 		return false
 	}
 	if !g.checked.IsZero() && now.Sub(g.checked) < 250*time.Millisecond {

@@ -1160,3 +1160,10 @@ Make新增build-installer-helpers跨架构生产两份实际helper；CLI不接DB
 接续6d075f3，新增provisionboot.VerifyBootFiles：独立可信控制脚本/内核参数的SHA256先核原始规范清单，再核固定可安装配方、项目/架构角色、预检原始字节和user/meta-data摘要，关联全套申请/机器/attempt/command/fence/快照/期限/MAC/架构与NoCloud instance-id。拒绝自报信任根、未知/重复/大小写别名JSON及尾随、错绑/过期/字节变化。RenderBootBundle复用原有相同NoCloud metadata规则；HTTP实际固定对象版本上限对齐登记层4096，并拒绝MinIO字面值null版本。
 
 函数只校验数据，不下载/执行/写盘或签发许可；尚未接入实际受控initrd/当前lease Authority/一次性回调。新增往返/内部错绑/篡改/解析歧义及版本边界用例未运行。实际仅执行带原overlay/内存限制的provisionboot编译（go test -p=1 -run '^$'，/tmp/keel-boot-files-compile.log）和定向go vet（/tmp/keel-boot-files-vet.log），退出0；设计静态检查见本次提交。无SQL/镜像/生产或3000变更，P1保持partial。
+
+
+## 87. 引导对象摘要读取期间的持续授权检查（2026-10-26，源码待集中验证）
+
+接续ce48c9f，HTTP/TFTP在完整摘要验证前创建同一fileGuard，并在每次读取中检查context/期限、每250ms复核当前Authority；摘要后强制一次新检查，避免短对象使用缓存授权。通过后复用同一guard传输，失败保持终止；不再等读完整个大对象才发现撤销。HTTP最终返回状态/头部前仍核验期限，TFTP亦在Open结束前核验真实Authority。
+
+新增无sleep的读取钩子用例，覆盖中途撤销/过期/取消、提前停止读取、失败不可复活及短对象最后一次读取后撤销；仅写入未运行。实际执行带原overlay/内存限制的provisionboot编译与定向go vet，退出0（/tmp/keel-boot-hash-guard-{compile,vet}.log）；设计检查见本次提交。没有监听、生产授权器接线、SQL或3000变动；底层Authority仍须支持context取消和返回不可变精确版本文件。

@@ -322,9 +322,83 @@ func TestBootArtifactPinnedVersionBoundaries(t *testing.T) {
 		valid   bool
 	}{{"real-version", true}, {strings.Repeat("v", 4096), true}, {"", false}, {"null", false}, {strings.Repeat("v", 4097), false}} {
 		artifact := Artifact{File: memoryFile{bytes.NewReader(raw)}, Size: int64(len(raw)), SHA256: hex.EncodeToString(sum[:]), ObjectVersion: tc.version}
-		err := verifyArtifact(context.Background(), artifact, "kernel")
+		err := verifyArtifact(context.Background(), artifact, "kernel", nil)
 		if (err == nil) != tc.valid {
 			t.Fatalf("version length %d valid=%v error=%v", len(tc.version), tc.valid, err)
 		}
+	}
+}
+
+// hashReadHook injects revocation during file verification without sleeps or
+// real network/device access. It deliberately hides Reader's WriteTo method.
+type hashReadHook struct {
+	reader *bytes.Reader
+	once   func()
+	read   int
+}
+
+func (h *hashReadHook) Read(p []byte) (int, error) {
+	if len(p) > 1024 {
+		p = p[:1024]
+	}
+	n, err := h.reader.Read(p)
+	h.read += n
+	if n > 0 && h.once != nil {
+		fn := h.once
+		h.once = nil
+		fn()
+	}
+	return n, err
+}
+func (h *hashReadHook) Seek(offset int64, whence int) (int64, error) {
+	return h.reader.Seek(offset, whence)
+}
+func (h *hashReadHook) Close() error { return nil }
+
+func TestBootArtifactStopsHashingAfterPermissionLoss(t *testing.T) {
+	for _, loss := range []string{"revoked", "expired", "context_canceled"} {
+		t.Run(loss, func(t *testing.T) {
+			scope, authority := fixture()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			guard := &fileGuard{ctx: ctx, scope: scope, authority: authority, grant: authority.grant, peer: netip.MustParseAddr("192.0.2.10"), resource: "kernel"}
+			raw := bytes.Repeat([]byte("a"), 128<<10)
+			f := &hashReadHook{reader: bytes.NewReader(raw)}
+			f.once = func() {
+				switch loss {
+				case "revoked":
+					authority.mu.Lock()
+					authority.denied = true
+					authority.mu.Unlock()
+					guard.checked = time.Now().Add(-time.Second)
+				case "expired":
+					guard.grant.ExpiresAt = time.Now().Add(-time.Second)
+				case "context_canceled":
+					cancel()
+				}
+			}
+			a := Artifact{File: f, SHA256: bytesDigest(raw), Size: int64(len(raw)), ObjectVersion: "pinned-version"}
+			if verifyArtifact(ctx, a, "kernel", guard) == nil || f.read >= len(raw) {
+				t.Fatal("continued full object verification after permission loss")
+			}
+			authority.mu.Lock()
+			authority.denied = false
+			authority.mu.Unlock()
+			guard.grant.ExpiresAt = time.Now().Add(time.Minute)
+			if guard.check() {
+				t.Fatal("failed transfer resurrected")
+			}
+		})
+	}
+}
+func TestBootArtifactRechecksAuthorityAfterShortHash(t *testing.T) {
+	scope, authority := fixture()
+	ctx := context.Background()
+	guard := &fileGuard{ctx: ctx, scope: scope, authority: authority, grant: authority.grant, peer: netip.MustParseAddr("192.0.2.10"), resource: "kernel"}
+	raw := []byte("small approved object")
+	f := &hashReadHook{reader: bytes.NewReader(raw), once: func() { authority.mu.Lock(); authority.denied = true; authority.mu.Unlock() }}
+	a := Artifact{File: f, SHA256: bytesDigest(raw), Size: int64(len(raw)), ObjectVersion: "pinned-version"}
+	if verifyArtifact(ctx, a, "kernel", guard) == nil {
+		t.Fatal("cached authority check admitted a revoked short object")
 	}
 }

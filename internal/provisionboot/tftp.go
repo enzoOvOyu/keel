@@ -90,11 +90,12 @@ func OpenTFTP(ctx context.Context, scope Scope, authority FileAuthority, peer ne
 	if artifact.File == nil {
 		return nil, ErrDenied
 	}
-	if err = verifyArtifact(ctx, artifact, resource); err != nil {
+	guard := &fileGuard{ctx: ctx, scope: scope, authority: authority, grant: grant, peer: peer, resource: resource}
+	if err = verifyArtifact(ctx, artifact, resource, guard); err != nil {
 		artifact.File.Close()
 		return nil, err
 	}
-	return &TFTPTransfer{scope: scope, authority: authority, grant: grant, peer: peer, resource: resource, artifact: artifact, ctx: ctx, guard: &fileGuard{ctx: ctx, scope: scope, authority: authority, grant: grant, peer: peer, resource: resource}}, nil
+	return &TFTPTransfer{scope: scope, authority: authority, grant: grant, peer: peer, resource: resource, artifact: artifact, ctx: ctx, guard: guard}, nil
 }
 func (t *TFTPTransfer) Close() error {
 	if t.closed {
