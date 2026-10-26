@@ -601,6 +601,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/artifact-retrievals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retrieve an approved artifact from one fixed target cache
+         * @description Default off. One current SSH/Agent target; exact independently approved media identity; no arbitrary path or URL. Full target and controller SHA/size verification, versioned captured output and original receipt required. Partial transfers are never downloadable; explicit new execution required after a failed window.
+         */
+        post: operations["createArtifactRetrieval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/executions/{executionId}/outputs/{attemptId}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Current project member download of immutable, fully SHA/size-verified captured target bytes, bound to the exact original successful task receipt. Historical download never contacts a target or authorizes new work. Missing/partial/unknown output is rejected. Rechecks current session/membership after storage verification. Supports HTTP Range against the same version; each request fully verifies stored content first. */
+        get: operations["downloadRetrievedArtifact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1415,6 +1452,13 @@ export interface components {
             approved_by: string;
             /** Format: date-time */
             updated_at: string;
+        };
+        ArtifactRetrieveInput: {
+            machine_ids: string[];
+            media_id: string;
+            /** @enum {string} */
+            transport: "ssh" | "agent";
+            timeout_ms: number;
         };
     };
     responses: {
@@ -2831,6 +2875,90 @@ export interface operations {
             413: components["responses"]["TooLarge"];
             415: components["responses"]["UnsupportedMediaType"];
             503: components["responses"]["Unavailable"];
+        };
+    };
+    createArtifactRetrieval: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArtifactRetrieveInput"];
+            };
+        };
+        responses: {
+            /** @description Created immutable bounded retrieval execution */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    downloadRetrievedArtifact: {
+        parameters: {
+            query?: never;
+            header?: {
+                Range?: string;
+                "If-Range"?: string;
+            };
+            path: {
+                id: string;
+                executionId: string;
+                attemptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Verified captured binary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Requested byte range of the same verified captured binary */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Unsatisfiable byte range */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
 }

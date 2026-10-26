@@ -24,7 +24,7 @@ func (s *Store) agentArtifactRequestTx(ctx context.Context, tx *sql.Tx, r taskru
 		Retry      int           `json:"retry"`
 		Idempotent bool          `json:"idempotent"`
 	}
-	if json.Unmarshal(raw, &t) != nil || t.Artifact == nil || t.Type != "media.stage" || t.TimeoutMS != c.TimeoutMS || t.Retry != 0 || t.Idempotent || t.Artifact.Command(c) != c {
+	if json.Unmarshal(raw, &t) != nil || t.Artifact == nil || t.Type != c.Operation || c.Operation != "media.stage" && c.Operation != "media.fetch" || t.TimeoutMS != c.TimeoutMS || t.Retry != 0 || t.Idempotent || t.Artifact.Command(c) != c {
 		return taskrunner.ErrRejected
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT payload FROM exec_outbox WHERE execution_id=$1 AND event_type='artifact.dispatch_committed' AND payload->>'attempt_id'=$2 ORDER BY sequence LIMIT 2`, execution, c.AttemptID)

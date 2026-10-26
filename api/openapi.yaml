@@ -29,6 +29,10 @@ tags:
 - name: Audit
 - name: BOM
 paths:
+  /api/v1/projects/{id}/artifact-retrievals:
+    $ref: './execution.openapi.yaml#/paths/~1api~1v1~1projects~1{id}~1artifact-retrievals'
+  /api/v1/projects/{id}/executions/{executionId}/outputs/{attemptId}/content:
+    $ref: './execution.openapi.yaml#/paths/~1api~1v1~1projects~1{id}~1executions~1{executionId}~1outputs~1{attemptId}~1content'
   /api/v1/projects/{id}/artifact-distributions:
     $ref: './execution.openapi.yaml#/paths/~1api~1v1~1projects~1{id}~1artifact-distributions'
   /api/v1/projects/{id}/executions/{executionId}/report:

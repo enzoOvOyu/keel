@@ -644,7 +644,9 @@ export function ExecutionWorkspace({
       </header>
       <p className="impact-notice">
         {t(
-          ["ssh", "agent"].includes(current.execution.mode) && current.timeline.some(task => task.task_type === "media.stage")
+          ["ssh", "agent"].includes(current.execution.mode) && current.timeline.some(task => task.task_type === "media.fetch")
+            ? "artifactRetrievalNotice"
+            : ["ssh", "agent"].includes(current.execution.mode) && current.timeline.some(task => task.task_type === "media.stage")
             ? "artifactExecutionNotice"
             : ["ssh", "agent"].includes(current.execution.mode) && current.timeline.some(task => task.task_type === "script.run")
             ? "scriptExecutionNotice"

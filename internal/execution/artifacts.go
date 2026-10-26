@@ -33,8 +33,24 @@ func (s *Service) CreateArtifactDistribution(ctx context.Context, a *Actor, proj
 	}
 	return nil, invalid("transport must be ssh or agent")
 }
+func (s *Service) CreateArtifactRetrieval(ctx context.Context, a *Actor, project string, in ArtifactCreateInput, key, trace string) (*Execution, error) {
+	if s.MediaStore == nil || !s.MediaStore.ArtifactTransfersEnabled {
+		return nil, failure(409, "ARTIFACT_TRANSFERS_DISABLED", "Artifact retrieval is disabled")
+	}
+	if len(in.MachineIDs) != 1 || !opaqueID.MatchString(in.MediaID) || in.TimeoutMS < 100 || in.TimeoutMS > 30000 {
+		return nil, invalid("One target, approved media and a bounded window are required")
+	}
+	input := SSHCreateInput{MachineIDs: in.MachineIDs, ArtifactMediaID: in.MediaID, Operation: "media.fetch", TimeoutMS: in.TimeoutMS}
+	if in.Transport == "ssh" {
+		return s.createSSH(ctx, a, project, input, "", 0, key, trace)
+	}
+	if in.Transport == "agent" {
+		return s.createAgent(ctx, a, project, input, key, trace)
+	}
+	return nil, invalid("transport must be ssh or agent")
+}
 func validateArtifactCreate(in SSHCreateInput, request string) error {
-	if in.Operation != "media.stage" {
+	if in.Operation != "media.stage" && in.Operation != "media.fetch" {
 		if in.ArtifactMediaID != "" {
 			return invalid("Artifact media is allowed only on distribution tasks")
 		}
@@ -47,12 +63,12 @@ func validateArtifactCreate(in SSHCreateInput, request string) error {
 }
 func (s *Service) artifactFrozenTx(ctx context.Context, tx *sql.Tx, project string, t Task) error {
 	if t.Artifact == nil {
-		if t.Type == "media.stage" {
+		if t.Type == "media.stage" || t.Type == "media.fetch" {
 			return failure(409, "TASK_ARTIFACT_REQUIRED", "Frozen artifact snapshot required")
 		}
 		return nil
 	}
-	if t.Type != "media.stage" || t.Script != nil || t.Retry != 0 || t.Idempotent || s.MediaStore == nil {
+	if t.Type != "media.stage" && t.Type != "media.fetch" || t.Script != nil || t.Retry != 0 || t.Idempotent || s.MediaStore == nil {
 		return failure(409, "TASK_ARTIFACT_POLICY_INVALID", "Frozen distribution policy is unavailable")
 	}
 	_, err := s.MediaStore.ResolveTaskArtifactTx(ctx, tx, project, t.Artifact.MediaID, t.Artifact)

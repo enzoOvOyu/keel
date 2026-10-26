@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"mime"
+	"net/http"
 	"strconv"
 	"time"
 )
@@ -123,6 +125,27 @@ func (a *authAPI) registerExecutionViews(r *gin.Engine) {
 			return
 		}
 		c.JSON(200, out)
+	})
+	r.GET(base+"/outputs/:attemptId/content", func(c *gin.Context) {
+		actor, service, ok := a.executionProject(c, false)
+		if !ok {
+			return
+		}
+		done := mediaDeadline(c)
+		defer done()
+		out, err := service.DownloadArtifact(c.Request.Context(), actor, c.Param("id"), c.Param("executionId"), c.Param("attemptId"), c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		defer out.Body.Close()
+		c.Header("Content-Type", "application/octet-stream")
+		c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": "keel-artifact-" + out.SHA256 + ".bin"}))
+		c.Header("Cache-Control", "private, no-store")
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Content-SHA256", out.SHA256)
+		c.Header("ETag", `"`+out.SHA256+`"`)
+		http.ServeContent(c.Writer, c.Request, "artifact.bin", out.CreatedAt, out.Body)
 	})
 	r.GET(base+"/outputs/:attemptId/download", func(c *gin.Context) {
 		actor, s, ok := a.executionProject(c, false)

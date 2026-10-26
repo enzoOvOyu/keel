@@ -2839,6 +2839,172 @@
         },
         "summary": "Distribute independently approved immutable media to a fixed target cache"
       }
+    },
+    "/api/v1/projects/{id}/artifact-retrievals": {
+      "post": {
+        "operationId": "createArtifactRetrieval",
+        "tags": [
+          "Artifact distribution"
+        ],
+        "x-permission": "execution:create",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created immutable bounded retrieval execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Execution"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Default off. One current SSH/Agent target; exact independently approved media identity; no arbitrary path or URL. Full target and controller SHA/size verification, versioned captured output and original receipt required. Partial transfers are never downloadable; explicit new execution required after a failed window.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArtifactRetrieveInput"
+              }
+            }
+          }
+        },
+        "summary": "Retrieve an approved artifact from one fixed target cache"
+      }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/outputs/{attemptId}/content": {
+      "get": {
+        "operationId": "downloadRetrievedArtifact",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "attemptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "Range",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Range",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified captured binary",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "206": {
+            "description": "Requested byte range of the same verified captured binary",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "416": {
+            "description": "Unsatisfiable byte range"
+          }
+        },
+        "description": "Current project member download of immutable, fully SHA/size-verified captured target bytes, bound to the exact original successful task receipt. Historical download never contacts a target or authorizes new work. Missing/partial/unknown output is rejected. Rechecks current session/membership after storage verification. Supports HTTP Range against the same version; each request fully verifies stored content first."
+      }
     }
   },
   "components": {
@@ -6285,6 +6451,44 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "ArtifactRetrieveInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "machine_ids",
+          "media_id",
+          "transport",
+          "timeout_ms"
+        ],
+        "properties": {
+          "machine_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          "media_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "transport": {
+            "type": "string",
+            "enum": [
+              "ssh",
+              "agent"
+            ]
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 30000
           }
         }
       }

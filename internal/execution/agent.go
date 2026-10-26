@@ -111,7 +111,7 @@ func (s *Service) CreateAgentScript(ctx context.Context, a *Actor, project strin
 }
 
 func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (_ *Execution, resultErr error) {
-	if in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" && in.Operation != "host.artifact.inventory" && in.Operation != "script.run" && in.Operation != "media.stage" {
+	if in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" && in.Operation != "host.artifact.inventory" && in.Operation != "script.run" && in.Operation != "media.stage" && in.Operation != "media.fetch" {
 		return nil, invalid("Only allowlisted bounded host operations are admitted by the Agent channel")
 	}
 	if in.TimeoutMS == 0 {
@@ -121,7 +121,7 @@ func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in 
 		return nil, err
 	}
 	check := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: project, MachineID: "00000000000000000000000000000000", CommandID: "00000000000000000000000000000000", AttemptID: "00000000000000000000000000000000", FencingToken: 1, Operation: in.Operation, TimeoutMS: in.TimeoutMS, WaitMS: in.WaitMS, CacheCursor: in.CacheCursor, CacheManifestSHA256: in.CacheManifestSHA256}
-	if (in.Operation != "script.run" && in.Operation != "media.stage" && (in.PreferScriptCache || check.Validate() != nil)) || (in.Operation == "script.run" && (in.CacheCursor != "" || in.CacheManifestSHA256 != "" || in.ScriptResultFormat != "" && in.ScriptResultFormat != "json" || !opaqueID.MatchString(in.ScriptMediaID) || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0)) || len(in.MachineIDs) < 1 || len(in.MachineIDs) > 32 || in.CacheCursor != "" && len(in.MachineIDs) != 1 {
+	if (in.Operation != "script.run" && in.Operation != "media.stage" && in.Operation != "media.fetch" && (in.PreferScriptCache || check.Validate() != nil)) || (in.Operation == "script.run" && (in.CacheCursor != "" || in.CacheManifestSHA256 != "" || in.ScriptResultFormat != "" && in.ScriptResultFormat != "json" || !opaqueID.MatchString(in.ScriptMediaID) || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0)) || len(in.MachineIDs) < 1 || len(in.MachineIDs) > 32 || in.CacheCursor != "" && len(in.MachineIDs) != 1 {
 		return nil, invalid("1..32 machine IDs and bounded Agent host queries are required")
 	}
 	ids := append([]string{}, in.MachineIDs...)
@@ -160,7 +160,7 @@ func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in 
 		return &x, e
 	}
 	var artifact *platform.TaskArtifact
-	if in.Operation == "media.stage" {
+	if in.Operation == "media.stage" || in.Operation == "media.fetch" {
 		if s.MediaStore == nil {
 			return nil, failure(409, "ARTIFACT_TRANSFERS_DISABLED", "Artifact media service unavailable")
 		}
@@ -223,6 +223,9 @@ func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in 
 	x.Snapshot = Snapshot{Mode: "agent", Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "Bounded read-only host query through a current registered mTLS Agent and exact provisioned project asset; no hardware/G3/installation acceptance", FrozenAt: now}
 	if artifact != nil {
 		x.Snapshot.Admission = "Independently approved immutable media; exclusive target lease and original bounded authorization; resumable owned fixed-cache checkpoints; success requires full SHA256/size verification; no installation or execution"
+		if in.Operation == "media.fetch" {
+			x.Snapshot.Admission = "Independently approved media read from an owned fixed target cache; bounded original authority; full SHA/size verified on target and controller before versioned output publication; no arbitrary paths or installation"
+		}
 	}
 	if script != nil {
 		x.Snapshot.Admission = "Independently approved immutable bounded script through the pinned mTLS Agent; exclusive device lease, one dispatch, no automatic retry; unknown effects retain isolation"
@@ -245,7 +248,11 @@ func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in 
 		return nil, e
 	}
 	if artifact != nil {
-		if e = audit(ctx, tx, a.User.ID, project, "media.distribute", artifact.MediaID, trace, map[string]any{"execution_id": x.ID, "transport": x.Mode, "sha256": artifact.SHA256, "size": artifact.Size, "object_version": artifact.ObjectVersion, "target_count": len(targets), "target_hash": x.TargetSetHash}); e != nil {
+		kind := "media.distribute"
+		if in.Operation == "media.fetch" {
+			kind = "media.retrieve"
+		}
+		if e = audit(ctx, tx, a.User.ID, project, kind, artifact.MediaID, trace, map[string]any{"execution_id": x.ID, "transport": x.Mode, "sha256": artifact.SHA256, "size": artifact.Size, "object_version": artifact.ObjectVersion, "target_count": len(targets), "target_hash": x.TargetSetHash}); e != nil {
 			return nil, e
 		}
 	}

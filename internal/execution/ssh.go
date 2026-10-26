@@ -88,7 +88,7 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 		return nil, err
 	}
 	check := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: project, MachineID: "00000000000000000000000000000000", CommandID: "00000000000000000000000000000000", AttemptID: "00000000000000000000000000000000", FencingToken: 1, Operation: in.Operation, TimeoutMS: in.TimeoutMS, WaitMS: in.WaitMS, CacheCursor: in.CacheCursor, CacheManifestSHA256: in.CacheManifestSHA256}
-	if (in.Operation != "script.run" && in.Operation != "media.stage" && (in.PreferScriptCache || check.Validate() != nil)) || (in.Operation == "script.run" && (in.CacheCursor != "" || in.CacheManifestSHA256 != "" || in.ScriptResultFormat != "" && in.ScriptResultFormat != "json" || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0 || requestID != "" || !opaqueID.MatchString(in.ScriptMediaID))) || (requestID == "" && len(in.MachineIDs) == 0) || len(in.MachineIDs) > 32 || in.CacheCursor != "" && len(in.MachineIDs) != 1 {
+	if (in.Operation != "script.run" && in.Operation != "media.stage" && in.Operation != "media.fetch" && (in.PreferScriptCache || check.Validate() != nil)) || (in.Operation == "script.run" && (in.CacheCursor != "" || in.CacheManifestSHA256 != "" || in.ScriptResultFormat != "" && in.ScriptResultFormat != "json" || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0 || requestID != "" || !opaqueID.MatchString(in.ScriptMediaID))) || (requestID == "" && len(in.MachineIDs) == 0) || len(in.MachineIDs) > 32 || in.CacheCursor != "" && len(in.MachineIDs) != 1 {
 		return nil, invalid("1..32 machine IDs and a bounded host.identity or host.wait operation are required")
 	}
 	if e := s.cacheInventoryAdmission(in.Operation); e != nil {
@@ -132,7 +132,7 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 		return &x, e
 	}
 	var artifact *platform.TaskArtifact
-	if in.Operation == "media.stage" {
+	if in.Operation == "media.stage" || in.Operation == "media.fetch" {
 		if s.MediaStore == nil {
 			return nil, failure(409, "ARTIFACT_TRANSFERS_DISABLED", "Artifact media service unavailable")
 		}
@@ -236,6 +236,9 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 	x.Snapshot = Snapshot{Mode: "ssh", Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "Read-only allowlisted operation, provisioned project asset, exact operator binding and established pinned host key; not hardware acceptance", FrozenAt: now}
 	if artifact != nil {
 		x.Snapshot.Admission = "Independently approved immutable media; exclusive target lease and original bounded authorization; resumable owned fixed-cache checkpoints; success requires full SHA256/size verification; no installation or execution"
+		if in.Operation == "media.fetch" {
+			x.Snapshot.Admission = "Independently approved media read from an owned fixed target cache; bounded original authority; full SHA/size verified on target and controller before versioned output publication; no arbitrary paths or installation"
+		}
 	}
 	if script != nil {
 		x.Snapshot.Admission = "Independently approved immutable Linux script artifact; fixed non-root interpreter; bounded execution and complete process-tree stop proof required; no automatic replay or rollback claim"
@@ -269,7 +272,11 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 		return nil, e
 	}
 	if artifact != nil {
-		if e = audit(ctx, tx, a.User.ID, project, "media.distribute", artifact.MediaID, trace, map[string]any{"execution_id": x.ID, "transport": x.Mode, "sha256": artifact.SHA256, "size": artifact.Size, "object_version": artifact.ObjectVersion, "target_count": len(targets), "target_hash": x.TargetSetHash}); e != nil {
+		kind := "media.distribute"
+		if in.Operation == "media.fetch" {
+			kind = "media.retrieve"
+		}
+		if e = audit(ctx, tx, a.User.ID, project, kind, artifact.MediaID, trace, map[string]any{"execution_id": x.ID, "transport": x.Mode, "sha256": artifact.SHA256, "size": artifact.Size, "object_version": artifact.ObjectVersion, "target_count": len(targets), "target_hash": x.TargetSetHash}); e != nil {
 			return nil, e
 		}
 	}
@@ -351,6 +358,13 @@ func (s *Service) recordHost(ctx context.Context, mode string, o taskrunner.Obse
 		return taskrunner.ErrUnknown
 	}
 	output := map[string]any{"machine_id": o.Command.MachineID, "mode": mode, "source": "host", "transport": mode, "hardware_evidence": false, "operation": o.Command.Operation, "observation": o.Output}
+	if o.Command.Operation == "media.fetch" && o.State == "success" {
+		artifact, err := s.artifactOutputForReceipt(ctx, o.Command)
+		if err != nil {
+			return err
+		}
+		output["artifact_output"] = artifact
+	}
 	return s.RecordReceipt(ctx, Receipt{CommandID: o.Command.CommandID, AttemptID: o.Command.AttemptID, FencingToken: o.Command.FencingToken, Result: o.State, StartedAt: o.StartedAt, FinishedAt: o.FinishedAt, Output: output})
 }
 
@@ -475,7 +489,9 @@ func (s *Service) runHostClaim(ctx context.Context, c *Claim, mode string) error
 		return taskrunner.ErrUnknown
 	}
 	var o taskrunner.Observation
-	if c.Task.Artifact != nil {
+	if c.Task.Type == "media.fetch" {
+		o, e = s.streamArtifactFetch(work, runner, c, command)
+	} else if c.Task.Artifact != nil {
 		o, e = s.streamArtifact(work, runner, c, command, creator)
 	} else {
 		o, e = runner.Do(work, run)

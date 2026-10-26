@@ -106,6 +106,9 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 	if r.Validate() != nil || privateDirectory(w.StateDirectory) != nil {
 		return zero, ErrRejected
 	}
+	if r.Command.Operation == "media.fetch" {
+		return handleArtifactFetch(ctx, w.StateDirectory, ArtifactCacheDirectory, r, w.ArtifactTransfersEnabled)
+	}
 	if r.Command.Operation == "media.stage" {
 		return handleArtifactTransfer(ctx, w.StateDirectory, ArtifactCacheDirectory, r, w.ArtifactTransfersEnabled)
 	}

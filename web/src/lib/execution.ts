@@ -70,3 +70,5 @@ export const requestScriptNonstartProof = (projectId:string,executionId:string,a
 
 export type ArtifactCreateInput = components['schemas']['ArtifactCreateInput']
 export const createArtifactDistribution = (projectId:string, body:ArtifactCreateInput, csrf:string, key:string) => request<components['schemas']['Execution']>(`/projects/${encodeURIComponent(projectId)}/artifact-distributions`, {method:'POST', headers:{'X-CSRF-Token':csrf, 'Idempotency-Key':key}, body:JSON.stringify(body)})
+
+export const createArtifactRetrieval = (projectId:string, body:components['schemas']['ArtifactRetrieveInput'], csrf:string, key:string) => request<components['schemas']['Execution']>(`/projects/${encodeURIComponent(projectId)}/artifact-retrievals`, {method:'POST', headers:{'X-CSRF-Token':csrf, 'Idempotency-Key':key}, body:JSON.stringify(body)})

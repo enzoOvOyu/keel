@@ -17,7 +17,14 @@ func validateArtifactCommand(c TaskCommand) error {
 }
 
 func validateArtifactObservation(o Observation) error {
-	if o.Output["artifact_sha256"] != o.Command.ArtifactSHA256 || o.Output["artifact_size"] == nil || o.Output["cache_directory"] != ArtifactCacheDirectory || o.Output["writer_stopped"] != true {
+	if o.Output["artifact_sha256"] != o.Command.ArtifactSHA256 || o.Output["artifact_size"] == nil || o.Output["cache_directory"] != ArtifactCacheDirectory {
+		return ErrRejected
+	}
+	if o.Command.Operation == "media.fetch" {
+		if o.Output["reader_stopped"] != true {
+			return ErrRejected
+		}
+	} else if o.Output["writer_stopped"] != true {
 		return ErrRejected
 	}
 	size, ok := scriptOutputInteger(o.Output["artifact_size"])
@@ -32,8 +39,13 @@ func validateArtifactObservation(o Observation) error {
 	if !ok {
 		return ErrRejected
 	}
+	reason := o.Output["reason"]
 	if o.State == "success" {
-		if !verified || offset != size || o.Output["reason"] != "artifact_verified" {
+		expected := "artifact_verified"
+		if o.Command.Operation == "media.fetch" {
+			expected = "artifact_retrieved"
+		}
+		if !verified || offset != size || reason != expected {
 			return ErrRejected
 		}
 		return nil
@@ -41,9 +53,16 @@ func validateArtifactObservation(o Observation) error {
 	if verified {
 		return ErrRejected
 	}
-	switch o.Output["reason"] {
-	case "artifact_checkpointed", "artifact_cache_unavailable", "artifact_transfer_busy", "artifact_cache_rejected", "artifact_digest_mismatch":
-		return nil
+	if o.Command.Operation == "media.fetch" {
+		switch reason {
+		case "artifact_read_stopped", "artifact_source_changed", "artifact_source_unavailable", "artifact_digest_mismatch":
+			return nil
+		}
+	} else {
+		switch reason {
+		case "artifact_checkpointed", "artifact_cache_unavailable", "artifact_transfer_busy", "artifact_cache_rejected", "artifact_digest_mismatch":
+			return nil
+		}
 	}
 	return ErrRejected
 }

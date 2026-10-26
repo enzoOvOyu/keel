@@ -50,10 +50,10 @@ func (c TaskCommand) Validate() error {
 	if c.APIVersion != APIVersion || !idPattern.MatchString(c.ProjectID) || !idPattern.MatchString(c.MachineID) || !idPattern.MatchString(c.CommandID) || !idPattern.MatchString(c.AttemptID) || c.FencingToken < 1 || c.TimeoutMS < 100 || c.TimeoutMS > 30000 {
 		return ErrRejected
 	}
-	if c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "trust.verify" && c.Operation != "trust.install" && c.Operation != "script.run" && c.Operation != "host.cache.inventory" && c.Operation != "host.artifact.inventory" && c.Operation != "media.stage" {
+	if c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "trust.verify" && c.Operation != "trust.install" && c.Operation != "script.run" && c.Operation != "host.cache.inventory" && c.Operation != "host.artifact.inventory" && c.Operation != "media.stage" && c.Operation != "media.fetch" {
 		return ErrRejected
 	}
-	if c.Operation == "media.stage" {
+	if c.Operation == "media.stage" || c.Operation == "media.fetch" {
 		if validateArtifactCommand(c) != nil {
 			return ErrRejected
 		}
@@ -78,7 +78,7 @@ func (c TaskCommand) Validate() error {
 		if _, err := installPublicIdentity(c.PublicKey, c.ProjectID); err != nil || c.AuthorizationExpiresAt < 1 {
 			return ErrRejected
 		}
-	} else if c.PublicKey != "" || c.Operation != "script.run" && c.Operation != "media.stage" && c.AuthorizationExpiresAt != 0 {
+	} else if c.PublicKey != "" || c.Operation != "script.run" && c.Operation != "media.stage" && c.Operation != "media.fetch" && c.AuthorizationExpiresAt != 0 {
 		return ErrRejected
 	}
 	if (c.Operation != "host.wait" && c.WaitMS != 0) || c.WaitMS < 0 || c.WaitMS > 30000 {
@@ -107,8 +107,14 @@ type Request struct {
 // receipt state can be consumed. Query/cancel/cache/settle never carry executable bytes.
 // Cached runs carry only frozen metadata; the target verifies actual owned bytes.
 func (r Request) Validate() error {
-	if r.Command.Validate() != nil || (r.Action != "run" && r.Action != "query" && r.Action != "cancel" && r.Action != "cache" && r.Action != "settle" && r.Action != "append" && r.Action != "commit") {
+	if r.Command.Validate() != nil || (r.Action != "run" && r.Action != "query" && r.Action != "cancel" && r.Action != "cache" && r.Action != "settle" && r.Action != "append" && r.Action != "commit" && r.Action != "read") {
 		return ErrRejected
+	}
+	if r.Action == "read" {
+		if r.Command.Operation != "media.fetch" || len(r.Script) != 0 || r.UseCachedScript || len(r.Chunk) != 0 || r.ChunkSHA256 != "" || r.ChunkOffset < 0 || r.ChunkOffset >= r.Command.ArtifactSize || r.ChunkOffset%ArtifactChunkBytes != 0 {
+			return ErrRejected
+		}
+		return nil
 	}
 	if r.Action == "append" {
 		if r.Command.Operation != "media.stage" || len(r.Script) != 0 || r.UseCachedScript || validateArtifactChunk(r) != nil {
@@ -116,7 +122,7 @@ func (r Request) Validate() error {
 		}
 		return nil
 	}
-	if len(r.Chunk) != 0 || r.ChunkOffset != 0 || r.ChunkSHA256 != "" || r.Action == "commit" && r.Command.Operation != "media.stage" {
+	if len(r.Chunk) != 0 || r.ChunkOffset != 0 || r.ChunkSHA256 != "" || r.Action == "commit" && r.Command.Operation != "media.stage" && r.Command.Operation != "media.fetch" {
 		return ErrRejected
 	}
 	if r.Action == "settle" && r.Command.Operation != "script.run" {
@@ -162,7 +168,7 @@ func (o Observation) Validate(c TaskCommand) error {
 	if c.Operation == "script.run" && o.Terminal() && validateScriptObservation(o) != nil {
 		return ErrRejected
 	}
-	if c.Operation == "media.stage" && o.Terminal() && validateArtifactObservation(o) != nil {
+	if (c.Operation == "media.stage" || c.Operation == "media.fetch") && o.Terminal() && validateArtifactObservation(o) != nil {
 		return ErrRejected
 	}
 	if c.Operation == "host.artifact.inventory" && o.Terminal() && validateArtifactInventoryObservation(o) != nil {
