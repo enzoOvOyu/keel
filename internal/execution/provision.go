@@ -107,6 +107,19 @@ func (s *Service) CreateProvisionPreparation(ctx context.Context, a *Actor, proj
 	return x, tx.Commit()
 }
 func (s *Service) provisionFrozenTx(ctx context.Context, tx *sql.Tx, target Target) error {
+	if target.ProvisionInstallationID != "" {
+		if s.ProvisionStore == nil {
+			return failure(503, "PROVISION_INSTALL_DISABLED", "Installation worker disabled")
+		}
+		x, err := s.ProvisionStore.ValidateProvisionInstallationQueuedTx(ctx, tx, target.ProjectID, target.ProvisionInstallationID)
+		if err != nil {
+			return err
+		}
+		if x.RequestID != target.ProvisionRequestID || x.SnapshotSHA256 != target.ProvisionSnapshotSHA256 || x.MachineID != target.ResourceKey {
+			return conflict("Frozen installation binding changed")
+		}
+		return nil
+	}
 	if s.ProvisionStore == nil || !s.ProvisionStore.ProvisionPrepareEnabled {
 		return failure(503, "PROVISION_PREPARATION_DISABLED", "Preparation worker disabled")
 	}
@@ -205,6 +218,12 @@ func provisionReceiptTarget(ctx context.Context, tx *sql.Tx, a Attempt, r Receip
 	if err = jsonDecodeProvisionTarget(snapshot, &target); err != nil {
 		return nil, err
 	}
+	if target.ProvisionInstallationID != "" {
+		if err = installationReceiptTarget(ctx, tx, &target, a, r); err != nil {
+			return nil, err
+		}
+		return &target, nil
+	}
 	if r.Output["schema"] != "keel.provision-preparation-proof/v1" || r.Output["request_id"] != target.ProvisionRequestID || r.Output["snapshot_sha256"] != target.ProvisionSnapshotSHA256 || r.Output["installation_performed"] != false {
 		return nil, conflict("Preparation proof does not match its frozen target")
 	}
@@ -223,12 +242,18 @@ func (s *Service) applyProvisionReceipt(ctx context.Context, tx *sql.Tx, a Attem
 	if err != nil || target == nil {
 		return err
 	}
+	if target.ProvisionInstallationID != "" {
+		return nil
+	}
 	return platform.ApplyProvisionPreparationReceiptTx(ctx, tx, a.ExecutionID, target.ProvisionRequestID, target.ProvisionSnapshotSHA256, r.Result, r.FinishedAt)
 }
 
 // Pending cancellation is evidence that no task ever started. Started/unknown
 // commands keep the request pinned until an actual durable receipt is reconciled.
 func cancelUnstartedProvisionTx(ctx context.Context, tx *sql.Tx, execution string) error {
+	if _, err := tx.ExecContext(ctx, `WITH changed AS (UPDATE provision_installations SET state='canceled',state_version=state_version+1,failure_reason='canceled_before_dispatch',updated_at=now() WHERE execution_id=$1 AND state='queued' AND attempt_id IS NULL AND NOT EXISTS(SELECT 1 FROM exec_task_attempts WHERE execution_id=$1 AND started_at IS NOT NULL) RETURNING id) INSERT INTO provision_installation_events(installation_id,event_type,payload,created_at) SELECT id,'installation.canceled_unstarted','{"installation_performed":false}'::jsonb,now() FROM changed`, execution); err != nil {
+		return err
+	}
 	var request string
 	err := tx.QueryRowContext(ctx, `SELECT id FROM provision_requests WHERE execution_id=$1 AND state='preparing' AND NOT EXISTS(SELECT 1 FROM exec_task_attempts WHERE execution_id=$1 AND started_at IS NOT NULL) FOR UPDATE`, execution).Scan(&request)
 	if err == sql.ErrNoRows {

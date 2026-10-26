@@ -14,6 +14,9 @@ import (
 // Persisting a simulator receipt and applying it are separate fault boundaries.
 func (s *Service) RunClaim(ctx context.Context, c *Claim) error {
 	if c.Target.Mode == "provision" {
+		if c.Target.ProvisionInstallationID != "" {
+			return s.runProvisionInstallationClaim(ctx, c)
+		}
 		return s.runProvisionPreparationClaim(ctx, c)
 	}
 	if c.Target.Mode == "agent" {

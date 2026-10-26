@@ -55,6 +55,10 @@ type provisionKernelFixture struct {
 }
 
 func provisionKernel(t *testing.T) *provisionKernelFixture {
+	return provisionKernelWithRecipe(t, false)
+}
+
+func provisionKernelWithRecipe(t *testing.T, installable bool) *provisionKernelFixture {
 	t.Helper()
 	f := agentKernel(t)
 	ctx := context.Background()
@@ -101,6 +105,15 @@ func provisionKernel(t *testing.T) *provisionKernelFixture {
 	template := upload("template", "config", "noarch", "#cloud-config\nlocale: en_US.UTF-8\n", nil)
 	profile := mediaboot.Profile{Schema: mediaboot.Schema, Installer: "cloud-init", KernelMediaID: kernel.ID, InitrdMediaID: initrd.ID, TemplateMediaID: template.ID}
 	refs := []platform.MediaArtifactDependency{{MediaID: kernel.ID, SHA256: kernel.Sha256}, {MediaID: initrd.ID, SHA256: initrd.Sha256}, {MediaID: template.ID, SHA256: template.Sha256}}
+	if installable {
+		uefi := upload("uefi", "os", "amd64", "non-executed fixture UEFI", nil)
+		preflight := upload("preflight", "os", "amd64", "non-executed fixture preflight", nil)
+		ssh := upload("ssh-helper", "os", "amd64", "non-executed fixture SSH helper", nil)
+		profile.Recipe = &mediaboot.Recipe{Schema: mediaboot.RecipeSchema, Protocol: mediaboot.InitrdProtocol, RootFSFormat: "squashfs", UEFIMediaID: uefi.ID, PreflightMediaID: preflight.ID, SSHHelperMediaID: ssh.ID, PreflightSHA256: preflight.Sha256, SSHHelperSHA256: ssh.Sha256}
+		for _, media := range []*platform.MediaItemSummary{uefi, preflight, ssh} {
+			refs = append(refs, platform.MediaArtifactDependency{MediaID: media.ID, SHA256: media.Sha256})
+		}
+	}
 	root := upload("rootfs", "os", "amd64", "fixture rootfs", map[string]any{"os_boot": profile, "artifacts": refs})
 	master := filepath.Join(t.TempDir(), "master")
 	mustAgent(t, credentialvault.GenerateMaster(master))

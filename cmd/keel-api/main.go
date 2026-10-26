@@ -58,6 +58,10 @@ func main() {
 		defer store.Close()
 		store.AgentTasksEnabled = os.Getenv("KEEL_AGENT_TASKS_ENABLED") == "true"
 		store.ProvisionPrepareEnabled = os.Getenv("KEEL_PROVISION_PREPARE_ENABLED") == "true"
+		if err = store.ConfigureProvisionInstall(os.Getenv("KEEL_PROVISION_INSTALL_ENABLED") == "true", os.Getenv("KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE")); err != nil {
+			slog.Error("provision installer public trust configuration rejected")
+			os.Exit(1)
+		}
 		store.LDAP, err = ldapauth.Load(os.Getenv("KEEL_LDAP_CONFIG_FILE"))
 		if err != nil {
 			slog.Error("directory authentication configuration rejected")
@@ -94,6 +98,10 @@ func main() {
 		}
 		if objects != nil {
 			store.MediaObjects = objects
+		}
+		if store.ProvisionInstallEnabled && store.MediaObjects == nil {
+			slog.Error("provision installation requires configured media storage")
+			os.Exit(1)
 		}
 		store.MediaManifestSigner, err = mediamanifest.LoadSigner(os.Getenv("KEEL_MEDIA_SIGNING_KEY_FILE"))
 		if err != nil {

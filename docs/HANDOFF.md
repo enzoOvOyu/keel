@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～92。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～98。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，三小时开发窗口进行中）
 
@@ -1240,3 +1240,14 @@ Makefile新增双架构build-initrd，CI已有ARM编译列表加入新命令，�
 新增独立审批、声明清单、scope/baseline双向冲突、并发只准一个、撤销、当前NDE失权、DE/Viewer及跨项目用例只写入。provision-only regex补入TestProvisionBootScope。实际定向编译/vet与OpenAPI类型生成、npm run check（含UI边界检查），日志/tmp/keel-provision-scopes-{compile,vet,api,tsc}.log；没有应用054/其他SQL、跑集成或浏览器、构建发布镜像。P1 partial；下一步绑定实际安装Execution/独占lease、一次性启动凭据及存储审批。
 
 §97检查补充：最终直接tsc --noEmit -p web/tsconfig.json及定向编译退出0。npm run check自身含6条版本输入静态检查器自检并已通过（不是新增产品用例/浏览器验收）；额外误调用不存在的scripts/check-ui-boundaries.py退出2，未重跑同类检查，正确web/scripts/check-ui-boundaries.mjs已由npm run check通过。后续仅用直接tsc与必要静态入口，避免重复生成/检查。
+
+
+## 98. 独立安装会话、启动身份与写盘前审批（2026-10-26，源码待集中验证）
+
+接续e79bfbb，新增055安装会话/单次启动Token/append-only事件源迁移；与prepared证据分离的provision.install原生Execution使用新attempt/command/fence和与SSH/Agent共享的独占machine lease，无自动重试。源申请只能消费一次，活动或unknown安装阻断新准备；平台和execution复用相同机器准入锁编码。实际源字节及签名initrd必须经独立公钥验证，短期不透明验证结果才能用于激活；hash期间不持attempt/resource锁，激活与每次后续变更重查当前权限、批准网络域、冻结BOM/介质/公钥和独占租约。Execution行先锁定，随后attempt/resource和安装行，与完成/控制/回收锁序对齐。
+
+新增Ed25519单次启动身份绑定及完整payload摘要、operation/installation/boot/递增sequence签名，Token只保存hash，数据库owner CLI provision-boot-token-issue将原值写入现有私有目录中新0600文件，不出stdout/公共iPXE/清单/cloud-init；失败尝试撤销，已消费Token不可复用。可信带外交付给目标机器仍须另行实现/明确操作。预检回调存精确原始报告并复算PASS/FAIL/BLOCKED；只有新鲜认证事实才能选定WWID/serial/几何及擦盘意图，另一Admin/DL（不同于安装发起人及选盘人）批准不可变布局。当前审批不是写盘许可。项目安装API及OpenAPI/生成TS已加入；没有新增安装页面操作。
+
+KEEL_PROVISION_INSTALL_ENABLED默认false，与准备开关分离；API/worker开启需独立KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE。此增量仅写盘前持久状态/准入：没有激活生产引导监听、文件Authority、签名回调HTTP接入、initrd凭据接收/续会话或实际写盘器。正常runner只能持锁等待或证明没有任何permit的写盘前失败/取消；不能生成成功。未来一旦发过permit，缺终态回执必须unknown并保留资源对账，不能借此分支解锁。启动后first-boot host-key绑定、真实SSH首连/修复、七阶段投影与真机PoC仍未完成，WP-1.7/P1保持partial。055未应用，运行库/3000/5173不变。
+
+启动签名错绑/重放/篡改/边界、原生Execution默认关闭/缺配方/幂等/无重试/与Agent互斥、无效initrd启动前失败/伪成功拒绝、未开始取消、撤域、未激活租约回收与资源对账用例只写入未运行；provision-only集中入口已覆盖新组。实际执行定向go test -run '^$'编译（/tmp/keel-install-session-{compile,final-compile}.log）、go vet（/tmp/keel-install-session-vet.log）、OpenAPI生成（/tmp/keel-install-session-api.log）和直接tsc（/tmp/keel-install-session-tsc.log），均退出0；生成首次从web目录查找不存在的本地binary退出127，改用仓库根既有工具成功。SQL/功能/CLI/浏览器/网络/镜像均未执行。保留026与fabric_precheck两份原未跟踪草稿。用户询问硬件资料，已说明优先提供一台代表性机器的启动MAC/网卡PCI身份、DHCP直连或relay拓扑、磁盘WWID/serial/精确几何及擦除授权；资料未到不阻断独立软件开发。

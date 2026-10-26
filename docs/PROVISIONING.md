@@ -200,3 +200,14 @@ keel-admin provision-initrd-verify --public-key-file /protected/media-public.pem
 登记、批准和每次`LoadApprovedProvisionScopeTx`均复核平台内所有已批准network baseline的management CIDR与已批准服务器域，不把操作者文件当平台当前网络事实。外部清单完整性仍依赖网络团队独立审核，平台不能自动证明未知现网设备配置。反向在网络baseline批准时拒绝与已批准服务器域重叠；两个批准路径使用同一事务所有权锁，先锁所有权再锁baseline，避免并发都通过或锁序倒置。正常授权读取不持该全局变更锁，防串行化每台文件传输；批准scope行/审批人当前权限、项目状态仍须校验。保守保留历史已批准管理池，不能因项目结束自动认定现场DHCP已撤下。
 
 本阶段不监听端口、不配置NIC/DHCP/Kea、不授予安装。撤销/审批人失权/项目关闭会在后续live Authority检查拒绝新授权；已经写入且结果未知的任务仍需真实回执核实，不因撤域自动解锁。新源迁移054尚未应用；部署前须集中运行审批/冲突/并发/RBAC/撤销集成用例，并另行验证当前网络拓扑。页面和API契约已生成类型，未发布3000或运行浏览器。
+
+
+### 安装写盘前持久状态与启动身份（源码，055未应用）
+
+prepared只证明源准备完成，不能复用已经释放的准备锁开始装机。`POST /api/v1/projects/{id}/provision/requests/{requestId}/install`消费当前prepared版本、已批准安装配方和scope，创建独立无重试provision.install Execution；安装API默认由KEEL_PROVISION_INSTALL_ENABLED=false关闭，API/worker开启时必须提供独立Ed25519公钥文件KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE及介质存储。该开关不启动DHCP/PXE/HTTP监听或写盘。实际源与签名initrd校验后才允许绑定新的attempt/command/fence和预检Spec，公开Grant本身没有认证能力。
+
+数据库owner可用`keel-admin provision-boot-token-issue --project <id> --installation <id> --reason <reason> --output-file <absolute-private-path> --expires-in 5m`发行单次启动注册凭据；使用owner数据库连接，禁止通过公共API发行。目录须已存在、归当前操作者且0700，无符号链接；只创建新0600文件，stdout仅非秘密绑定信息。有效期1～10分钟且不超过安装会话；文件含schema/token/binding，必须通过可信带外通道送到指定机器，当前没有自动交付实现。未消费凭据用`provision-boot-token-revoke --project <id> --installation <id> --token-id <id> --reason <reason>`显式撤销后才能另发；已注册启动不能换绑公钥/BootID。Token原值不入DB/日志/iPXE/公共清单/cloud-init。目标生成每次启动Ed25519身份，注册后每条消息绑定完整payload SHA256、installation/boot/operation和严格递增sequence；这依赖带外凭据正确交付，不是TPM硬件证明。
+
+平台接口复核live独占租约及完整冻结来源，认证预检复算后存精确原始报告。`/provision/installations`列表/读取供Admin/DE/DL/SRE查看；`/{id}/storage`在30秒新鲜预检窗口显式选择WWID/serial/容量/扇区与擦盘意图，生成完整绑定Spec/原报告/设备号/diskseq的固定UEFI GPT/ext4布局；过期必须先在启动环境刷新预检，不能复用历史PASS。`/{id}/storage/approve`由另一当前Admin/DL批准确切版本，且不同于安装发起人与选盘人。人工批准不要求历史报告永远保持新鲜，但将来实际写入前必须重新采集验证并取得当前许可。每次变更重查scope审批、BOM、介质和公钥；失败或撤域不能制造安装成功/主机信任。
+
+当前没有生产文件Authority、注册/预检HTTP监听接线、initrd带外文件接收与互动预检刷新、write-permit端点、真实写盘、首启回调/host-key或SSH首连/修复、完整阶段投影。worker仅能证明从未发出写盘许可的失败/取消；将来发过permit而无终态证据须unknown，保留资源对账，不盲重试。055及新用例尚未运行，不能开启此源码增量当作已完成安装服务。

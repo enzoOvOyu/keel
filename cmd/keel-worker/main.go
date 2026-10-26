@@ -52,14 +52,17 @@ func main() {
 		fail("fabric probe configuration rejected")
 	}
 	store.ProvisionPrepareEnabled = os.Getenv("KEEL_PROVISION_PREPARE_ENABLED") == "true"
-	if store.ProvisionPrepareEnabled {
+	if e = store.ConfigureProvisionInstall(os.Getenv("KEEL_PROVISION_INSTALL_ENABLED") == "true", os.Getenv("KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE")); e != nil {
+		fail("provision installer public trust configuration rejected")
+	}
+	if store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled {
 		store.MediaObjects, e = mediaartifact.Load()
 		if e != nil || store.MediaObjects == nil {
 			fail("Provision preparation requires configured media storage")
 		}
 	}
 	service := execution.New(store.DB)
-	if store.ProvisionPrepareEnabled {
+	if store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled {
 		service.ProvisionStore = store
 	}
 

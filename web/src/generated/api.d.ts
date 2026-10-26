@@ -4,6 +4,91 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{id}/provision/requests/{requestId}/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Default off. Admin/DE/DL/SRE consumes an exact prepared installable source once into a separate no-retry execution with a fresh exclusive machine lease. Read-only boot and authenticated preflight precede disk selection and independent approval. This source increment has no activated boot listener or disk writer and cannot report installation success. */
+        post: operations["createProvisionInstallation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/installations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Admin/DE/DL/SRE project-scoped installation evidence. Historical preflight facts do not prove current disk identity or authorize writes. */
+        get: operations["listProvisionInstallations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/installations/{installationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Scoped read-only installation evidence; no token or private boot key. Historical PASS is not a live write permit. */
+        get: operations["getProvisionInstallation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/installations/{installationId}/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Current Admin/DE/DL/SRE selects exactly one explicit WWID/serial/geometry with erase consent, bound to authenticated fresh preflight and the live installation attempt. Immutable plan awaits another approver. No disk write. */
+        post: operations["selectProvisionStorage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/installations/{installationId}/storage/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Another current Admin/DL, different from installation creator and disk selector, approves the exact immutable storage plan under a live lease. Approval alone issues no write permit. */
+        post: operations["approveProvisionStorage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/provision/boot-scopes": {
         parameters: {
             query?: never;
@@ -2455,6 +2540,184 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ProvisionHardwareExpectation: {
+            serial_number: string;
+            /** @enum {string} */
+            arch: "amd64" | "arm64";
+            boot_mac: string;
+            nic_count: number | null;
+            gpu_count: number | null;
+            gpu_pci_ids: string[] | null;
+            non_gpu_pci_ids: string[] | null;
+            minimum_disks: number;
+        };
+        ProvisionPreflightSpec: {
+            /** @constant */
+            schema: "keel.provision-preflight/v1";
+            project_id: string;
+            request_id: string;
+            machine_id: string;
+            attempt_id: string;
+            command_id: string;
+            fencing_token: number;
+            snapshot_sha256: string;
+            /** Format: date-time */
+            expires_at: string;
+            expected: components["schemas"]["ProvisionHardwareExpectation"];
+        };
+        ProvisionDiskObservation: {
+            device: string;
+            serial_number?: string;
+            healthy: boolean | null;
+            reason: string;
+            smart_exit: number;
+            wwid?: string;
+            size_bytes?: number;
+            /** @enum {integer} */
+            logical_block_bytes?: 512 | 4096;
+            device_number?: string;
+            disk_sequence?: number;
+            read_only?: boolean;
+            removable?: boolean;
+            in_use?: boolean;
+        };
+        ProvisionPreflightObservation: {
+            /** @enum {string} */
+            firmware?: "UEFI" | "BIOS";
+            source: string;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            finished_at: string;
+            serial_number: string;
+            arch: string;
+            pci: {
+                address: string;
+                class: string;
+                identity: string;
+                physical_slot?: string;
+                virtual_function: boolean;
+            }[] | null;
+            ports: {
+                name: string;
+                mac: string;
+                pci: string;
+            }[] | null;
+            disks: components["schemas"]["ProvisionDiskObservation"][] | null;
+            missing: string[] | null;
+        };
+        ProvisionPreflightReport: {
+            /** @constant */
+            schema: "keel.provision-preflight/v1";
+            spec: components["schemas"]["ProvisionPreflightSpec"];
+            observation: components["schemas"]["ProvisionPreflightObservation"];
+            /** @enum {string} */
+            status: "PASS" | "FAIL" | "BLOCKED";
+            checks: {
+                name: string;
+                /** @enum {string} */
+                status: "PASS" | "FAIL" | "BLOCKED";
+                reason: string;
+                expected?: number;
+                observed?: number;
+            }[];
+        };
+        ProvisionStorageIntent: {
+            /** @constant */
+            schema: "keel.install-storage-intent/v1";
+            /** @constant */
+            layout: "uefi-gpt-ext4/v1";
+            wwid: string;
+            serial_number: string;
+            size_bytes: number;
+            /** @enum {integer} */
+            logical_block_bytes: 512 | 4096;
+            /** @constant */
+            erase_selected_disk: true;
+        };
+        ProvisionStoragePlan: {
+            /** @constant */
+            schema: "keel.install-storage-plan/v1";
+            spec: components["schemas"]["ProvisionPreflightSpec"];
+            intent: components["schemas"]["ProvisionStorageIntent"];
+            preflight_report_sha256: string;
+            device: {
+                node: string;
+                device_number: string;
+                disk_sequence: number;
+                wwid: string;
+                serial_number: string;
+                size_bytes: number;
+                /** @enum {integer} */
+                logical_block_bytes: 512 | 4096;
+            };
+            partitions: {
+                number: number;
+                kind: string;
+                filesystem: string;
+                mount_point: string;
+                start_bytes: number;
+                size_bytes: number;
+            }[];
+            plan_sha256: string;
+        };
+        ProvisionInstallation: {
+            id: string;
+            project_id: string;
+            request_id: string;
+            machine_id: string;
+            execution_id: string;
+            scope_id: string;
+            grant_id: string;
+            created_by: string;
+            scope_sha256: string;
+            snapshot_sha256: string;
+            reason: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @enum {string} */
+            state: "queued" | "booting" | "preflight_ready" | "awaiting_storage_review" | "storage_approved" | "installing" | "awaiting_first_boot" | "registered" | "failed" | "canceled" | "unknown";
+            state_version: number;
+            callback_sequence: number;
+            /** Format: date-time */
+            updated_at: string;
+            attempt_id?: string;
+            command_id?: string;
+            boot_id?: string;
+            storage_requested_by?: string;
+            storage_approved_by?: string;
+            fencing_token?: number;
+            spec?: components["schemas"]["ProvisionPreflightSpec"];
+            preflight?: components["schemas"]["ProvisionPreflightReport"];
+            latest_report_sha256?: string;
+            storage_plan?: components["schemas"]["ProvisionStoragePlan"];
+            storage_plan_sha256?: string;
+            /** Format: date-time */
+            storage_requested_at?: string;
+            /** Format: date-time */
+            storage_approved_at?: string;
+            /** Format: date-time */
+            permit_issued_at?: string;
+            failure_reason?: string;
+        };
+        ProvisionInstallationPage: {
+            items: components["schemas"]["ProvisionInstallation"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        CreateProvisionInstallation: {
+            expected_version: number;
+            scope_id: string;
+            reason: string;
+        };
+        SelectProvisionStorage: {
+            expected_version: number;
+            intent: components["schemas"]["ProvisionStorageIntent"];
+            reason: string;
+        };
         ProvisionBootScopeConfig: {
             id: string;
             project_id: string;
@@ -4952,6 +5215,246 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    createProvisionInstallation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProvisionInstallation"];
+            };
+        };
+        responses: {
+            /** @description Scoped current result */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Invalid frozen image, expectation or explicit disk intent */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Installation feature disabled, image trust missing or service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listProvisionInstallations: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped current result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionInstallationPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Invalid frozen image, expectation or explicit disk intent */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Installation feature disabled, image trust missing or service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getProvisionInstallation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                installationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped current result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionInstallation"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Invalid frozen image, expectation or explicit disk intent */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Installation feature disabled, image trust missing or service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    selectProvisionStorage: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+                installationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelectProvisionStorage"];
+            };
+        };
+        responses: {
+            /** @description Scoped current result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionInstallation"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Invalid frozen image, expectation or explicit disk intent */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Installation feature disabled, image trust missing or service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    approveProvisionStorage: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+                installationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionRequestAction"];
+            };
+        };
+        responses: {
+            /** @description Scoped current result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionInstallation"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Invalid frozen image, expectation or explicit disk intent */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Installation feature disabled, image trust missing or service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listProvisionBootScopes: {
         parameters: {
             query?: {

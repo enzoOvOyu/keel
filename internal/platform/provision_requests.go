@@ -153,8 +153,15 @@ func (s *Store) CreateProvisionRequest(ctx context.Context, a *AuthSession, proj
 	if err != nil {
 		return nil, err
 	}
-	if err = lockKey(ctx, tx, "provision.machine:"+target.MachineID); err != nil {
+	if err = LockProvisionMachineTx(ctx, tx, target.MachineID); err != nil {
 		return nil, err
+	}
+	var installationActive bool
+	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM provision_installations WHERE machine_id=$1 AND state NOT IN('registered','failed','canceled'))`, target.MachineID).Scan(&installationActive); err != nil {
+		return nil, err
+	}
+	if installationActive {
+		return nil, apiError(409, "PROVISION_INSTALL_ACTIVE", "Active or unknown installation must be reconciled before preparing the machine again")
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	// No running request is expired automatically: its command may still need reconciliation.

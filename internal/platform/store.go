@@ -2,6 +2,7 @@ package platform
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
@@ -32,6 +33,10 @@ type Store struct {
 	// loaded by this switch. Dispatch remains exclusively worker-owned.
 	AgentTasksEnabled       bool
 	ProvisionPrepareEnabled bool
+	// Installation admission is distinct from source preparation and defaults
+	// off. It does not activate any boot listener or permit disk writes.
+	ProvisionInstallEnabled bool
+	ProvisionImagePublicKey ed25519.PublicKey
 	OIDC                    *oidcauth.Service
 	LDAP                    *ldapauth.Service
 	SSHRunner               *taskrunner.SSH

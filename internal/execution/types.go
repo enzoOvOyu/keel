@@ -87,6 +87,7 @@ type FlowVersion struct {
 	CreatedAt   time.Time  `json:"created_at"`
 }
 type Target struct {
+	ProvisionInstallationID string                        `json:"provision_installation_id,omitempty"`
 	ProvisionRequestID      string                        `json:"provision_request_id,omitempty"`
 	ProvisionSnapshotSHA256 string                        `json:"provision_snapshot_sha256,omitempty"`
 	Agent                   *taskrunner.Binding           `json:"agent,omitempty"`

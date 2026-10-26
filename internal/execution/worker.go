@@ -82,7 +82,7 @@ func (s *Service) Claim(ctx context.Context, worker string, lease time.Duration)
 	cursorTime := time.Unix(0, 0)
 	cursorID := ""
 	for {
-		rows, e := s.DB.QueryContext(ctx, "SELECT id,created_at FROM exec_executions WHERE desired_state='running' AND state IN('scheduled','dispatching','running') AND (created_at,id)>($1,$2) AND (mode='sim' OR ($3 AND mode='kea') OR ($4 AND mode='fabric') OR ($5 AND mode='ssh') OR ($6 AND mode='agent') OR ($7 AND mode='provision')) ORDER BY created_at,id LIMIT 64", cursorTime, cursorID, s.KeaStore != nil, s.NetworkStore != nil, s.SSHRunner != nil, s.AgentRunner != nil, s.ProvisionStore != nil && s.ProvisionStore.ProvisionPrepareEnabled)
+		rows, e := s.DB.QueryContext(ctx, "SELECT id,created_at FROM exec_executions WHERE desired_state='running' AND state IN('scheduled','dispatching','running') AND (created_at,id)>($1,$2) AND (mode='sim' OR ($3 AND mode='kea') OR ($4 AND mode='fabric') OR ($5 AND mode='ssh') OR ($6 AND mode='agent') OR ($7 AND mode='provision')) ORDER BY created_at,id LIMIT 64", cursorTime, cursorID, s.KeaStore != nil, s.NetworkStore != nil, s.SSHRunner != nil, s.AgentRunner != nil, s.ProvisionStore != nil && (s.ProvisionStore.ProvisionPrepareEnabled || s.ProvisionStore.ProvisionInstallEnabled))
 		if e != nil {
 			return nil, e
 		}
@@ -138,7 +138,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 	if e != nil {
 		return nil, e
 	}
-	if executionMode == "provision" && (s.ProvisionStore == nil || !s.ProvisionStore.ProvisionPrepareEnabled) {
+	if executionMode == "provision" && (s.ProvisionStore == nil || (!s.ProvisionStore.ProvisionPrepareEnabled && !s.ProvisionStore.ProvisionInstallEnabled)) {
 		return nil, nil
 	}
 	if executionMode == "agent" && s.AgentRunner == nil {
@@ -626,6 +626,9 @@ func (s *Service) reapExecution(ctx context.Context, id string) (int, error) {
 		return 0, nil
 	}
 	if _, e = tx.ExecContext(ctx, "UPDATE ssh_trust_requests SET state='unknown',state_version=state_version+1 WHERE execution_id=$1 AND state='consumed'", id); e != nil {
+		return 0, e
+	}
+	if _, e = tx.ExecContext(ctx, `WITH changed AS (UPDATE provision_installations SET state=CASE WHEN state='queued' THEN 'failed' ELSE 'unknown' END,state_version=state_version+1,failure_reason='execution_lease_expired',updated_at=now() WHERE execution_id=$1 AND state IN('queued','booting','preflight_ready','awaiting_storage_review','storage_approved','installing','awaiting_first_boot') RETURNING id,state) INSERT INTO provision_installation_events(installation_id,event_type,payload,created_at) SELECT id,'execution.lease_expired',jsonb_build_object('state',state),now() FROM changed`, id); e != nil {
 		return 0, e
 	}
 	for _, a := range attempts {
