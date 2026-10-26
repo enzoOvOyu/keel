@@ -1213,3 +1213,10 @@ Make新增build-installer-helpers跨架构生产两份实际helper；CLI不接DB
 接续c0eb0c0，新增internal/provisionstorage：独立磁盘WWID/serial/精确几何/擦除意图，固定UEFI GPT/FAT32+ext4布局与有界规范Plan，完整绑定冻结Spec/原报告摘要/设备号/diskseq；复算预检要求PASS，拒绝歧义、占用/未知、只读/可移除、换盘/重编号/失效及自报摘要掩盖布局篡改。不是实际审批或写盘许可。预检扩展只读存储/UEFI事实、整盘/分区holder与mount/swap占用，采集末尾复核diskseq/几何；SMART新增只读--info。内核来源与具体限制见PROVISIONING末节，未运行宿主采集或SMART。
 
 关闭cloud-init模板的disk_setup/fs_setup/mounts/growpart/resize_rootfs，避免绕过明确选盘/布局，原首启身份/域公钥注入保持。新增512/4Kn布局、唯一选择、未知/忙/换盘/篡改/过期、sysfs/挂载/swap/更换期间采集和模板拒绝用例只写入；集中provision-only基础组加入provisionstorage。当前仅执行定向编译与vet（/tmp/keel-storage-contract-{compile,vet}.log）、seed/platform编译（/tmp/keel-storage-seed-compile.log），结果见本次提交/后续记录；没有执行新用例、PG迁移、浏览器、CLI或镜像/设备写入。P1保持partial，正在继续受控安装环境开发，窗口至05:12:04 UTC。
+
+
+## 94. initrd公共文件取得与只读helper准备核心（2026-10-26，源码待集中验证）
+
+接续cc2fc70，新增provisioninitrd：严格受信kernel参数、固定接口/地址/CA的IP直连TLS 1.3文件客户端、独立摘要先验与完整BootFiles绑定、固定预检helper及报告复算；成功仅ready_for_storage_review，失败保留FAIL/BLOCKED，无安装/回调/信任投影。Linux helper仅root PID1和ramfs/tmpfs根启用，校验固定root只读二进制后复制到sealed memfd，规格走noexec sealed memfd，固定FD/argv/环境。复用provisionimage静态ELF函数（显式拒绝未知架构），未创建旁路执行器。iPXE增加固定服务器/CIDR并改ip=off，防内核在其他网卡自动DHCP；当前尚无网络配置适配/PID1命令与完整initrd，后续继续实现。
+
+新增解析/TLS/下载和冻结错绑/失败退出/过期/取消等软件用例仅写入。实际仅执行定向Go编译/vet，日志/tmp/keel-initrd-prepare-{compile,vet}.log；后续文件拆分和root环境守卫同批最终结果以提交前检查为准。provision-only基础组补入新包；无宿主采集、memfd/helper运行、网络监听或镜像/SQL变动。05:12:04 UTC窗口继续，P1 partial。

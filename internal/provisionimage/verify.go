@@ -114,7 +114,7 @@ func ReadOverlay(ctx context.Context, reader io.Reader) (*Contents, error) {
 		if component.Path != want.path || component.MediaID != want.id || component.SHA256 != want.hash || component.Size != int64(len(data)) {
 			return nil, ErrInvalid
 		}
-		if err := verifyBinary(ctx, Input{MediaID: want.id, SHA256: want.hash, Size: int64(len(data)), File: bytes.NewReader(data)}, metadata.Arch); err != nil {
+		if err := VerifyStaticBinary(ctx, Input{MediaID: want.id, SHA256: want.hash, Size: int64(len(data)), File: bytes.NewReader(data)}, metadata.Arch); err != nil {
 			return nil, err
 		}
 	}

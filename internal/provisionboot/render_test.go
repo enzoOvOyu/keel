@@ -44,12 +44,12 @@ func TestBootBundleBindsFrozenImagesAndPreflight(t *testing.T) {
 		t.Fatalf("unbound manifest %+v", m)
 	}
 	script := string(b.IPXE)
-	for _, required := range []string{"#!ipxe\n", "iseq ${net0/mac} " + g.MAC, "ifconf --configurator dhcp --timeout 15000 net0", "initrd=initrd.magic", "keel.manifest_sha256=" + bytesDigest(b.Manifest), "BOOTIF=01-02-aa-bb-cc-dd-ee", "exit 1"} {
+	for _, required := range []string{"#!ipxe\n", "iseq ${net0/mac} " + g.MAC, "ifconf --configurator dhcp --timeout 15000 net0", "initrd=initrd.magic", "keel.manifest_sha256=" + bytesDigest(b.Manifest), "BOOTIF=01-02-aa-bb-cc-dd-ee", "ip=off", "keel.server_ipv4=192.0.2.1", "keel.client_cidr=192.0.2.0/24", "exit 1"} {
 		if !strings.Contains(script, required) {
 			t.Fatalf("missing %s", required)
 		}
 	}
-	for _, forbidden := range []string{"autoinstall", "init=/bin/sh", "callback_token=", "shell\n", "sanboot"} {
+	for _, forbidden := range []string{"autoinstall", "init=/bin/sh", "callback_token=", "shell\n", "sanboot", "ip=dhcp"} {
 		if strings.Contains(script, forbidden) {
 			t.Fatalf("uncontrolled installation argument %s", forbidden)
 		}

@@ -72,7 +72,7 @@ func WriteOverlay(ctx context.Context, w io.Writer, helpers mediaboot.HelperSet,
 		return nil, ErrInvalid
 	}
 	for _, input := range []Input{preflight, ssh} {
-		if err := verifyBinary(ctx, input, arch); err != nil {
+		if err := VerifyStaticBinary(ctx, input, arch); err != nil {
 			return nil, err
 		}
 	}
@@ -129,7 +129,13 @@ func WriteOverlay(ctx context.Context, w io.Writer, helpers mediaboot.HelperSet,
 	}
 	return &Result{Metadata: metadata, SHA256: hex.EncodeToString(hash.Sum(nil)), Size: counter.size}, nil
 }
-func verifyBinary(ctx context.Context, in Input, arch string) error {
+
+// VerifyStaticBinary checks bounded actual bytes and target static ELF format.
+// It neither authenticates media approval nor proves program behavior.
+func VerifyStaticBinary(ctx context.Context, in Input, arch string) error {
+	if arch != "amd64" && arch != "arm64" {
+		return ErrInvalid
+	}
 	if in.File == nil || in.Size < 64 || in.Size > MaxBinaryBytes {
 		return ErrInvalid
 	}

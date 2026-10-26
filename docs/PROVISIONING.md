@@ -154,3 +154,14 @@ WP-1.7的首次实现支持固定`uefi-gpt-ext4/v1`布局：512字节或4Kn扇�
 整盘及分区holders、当前mountinfo和swaps表必须齐备才能声明未占用；存在任何活动swap时保守阻断全部候选。实际initrd须使用宿主挂载命名空间，容器隐藏挂载不算可信事实。缺失/畸形字段保持unknown；不打开或写入块设备。未来真正写盘前仍须持有独占块设备fd并立即核验fstat/磁盘ioctl、当前lease和一次性许可，本单元未实现该动作。
 
 实施顺序为只读引导→可信预检/磁盘事实→明确选择/独立布局审批→同attempt/fence当前许可→受控安装；不会以“已完成安装”或“已审批最终镜像”作为生产helper/只读预检的前提。当前纯数据规划和只读采集源码完成，持久存储审批/API/页面与真正initrd/许可仍需后续接入；新增用例仅写入。事实来源参考 [Linux NVMe sysfs ABI](https://github.com/torvalds/linux/blob/master/Documentation/ABI/stable/sysfs-nvme)、[block queue ABI](https://github.com/torvalds/linux/blob/master/Documentation/ABI/stable/sysfs-block) 与 [diskseq实现](https://github.com/torvalds/linux/blob/master/block/genhd.c)。
+
+
+## 受控initrd只读准备协议（源码，尚未接启动入口）
+
+`internal/provisioninitrd`接收受信内核参数中的固定协议、manifest HTTPS地址/独立SHA256、BOOTIF、引导服务器IPv4及管理CIDR；拒绝未知/重复/大小写别名参数，要求`ip=off`。iPXE生成器同步提供这些参数，禁止内核在未经选择的其他网卡自行DHCP；后续initrd网络适配只配置唯一BOM MAC。当前网络适配与PID1入口仍在后续单元开发，没有启动任何监听/设备联网。
+
+HTTPS文件客户端必须显式CA信任池、已分配本地地址及对应接口；TCP固定引导服务器IP并绑定接口，TLS 1.3校验原始主机名，不查询DNS、不用环境代理/重定向/cookie，不获取任意资源或rootfs。仅有界GET manifest/preflight/user-data/meta-data，先核独立manifest摘要再拉剩余文件，最后复用VerifyBootFiles比较全冻结身份和原始配置字节。开发例外仅loopback TLS用于未来软件测试，生产内核参数不能打开该例外。
+
+准备函数先核两份固定helper，再运行受限预检并复算完整报告，验证退出码与PASS/FAIL/BLOCKED一致及报告/期限新鲜度。PASS只输出ready_for_storage_review，失败保留原因状态；installation_performed始终false。Linux进程适配仅root PID1且根文件系统为ramfs/tmpfs时可用，拒绝普通宿主或容器overlay入口；读取root所有且不可写的固定helper，复用实际SHA/静态ELF校验，复制到sealed executable memfd，规格通过独立不可执行sealed memfd交付；固定fd/argv和最小环境，无路径替换、shell或继承控制面配置。只支持具备显式memfd exec/noexec及sealing能力的批准内核，不降级为不受保护的路径执行，参考 [Linux memfd exec/noexec契约](https://www.kernel.org/doc/html/latest/userspace-api/mfd_noexec.html)。
+
+该源码没有PID1命令、完整可启动镜像、当前网络Authority或回调交付；不宣称图片/协议或真实helper运行已验收。新增固定输入、TLS文件边界、helper错绑/退出码/失效和失败报告用例仅写入，待P1集中执行。

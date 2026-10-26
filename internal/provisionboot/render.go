@@ -82,7 +82,7 @@ func RenderBootBundle(scope Scope, grant Grant, plan mediaboot.Plan, spec provis
 	// Fixed protocol arguments only. The approved initrd must fetch/check the
 	// manifest and preflight spec, run the pinned helper before ANY disk write,
 	// authenticate its callback and await a live matching installation permit.
-	command := fmt.Sprintf("kernel --name keel-kernel --timeout 30000 %skernel initrd=initrd.magic ip=dhcp BOOTIF=01-%s keel.protocol=%s keel.manifest=%smanifest.json keel.manifest_sha256=%s", prefix, strings.ReplaceAll(grant.MAC, ":", "-"), mediaboot.InitrdProtocol, prefix, bytesDigest(rawManifest))
+	command := fmt.Sprintf("kernel --name keel-kernel --timeout 30000 %skernel initrd=initrd.magic ip=off BOOTIF=01-%s keel.protocol=%s keel.server_ipv4=%s keel.client_cidr=%s keel.manifest=%smanifest.json keel.manifest_sha256=%s", prefix, strings.ReplaceAll(grant.MAC, ":", "-"), mediaboot.InitrdProtocol, scope.Server.String(), scope.Clients.String(), prefix, bytesDigest(rawManifest))
 	if len(command) > 2048 {
 		return nil, ErrDenied
 	}
