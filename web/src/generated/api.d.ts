@@ -21,6 +21,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/control-flow-executions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a published public project KV workflow
+         * @description Media-free keel.control/v1 DAG with no device transport. Shares authenticated project admission, immutable snapshots, outbox, fenced project leases and execution views. CAS mutations, immutable receipts and outcomes commit atomically. Missing/stale keys fail without overwriting. Expired uncommitted commands require explicit reconciliation of the durable non-commit proof.
+         */
+        post: operations["createControlFlowExecution"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/host-flow-executions": {
         parameters: {
             query?: never;
@@ -5766,15 +5786,8 @@ export interface components {
             kind: "draft" | "delivery";
             expected_preflight_hash: string;
         };
-        HostFlowCreateInput: {
+        ControlFlowCreateInput: {
             flow_version_id: string;
-            /** @enum {string} */
-            transport: "ssh" | "agent";
-            machine_ids: string[];
-            /** @default 4 */
-            concurrency: number;
-            /** @description Omit or use 0 to resolve the current project/global exec.circuit_breaker_threshold catalog default; unconfigured default is 5 percent. Retired or invalid policy blocks admission. Explicit values 1..100 override the default. The resolved policy is frozen in the execution snapshot. */
-            circuit_breaker_percent?: number;
         };
         FlowInput: {
             /** @enum {string} */
@@ -5819,16 +5832,23 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
-        /** @description Acyclic dependency graph. keel.sim/v1 retains simulation-only machine resources and retry rules. keel.host/v1 allows identity/wait or approved media script/stage/fetch; no inputs, retries or embedded frozen artifacts. Device and selected transport leases apply. Media side effects are non-idempotent; fetch requires one target. */
+        /** @description Public project metadata only; no secrets, media or device configuration. kv.get freezes the read value/version in its original receipt. kv.put uses exact CAS; expected_version=0 creates only. Maximum128 keys per project; text <=4096 characters and <=8192 JSON-encoded bytes. No automatic retry or implicit overwrite. */
+        KVTaskSpec: {
+            key: string;
+            value?: string;
+            /** Format: int64 */
+            expected_version?: number;
+        };
+        /** @description Acyclic dependency graph. keel.sim/v1 retains simulation-only machine resources and retry rules. keel.host/v1 allows identity/wait or approved media script/stage/fetch; no inputs, retries or embedded frozen artifacts. Device and selected transport leases apply. Media side effects are non-idempotent; fetch requires one target. keel.control/v1 supports only bounded project KV get/put, no media/inputs/retries; writes require CAS. */
         FlowTask: {
             id: string;
             /** @enum {string} */
-            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare" | "script.run" | "media.stage" | "media.fetch";
+            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare" | "script.run" | "media.stage" | "media.fetch" | "kv.get" | "kv.put";
             depends_on?: string[];
             retry: number;
             idempotent: boolean;
             timeout_ms: number;
-            resources: ("machine" | "gpu" | "nic" | "device" | "ssh")[];
+            resources: ("machine" | "gpu" | "nic" | "device" | "ssh" | "project")[];
             sim: components["schemas"]["SimTaskOptions"];
             script?: components["schemas"]["TaskScriptArtifact"];
             /**
@@ -5843,10 +5863,11 @@ export interface components {
             wait_ms?: number;
             /** @description Public reference for approved script.run/media.stage/media.fetch in keel.host/v1. Runtime approval, object version, size and SHA are independently resolved and frozen at admission. */
             media_id?: string;
+            kv?: components["schemas"]["KVTaskSpec"];
         };
         FlowDefinition: {
             /** @enum {string} */
-            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1" | "keel.ssh/v1" | "keel.agent/v1" | "keel.provision-preparation/v1" | "keel.host/v1";
+            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1" | "keel.ssh/v1" | "keel.agent/v1" | "keel.provision-preparation/v1" | "keel.host/v1" | "keel.control/v1";
             inputs: {
                 [key: string]: components["schemas"]["FlowInput"];
             };
@@ -5886,7 +5907,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
             /** @description Stable controller/device identity for non-simulation targets. */
             resource_key?: string;
             ssh?: components["schemas"]["SSHBinding"];
@@ -5940,7 +5961,7 @@ export interface components {
         /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
         ExecutionSnapshot: {
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
             flow: components["schemas"]["FlowVersion"];
             targets: components["schemas"]["SimTarget"][];
             /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
@@ -5962,7 +5983,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -5990,6 +6011,16 @@ export interface components {
             /** @description Stable public diagnostics only. Workflow YAML parsing may include workflow_yaml_line:<1-based line>; parser text and source values are never reflected. */
             details: string[];
             trace_id: string;
+        };
+        HostFlowCreateInput: {
+            flow_version_id: string;
+            /** @enum {string} */
+            transport: "ssh" | "agent";
+            machine_ids: string[];
+            /** @default 4 */
+            concurrency: number;
+            /** @description Omit or use 0 to resolve the current project/global exec.circuit_breaker_threshold catalog default; unconfigured default is 5 percent. Retired or invalid policy blocks admission. Explicit values 1..100 override the default. The resolved policy is frozen in the execution snapshot. */
+            circuit_breaker_percent?: number;
         };
         ArtifactNonstartProofInput: {
             expected_version: number;
@@ -6025,7 +6056,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -6502,6 +6533,47 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    createControlFlowExecution: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ControlFlowCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Created immutable native host workflow execution with frozen approved media when referenced */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["responses-InvalidRequest"];
+            401: components["responses"]["responses-Unauthenticated"];
+            403: components["responses"]["responses-Forbidden"];
+            404: components["responses"]["responses-NotFound"];
+            409: components["responses"]["responses-Conflict"];
+            413: components["responses"]["responses-TooLarge"];
+            415: components["responses"]["responses-UnsupportedMediaType"];
+            503: components["responses"]["responses-Unavailable"];
         };
     };
     createHostFlowExecution: {

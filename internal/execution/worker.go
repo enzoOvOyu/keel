@@ -170,7 +170,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 		if e != nil && !errors.Is(e, sql.ErrNoRows) {
 			return nil, e
 		}
-		allowed = allowed && (role == "Admin" || ((executionMode == "kea" || executionMode == "fabric") && role == "NDE") || ((executionMode == "sim" || executionMode == "ssh" || executionMode == "agent" || executionMode == "provision") && (role == "DE" || role == "DL" || role == "SRE")))
+		allowed = allowed && (role == "Admin" || ((executionMode == "kea" || executionMode == "fabric") && role == "NDE") || ((executionMode == "sim" || executionMode == "ssh" || executionMode == "agent" || executionMode == "provision" || executionMode == "control") && (role == "DE" || role == "DL" || role == "SRE")))
 	}
 	x, e := scanExecution(tx.QueryRowContext(ctx, "SELECT "+executionColumns+" FROM exec_executions WHERE id=$1 AND desired_state='running' AND state IN('scheduled','dispatching','running') FOR UPDATE SKIP LOCKED", id))
 	if errors.Is(e, sql.ErrNoRows) {
@@ -336,6 +336,8 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 			for _, kind := range task.Resources {
 				if x.Mode == "ssh" || x.Mode == "agent" || x.Mode == "provision" {
 					resources = append(resources, kind+":machine:"+target.ResourceKey)
+				} else if x.Mode == "control" {
+					resources = append(resources, "project-kv:"+x.ProjectID)
 				} else if x.Mode == "fabric" {
 					resources = append(resources, kind+":switch:"+target.ResourceKey)
 				} else if x.Mode == "kea" {
@@ -349,7 +351,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 			}
 			sort.Strings(resources)
 			mode := "exclusive"
-			if task.Type == "sim.read" || (x.Mode == "ssh" || x.Mode == "agent") && task.Script == nil && task.Artifact == nil {
+			if task.Type == "sim.read" || task.Type == "kv.get" || (x.Mode == "ssh" || x.Mode == "agent") && task.Script == nil && task.Artifact == nil {
 				mode = "shared"
 			}
 			if _, e = tx.ExecContext(ctx, "SAVEPOINT resource_candidate"); e != nil {
@@ -615,8 +617,8 @@ func (s *Service) reapExecution(ctx context.Context, id string) (int, error) {
 		return 0, e
 	}
 	defer tx.Rollback()
-	var projectID string
-	e = tx.QueryRowContext(ctx, "SELECT project_id FROM exec_executions WHERE id=$1 FOR UPDATE SKIP LOCKED", id).Scan(&projectID)
+	var projectID, executionMode string
+	e = tx.QueryRowContext(ctx, "SELECT project_id,mode FROM exec_executions WHERE id=$1 FOR UPDATE SKIP LOCKED", id).Scan(&projectID, &executionMode)
 	if errors.Is(e, sql.ErrNoRows) {
 		return 0, nil
 	}
@@ -653,6 +655,11 @@ func (s *Service) reapExecution(ctx context.Context, id string) (int, error) {
 	for _, a := range attempts {
 		if _, e = tx.ExecContext(ctx, "UPDATE exec_resource_leases SET state='reconciling' WHERE attempt_id=$1 AND state='held'", a); e != nil {
 			return 0, e
+		}
+		if executionMode == "control" {
+			if e = recordControlUncommittedTx(ctx, tx, a); e != nil {
+				return 0, e
+			}
 		}
 	}
 	if e = settle(ctx, tx, id); e != nil {

@@ -675,6 +675,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/control-flow-executions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a published public project KV workflow
+         * @description Media-free keel.control/v1 DAG with no device transport. Shares authenticated project admission, immutable snapshots, outbox, fenced project leases and execution views. CAS mutations, immutable receipts and outcomes commit atomically. Missing/stale keys fail without overwriting. Expired uncommitted commands require explicit reconciliation of the durable non-commit proof.
+         */
+        post: operations["createControlFlowExecution"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -697,16 +717,16 @@ export interface components {
             /** @default false */
             uncancellable: boolean;
         };
-        /** @description Acyclic dependency graph. keel.sim/v1 retains simulation-only machine resources and retry rules. keel.host/v1 allows identity/wait or approved media script/stage/fetch; no inputs, retries or embedded frozen artifacts. Device and selected transport leases apply. Media side effects are non-idempotent; fetch requires one target. */
+        /** @description Acyclic dependency graph. keel.sim/v1 retains simulation-only machine resources and retry rules. keel.host/v1 allows identity/wait or approved media script/stage/fetch; no inputs, retries or embedded frozen artifacts. Device and selected transport leases apply. Media side effects are non-idempotent; fetch requires one target. keel.control/v1 supports only bounded project KV get/put, no media/inputs/retries; writes require CAS. */
         FlowTask: {
             id: string;
             /** @enum {string} */
-            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare" | "script.run" | "media.stage" | "media.fetch";
+            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare" | "script.run" | "media.stage" | "media.fetch" | "kv.get" | "kv.put";
             depends_on?: string[];
             retry: number;
             idempotent: boolean;
             timeout_ms: number;
-            resources: ("machine" | "gpu" | "nic" | "device" | "ssh")[];
+            resources: ("machine" | "gpu" | "nic" | "device" | "ssh" | "project")[];
             sim: components["schemas"]["SimTaskOptions"];
             script?: components["schemas"]["TaskScriptArtifact"];
             /**
@@ -721,10 +741,11 @@ export interface components {
             wait_ms?: number;
             /** @description Public reference for approved script.run/media.stage/media.fetch in keel.host/v1. Runtime approval, object version, size and SHA are independently resolved and frozen at admission. */
             media_id?: string;
+            kv?: components["schemas"]["KVTaskSpec"];
         };
         FlowDefinition: {
             /** @enum {string} */
-            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1" | "keel.ssh/v1" | "keel.agent/v1" | "keel.provision-preparation/v1" | "keel.host/v1";
+            api_version: "keel.sim/v1" | "keel.kea/v1" | "keel.fabric/v1" | "keel.ssh/v1" | "keel.agent/v1" | "keel.provision-preparation/v1" | "keel.host/v1" | "keel.control/v1";
             inputs: {
                 [key: string]: components["schemas"]["FlowInput"];
             };
@@ -769,7 +790,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
             /** @description Stable controller/device identity for non-simulation targets. */
             resource_key?: string;
             ssh?: components["schemas"]["SSHBinding"];
@@ -802,7 +823,7 @@ export interface components {
         /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
         ExecutionSnapshot: {
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
             flow: components["schemas"]["FlowVersion"];
             targets: components["schemas"]["SimTarget"][];
             /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
@@ -824,7 +845,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -851,7 +872,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -951,7 +972,7 @@ export interface components {
             /** Format: int64 */
             next_cursor: number;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
         };
         SimTargetPage: {
             items: components["schemas"]["SimTarget"][];
@@ -1036,7 +1057,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
             resource_key?: string;
             agent?: components["schemas"]["AgentBinding"];
             provision_request_id?: string;
@@ -1539,6 +1560,16 @@ export interface components {
             param_key_id?: string;
             /** Format: date-time */
             updated_at?: string;
+        };
+        /** @description Public project metadata only; no secrets, media or device configuration. kv.get freezes the read value/version in its original receipt. kv.put uses exact CAS; expected_version=0 creates only. Maximum128 keys per project; text <=4096 characters and <=8192 JSON-encoded bytes. No automatic retry or implicit overwrite. */
+        KVTaskSpec: {
+            key: string;
+            value?: string;
+            /** Format: int64 */
+            expected_version?: number;
+        };
+        ControlFlowCreateInput: {
+            flow_version_id: string;
         };
     };
     responses: {
@@ -3103,6 +3134,47 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["HostFlowCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Created immutable native host workflow execution with frozen approved media when referenced */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createControlFlowExecution: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ControlFlowCreateInput"];
             };
         };
         responses: {

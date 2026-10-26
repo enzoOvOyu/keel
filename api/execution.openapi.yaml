@@ -3188,6 +3188,89 @@
           }
         }
       }
+    },
+    "/api/v1/projects/{id}/control-flow-executions": {
+      "post": {
+        "operationId": "createControlFlowExecution",
+        "tags": [
+          "Execution"
+        ],
+        "x-permission": "execution:create",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created immutable native host workflow execution with frozen approved media when referenced",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Execution"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Media-free keel.control/v1 DAG with no device transport. Shares authenticated project admission, immutable snapshots, outbox, fenced project leases and execution views. CAS mutations, immutable receipts and outcomes commit atomically. Missing/stale keys fail without overwriting. Expired uncommitted commands require explicit reconciliation of the durable non-commit proof.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ControlFlowCreateInput"
+              }
+            }
+          }
+        },
+        "summary": "Run a published public project KV workflow"
+      }
     }
   },
   "components": {
@@ -3463,7 +3546,9 @@
               "provision.prepare",
               "script.run",
               "media.stage",
-              "media.fetch"
+              "media.fetch",
+              "kv.get",
+              "kv.put"
             ]
           },
           "depends_on": {
@@ -3496,7 +3581,8 @@
                 "gpu",
                 "nic",
                 "device",
-                "ssh"
+                "ssh",
+                "project"
               ]
             },
             "minItems": 1,
@@ -3534,6 +3620,9 @@
             "type": "string",
             "pattern": "^[a-f0-9]{32}$",
             "description": "Public reference for approved script.run/media.stage/media.fetch in keel.host/v1. Runtime approval, object version, size and SHA are independently resolved and frozen at admission."
+          },
+          "kv": {
+            "$ref": "#/components/schemas/KVTaskSpec"
           }
         },
         "required": [
@@ -3545,7 +3634,7 @@
           "resources",
           "sim"
         ],
-        "description": "Acyclic dependency graph. keel.sim/v1 retains simulation-only machine resources and retry rules. keel.host/v1 allows identity/wait or approved media script/stage/fetch; no inputs, retries or embedded frozen artifacts. Device and selected transport leases apply. Media side effects are non-idempotent; fetch requires one target."
+        "description": "Acyclic dependency graph. keel.sim/v1 retains simulation-only machine resources and retry rules. keel.host/v1 allows identity/wait or approved media script/stage/fetch; no inputs, retries or embedded frozen artifacts. Device and selected transport leases apply. Media side effects are non-idempotent; fetch requires one target. keel.control/v1 supports only bounded project KV get/put, no media/inputs/retries; writes require CAS."
       },
       "FlowDefinition": {
         "type": "object",
@@ -3560,7 +3649,8 @@
               "keel.ssh/v1",
               "keel.agent/v1",
               "keel.provision-preparation/v1",
-              "keel.host/v1"
+              "keel.host/v1",
+              "keel.control/v1"
             ]
           },
           "inputs": {
@@ -3729,7 +3819,8 @@
               "fabric",
               "ssh",
               "agent",
-              "provision"
+              "provision",
+              "control"
             ]
           },
           "resource_key": {
@@ -3864,7 +3955,8 @@
               "fabric",
               "ssh",
               "agent",
-              "provision"
+              "provision",
+              "control"
             ]
           },
           "flow": {
@@ -3959,7 +4051,8 @@
               "fabric",
               "ssh",
               "agent",
-              "provision"
+              "provision",
+              "control"
             ]
           },
           "state": {
@@ -4092,7 +4185,8 @@
               "fabric",
               "ssh",
               "agent",
-              "provision"
+              "provision",
+              "control"
             ]
           },
           "state": {
@@ -4504,7 +4598,8 @@
               "fabric",
               "ssh",
               "agent",
-              "provision"
+              "provision",
+              "control"
             ]
           }
         },
@@ -4861,7 +4956,8 @@
               "fabric",
               "ssh",
               "agent",
-              "provision"
+              "provision",
+              "control"
             ]
           },
           "resource_key": {
@@ -6826,6 +6922,43 @@
         "required": [
           "default_percent",
           "source"
+        ]
+      },
+      "KVTaskSpec": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Public project metadata only; no secrets, media or device configuration. kv.get freezes the read value/version in its original receipt. kv.put uses exact CAS; expected_version=0 creates only. Maximum128 keys per project; text <=4096 characters and <=8192 JSON-encoded bytes. No automatic retry or implicit overwrite.",
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]{0,63}$"
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "expected_version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9223372036854775806
+          }
+        },
+        "required": [
+          "key"
+        ]
+      },
+      "ControlFlowCreateInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "flow_version_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          }
+        },
+        "required": [
+          "flow_version_id"
         ]
       }
     }

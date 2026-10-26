@@ -18,3 +18,5 @@ export function flowSearch(value:Record<string,unknown>):FlowSearch{
 }
 
 export const createHostFlowExecution=(project:string,body:components['schemas']['HostFlowCreateInput'],csrf:string,key:string)=>write<components['schemas']['Execution']>(`/projects/${encodeURIComponent(project)}/host-flow-executions`,body,csrf,key)
+
+export const createControlFlowExecution=(project:string,body:components['schemas']['ControlFlowCreateInput'],csrf:string,key:string)=>write<components['schemas']['Execution']>(`/projects/${encodeURIComponent(project)}/control-flow-executions`,body,csrf,key)

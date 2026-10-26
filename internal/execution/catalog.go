@@ -186,6 +186,9 @@ func (s *Service) publishVersion(ctx context.Context, a *Actor, projectID, flowI
 	if d.APIVersion == "keel.host/v1" {
 		mode = "host"
 	}
+	if d.APIVersion == "keel.control/v1" {
+		mode = "control"
+	}
 	if e = audit(ctx, tx, a.User.ID, projectID, action, v.ID, trace, map[string]any{"version": version, "content_hash": v.ContentHash, "mode": mode, "api_version": d.APIVersion, "source_version_id": rollbackSource, "change_reason": changeReason}); e != nil {
 		return nil, e
 	}

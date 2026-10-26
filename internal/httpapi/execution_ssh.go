@@ -7,6 +7,22 @@ import (
 )
 
 func (a *authAPI) registerSSHExecution(r *gin.Engine, base string) {
+	r.POST(base+"/control-flow-executions", func(c *gin.Context) {
+		actor, service, ok := a.executionProject(c, true)
+		if !ok {
+			return
+		}
+		var in execution.ControlFlowCreateInput
+		if !decodeExecutionBody(c, &in) {
+			return
+		}
+		out, err := service.CreateControlFlow(c.Request.Context(), actor, c.Param("id"), in, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.JSON(201, out)
+	})
 	r.POST(base+"/host-flow-executions", func(c *gin.Context) {
 		actor, service, ok := a.executionProject(c, true)
 		if !ok {

@@ -50,3 +50,38 @@ Monaco 当前提供 YAML 语法高亮、真实服务端严格校验与双版本�
 ## A4 参数目录接线
 
 2026-10-24：Flow 工作区运行弹窗与执行列表共用 CatalogInputs/ParamSelect，版本类参数不再提供自由文本入口。实时检查和创建事务均消费同一目录/批准制品元数据；提交时实际核对固定对象字节并冻结定义/依赖/摘要/对象版本。详见 [CATALOG-ADMISSION](CATALOG-ADMISSION.md)。完整兼容矩阵治理、模板和真实目标准入仍未闭环。实际验证以 HANDOFF 最新记录为准。
+
+## P1 无介质项目 KV（源码未验证）
+
+WP-1.4/F-1.8、PRD FR-1.3/I-2：输入为已有项目授权、版本化Flow及原执行器/锁/回执；产物为`keel.control/v1`的`kv.get`/`kv.put`，使用平台项目元数据目标，不伪造设备或sim运行结果。没有介质、SSH/Agent连接或后续门禁前提。验收源码见`internal/execution/control_kv_test.go`，尚未执行。后续子流/gate.wait、安装/驱动/NCCL按各自WP及门禁前置接入，不以本次KV替代。
+
+```yaml
+api_version: keel.control/v1
+inputs: {}
+tasks:
+  - id: remember
+    type: kv.put
+    retry: 0
+    idempotent: false
+    timeout_ms: 2000
+    resources: [project]
+    kv:
+      key: delivery.note
+      value: Ready for review
+      expected_version: 0
+  - id: inspect
+    type: kv.get
+    depends_on: [remember]
+    retry: 0
+    idempotent: true
+    timeout_ms: 2000
+    resources: [project]
+    kv:
+      key: delivery.note
+```
+
+通过原Flow发布API保存版本，再`POST /api/v1/projects/{id}/control-flow-executions`，body为`{"flow_version_id":"已发布版本ID"}`，提供当前会话/CSRF/Idempotency-Key；页面有“新建KV Flow”模板和显式范围确认。项目公开元数据跨Flow可读，不能存秘密、凭据、配置或硬件判据。每项目最多128键，单值≤4096字符且JSON编码≤8192字节，key为受限小写标识；不存在get明确失败。
+
+put必须给expected_version，0只创建，更新提供原get回执的精确版本。冲突保留原值并失败，编辑后发布新版本才能发起新的意图；原Flow版本和回执不变。每任务100～5000ms、无自动重试，kv.get为幂等读、kv.put显式非幂等。没有任意SQL/文件路径/模板求值或设备写操作。
+
+同项目KV写独占原项目资源、读共享；值/版本、原命令不可变回执、执行结果与审计同一数据库事务提交。重复原命令只观察原结果，不再次递增版本；Pause停派发，已领取有限事务可达安全终点，Kill/当前权限撤销发生在事务前则不写入。租约/fence过期拒绝写；回收器持有原执行锁后确认无提交回执，才写`kv_transaction_not_committed`失败证明，保留unknown及资源隔离，管理员显式Reconcile才能释放，不自动重放。迁移063及相关用例未执行。

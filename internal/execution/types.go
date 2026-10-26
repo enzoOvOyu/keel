@@ -58,6 +58,7 @@ type SimSpec struct {
 	Uncancellable bool   `json:"uncancellable,omitempty" yaml:"uncancellable,omitempty"`
 }
 type Task struct {
+	KV                 *KVSpec                      `json:"kv,omitempty" yaml:"kv,omitempty"`
 	MediaID            string                       `json:"media_id,omitempty" yaml:"media_id,omitempty"`
 	WaitMS             int                          `json:"wait_ms,omitempty" yaml:"wait_ms,omitempty"`
 	Artifact           *platform.TaskArtifact       `json:"artifact,omitempty" yaml:"artifact,omitempty"`
@@ -298,10 +299,11 @@ func (in PublishInput) Parse() (Definition, error) {
 }
 func (d Definition) Validate() error {
 	native := d.APIVersion == "keel.host/v1"
-	if d.APIVersion != "keel.sim/v1" && !native {
-		return invalid("only keel.sim/v1 and bounded keel.host/v1 workflows are supported")
+	control := d.APIVersion == "keel.control/v1"
+	if d.APIVersion != "keel.sim/v1" && !native && !control {
+		return invalid("only keel.sim/v1, keel.host/v1 and keel.control/v1 workflows are supported")
 	}
-	if native && len(d.Inputs) != 0 {
+	if (native || control) && len(d.Inputs) != 0 {
 		return invalid("host workflows use frozen task settings and do not accept parameter inputs")
 	}
 	if len(d.Tasks) < 1 || len(d.Tasks) > 32 || len(d.Inputs) > 32 {
@@ -325,6 +327,13 @@ func (d Definition) Validate() error {
 	}
 	ids := map[string]Task{}
 	for _, t := range d.Tasks {
+		if control {
+			if err := validateKVTask(t); err != nil {
+				return err
+			}
+		} else if t.KV != nil {
+			return invalid("KV settings require an explicit control-plane workflow")
+		}
 		if t.Artifact != nil || t.Script != nil || !native && (t.MediaID != "" || t.ScriptResultFormat != "" || t.ScriptPreferCache) {
 			return invalid("general flows cannot embed native script or artifact snapshots")
 		}
@@ -335,7 +344,9 @@ func (d Definition) Validate() error {
 			return invalid("duplicate task identifier")
 		}
 		ids[t.ID] = t
-		if native {
+		if control {
+			// KV bounds and the media-free resource declaration were checked above.
+		} else if native {
 			if t.Sim != (SimSpec{}) || t.Retry != 0 || len(t.Resources) != 1 || t.Resources[0] != "device" {
 				return invalid("host tasks require no simulation options/retries and exactly the device resource")
 			}

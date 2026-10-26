@@ -59,6 +59,9 @@ func ValidateFlow(in FlowValidationInput) (*FlowValidation, error) {
 	if d.APIVersion == "keel.host/v1" {
 		warnings = []string{"bounded_host_flow_requires_explicit_native_admission", "no_hardware_acceptance_evidence"}
 	}
+	if d.APIVersion == "keel.control/v1" {
+		warnings = []string{"public_project_metadata_only_no_secrets", "no_hardware_acceptance_evidence"}
+	}
 	return &FlowValidation{Version: "flow-validation/v1", Definition: d, ContentHash: hash(jsonBytes(d)), TaskOrder: order, Parameters: parameters, Warnings: warnings}, nil
 }
 

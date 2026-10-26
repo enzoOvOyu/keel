@@ -12,7 +12,7 @@ import uuid
 os.umask(0o077)
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--browser', action='store_true', help='Also exercise built web UI with the actual Agent transport')
-parser.add_argument('--run', default='TestAgent|TestProtected|TestWriteNew|TestAuthority|TestIssued|TestCSR|TestHostFlow|TestHostMedia|TestArtifact|TestFlowYAML|TestWorkflowYAML', help='Go test name filter for a targeted rerun')
+parser.add_argument('--run', default='TestAgent|TestProtected|TestWriteNew|TestAuthority|TestIssued|TestCSR|TestControlKV|TestHostFlow|TestHostMedia|TestArtifact|TestFlowYAML|TestWorkflowYAML', help='Go test name filter for a targeted rerun')
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 os.chdir(root)
