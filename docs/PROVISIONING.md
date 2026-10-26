@@ -251,3 +251,12 @@ v1 runtime-set及initrd归档保持原五输入和精确JSON/路径；v2明确�
 开发/生产顺序：先取得并独立批准实际三个工具字节（工具构建与行为验收由镜像输入/PoC提供）；与已有五项共同登记v2 config的八条直接依赖，独立批准并导出签名manifest；复用现有provision-initrd-create/verify离线链生成/反向验证单一严格归档，不能追加另一未批准CPIO；最后将生成的initrd作为新制品另行批准并纳入OS recipe。不要求未来OS成品先存在，不启动工具或设备操作。独立签名与所有八项字节核对后才记writer_tool_bytes_verified，CLI与boot.activated事件同时明确disk_write_authorized=false；运行入口目前仍只有只读预检/审批等待。
 
 该输入链不等于写盘器或可启动系统。后续先落实目标OS的安装启动内容契约（网络引导iPXE EFI不是目标盘bootloader），再将当前硬件复核、GPT摘要、可信工具/系统内容与独占lease绑定到一次性许可，执行受控操作/回读/失败unknown回执，之后接首启/SSH。未执行本批CLI、工具、归档生产、网络监听或镜像/硬件启动。
+
+
+## 目标系统启动内容契约（源码，非启动验收）
+
+`keel.boot-recipe/v1`继续支持原启动/预检输入；实际写盘必须通过`Plan.ValidateWritable`，要求显式`keel.boot-recipe/v2`及`target_boot`。该声明绑定已批准squashfs中的固定文件`usr/lib/keel/target.efi`、精确SHA256/字节数/内核release与固定命令行`root=PARTLABEL=keel-root rootfstype=ext4 rw rootwait`。先独立制作包含目标系统UKI/模块/首启组件的rootfs，再登记配方和独立审批，没有未来最终安装结果的反向依赖。网络引导iPXE EFI仍只负责进入安装环境。v1不自动补默认目标启动内容。
+
+目标UKI使用单一PE32+ UEFI application、相同CPU架构，要求实际`.linux`、`.initrd`、`.cmdline`、`.uname`和`.osrel`；核对完整字节摘要、段边界/重叠、固定命令行、release及零填充，拒绝multi-profile和隐藏附加命令。格式依据[UKI规范](https://uapi-group.org/specifications/specs/unified_kernel_image/)；这是Keel首次实现的受限输入格式，不代表所有UKI均须具备这些可选段。目标内容安装到新EFI分区的架构固定fallback路径，amd64为`EFI/BOOT/BOOTX64.EFI`，arm64为`EFI/BOOT/BOOTAA64.EFI`，不会修改固件NVRAM或复用iPXE。
+
+rootfs还须包含`usr/lib/os-release`、对应`usr/lib/modules/<release>/modules.dep`、同冻结版本`usr/local/libexec/keel-ssh-runner`、`usr/bin/cloud-init`及精确NoCloud配置`etc/cloud/cloud.cfg.d/99-keel-datasource.cfg`（内容`datasource_list: [ NoCloud ]`并换行）。安装器只读取/复制内容，不执行rootfs内程序或维护任意模板脚本。静态PE/文件存在与摘要一致均不是启动成功、驱动可用、SecureBoot信任、cloud-init已启用或SSH互信证据；这些须实际镜像和首启验证。页面使用共享组件录入/展示显式目标UKI文件信息，无自动构造或猜测摘要。

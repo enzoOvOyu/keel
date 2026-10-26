@@ -78,3 +78,35 @@ func TestRecipeJSONPreservesPinnedHashes(t *testing.T) {
 		t.Fatal("recipe lost during JSON roundtrip")
 	}
 }
+
+func TestTargetBootContractCannotBeImpliedByNetworkFirmware(t *testing.T) {
+	p := recipeFixture()
+	if p.ValidateWritable() == nil {
+		t.Fatal("network boot recipe authorized target-system writing")
+	}
+	p.Profile.Recipe.Schema = TargetRecipeSchema
+	p.Profile.Recipe.TargetBoot = &TargetBoot{Schema: TargetBootSchema, Path: TargetUKIPath, SHA256: strings.Repeat("b", 64), Size: 4096, KernelRelease: "6.12.0-keel", CommandLine: TargetCommandLine}
+	if err := p.ValidateWritable(); err != nil {
+		t.Fatal(err)
+	}
+	for name, change := range map[string]func(*Recipe){
+		"downgrade_with_target": func(r *Recipe) { r.Schema = RecipeSchema },
+		"missing_target":        func(r *Recipe) { r.TargetBoot = nil },
+		"target_is_ipxe":        func(r *Recipe) { r.TargetBoot.Path = "usr/lib/keel/ipxe.efi" },
+		"command_addition":      func(r *Recipe) { r.TargetBoot.CommandLine += " init=/bin/sh" },
+		"remote_root":           func(r *Recipe) { r.TargetBoot.CommandLine = "root=/dev/nfs" },
+		"kernel_path":           func(r *Recipe) { r.TargetBoot.KernelRelease = "../other" },
+		"unknown_schema":        func(r *Recipe) { r.TargetBoot.Schema = "future" },
+		"oversize":              func(r *Recipe) { r.TargetBoot.Size = MaxTargetUKIBytes + 1 },
+	} {
+		t.Run(name, func(t *testing.T) {
+			raw, _ := json.Marshal(p)
+			var copy Plan
+			json.Unmarshal(raw, &copy)
+			change(copy.Profile.Recipe)
+			if copy.ValidateWritable() == nil {
+				t.Fatal("unsafe target content contract accepted")
+			}
+		})
+	}
+}

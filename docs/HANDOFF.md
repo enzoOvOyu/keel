@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～104。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～105。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
@@ -1303,3 +1303,10 @@ initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新�
 新增双架构v2严格归档、确定性、缺项/改字节/错架构/v1降级/追加归档拒绝、独立签名闭包生产/反向绑定与失败不发布用例，只写入未运行。代码复核另修execution共享临时库fixture：在各自cleanup经真实scope API只撤销自己的域，避免下一fixture与遗留批准CIDR冲突；不删表/数据，不绕过网络冲突规则。实际定向Go编译/vet及最终静态结果记录/tmp/keel-writer-runtime-{compile,final-compile,vet,final-vet}.log，CLI/平台审计补充后的终检编译/vet日志为/tmp/keel-writer-runtime-source-final-{compile,vet}.log，无编译/静态错误；设计检查/tmp/keel-writer-runtime-design.log及git diff --check通过。没有应用SQL、运行CLI/新用例/浏览器、实际归档/镜像构建、网络或硬件操作。P1保持partial；3000/5173、运行46迁移和两份原未跟踪草稿继续保留。
 
 本轮最终只读运行复查（2026-10-26 05:08 UTC）：3000 /healthz返回process级ok、版本6668a72c；keel-api/postgres/minio/redis与auth-test-postgres容器healthy，runsun服务保留，.env权限600。此健康证据不覆盖本轮未发布源码或P1端到端验收。
+
+
+## 105. 新三小时窗口与目标系统UKI契约（2026-10-26，源码待集中验证）
+
+接续e35f1d9，用户于05:40:29 UTC要求继续三小时，至08:40:29 UTC；随后明确启用全部Agent并将可并行后续任务马上推进，覆盖之前的单Agent偏好。本轮root+3 Agent分工为目标内容/客户端集成、当前写盘许可、受控介质校验、writer。继续本地/禁tmux和SSH、P1完成后集中测试；只必要编译/静态检查，不部署3000或应用SQL/真实设备操作。
+
+新增显式v2Recipe目标UKI契约，v1字节兼容且不能通过ValidateWritable；固定rootfs内路径、精确摘要/大小/kernel release和本地GPT根命令行。新增有界全字节PE/同架构/固定单profile校验，不执行镜像。签名manifest严格字段和API/生成TS及共享UI录入/展示同步。新增格式/错架构/重叠/隐藏命令/篡改及签名拒绝用例仅写入。实际Go编译/vet日志/tmp/keel-target-boot-{compile,vet}.log、API生成/直接tsc/UI静态检查/tmp/keel-target-boot-{api,tsc,ui}.log通过；第一次从web查找不存在tsc退出127，已改用根目录既有工具成功。没有运行功能/PG/CLI/浏览器/固件或硬件验收。P1仍partial，本轮后续许可/介质/writer以新章节为准。

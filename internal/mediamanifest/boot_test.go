@@ -147,4 +147,23 @@ func TestSignedBootRecipeAndHelperBinding(t *testing.T) {
 	if _, err := Verify(forged, key); err == nil {
 		t.Fatal("modified recipe retained signature")
 	}
+	root.OSBoot.Recipe.Schema = mediaboot.TargetRecipeSchema
+	root.OSBoot.Recipe.TargetBoot = &mediaboot.TargetBoot{Schema: mediaboot.TargetBootSchema, Path: mediaboot.TargetUKIPath, SHA256: strings.Repeat("b", 64), Size: 4096, KernelRelease: "6.12.0-keel", CommandLine: mediaboot.TargetCommandLine}
+	signed, err = signer.Sign(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ = json.Marshal(signed)
+	if _, err := Verify(raw, key); err != nil {
+		t.Fatal(err)
+	}
+	for _, changed := range []string{
+		strings.Replace(string(raw), `"kernel_release":`, `"Kernel_release":`, 1),
+		strings.Replace(string(raw), `"target_boot":`, `"target_boot":{},"target_boot":`, 1),
+		strings.Replace(string(raw), `6.12.0-keel`, `6.12.1-keel`, 1),
+	} {
+		if _, err := Verify([]byte(changed), key); err == nil {
+			t.Fatal("ambiguous or modified target contract accepted")
+		}
+	}
 }

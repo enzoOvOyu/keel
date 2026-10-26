@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { ActionDialog, ActionError } from '../../components/Management'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
@@ -42,7 +43,7 @@ export function MediaBootProfileEditor({ value, onChange, dependencies, arch, di
 export function MediaBootProfileSummary({ profile }: { profile?: MediaOSBootProfile }) {
  const { t } = useTranslation()
  if (!profile) return null
- return <div className="field"><Label>{t('mediaBootProfile')}</Label><p>{profile.installer}{profile.recipe ? ' · ' + profile.recipe.protocol : ''}</p><dl>{roles.map(role => <div key={role}><dt>{t('mediaBoot_' + role)}</dt><dd className="mono-value ui:break-all">{profile[role]}</dd></div>)}{profile.recipe && recipeRoles.map(role => profile.recipe?.[role] ? <div key={role}><dt>{t("mediaBoot_" + role)}</dt><dd className="mono-value ui:break-all">{profile.recipe[role]}</dd></div> : null)}</dl></div>
+ return <div className="field"><Label>{t('mediaBootProfile')}</Label><p>{profile.installer}{profile.recipe ? ' · ' + profile.recipe.schema : ''}</p><dl>{roles.map(role => <div key={role}><dt>{t('mediaBoot_' + role)}</dt><dd className="mono-value ui:break-all">{profile[role]}</dd></div>)}{profile.recipe && recipeRoles.map(role => profile.recipe?.[role] ? <div key={role}><dt>{t("mediaBoot_" + role)}</dt><dd className="mono-value ui:break-all">{profile.recipe[role]}</dd></div> : null)}{profile.recipe?.target_boot && <><div><dt>{t('mediaBootTargetDigest')}</dt><dd className="mono-value ui:break-all">{profile.recipe.target_boot.sha256}</dd></div><div><dt>{t('mediaBootTargetSize')}</dt><dd>{profile.recipe.target_boot.size}</dd></div><div><dt>{t('mediaBootTargetKernel')}</dt><dd>{profile.recipe.target_boot.kernel_release}</dd></div></>}</dl></div>
 }
 
 export function MediaBootPlanDialog({ projectId, item, onClose }: { projectId: string | null; item: MediaItemSummary; onClose: () => void }) {
@@ -67,9 +68,14 @@ function MediaBootRecipeEditor({ value, onChange, dependencies, arch, disabled }
  return <div className="field">
   <Label htmlFor="media-boot-recipe">{t('mediaBootRecipe')}</Label>
   <p className="field-hint">{t('mediaBootRecipeHint')}</p>
-  <NativeSelect id="media-boot-recipe" value={recipe?.protocol ?? ''} disabled={disabled} onChange={event => onChange({ ...value, recipe: event.target.value ? { schema: 'keel.boot-recipe/v1', protocol: 'keel-initrd/v1', rootfs_format: 'squashfs', uefi_media_id: '', preflight_media_id: '', ssh_helper_media_id: '', preflight_sha256: '', ssh_helper_sha256: '' } : undefined })}>
+  <NativeSelect id="media-boot-recipe" value={recipe?.schema ?? ''} disabled={disabled} onChange={event => {
+   if (!event.target.value) { onChange({ ...value, recipe: undefined }); return }
+   const base = recipe ?? { protocol: 'keel-initrd/v1' as const, rootfs_format: 'squashfs' as const, uefi_media_id: '', preflight_media_id: '', ssh_helper_media_id: '', preflight_sha256: '', ssh_helper_sha256: '' }
+   onChange({ ...value, recipe: { ...base, schema: event.target.value as 'keel.boot-recipe/v1' | 'keel.boot-recipe/v2', target_boot: event.target.value === 'keel.boot-recipe/v2' ? recipe?.target_boot ?? { schema: 'keel.target-boot/v1', path: 'usr/lib/keel/target.efi', sha256: '', size: 0, kernel_release: '', command_line: 'root=PARTLABEL=keel-root rootfstype=ext4 rw rootwait' } : undefined } })
+  }}>
    <NativeSelectOption value="">{t('mediaBootPreparationOnly')}</NativeSelectOption>
-   <NativeSelectOption value="keel-initrd/v1">keel-initrd/v1 · squashfs</NativeSelectOption>
+   <NativeSelectOption value="keel.boot-recipe/v1">{t('mediaBootRuntimeOnly')}</NativeSelectOption>
+   <NativeSelectOption value="keel.boot-recipe/v2">{t('mediaBootTargetUKI')}</NativeSelectOption>
   </NativeSelect>
   {recipe && recipeRoles.filter(role => role !== 'legacy_media_id' || arch === 'amd64').map(role => <div className="field" key={role}>
    <Label htmlFor={'media-boot-' + role}>{t('mediaBoot_' + role)}</Label>
@@ -82,5 +88,14 @@ function MediaBootRecipeEditor({ value, onChange, dependencies, arch, disabled }
     {eligible.map(item => <NativeSelectOption key={item.id} value={item.id} disabled={selected.includes(item.id) && recipe[role] !== item.id}>{item.name} · {item.version} · {item.arch}</NativeSelectOption>)}
    </NativeSelect>
   </div>)}
+  {recipe?.target_boot && <div className="field">
+   <p className="field-hint">{t('mediaBootTargetHint')}</p>
+   <Label htmlFor="media-target-digest">{t('mediaBootTargetDigest')}</Label>
+   <Input id="media-target-digest" required pattern="[a-f0-9]{64}" maxLength={64} disabled={disabled} value={recipe.target_boot.sha256} onChange={event => onChange({ ...value, recipe: { ...recipe, target_boot: { ...recipe.target_boot!, sha256: event.target.value } } })} />
+   <Label htmlFor="media-target-size">{t('mediaBootTargetSize')}</Label>
+   <Input id="media-target-size" required type="number" min={1024} max={402653184} step={1} disabled={disabled} value={recipe.target_boot.size || ''} onChange={event => onChange({ ...value, recipe: { ...recipe, target_boot: { ...recipe.target_boot!, size: Number(event.target.value) } } })} />
+   <Label htmlFor="media-target-kernel">{t('mediaBootTargetKernel')}</Label>
+   <Input id="media-target-kernel" required pattern="[a-zA-Z0-9][a-zA-Z0-9._+\u002d]{0,127}" maxLength={128} disabled={disabled} value={recipe.target_boot.kernel_release} onChange={event => onChange({ ...value, recipe: { ...recipe, target_boot: { ...recipe.target_boot!, kernel_release: event.target.value } } })} />
+  </div>}
  </div>
 }

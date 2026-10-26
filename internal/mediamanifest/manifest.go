@@ -219,7 +219,8 @@ var manifestJSONFields = map[string]map[string]string{
 	"payload":     {"schema": "", "key_id": "", "root_id": "", "exported_at": "", "artifacts": "artifact"},
 	"artifact":    {"media_id": "", "scope_key": "", "uri": "", "type": "", "name": "", "version": "", "arch": "", "sha256": "", "size": "", "object_version": "", "approved_by": "", "approved_at": "", "dependencies": "dependency", "compatibility": "", "os_boot": "os_boot"},
 	"os_boot":     {"schema": "", "installer": "", "kernel_media_id": "", "initrd_media_id": "", "template_media_id": "", "recipe": "boot_recipe"},
-	"boot_recipe": {"schema": "", "protocol": "", "rootfs_format": "", "uefi_media_id": "", "legacy_media_id": "", "preflight_sha256": "", "ssh_helper_sha256": "", "preflight_media_id": "", "ssh_helper_media_id": ""},
+	"boot_recipe": {"schema": "", "protocol": "", "rootfs_format": "", "uefi_media_id": "", "legacy_media_id": "", "preflight_sha256": "", "ssh_helper_sha256": "", "preflight_media_id": "", "ssh_helper_media_id": "", "target_boot": "target_boot"},
+	"target_boot": {"schema": "", "path": "", "sha256": "", "size": "", "kernel_release": "", "command_line": ""},
 	"dependency":  {"media_id": "", "sha256": ""},
 }
 

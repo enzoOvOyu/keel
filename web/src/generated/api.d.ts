@@ -3109,10 +3109,10 @@ export interface components {
             template_media_id: string;
             recipe?: components["schemas"]["MediaBootRecipe"];
         };
-        /** @description Reviewed custom initrd contract; metadata is not proof of a bootable or preflight-before-write accepted image. Required for actual installation, optional for legacy preparation preview. */
+        /** @description Reviewed installer inputs. v1 admits boot/preflight only; v2 additionally binds one target-system UKI inside the approved rootfs. Neither metadata nor byte verification grants disk write permission or proves bootability. */
         MediaBootRecipe: {
-            /** @constant */
-            schema: "keel.boot-recipe/v1";
+            /** @enum {string} */
+            schema: "keel.boot-recipe/v1" | "keel.boot-recipe/v2";
             /** @constant */
             protocol: "keel-initrd/v1";
             /** @constant */
@@ -3123,6 +3123,24 @@ export interface components {
             ssh_helper_media_id: string;
             preflight_sha256: string;
             ssh_helper_sha256: string;
+            target_boot?: components["schemas"]["MediaTargetBoot"];
+        } & ({
+            /** @constant */
+            schema?: "keel.boot-recipe/v1";
+        } | {
+            /** @constant */
+            schema?: "keel.boot-recipe/v2";
+        });
+        MediaTargetBoot: {
+            /** @constant */
+            schema: "keel.target-boot/v1";
+            /** @constant */
+            path: "usr/lib/keel/target.efi";
+            sha256: string;
+            size: number;
+            kernel_release: string;
+            /** @constant */
+            command_line: "root=PARTLABEL=keel-root rootfstype=ext4 rw rootwait";
         };
         MediaBootArtifact: {
             /** @enum {string} */
