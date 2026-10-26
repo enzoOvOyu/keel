@@ -1179,3 +1179,10 @@ Make新增build-installer-helpers跨架构生产两份实际helper；CLI不接DB
 ## 89. CI覆盖独立准备与共享设备锁集成入口（2026-10-26，仅源码接线）
 
 接续ec562d6，复查发现make check没有提供Agent专用DSN时会跳过复用agentKernel的TestProvisionExecutionKernelPostgres，而后续专用Agent CI步只筛选TestAgent。已把既有该步的筛选扩为Agent及装机准备共享执行器用例，复用同一隔离CI数据库和已编译二进制，避免新增重复构建/环境或遗漏测试；平台准备用例仍由原make check覆盖。当前只校验CI YAML/嵌入shell语法，不推送、不触发或执行CI，测试依然待集中验证。
+
+
+## 90. 准备任务完整字节校验后的当前准入复核（2026-10-26，源码待集中验证）
+
+接续1277abb，VerifyProvisionRequestTx在完整冻结源读取/重渲染/摘要比较后再次检查context与当前准备期限、审批人权限、BOM/公钥/介质元数据，避免仅在耗时对象读取前校验，而在失效后仍报告prepared。仍只产生准备证据，不能授权实际安装。新增隔离PG用例通过对象读取钩子使请求在字节验证期间失效，避免sleep或修改不可变DB身份；只写入未运行。
+
+实际执行platform/execution编译（go test -p=1 -run '^$'）与定向go vet，结果见/tmp/keel-provision-late-expiry-{compile,vet}.log，带原overlay/内存限制；设计静态检查见本次提交。未执行PG用例、迁移、生产或浏览器操作，集中验证策略不变。

@@ -131,3 +131,6 @@ v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud
 
 
 CI中的既有Agent专用PostgreSQL集成步亦显式包含`TestProvisionExecutionKernelPostgres`，因为该用例复用Agent隔离fixture、普通`make check`没有该DSN时会skip；只扩展已有筛选，不额外重复构建/启动测试环境。当前仅更新CI源码，尚未运行。
+
+
+准备任务的完整对象读取与配置摘要比对完成后，再检查context及当前请求期限/审批人/BOM/公钥/介质准入；读取前的验证不作为耗时读取完成时的有效性证明。已过期或失权的源不记录为prepared。该复核不赋予实际安装许可，真实安装仍须取得新的共享独占lease并重验当前事实。

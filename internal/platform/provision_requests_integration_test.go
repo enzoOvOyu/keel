@@ -2,6 +2,7 @@ package platform
 
 import (
 	"context"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -160,5 +161,46 @@ func TestProvisionDeploymentEngineerPublicKeyScope(t *testing.T) {
 	}
 	if _, err = s.ChangeProvisionRequest(ctx, engineer, project.ID, request.ID, "approve", ProvisionRequestActionInput{ExpectedVersion: 1, Reason: "must not approve"}, "engineer-approve", "test"); err == nil {
 		t.Fatal("DE gained approval authority")
+	}
+}
+
+// Only the object seam is substituted. Setting an elapsed in-memory deadline while
+// reading deterministically models expiry during hashing without sleeping or
+// changing the immutable database row; it must fail the final admission check.
+type provisionExpiryObjects struct {
+	MediaObjectStore
+	onOpen func()
+}
+
+func (o *provisionExpiryObjects) Open(ctx context.Context, key, version string) (io.ReadCloser, error) {
+	file, err := o.MediaObjectStore.Open(ctx, key, version)
+	if err == nil && o.onOpen != nil {
+		fn := o.onOpen
+		o.onOpen = nil
+		fn()
+	}
+	return file, err
+}
+func TestProvisionRequestExpiresWhileVerifyingBytes(t *testing.T) {
+	s, owner, reviewer, project, asset, _, _, _, _, input := provisionFixture(t)
+	ctx := context.Background()
+	x, err := s.CreateProvisionRequest(ctx, owner, project, asset, CreateProvisionRequestInput{ProvisionPreviewInput: input, Reason: "request expiry boundary"}, "expiry-boundary", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	x, err = s.ChangeProvisionRequest(ctx, reviewer, project.ID, x.ID, "approve", ProvisionRequestActionInput{ExpectedVersion: x.StateVersion, Reason: "independent boundary review"}, "approve-expiry-boundary", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	opened := false
+	s.MediaObjects = &provisionExpiryObjects{MediaObjectStore: s.MediaObjects, onOpen: func() { opened = true; x.ExpiresAt = time.Now().Add(-time.Second) }}
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	_, err = s.VerifyProvisionRequestTx(ctx, tx, owner, x)
+	if !opened || err == nil || !strings.Contains(err.Error(), "PROVISION_REQUEST_EXPIRED") {
+		t.Fatalf("late request expiry admitted: opened=%v err=%v", opened, err)
 	}
 }

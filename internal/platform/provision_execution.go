@@ -77,6 +77,14 @@ func (s *Store) VerifyProvisionRequestTx(ctx context.Context, tx *sql.Tx, a *Aut
 	if plan.SnapshotSHA256 != x.SnapshotSHA256 {
 		return nil, apiError(409, "PROVISION_SNAPSHOT_CHANGED", "Current source differs from the approved installation preparation")
 	}
+	// Hashing complete objects may outlive the request or approval authority.
+	// A check made before those reads is not sufficient completion evidence.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := ValidateProvisionRequestMetadataTx(ctx, tx, x, time.Now()); err != nil {
+		return nil, err
+	}
 	return plan, nil
 }
 
