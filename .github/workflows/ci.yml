@@ -49,7 +49,7 @@ jobs:
           set -euo pipefail
           keel_arm64_build_dir="$(mktemp -d /tmp/keel-arm64-build.XXXXXXXX)"
           trap 'rm -rf "$keel_arm64_build_dir"' EXIT
-          go build -trimpath -o "$keel_arm64_build_dir/" ./cmd/keel-api ./cmd/keel-admin ./cmd/keel-worker ./cmd/keel-sim ./cmd/keel-ssh-runner ./cmd/keel-agent ./cmd/keel-preflight
+          go build -trimpath -o "$keel_arm64_build_dir/" ./cmd/keel-api ./cmd/keel-admin ./cmd/keel-worker ./cmd/keel-sim ./cmd/keel-ssh-runner ./cmd/keel-agent ./cmd/keel-preflight ./cmd/keel-initrd
       - name: Compile Linux amd64 Agent binary
         env:
           CGO_ENABLED: '0'

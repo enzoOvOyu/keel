@@ -24,6 +24,9 @@ type Preparation struct {
 	Status                string                     `json:"status"`
 	Report                *provisionpreflight.Report `json:"report"`
 	InstallationPerformed bool                       `json:"installation_performed"`
+	// Exact verified report bytes are retained separately for evidence and a
+	// subsequent independently approved storage plan; never hash a re-encoding.
+	ReportBytes []byte `json:"-"`
 }
 
 // Prepare never writes a disk, submits a callback or changes controller state.
@@ -72,5 +75,5 @@ func Prepare(ctx context.Context, input Input, files *Files, runner HelperRunner
 		return nil, ErrUnavailable
 	}
 	sum := sha256.Sum256(raw)
-	return &Preparation{Schema: PreparationSchema, ManifestSHA256: input.ManifestSHA256, ReportSHA256: hex.EncodeToString(sum[:]), Status: status, Report: report, InstallationPerformed: false}, nil
+	return &Preparation{Schema: PreparationSchema, ManifestSHA256: input.ManifestSHA256, ReportSHA256: hex.EncodeToString(sum[:]), Status: status, Report: report, InstallationPerformed: false, ReportBytes: append([]byte(nil), raw...)}, nil
 }

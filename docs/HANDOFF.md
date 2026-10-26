@@ -1220,3 +1220,9 @@ Make新增build-installer-helpers跨架构生产两份实际helper；CLI不接DB
 接续cc2fc70，新增provisioninitrd：严格受信kernel参数、固定接口/地址/CA的IP直连TLS 1.3文件客户端、独立摘要先验与完整BootFiles绑定、固定预检helper及报告复算；成功仅ready_for_storage_review，失败保留FAIL/BLOCKED，无安装/回调/信任投影。Linux helper仅root PID1和ramfs/tmpfs根启用，校验固定root只读二进制后复制到sealed memfd，规格走noexec sealed memfd，固定FD/argv/环境。复用provisionimage静态ELF函数（显式拒绝未知架构），未创建旁路执行器。iPXE增加固定服务器/CIDR并改ip=off，防内核在其他网卡自动DHCP；当前尚无网络配置适配/PID1命令与完整initrd，后续继续实现。
 
 新增解析/TLS/下载和冻结错绑/失败退出/过期/取消等软件用例仅写入。实际仅执行定向Go编译/vet，日志/tmp/keel-initrd-prepare-{compile,vet}.log；后续文件拆分和root环境守卫同批最终结果以提交前检查为准。provision-only基础组补入新包；无宿主采集、memfd/helper运行、网络监听或镜像/SQL变动。05:12:04 UTC窗口继续，P1 partial。
+
+## 95. 指定网卡临时联网与 PID1 只读入口（2026-10-26，源码待集中验证）
+
+接续b78492c，新增独立cmd/keel-initrd与Linux虚拟文件系统/console/public-CA适配，唯一BOM MAC的直接DHCP客户端、严格租约/包绑定和ARP使用前探测/会话冲突监听。仅读会话结束/期限/取消后撤下临时IPv4，不设置默认路由/DNS，不把地址留到后续安装。拒绝relay/已有IPv4/端口占用，不干预其他接口/服务。Prepare保留精确原始报告字节供tmpfs证据和后续磁盘审批，PID1最终保持等待，无回调/写盘/自动重启。完整边界及内核要求见PROVISIONING末节。
+
+Makefile新增双架构build-initrd，CI已有ARM编译列表加入新命令，未执行构建镜像/推送/CI。新增DHCP/ARP/公共CA/普通宿主守卫用例未运行。实际仅定向编译/vet（/tmp/keel-initrd-network-{compile,vet}.log）及linux/arm64静态入口编译（/tmp/keel-initrd-network-arm64），不能作为网络/启动证据。当前仍缺完整批准镜像，接下来实现独立runtime-set生产路径；P1 partial，05:12:04 UTC窗口继续。

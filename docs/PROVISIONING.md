@@ -165,3 +165,15 @@ HTTPS文件客户端必须显式CA信任池、已分配本地地址及对应接�
 准备函数先核两份固定helper，再运行受限预检并复算完整报告，验证退出码与PASS/FAIL/BLOCKED一致及报告/期限新鲜度。PASS只输出ready_for_storage_review，失败保留原因状态；installation_performed始终false。Linux进程适配仅root PID1且根文件系统为ramfs/tmpfs时可用，拒绝普通宿主或容器overlay入口；读取root所有且不可写的固定helper，复用实际SHA/静态ELF校验，复制到sealed executable memfd，规格通过独立不可执行sealed memfd交付；固定fd/argv和最小环境，无路径替换、shell或继承控制面配置。只支持具备显式memfd exec/noexec及sealing能力的批准内核，不降级为不受保护的路径执行，参考 [Linux memfd exec/noexec契约](https://www.kernel.org/doc/html/latest/userspace-api/mfd_noexec.html)。
 
 该源码没有PID1命令、完整可启动镜像、当前网络Authority或回调交付；不宣称图片/协议或真实helper运行已验收。新增固定输入、TLS文件边界、helper错绑/退出码/失效和失败报告用例仅写入，待P1集中执行。
+
+### 受控只读启动入口与临时 IPv4（源码，尚未启动验收）
+
+`cmd/keel-initrd` 是独立镜像的 `/init` 入口，不放入现有 API/worker 镜像。启动必须为 root PID1、ramfs/tmpfs 根；仅挂 proc/sysfs/devtmpfs/tmpfs，devtmpfs 后连接 console。严格解析受信启动参数并从镜像内固定 `/etc/keel/boot-ca.pem` 读取有界、有效的公共 CA；不接受 DHCP/下载内容提供初始信任根。证书不得混入私钥、重复块或任意前后文本。
+
+新 DHCP 客户端只在唯一 BOM MAC 对应且无既存 IPv4 的 Ethernet 接口启用；端口68冲突失败，不复用/停止其他进程。仅支持批准 CIDR 内直接 DHCP，拒绝 relay、重复/overload 选项、错 XID/MAC、错 server-ID/来源、零地址 Proxy offer、掩码不符及不足300秒/超过7天租约。DISCOVER/REQUEST 有界指数退避；只接广播回复，服务器必须能直接回包。租约从首个 REQUEST 起保守计时，不从 ACK 收到时延长。不会采用 DHCP 的默认路由、DNS 或启动路径；HTTPS 仍固定服务器 IPv4 和域名证书。
+
+使用前对选定接口执行三次 ARP probe，冲突发 DECLINE 后停止；会话期间继续监听冲突，期限/取消/冲突均中止读取。固定接口设置地址与精确掩码，工作结束撤下本次地址；没有静默续租或把本次租约用于后续写盘。未来独立审批/安装必须重新取得当前网络会话和许可。当前会话只取四份固定公开文件、校验两个 helper、运行只读 preflight，再将原始报告与摘要/复算结果写入 `/run/keel` 的独占0600文件；无回调、磁盘/客户文件系统挂载或资产状态变化。PID1随后保持等待并回收孤儿，不通过信号自动重试/重启/执行 shell。
+
+此入口依赖批准镜像实际包含静态 `/init`、预检/SSH helper、静态 smartctl 和公共 CA，及与机器兼容的内建 NIC/存储驱动、proc/sysfs/devtmpfs、ARP/IPv4、sealed executable memfd 内核能力。`make build-initrd` 仅编译双架构入口和 helper，既有 helper overlay 仍不能冒充完整镜像。下一步独立 runtime-set 输入与完整 initrd 生产，不以成品 initrd/OS recipe 为输入前提。新增 DHCP/ARP/CA/宿主拒绝用例只写入；未配置宿主网络、运行 helper/PID1 或开展硬件启动。
+
+协议依据：[RFC 2131](https://www.rfc-editor.org/rfc/rfc2131) 的 DHCP 客户端选择/请求/拒绝及重传流程、[RFC 5227](https://www.rfc-editor.org/rfc/rfc5227) 的使用前冲突探测。当前只实现同网段、短期只读会话子集，不宣称支持 relay、持久租约续租或完整操作系统网络管理。
