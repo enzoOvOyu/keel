@@ -1,5 +1,15 @@
 export const artifactTranslations = {
  zh: {
+  artifactInventoryOperation:'查询制品缓存清单',
+  artifactInventoryBoundary:'查询固定制品缓存的当前归属、实际大小及检查点，不读取全文件 SHA。历史完整校验时间不代表本次内容已重验；不列出私有来源引用。',
+  artifactInventoryRecent:'采集时元数据（30 秒窗口内）',
+  artifactInventoryStale:'历史元数据，重新查询后再使用',
+  artifactInventoryLastVerified:'历史完整校验时间',
+  artifactInventoryCheckpoint:'已确认字节',
+  artifactInventoryVerifiedHistory:'曾完整校验',
+  artifactInventoryPaused:'已暂停的部分文件',
+  artifactInventoryPartial:'接收中的部分文件',
+
   artifactDistributionTitle:'{{transport}} 制品分发',
   artifactDistributionIntro:'将批准介质分发到目标的固定平台缓存。',
   artifactDistributionBoundary:'仅分发已独立批准、已存储的 1 B～1 GiB 制品；不安装或执行内容。需控制面和目标显式开启。',
@@ -28,6 +38,16 @@ export const artifactTranslations = {
   artifactReceiptOther:'参见原始回执',
  },
  en: {
+  artifactInventoryOperation:'Inspect artifact cache inventory',
+  artifactInventoryBoundary:'Observe ownership, actual size and checkpoints in the fixed artifact cache without hashing whole files. Historical verification does not prove fresh content integrity. Private source references are omitted.',
+  artifactInventoryRecent:'Metadata captured within the 30-second window',
+  artifactInventoryStale:'Historical metadata; query again before use',
+  artifactInventoryLastVerified:'Last whole-file verification',
+  artifactInventoryCheckpoint:'Acknowledged bytes',
+  artifactInventoryVerifiedHistory:'Previously verified',
+  artifactInventoryPaused:'Paused partial file',
+  artifactInventoryPartial:'Receiving partial file',
+
   artifactDistributionTitle:'{{transport}} artifact distribution',
   artifactDistributionIntro:'Distribute approved media to the fixed platform cache.',
   artifactDistributionBoundary:'Only independently approved stored artifacts, 1 B–1 GiB. No installation or execution. Both control plane and target must opt in.',

@@ -169,7 +169,7 @@ func writeAgentFence(dir string, fence agentFence) error {
 }
 func (a Agent) Handle(ctx context.Context, r Request) (Observation, error) {
 	var zero Observation
-	if os.Geteuid() == 0 || !idPattern.MatchString(a.ProjectID) || !idPattern.MatchString(a.MachineID) || r.Validate() != nil || r.Command.ProjectID != a.ProjectID || r.Command.MachineID != a.MachineID || (r.Command.Operation != "host.identity" && r.Command.Operation != "host.wait" && r.Command.Operation != "script.run" && r.Command.Operation != "host.cache.inventory" && r.Command.Operation != "media.stage") {
+	if os.Geteuid() == 0 || !idPattern.MatchString(a.ProjectID) || !idPattern.MatchString(a.MachineID) || r.Validate() != nil || r.Command.ProjectID != a.ProjectID || r.Command.MachineID != a.MachineID || (r.Command.Operation != "host.identity" && r.Command.Operation != "host.wait" && r.Command.Operation != "script.run" && r.Command.Operation != "host.cache.inventory" && r.Command.Operation != "host.artifact.inventory" && r.Command.Operation != "media.stage") {
 		return zero, ErrRejected
 	}
 	if r.Command.Operation == "media.stage" && (r.Action == "run" || r.Action == "append" || r.Action == "commit") && !a.ArtifactTransfersEnabled {
@@ -179,6 +179,9 @@ func (a Agent) Handle(ctx context.Context, r Request) (Observation, error) {
 		return zero, ErrRejected
 	}
 	if r.Action == "run" && r.Command.Operation == "host.cache.inventory" && !a.CacheInventoryEnabled {
+		return zero, ErrRejected
+	}
+	if r.Action == "run" && r.Command.Operation == "host.artifact.inventory" && !a.ArtifactTransfersEnabled {
 		return zero, ErrRejected
 	}
 	fd, e := agentDirectory(a.StateDirectory)

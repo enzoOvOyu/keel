@@ -50,7 +50,7 @@ func (c TaskCommand) Validate() error {
 	if c.APIVersion != APIVersion || !idPattern.MatchString(c.ProjectID) || !idPattern.MatchString(c.MachineID) || !idPattern.MatchString(c.CommandID) || !idPattern.MatchString(c.AttemptID) || c.FencingToken < 1 || c.TimeoutMS < 100 || c.TimeoutMS > 30000 {
 		return ErrRejected
 	}
-	if c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "trust.verify" && c.Operation != "trust.install" && c.Operation != "script.run" && c.Operation != "host.cache.inventory" && c.Operation != "media.stage" {
+	if c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "trust.verify" && c.Operation != "trust.install" && c.Operation != "script.run" && c.Operation != "host.cache.inventory" && c.Operation != "host.artifact.inventory" && c.Operation != "media.stage" {
 		return ErrRejected
 	}
 	if c.Operation == "media.stage" {
@@ -60,7 +60,7 @@ func (c TaskCommand) Validate() error {
 	} else if c.ArtifactMediaID != "" || c.ArtifactObjectVersion != "" || c.ArtifactSHA256 != "" || c.ArtifactSize != 0 {
 		return ErrRejected
 	}
-	if c.Operation == "host.cache.inventory" {
+	if c.Operation == "host.cache.inventory" || c.Operation == "host.artifact.inventory" {
 		if c.CacheCursor != "" && (!scriptDigestPattern.MatchString(c.CacheCursor) || !scriptDigestPattern.MatchString(c.CacheManifestSHA256)) || c.CacheManifestSHA256 != "" && !scriptDigestPattern.MatchString(c.CacheManifestSHA256) {
 			return ErrRejected
 		}
@@ -163,6 +163,9 @@ func (o Observation) Validate(c TaskCommand) error {
 		return ErrRejected
 	}
 	if c.Operation == "media.stage" && o.Terminal() && validateArtifactObservation(o) != nil {
+		return ErrRejected
+	}
+	if c.Operation == "host.artifact.inventory" && o.Terminal() && validateArtifactInventoryObservation(o) != nil {
 		return ErrRejected
 	}
 	if c.Operation == "host.cache.inventory" && o.Terminal() && validateCacheObservation(o) != nil {

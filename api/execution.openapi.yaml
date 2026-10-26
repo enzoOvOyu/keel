@@ -5478,7 +5478,8 @@
             "enum": [
               "host.identity",
               "host.wait",
-              "host.cache.inventory"
+              "host.cache.inventory",
+              "host.artifact.inventory"
             ]
           },
           "timeout_ms": {
@@ -5496,7 +5497,7 @@
           "cache_cursor": {
             "type": "string",
             "pattern": "^$|^[a-f0-9]{64}$",
-            "description": "Optional continuation digest; requires cache_manifest_sha256 and exactly one target."
+            "description": "Optional SHA256 cursor for a single-target script/artifact inventory snapshot; requires its exact manifest SHA256."
           },
           "cache_manifest_sha256": {
             "type": "string",
@@ -5542,7 +5543,8 @@
             "enum": [
               "host.identity",
               "host.wait",
-              "host.cache.inventory"
+              "host.cache.inventory",
+              "host.artifact.inventory"
             ]
           },
           "timeout_ms": {
@@ -5560,7 +5562,7 @@
           "cache_cursor": {
             "type": "string",
             "pattern": "^$|^[a-f0-9]{64}$",
-            "description": "Optional continuation digest; requires cache_manifest_sha256 and exactly one target."
+            "description": "Optional SHA256 cursor for a single-target script/artifact inventory snapshot; requires its exact manifest SHA256."
           },
           "cache_manifest_sha256": {
             "type": "string",

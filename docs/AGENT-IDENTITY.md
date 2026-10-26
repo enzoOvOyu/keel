@@ -207,3 +207,9 @@ Heartbeat proto 增加可选 `network_inventory_json`，严格版本 `agent-netw
 沿用已注册 mTLS Agent、当前项目资产身份、任务 broker 和原执行器，增加独立 `media.stage` 的 run/append/commit/query/cancel。目标 `artifact_transfers_enabled:false`，开启须同时 `tasks_enabled:true`；控制面开关另行配置，详见 [SSH-RUNNER](SSH-RUNNER.md) 的固定目录/限额/检查点协议。常驻 Agent 不执行内容、不启脚本 helper、不设置 subreaper。append/commit 持 Agent 全局 run 锁核对原 fence，再进入目标缓存锁；新命令不能与旧分块交叉写入。历史 query/cancel 在关闭分发后仍可取原证明，不重新取源正文/审批或延长授权。
 
 原每连接累计256请求的限制改为有界去重窗口：在途任务仍最多8个，另保留最近256个已完成帧 ID，不让分块传输必然在256帧断开。帧 ID 仅负责关联/近期去重；持久命令、原授权、fence 和检查点提供写入防重放，超出窗口的旧命令仍不能再次执行或跨偏移写入。单帧上限14336字节及既有gRPC上限保留。此制品缓存不计入现有小脚本缓存 inventory/心跳。完整双向文件通道、进程目录、证书CA轮换及实测仍待后续 WP-1.5 工作；不要求先实现 P2 G3+ 安装依赖。
+
+### 制品缓存清单（2026-10-26，源码未验证）
+
+双通道原只读创建入口增加 `host.artifact.inventory`，复用当前资产/通道/权限、设备资源键与持久回执；新run须控制面和目标制品开关启用，关闭后历史query/cancel仍可读。固定制品目录受共享缓存锁保护，检查每个摘要目录的归属清单、实际常规文件及已确认大小；8条/页、最多64条，以公开元数据规范化摘要绑定游标，变化拒绝续页。只返回SHA/预期大小/检查点/partial、paused、verified历史状态/文件修改时间与上次完整校验时间，不含seed媒体/项目/对象或command身份。
+
+这是 `page_content_verified:false` 的当前元数据观察，不全量读取1GiB文件，也不拿verified历史状态当作本次内容重验。回执带采集时间和30秒TTL；页面到期显示历史并要求新查询。既有小脚本清单保持真正按页读取字节验证的语义，新缓存不混入其心跳。实际制品命中/commit仍完整核对大小与SHA。协议/真实私有文件夹分页/快照变更/内容被改但元数据不冒充验证/PG准入与冻结用例源码已补，未执行；只gofmt/API类型生成，无迁移或部署。

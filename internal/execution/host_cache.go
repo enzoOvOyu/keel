@@ -9,6 +9,9 @@ func (s *Service) cacheInventoryAdmission(operation string) error {
 	if operation == "host.cache.inventory" && (s.MediaStore == nil || !s.MediaStore.TaskCacheInventoryEnabled) {
 		return failure(409, "CACHE_INVENTORY_DISABLED", "Platform-owned media cache inventory is not enabled")
 	}
+	if operation == "host.artifact.inventory" && (s.MediaStore == nil || !s.MediaStore.ArtifactTransfersEnabled) {
+		return failure(409, "ARTIFACT_TRANSFERS_DISABLED", "Artifact inventory is not enabled")
+	}
 	return nil
 }
 

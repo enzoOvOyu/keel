@@ -135,7 +135,7 @@ func (s *Store) CloseAgentTaskSession(ctx context.Context, connection, session s
 // lease, submitter, project and immutable command snapshot must still agree.
 func (s *Store) AgentRequestAllowed(ctx context.Context, request taskrunner.Request, credential *AgentCredential) error {
 	c := request.Command
-	if request.Validate() != nil || credential == nil || c.ProjectID != credential.ProjectID || c.MachineID != credential.MachineID || (c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "script.run" && c.Operation != "host.cache.inventory" && c.Operation != "media.stage") {
+	if request.Validate() != nil || credential == nil || c.ProjectID != credential.ProjectID || c.MachineID != credential.MachineID || (c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "script.run" && c.Operation != "host.cache.inventory" && c.Operation != "host.artifact.inventory" && c.Operation != "media.stage") {
 		return taskrunner.ErrRejected
 	}
 	tx, e := s.DB.BeginTx(ctx, nil)
@@ -144,6 +144,9 @@ func (s *Store) AgentRequestAllowed(ctx context.Context, request taskrunner.Requ
 	}
 	defer tx.Rollback()
 	if request.Action == "run" && c.Operation == "host.cache.inventory" && !s.TaskCacheInventoryEnabled {
+		return taskrunner.ErrRejected
+	}
+	if request.Action == "run" && c.Operation == "host.artifact.inventory" && !s.ArtifactTransfersEnabled {
 		return taskrunner.ErrRejected
 	}
 	var valid bool

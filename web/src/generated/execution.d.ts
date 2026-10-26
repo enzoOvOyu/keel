@@ -1195,12 +1195,12 @@ export interface components {
         SSHCreateInput: {
             machine_ids: string[];
             /** @enum {string} */
-            operation: "host.identity" | "host.wait" | "host.cache.inventory";
+            operation: "host.identity" | "host.wait" | "host.cache.inventory" | "host.artifact.inventory";
             /** @default 5000 */
             timeout_ms: number;
             /** @default 0 */
             wait_ms: number;
-            /** @description Optional continuation digest; requires cache_manifest_sha256 and exactly one target. */
+            /** @description Optional SHA256 cursor for a single-target script/artifact inventory snapshot; requires its exact manifest SHA256. */
             cache_cursor?: string;
             /** @description Pins all continuation pages to the exact ownership index snapshot; changed snapshots fail explicitly. */
             cache_manifest_sha256?: string;
@@ -1212,12 +1212,12 @@ export interface components {
         AgentCreateInput: {
             machine_ids: string[];
             /** @enum {string} */
-            operation: "host.identity" | "host.wait" | "host.cache.inventory";
+            operation: "host.identity" | "host.wait" | "host.cache.inventory" | "host.artifact.inventory";
             /** @default 5000 */
             timeout_ms: number;
             /** @default 0 */
             wait_ms: number;
-            /** @description Optional continuation digest; requires cache_manifest_sha256 and exactly one target. */
+            /** @description Optional SHA256 cursor for a single-target script/artifact inventory snapshot; requires its exact manifest SHA256. */
             cache_cursor?: string;
             /** @description Pins all continuation pages to the exact ownership index snapshot; changed snapshots fail explicitly. */
             cache_manifest_sha256?: string;

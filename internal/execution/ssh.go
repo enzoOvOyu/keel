@@ -67,7 +67,7 @@ func (s *Service) sshFrozenTx(ctx context.Context, tx *sql.Tx, t Target) error {
 }
 
 func (s *Service) CreateSSH(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (*Execution, error) {
-	if in.ArtifactMediaID != "" || in.PreferScriptCache || in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" {
+	if in.ArtifactMediaID != "" || in.PreferScriptCache || in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" && in.Operation != "host.artifact.inventory" {
 		return nil, invalid("Only allowlisted bounded read-only host queries are admitted by this endpoint")
 	}
 	return s.createSSH(ctx, a, project, in, "", 0, key, trace)

@@ -97,7 +97,7 @@ func (s *Service) agentReceiptAllowedTx(ctx context.Context, tx *sql.Tx, r Recei
 // CreateAgent admits only bounded host queries, then creates an ordinary
 // execution consumed by the existing scheduler/outbox/lease machinery.
 func (s *Service) CreateAgent(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (*Execution, error) {
-	if in.ArtifactMediaID != "" || in.PreferScriptCache || in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" {
+	if in.ArtifactMediaID != "" || in.PreferScriptCache || in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" && in.Operation != "host.artifact.inventory" {
 		return nil, invalid("Only bounded host queries are admitted by this endpoint")
 	}
 	return s.createAgent(ctx, a, project, in, key, trace)
@@ -111,7 +111,7 @@ func (s *Service) CreateAgentScript(ctx context.Context, a *Actor, project strin
 }
 
 func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (_ *Execution, resultErr error) {
-	if in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" && in.Operation != "script.run" && in.Operation != "media.stage" {
+	if in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" && in.Operation != "host.artifact.inventory" && in.Operation != "script.run" && in.Operation != "media.stage" {
 		return nil, invalid("Only allowlisted bounded host operations are admitted by the Agent channel")
 	}
 	if in.TimeoutMS == 0 {

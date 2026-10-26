@@ -121,6 +121,9 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 	if r.Action == "run" && r.Command.Operation == "host.cache.inventory" && !w.CacheInventoryEnabled {
 		return zero, ErrRejected
 	}
+	if r.Action == "run" && r.Command.Operation == "host.artifact.inventory" && !w.ArtifactTransfersEnabled {
+		return zero, ErrRejected
+	}
 	dir := filepath.Join(w.StateDirectory, r.Command.CommandID)
 	if r.Action == "run" || r.Action == "settle" {
 		if e := os.Mkdir(dir, 0700); e != nil && !errors.Is(e, os.ErrExist) {
@@ -246,6 +249,12 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 		}
 	} else if r.Command.Operation == "host.cache.inventory" {
 		o.Output, reason = readMediaCache(work, MediaCacheDirectory, r.Command.CacheCursor, r.Command.CacheManifestSHA256)
+		if o.Output == nil {
+			o.Output = map[string]any{}
+			result = "failed"
+		}
+	} else if r.Command.Operation == "host.artifact.inventory" {
+		o.Output, reason = readArtifactInventory(work, ArtifactCacheDirectory, r.Command.CacheCursor, r.Command.CacheManifestSHA256)
 		if o.Output == nil {
 			o.Output = map[string]any{}
 			result = "failed"
