@@ -1167,3 +1167,10 @@ Make新增build-installer-helpers跨架构生产两份实际helper；CLI不接DB
 接续ce48c9f，HTTP/TFTP在完整摘要验证前创建同一fileGuard，并在每次读取中检查context/期限、每250ms复核当前Authority；摘要后强制一次新检查，避免短对象使用缓存授权。通过后复用同一guard传输，失败保持终止；不再等读完整个大对象才发现撤销。HTTP最终返回状态/头部前仍核验期限，TFTP亦在Open结束前核验真实Authority。
 
 新增无sleep的读取钩子用例，覆盖中途撤销/过期/取消、提前停止读取、失败不可复活及短对象最后一次读取后撤销；仅写入未运行。实际执行带原overlay/内存限制的provisionboot编译与定向go vet，退出0（/tmp/keel-boot-hash-guard-{compile,vet}.log）；设计检查见本次提交。没有监听、生产授权器接线、SQL或3000变动；底层Authority仍须支持context取消和返回不可变精确版本文件。
+
+
+## 88. 按实际smartctl --health形状核验NVMe告警（2026-10-26，源码待集中验证）
+
+接续1fc17fe，核对smartmontools官方nvmeprint.cpp发现--health输出smart_status.nvme.value，完整nvme_smart_health_information_log只在属性选项打印，原解析只考虑后者不完整。已支持实际health字段及可选完整日志，双来源须一致且8位；原生NVMe路径/显式协议/已出现NVMe块缺告警值保持unknown，非零当前故障不被passed=true覆盖。没有额外smartctl选项、SMART自检或宿主设备访问。新增健康单块/缺值/经桥接设备/完整日志/矛盾/越界用例只写入未运行。
+
+实际仅执行带原overlay和内存限制的provisionpreflight/keel-preflight编译与定向vet，退出0（/tmp/keel-preflight-nvme-{compile,vet}.log）；设计检查见本次提交。关闭默认接线、集中测试策略、数据库和3000均不变。另对最终provisionboot/provisionpreflight/keel-preflight执行linux/arm64、CGO_ENABLED=0交叉编译，不执行二进制，结果见本次窗口收工记录。

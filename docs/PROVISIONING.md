@@ -123,3 +123,8 @@ v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud
 
 
 引导HTTP/TFTP的完整摘要预读和实际发送共用持续授权guard：逐次检查context/期限，实际Authority最多每250ms复核一次；摘要后无条件再核当前授权，短对象也不能仅依赖摘要前的缓存。中途失效停止继续读取/发送，已失败传输不能恢复；文件源须遵守context并返回不可变精确版本。这是传输资源/授权边界补强，尚无生产Authority接线或功能运行证据。
+
+
+### NVMe 只读健康输出对应关系
+
+采集命令保持`smartctl --json=c --health`。NVMe的该选项输出`smart_status.nvme.value`；`nvme_smart_health_information_log.critical_warning`属于完整属性日志，不能假定每次`--health`都有。解析器以实际健康字段为主，并接受完整日志作为补充；两处同时出现必须数值一致，均限8位。原生NVMe命名、显式NVMe协议或任一NVMe块表明设备类型时，缺少告警值保持unknown；告警非零判当前故障，不被`passed=true`覆盖。ATA/SCSI既有健康判据保留。依据 [smartmontools nvmeprint.cpp](https://github.com/smartmontools/smartmontools/blob/master/smartmontools/nvmeprint.cpp) 中`print_critical_warning`及`smart_check_status`/`smart_vendor_attrib`分支；只核对官方源码，未运行smartctl或访问宿主磁盘。

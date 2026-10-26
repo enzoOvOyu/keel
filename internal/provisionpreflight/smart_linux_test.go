@@ -40,3 +40,32 @@ func deref(v *bool) any {
 	}
 	return *v
 }
+
+// --health uses smart_status.nvme.value; the complete log is optional.
+func TestSMARTNVMeHealthOnlyAndCorroboratingLog(t *testing.T) {
+	for _, tc := range []struct {
+		name, device, fields string
+		want                 *bool
+	}{
+		{"health_only_zero", "/dev/nvme0n1", `"smart_status":{"passed":true,"nvme":{"value":0}}`, boolPtr(true)},
+		{"health_only_warning", "/dev/nvme0n1", `"smart_status":{"passed":true,"nvme":{"value":4}}`, boolPtr(false)},
+		{"missing_native_value", "/dev/nvme0n1", `"smart_status":{"passed":true}`, nil},
+		{"missing_protocol_value", "/dev/sda", `"device":{"protocol":"NVMe"},"smart_status":{"passed":true}`, nil},
+		{"empty_status_block", "/dev/nvme0n1", `"smart_status":{"passed":true,"nvme":{}}`, nil},
+		{"null_status_value", "/dev/nvme0n1", `"smart_status":{"passed":true,"nvme":{"value":null}}`, nil},
+		{"transported_nvme_warning", "/dev/sda", `"smart_status":{"passed":true,"nvme":{"value":1}}`, boolPtr(false)},
+		{"log_only_zero", "/dev/nvme0n1", `"smart_status":{"passed":true},"nvme_smart_health_information_log":{"critical_warning":0}`, boolPtr(true)},
+		{"matching_both", "/dev/nvme0n1", `"smart_status":{"passed":true,"nvme":{"value":0}},"nvme_smart_health_information_log":{"critical_warning":0}`, boolPtr(true)},
+		{"contradictory_blocks", "/dev/nvme0n1", `"smart_status":{"passed":true,"nvme":{"value":0}},"nvme_smart_health_information_log":{"critical_warning":2}`, nil},
+		{"out_of_range_value", "/dev/nvme0n1", `"smart_status":{"passed":true,"nvme":{"value":256}}`, nil},
+		{"out_of_range_log", "/dev/nvme0n1", `"smart_status":{"passed":true},"nvme_smart_health_information_log":{"critical_warning":256}`, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := []byte(`{"smartctl":{"exit_status":0},` + tc.fields + `}`)
+			got := ParseSMART(tc.device, raw, 0)
+			if fmt.Sprint(deref(got.Healthy)) != fmt.Sprint(deref(tc.want)) {
+				t.Fatalf("unexpected NVMe health: %+v", got)
+			}
+		})
+	}
+}

@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -84,7 +85,13 @@ func ParseSMART(device string, raw []byte, exit int) Disk {
 		} `json:"smartctl"`
 		Status *struct {
 			Passed *bool `json:"passed"`
+			NVMe   *struct {
+				Value *uint64 `json:"value"`
+			} `json:"nvme"`
 		} `json:"smart_status"`
+		Device struct {
+			Protocol string `json:"protocol"`
+		} `json:"device"`
 		Serial string `json:"serial_number"`
 		NVMe   *struct {
 			Critical *uint64 `json:"critical_warning"`
@@ -106,11 +113,28 @@ func ParseSMART(device string, raw []byte, exit int) Disk {
 		out.Serial = ""
 	}
 	healthy := *report.Status.Passed && exit&24 == 0
-	if report.NVMe != nil {
-		if report.NVMe.Critical == nil {
+	// --health emits smart_status.nvme.value. The full health log is only
+	// printed with vendor attributes; do not require that extra command output.
+	// Native namespace names and explicit protocol prevent missing NVMe facts
+	// from being silently interpreted as an ordinary ATA/SCSI healthy report.
+	if report.Status.NVMe != nil || report.NVMe != nil || strings.EqualFold(report.Device.Protocol, "NVMe") || strings.HasPrefix(device, "/dev/nvme") {
+		var warning *uint64
+		if report.Status.NVMe != nil {
+			warning = report.Status.NVMe.Value
+			if warning == nil || *warning > 255 {
+				return out
+			}
+		}
+		if report.NVMe != nil {
+			if report.NVMe.Critical == nil || *report.NVMe.Critical > 255 || (warning != nil && *warning != *report.NVMe.Critical) {
+				return out
+			}
+			warning = report.NVMe.Critical
+		}
+		if warning == nil {
 			return out
 		}
-		healthy = healthy && *report.NVMe.Critical == 0
+		healthy = healthy && *warning == 0
 	}
 	out.Healthy = &healthy
 	out.Reason = "smart_health_passed"
