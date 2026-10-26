@@ -25,6 +25,7 @@ type provisionBootRead struct {
 	installation *ProvisionInstallation
 	request      *ProvisionRequest
 	grant        provisionboot.Grant
+	validUntil   time.Time
 }
 
 func (a *ProvisionBootAuthority) liveTx(ctx context.Context, tx *sql.Tx, scope provisionboot.Scope, id string, peer netip.Addr) (*provisionBootRead, error) {
@@ -35,7 +36,7 @@ func (a *ProvisionBootAuthority) liveTx(ctx context.Context, tx *sql.Tx, scope p
 	if err != nil {
 		return nil, err
 	}
-	request, current, _, err := ValidateProvisionInstallationTx(ctx, tx, x, time.Now())
+	request, current, until, err := ValidateProvisionInstallationTx(ctx, tx, x, time.Now())
 	if err != nil {
 		return nil, err
 	}
@@ -53,10 +54,10 @@ func (a *ProvisionBootAuthority) liveTx(ctx context.Context, tx *sql.Tx, scope p
 		return nil, ErrProvisionBootDenied
 	}
 	grant, err := x.BootGrant()
-	if err != nil || grant.Validate(scope, time.Now()) != nil {
+	if err != nil || grant.Validate(scope, time.Now()) != nil || !until.After(time.Now()) {
 		return nil, ErrProvisionBootDenied
 	}
-	return &provisionBootRead{installation: x, request: request, grant: grant}, nil
+	return &provisionBootRead{installation: x, request: request, grant: grant, validUntil: until}, nil
 }
 func (a *ProvisionBootAuthority) live(ctx context.Context, scope provisionboot.Scope, id string, peer netip.Addr) (*provisionBootRead, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -219,24 +220,9 @@ func (a *ProvisionBootAuthority) OpenFile(ctx context.Context, scope provisionbo
 	}
 	role := provisionMediaRole(resource)
 	if role == "" {
-		bundle, err := provisionboot.RenderBootBundle(scope, grant, x.request.Snapshot.Media, *x.installation.Spec, x.request.Snapshot.Seed, time.Now())
+		raw, err := provisionRenderedBytes(scope, grant, x, resource)
 		if err != nil {
 			return out, err
-		}
-		var raw []byte
-		switch resource {
-		case "boot.ipxe":
-			raw = bundle.IPXE
-		case "manifest.json":
-			raw = bundle.Manifest
-		case "preflight.json":
-			raw = bundle.Preflight
-		case "user-data":
-			raw = []byte(x.request.Snapshot.Seed.UserData)
-		case "meta-data":
-			raw = []byte(x.request.Snapshot.Seed.MetaData)
-		default:
-			return out, ErrProvisionBootDenied
 		}
 		return provisionboot.Artifact{File: provisionMemoryFile{bytes.NewReader(raw)}, SHA256: digest(string(raw)), Size: int64(len(raw)), ObjectVersion: "rendered:" + digest(string(raw))}, nil
 	}

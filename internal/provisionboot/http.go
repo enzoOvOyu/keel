@@ -166,7 +166,19 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	// ServeContent implements conditional/Range/HEAD over the verified exact
 	// version. Authentication and full verification always precede any 304/206.
-	http.ServeContent(w, r.WithContext(ctx), resource, time.Time{}, contextSeeker{ctx: ctx, reader: artifact.File, guard: guard})
+	response := &fileResponse{ResponseWriter: w}
+	http.ServeContent(response, r.WithContext(ctx), resource, time.Time{}, contextSeeker{ctx: ctx, reader: artifact.File, guard: guard})
+	// This records a full server write only, never client receipt or execution.
+	// HEAD, conditional replies, ranges and failed/partial transfers cannot
+	// advance delivery evidence. Revalidate even after a tiny response finishes.
+	if authority, ok := g.Authority.(FileDeliveryAuthority); ok && r.Method == http.MethodGet && response.status == http.StatusOK && !response.failed && response.bytes == artifact.Size {
+		guard.checked = time.Time{}
+		if guard.check() {
+			// The body is already committed. A failed evidence write leaves the
+			// stage unproven; it must not change the response or invent success.
+			_ = authority.RecordFileServed(ctx, g.Scope, grant, peer, FileDelivery{Resource: resource, SHA256: artifact.SHA256, Bytes: artifact.Size, ObjectVersion: artifact.ObjectVersion})
+		}
+	}
 }
 func verifyArtifact(ctx context.Context, a Artifact, resource string, guard *fileGuard) error {
 	if a.File == nil || !sha256ID.MatchString(a.SHA256) || a.Size < 1 || a.Size > resourceLimit(resource) || resourceLimit(resource) == 0 || len(a.ObjectVersion) < 1 || len(a.ObjectVersion) > 4096 || a.ObjectVersion == "null" {

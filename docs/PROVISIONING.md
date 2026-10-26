@@ -284,3 +284,8 @@ Linux writer仅root PID1 initramfs可启用，持整盘O_EXCL FD并核对设备�
 SSH未知结果仅显式query原helper回执；只有当前fresh pinned query证明终态failed、repair快照仍可用、权限及原lease有效，人工授权才允许独立新只读probe。新verification command只作为append-only绑定，原native command/attempt/fence不变。未知或missing禁止借新ID重发；成功native receipt与注册/trust仍同事务。重启失败的隔离保留真实整盘独占FD。
 
 当前仅源码/编译/静态证据，功能测试及硬件PoC未执行。首次装机无旧host pin的operator allowlist配置边界仍待补齐；不应以伪造旧pin解决前提。用户最新要求统一合并后单Agent开发，后续以HANDOFF当前恢复入口为准。
+
+
+### 完整文件分发事实生产者（当前源码）
+
+前节预留的`boot.file_served`现由隔离HTTP Gateway生产：固定版本全hash后，仅GET/200完整服务器写出且最终当前权限仍有效，数据库再核scope/lease/冻结sha、size和objectVersion才去重追加server_write_only事实。不记录HEAD、缓存命中、Range、短写或取消，证据持久化失败则保持阶段缺证据。普通文件分发不改变安装许可/版本/trust。它只证明服务器完整写入ResponseWriter，不能证明客户端接收、执行或boot；TFTP完成仍另计。配置与传输用例均未运行，编译/vet证据见HANDOFF 109～110。
