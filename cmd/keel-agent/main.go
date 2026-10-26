@@ -28,7 +28,7 @@ func main() {
 }
 func run(args []string) error {
 	if len(args) == 1 && args[0] == "version" {
-		return json.NewEncoder(os.Stdout).Encode(map[string]any{"version": version, "capabilities": []string{"enrollment", "mtls-heartbeat", "readonly-tasks", "approved-script-helper", "mtls-renewal"}})
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"version": version, "capabilities": []string{"enrollment", "mtls-heartbeat", "readonly-tasks", "approved-script-helper", "network-inventory-deltas", "mtls-renewal"}})
 	}
 	if len(args) == 0 || (args[0] != "enroll" && args[0] != "run" && args[0] != "renew") {
 		return agentclient.ErrIdentity

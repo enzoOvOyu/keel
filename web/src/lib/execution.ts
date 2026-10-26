@@ -58,3 +58,6 @@ export type SSHScriptCreateInput = components['schemas']['SSHScriptCreateInput']
 export const listTaskScripts = (projectId:string,page:number,signal:AbortSignal,transport:'ssh'|'agent'='ssh') => request<components['schemas']['TaskScriptCatalog']>(`/projects/${encodeURIComponent(projectId)}/task-scripts?page=${page}&page_size=20&transport=${transport}`,{signal})
 export const createSSHScriptExecution = (projectId:string,body:SSHScriptCreateInput,csrf:string,key:string) => request<components['schemas']['Execution']>(`/projects/${encodeURIComponent(projectId)}/ssh-script-executions`,{method:'POST',headers:{'X-CSRF-Token':csrf,'Idempotency-Key':key},body:JSON.stringify(body)})
 export const createAgentScriptExecution = (projectId:string,body:SSHScriptCreateInput,csrf:string,key:string) => request<components['schemas']['Execution']>(`/projects/${encodeURIComponent(projectId)}/agent-script-executions`,{method:'POST',headers:{'X-CSRF-Token':csrf,'Idempotency-Key':key},body:JSON.stringify(body)})
+
+export type AgentNetworkInventory = components['schemas']['AgentNetworkInventory']
+export const getAgentNetworkInventory = (projectId:string,machineId:string,signal:AbortSignal) => request<AgentNetworkInventory>(`/projects/${encodeURIComponent(projectId)}/agent-targets/${encodeURIComponent(machineId)}/network-inventory`,{signal})

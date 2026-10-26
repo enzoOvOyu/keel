@@ -2,8 +2,8 @@ syntax = "proto3";
 package keel.agent.v1;
 option go_package = "github.com/enzoOvOyu/keel/internal/agentproto;agentproto";
 
-// Identity, liveness and explicitly enabled bounded read-only task transport.
-// Task payloads use the existing keel.task/v1 contract; no shell or telemetry.
+// Identity, liveness and explicitly enabled bounded task transport.
+// Task payloads use keel.task/v1; optional inventory is bounded and source-labelled.
 // Enroll uses verified server TLS and a one-use secret delivered out of band.
 // Heartbeats additionally requires the issued, currently active client cert.
 service AgentIdentity {
@@ -38,6 +38,9 @@ message Heartbeat {
   string agent_version = 4;
   string boot_id = 5;
   uint64 sequence = 6;
+  // Strict agent-network-inventory/v1 delta JSON, at most 12288 bytes.
+  // Omitted means disabled; it is not hardware health or gate evidence.
+  bytes network_inventory_json = 7;
 }
 message HeartbeatAck {
   string connection_id = 1;

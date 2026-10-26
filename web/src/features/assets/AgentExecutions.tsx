@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ApprovedScripts } from './SSHScripts'
+import { AgentNetworkInventoryDialog } from './AgentNetworkInventory'
 import { ActionDialog, ActionError, Pagination } from '../../components/Management'
 import { useProject } from '../../components/ProjectWorkspace'
 import { ApiError } from '../../lib/api'
@@ -64,6 +65,8 @@ function Launch({ targets, now, onClose, onDenied, onRefresh }: { targets: Agent
 export function AgentExecutions() {
   const { t } = useTranslation(), project = useProject(), session = useSession(), client = useQueryClient()
   const [page, setPage] = useState(1), [now, setNow] = useState(Date.now()), [open, setOpen] = useState(false), [denied, setDenied] = useState<ApiError | null>(null)
+  const [networkTarget, setNetworkTarget] = useState<AgentTarget | null>(null)
+  useEffect(() => { setNetworkTarget(null) }, [project.id, session.user.id])
   const canLaunch = !['archived', 'delivered'].includes(project.state) && (session.user.is_admin || ['Admin', 'DE', 'DL', 'SRE'].includes(project.role))
   const records = useQuery({ queryKey: ['private', session.user.id, 'project', project.id, 'agent-targets', page], queryFn: ({ signal }) => listAgentTargets(project.id, page, signal), enabled: !denied, retry: false })
   useExpireOnUnauthorized(records.error)
@@ -93,12 +96,13 @@ export function AgentExecutions() {
     {records.isPending && <p className="table-loading" role="status">{t('loadingRecords')}</p>}
     {!records.isError && !denied && records.data && <>
       {!records.data.enabled ? <p className="impact-notice">{t('agentLaunchDisabled')}</p> : <>
-        {records.data.items.length ? <Table aria-label={t('agentLaunchTargets')}><TableHeader><TableRow><TableHead>{t('bomHostname')}</TableHead><TableHead>{t('bomSerial')}</TableHead><TableHead>{t('status')}</TableHead><TableHead>{t('agentLastSeen')}</TableHead><TableHead>{t('agentCredential')}</TableHead></TableRow></TableHeader><TableBody>{records.data.items.map(target => <TableRow key={target.machine_id} data-agent-target={target.machine_id}><TableCell>{target.hostname}<span className="cell-subtitle">v{target.asset_version}</span></TableCell><TableCell className="mono-value">{target.serial_number}</TableCell><TableCell><span className={`status-label ${connected(target, now) ? 'enabled' : ''}`}>{t(Date.parse(target.credential_expires_at) <= now ? 'agentConnectionExpired' : connected(target, now) ? 'agentConnectionOnline' : target.connected ? 'agentConnectionStale' : 'agentConnectionOffline')}</span></TableCell><TableCell>{target.last_seen_at ? new Date(target.last_seen_at).toLocaleString() : '—'}</TableCell><TableCell className="mono-value">{target.credential_id}<span className="cell-subtitle">{t('sshTrustExpiry')}: {new Date(target.credential_expires_at).toLocaleString()}</span></TableCell></TableRow>)}</TableBody></Table> : <p className="table-loading">{t('agentLaunchEmpty')}</p>}
+        {records.data.items.length ? <Table aria-label={t('agentLaunchTargets')}><TableHeader><TableRow><TableHead>{t('bomHostname')}</TableHead><TableHead>{t('bomSerial')}</TableHead><TableHead>{t('status')}</TableHead><TableHead>{t('agentLastSeen')}</TableHead><TableHead>{t('agentCredential')}</TableHead><TableHead>{t('agentNetworkTitle')}</TableHead></TableRow></TableHeader><TableBody>{records.data.items.map(target => <TableRow key={target.machine_id} data-agent-target={target.machine_id}><TableCell>{target.hostname}<span className="cell-subtitle">v{target.asset_version}</span></TableCell><TableCell className="mono-value">{target.serial_number}</TableCell><TableCell><span className={`status-label ${connected(target, now) ? 'enabled' : ''}`}>{t(Date.parse(target.credential_expires_at) <= now ? 'agentConnectionExpired' : connected(target, now) ? 'agentConnectionOnline' : target.connected ? 'agentConnectionStale' : 'agentConnectionOffline')}</span></TableCell><TableCell>{target.last_seen_at ? new Date(target.last_seen_at).toLocaleString() : '—'}</TableCell><TableCell className="mono-value">{target.credential_id}<span className="cell-subtitle">{t('sshTrustExpiry')}: {new Date(target.credential_expires_at).toLocaleString()}</span></TableCell><TableCell><Button type="button" variant="outline" onClick={() => setNetworkTarget(target)}>{t('agentNetworkOpen')}</Button></TableCell></TableRow>)}</TableBody></Table> : <p className="table-loading">{t('agentLaunchEmpty')}</p>}
         {!!records.data.items.length && !eligible && <p className="impact-notice">{t('agentLaunchNoConnected')}</p>}
         <Pagination offset={(page - 1) * records.data.page_size} limit={records.data.page_size} total={records.data.total} busy={records.isFetching || open} onChange={offset => setPage(offset / records.data!.page_size + 1)} />
       </>}
     </>}
     <p className="impact-notice">{t('agentConnectionBoundary')}</p>
     {open && canLaunch && !denied && !records.isError && records.data?.enabled && <Launch targets={records.data.items} now={now} onClose={() => setOpen(false)} onDenied={onDenied} onRefresh={refresh} />}
+    {networkTarget && !denied && <AgentNetworkInventoryDialog key={`${project.id}:${session.user.id}:${networkTarget.machine_id}`} target={networkTarget} onClose={() => setNetworkTarget(null)} onDenied={onDenied} />}
   </section><ApprovedScripts transport="agent" assets={!records.isError && !denied && !records.isFetching && records.data?.enabled ? records.data.items.filter(target => connected(target, now)) : []} /></>
 }

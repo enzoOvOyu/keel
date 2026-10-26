@@ -2,7 +2,7 @@
 
 本增量消费已存在的项目、Machine 和 provisioned ProjectAsset，提供一次性注册、短期 mTLS 身份及连接心跳。开发验证使用隔离软件身份，运维显式预配目标；不假定 PXE/cloud-init、G3 或 FR-5.7 安装作业已经完成。WP-1.5、FR-1.2、S-3 和 P1 仍为 partial。
 
-正式契约为 `api/agent/v1/agent.proto`，生成代码在 `internal/agentproto`。身份服务提供 `Enroll` 和双向 `Heartbeats`；可选worker另启 `Tasks` 承载下文规定的有界任务，默认关闭。只读操作与批准小脚本分别准入；不接受内联代码、任意命令路径、文件操作或遥测指标。心跳仅证明当前凭据持有者能通信，不证明硬件健康、SSH/BMC 互信、装机成功或版本来源可信；版本为客户端声明值。
+正式契约为 `api/agent/v1/agent.proto`，生成代码在 `internal/agentproto`。身份服务提供 `Enroll` 和双向 `Heartbeats`；可选worker另启 `Tasks` 承载下文规定的有界任务，默认关闭。只读操作与批准小脚本分别准入；不接受内联代码、任意命令路径、文件操作或持续遥测指标；可选网口观测见下节，不替代监控策略或硬件验收。心跳仅证明当前凭据持有者能通信，不证明硬件健康、SSH/BMC 互信、装机成功或版本来源可信；版本为客户端声明值。
 
 ## 身份边界
 
@@ -166,3 +166,16 @@ owner复核可用 `keel-admin agent-credential-status --project PROJECT_ID --id 
 这仍是有界前台脚本子集，不等于 FR-5.7 G3+ 批量 Agent 安装/systemd、软件升级、通用文件分发或完整任务目录。相关 PostgreSQL 授权/排他/派发丢失与本地 opt-out/历史查询用例已写入既有 Agent 集中入口，尚未执行；目标 helper 运行语义由共享脚本用例覆盖，尚无 Agent 脚本端到端验收结论。
 
 批准脚本也可显式选择 `result_format:"json"`，严格有界 stdout 对象、原文摘要绑定及失败语义与 SSH 共用，见 [SSH-RUNNER](SSH-RUNNER.md) 的结构化脚本结果；不新增 Agent 操作或绕过独立批准。
+
+
+### 可选网口全量/增量观测（058，2026-10-26，源码未验证）
+
+Agent 配置显式设置 `network_inventory_enabled:true`（默认false，非root）才读取当前 Linux `net.Interfaces` 及固定 `/sys/class/net/<校验后的接口名>/operstate`。没有命令、外部URL、可写路径或硬件型号默认值。只上报索引、名称、MAC（可为空）、MTU、admin-up 和内核 operstate；不推断线缆/邻居、NIC角色、固件/链路健康或G1/NP PASS。最大64接口，任何接口读取失败或完整包超出12288字节均上报明确unavailable，不能发送部分全量冒充完整列表。
+
+Heartbeat proto 增加可选 `network_inventory_json`，严格版本 `agent-network-inventory/v1`，保留原16KiB消息上限。每次新连接第一次成功采集发full，此后以接口索引只发变化及显式removed；失败保留已确认基线，断线重连清空客户端基线。设备采集时间限定过去30秒至未来5秒。listener/worker受保护配置也须 `network_inventory_enabled:true`，服务端环境 `KEEL_AGENT_NETWORK_INVENTORY_ENABLED=true`；缺任何服务端开关则不接纳观测，旧/禁用客户端无字段继续普通心跳。
+
+身份/当前资产绑定和原heartbeat顺序号先校验，观测合并与heartbeat更新时间共事务；无本connection完整基线的delta拒绝并回滚，不能拼接另一连接/设备的旧列表。058表保存当前来源凭据/实际证书摘要/连接/序号、最后完整合并列表及采集/接收/最后成功时间。读取失败或关闭功能仅改变可用性，历史接口保留，不将心跳在线当库存新鲜。证书撤销、资产版本变化或项目越界继续阻断身份与读取。
+
+当前项目成员可读 `GET /api/v1/projects/:id/agent-targets/:machineId/network-inventory`；只读返回来源agent、enabled、ready/unavailable/disabled/stale和30秒TTL，ready仅指观测可用。采集/成功时间过期或连接关闭即stale；API环境开关关闭则disabled。资产页从现有Agent列表打开网口对话框，显式刷新，本地到期或凭据过期也会停止显示近期观测；历史数据、失败原因与未知区分显示。
+
+此功能不等于缓存清单、双向文件传输、CollectPolicy/mon-svc、LLDP三方比对或硬件验收。新增协议/完整与增量合并/失败不交部分列表、真实隔离mTLS/PostgreSQL与受限runtime角色用例源码，统一Agent入口包含该包，均未运行。proto/TS仅生成；058迁移未应用，生产开关仍关闭。

@@ -2469,6 +2469,78 @@
         },
         "summary": "Execute an approved bounded script through the registered mTLS Agent"
       }
+    },
+    "/api/v1/projects/{id}/agent-targets/{machineId}/network-inventory": {
+      "get": {
+        "operationId": "getAgentNetworkInventory",
+        "tags": [
+          "Agent execution"
+        ],
+        "x-permission": "execution:read",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "machineId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Source-labelled bounded Agent interface observations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentNetworkInventory"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Current project member read of opt-in authenticated Agent network observations. Exact current provisioned asset and credential required. Captured/received times and 30-second freshness are separate from heartbeat liveness, health, LLDP and gates. Missing, disabled, failed or stale inventory never becomes ready; collection failure retains prior observations as history."
+      }
     }
   },
   "components": {
@@ -5407,6 +5479,133 @@
           }
         },
         "description": "Explicit selection of 1..32 trusted provisioned machines and an independently approved fixed-interpreter script artifact. Non-idempotent; no automatic retry."
+      },
+      "AgentNetworkInterface": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "index",
+          "name",
+          "mac",
+          "mtu",
+          "admin_up",
+          "oper_state"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 15
+          },
+          "mac": {
+            "type": "string",
+            "maxLength": 59,
+            "description": "Canonical kernel hardware address; empty means absent. May be Ethernet/EUI-64/IPoIB."
+          },
+          "mtu": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1048576
+          },
+          "admin_up": {
+            "type": "boolean"
+          },
+          "oper_state": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "notpresent",
+              "down",
+              "lowerlayerdown",
+              "testing",
+              "dormant",
+              "up"
+            ]
+          }
+        }
+      },
+      "AgentNetworkInventory": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "machine_id",
+          "credential_id",
+          "source",
+          "enabled",
+          "state",
+          "interfaces",
+          "ttl_seconds"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "enum": [
+              "agent-network-inventory/v1"
+            ]
+          },
+          "machine_id": {
+            "type": "string"
+          },
+          "credential_id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "agent"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "unavailable",
+              "ready",
+              "stale"
+            ]
+          },
+          "interfaces": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/components/schemas/AgentNetworkInterface"
+            }
+          },
+          "failure_code": {
+            "type": "string",
+            "enum": [
+              "interface_read_failed",
+              "interface_limit_exceeded",
+              "interface_state_unavailable",
+              "inventory_frame_limit"
+            ]
+          },
+          "collected_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_success_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ttl_seconds": {
+            "type": "integer",
+            "const": 30
+          }
+        }
       }
     }
   }

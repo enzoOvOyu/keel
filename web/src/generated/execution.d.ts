@@ -513,6 +513,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/agent-targets/{machineId}/network-inventory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Current project member read of opt-in authenticated Agent network observations. Exact current provisioned asset and credential required. Captured/received times and 30-second freshness are separate from heartbeat liveness, health, LLDP and gates. Missing, disabled, failed or stale inventory never becomes ready; collection failure retains prior observations as history. */
+        get: operations["getAgentNetworkInventory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1184,6 +1201,38 @@ export interface components {
              * @enum {string}
              */
             result_format: "" | "json";
+        };
+        AgentNetworkInterface: {
+            index: number;
+            name: string;
+            /** @description Canonical kernel hardware address; empty means absent. May be Ethernet/EUI-64/IPoIB. */
+            mac: string;
+            mtu: number;
+            admin_up: boolean;
+            /** @enum {string} */
+            oper_state: "unknown" | "notpresent" | "down" | "lowerlayerdown" | "testing" | "dormant" | "up";
+        };
+        AgentNetworkInventory: {
+            /** @enum {string} */
+            version: "agent-network-inventory/v1";
+            machine_id: string;
+            credential_id: string;
+            /** @enum {string} */
+            source: "agent";
+            enabled: boolean;
+            /** @enum {string} */
+            state: "disabled" | "unavailable" | "ready" | "stale";
+            interfaces: components["schemas"]["AgentNetworkInterface"][];
+            /** @enum {string} */
+            failure_code?: "interface_read_failed" | "interface_limit_exceeded" | "interface_state_unavailable" | "inventory_frame_limit";
+            /** Format: date-time */
+            collected_at?: string;
+            /** Format: date-time */
+            received_at?: string;
+            /** Format: date-time */
+            last_success_at?: string;
+            /** @constant */
+            ttl_seconds: 30;
         };
     };
     responses: {
@@ -2421,6 +2470,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getAgentNetworkInventory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                machineId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Source-labelled bounded Agent interface observations */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentNetworkInventory"];
                 };
             };
             400: components["responses"]["InvalidRequest"];

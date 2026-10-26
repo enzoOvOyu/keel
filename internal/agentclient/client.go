@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/enzoOvOyu/keel/internal/agentinventory"
 	"github.com/enzoOvOyu/keel/internal/agentpki"
 	pb "github.com/enzoOvOyu/keel/internal/agentproto"
 	"google.golang.org/grpc"
@@ -25,18 +26,19 @@ import (
 )
 
 type Config struct {
-	RenewalEnabled bool   `json:"renewal_enabled"`
-	TasksEnabled   bool   `json:"tasks_enabled"`
-	ScriptsEnabled bool   `json:"scripts_enabled"`
-	Endpoint       string `json:"endpoint"`
-	ServerName     string `json:"server_name"`
-	ServerCA       string `json:"server_ca"`
-	AgentCA        string `json:"agent_ca"`
-	ProjectID      string `json:"project_id"`
-	MachineID      string `json:"machine_id"`
-	Serial         string `json:"serial_number"`
-	StateDirectory string `json:"state_directory"`
-	TokenFile      string `json:"enrollment_token_file"`
+	NetworkInventoryEnabled bool   `json:"network_inventory_enabled"`
+	RenewalEnabled          bool   `json:"renewal_enabled"`
+	TasksEnabled            bool   `json:"tasks_enabled"`
+	ScriptsEnabled          bool   `json:"scripts_enabled"`
+	Endpoint                string `json:"endpoint"`
+	ServerName              string `json:"server_name"`
+	ServerCA                string `json:"server_ca"`
+	AgentCA                 string `json:"agent_ca"`
+	ProjectID               string `json:"project_id"`
+	MachineID               string `json:"machine_id"`
+	Serial                  string `json:"serial_number"`
+	StateDirectory          string `json:"state_directory"`
+	TokenFile               string `json:"enrollment_token_file"`
 }
 type Identity struct {
 	CredentialID string `json:"credential_id"`
@@ -63,7 +65,7 @@ func Load(path string) (Config, error) {
 	return c, c.Validate()
 }
 func (c Config) Validate() error {
-	if c.ScriptsEnabled && !c.TasksEnabled || c.TasksEnabled && os.Geteuid() == 0 {
+	if c.ScriptsEnabled && !c.TasksEnabled || (c.TasksEnabled || c.NetworkInventoryEnabled) && os.Geteuid() == 0 {
 		return ErrIdentity
 	}
 	host, port, e := net.SplitHostPort(c.Endpoint)
@@ -234,8 +236,28 @@ func Stream(ctx context.Context, c Config, version string, observe func(*pb.Hear
 	if e != nil || !identityID.MatchString(bootID) {
 		return ErrIdentity
 	}
+	var networkBaseline []agentinventory.Interface
 	for sequence := uint64(1); ; sequence++ {
-		if e = stream.Send(&pb.Heartbeat{ProjectId: c.ProjectID, MachineId: c.MachineID, SerialNumber: c.Serial, AgentVersion: version, BootId: bootID, Sequence: sequence}); e != nil {
+		message := &pb.Heartbeat{ProjectId: c.ProjectID, MachineId: c.MachineID, SerialNumber: c.Serial, AgentVersion: version, BootId: bootID, Sequence: sequence}
+		nextBaseline := networkBaseline
+		if c.NetworkInventoryEnabled {
+			frame, next := networkHeartbeat(networkBaseline, time.Now())
+			raw, err := json.Marshal(frame)
+			if err != nil {
+				return ErrIdentity
+			}
+			if len(raw) > agentinventory.MaxNetworkFrameBytes {
+				frame = agentinventory.NetworkFrame{Version: agentinventory.NetworkVersion, State: "unavailable", CapturedAt: time.Now().UTC(), Interfaces: []agentinventory.Interface{}, Removed: []int{}, FailureCode: "inventory_frame_limit"}
+				raw, err = json.Marshal(frame)
+				if err != nil {
+					return ErrIdentity
+				}
+			} else {
+				nextBaseline = next
+			}
+			message.NetworkInventoryJson = raw
+		}
+		if e = stream.Send(message); e != nil {
 			return e
 		}
 		ack, e := stream.Recv()
@@ -245,6 +267,7 @@ func Stream(ctx context.Context, c Config, version string, observe func(*pb.Hear
 		if ack.GetSequence() != sequence || !identityID.MatchString(ack.GetConnectionId()) || ack.GetNextHeartbeatSeconds() < 1 || ack.GetNextHeartbeatSeconds() > 10 {
 			return ErrIdentity
 		}
+		networkBaseline = nextBaseline
 		if c.TasksEnabled && !tasksStarted {
 			tasksStarted = true
 			go func(connectionID string) {

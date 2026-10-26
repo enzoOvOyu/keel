@@ -29,8 +29,8 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Identity, liveness and explicitly enabled bounded read-only task transport.
-// Task payloads use the existing keel.task/v1 contract; no shell or telemetry.
+// Identity, liveness and explicitly enabled bounded task transport.
+// Task payloads use keel.task/v1; optional inventory is bounded and source-labelled.
 // Enroll uses verified server TLS and a one-use secret delivered out of band.
 // Heartbeats additionally requires the issued, currently active client cert.
 type AgentIdentityClient interface {
@@ -100,8 +100,8 @@ type AgentIdentity_TasksClient = grpc.BidiStreamingClient[TaskReport, TaskReques
 // All implementations must embed UnimplementedAgentIdentityServer
 // for forward compatibility.
 //
-// Identity, liveness and explicitly enabled bounded read-only task transport.
-// Task payloads use the existing keel.task/v1 contract; no shell or telemetry.
+// Identity, liveness and explicitly enabled bounded task transport.
+// Task payloads use keel.task/v1; optional inventory is bounded and source-labelled.
 // Enroll uses verified server TLS and a one-use secret delivered out of band.
 // Heartbeats additionally requires the issued, currently active client cert.
 type AgentIdentityServer interface {

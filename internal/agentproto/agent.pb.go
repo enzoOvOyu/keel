@@ -218,15 +218,18 @@ func (x *EnrollResponse) GetExpiresAt() string {
 }
 
 type Heartbeat struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	MachineId     string                 `protobuf:"bytes,2,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
-	SerialNumber  string                 `protobuf:"bytes,3,opt,name=serial_number,json=serialNumber,proto3" json:"serial_number,omitempty"`
-	AgentVersion  string                 `protobuf:"bytes,4,opt,name=agent_version,json=agentVersion,proto3" json:"agent_version,omitempty"`
-	BootId        string                 `protobuf:"bytes,5,opt,name=boot_id,json=bootId,proto3" json:"boot_id,omitempty"`
-	Sequence      uint64                 `protobuf:"varint,6,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId    string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	MachineId    string                 `protobuf:"bytes,2,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	SerialNumber string                 `protobuf:"bytes,3,opt,name=serial_number,json=serialNumber,proto3" json:"serial_number,omitempty"`
+	AgentVersion string                 `protobuf:"bytes,4,opt,name=agent_version,json=agentVersion,proto3" json:"agent_version,omitempty"`
+	BootId       string                 `protobuf:"bytes,5,opt,name=boot_id,json=bootId,proto3" json:"boot_id,omitempty"`
+	Sequence     uint64                 `protobuf:"varint,6,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	// Strict agent-network-inventory/v1 delta JSON, at most 12288 bytes.
+	// Omitted means disabled; it is not hardware health or gate evidence.
+	NetworkInventoryJson []byte `protobuf:"bytes,7,opt,name=network_inventory_json,json=networkInventoryJson,proto3" json:"network_inventory_json,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *Heartbeat) Reset() {
@@ -299,6 +302,13 @@ func (x *Heartbeat) GetSequence() uint64 {
 		return x.Sequence
 	}
 	return 0
+}
+
+func (x *Heartbeat) GetNetworkInventoryJson() []byte {
+	if x != nil {
+		return x.NetworkInventoryJson
+	}
+	return nil
 }
 
 type HeartbeatAck struct {
@@ -521,7 +531,7 @@ const file_api_agent_v1_agent_proto_rawDesc = "" +
 	"\x0fcertificate_pem\x18\x02 \x01(\fR\x0ecertificatePem\x12,\n" +
 	"\x12ca_certificate_pem\x18\x03 \x01(\fR\x10caCertificatePem\x12\x1d\n" +
 	"\n" +
-	"expires_at\x18\x04 \x01(\tR\texpiresAt\"\xc8\x01\n" +
+	"expires_at\x18\x04 \x01(\tR\texpiresAt\"\xfe\x01\n" +
 	"\tHeartbeat\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1d\n" +
@@ -530,7 +540,8 @@ const file_api_agent_v1_agent_proto_rawDesc = "" +
 	"\rserial_number\x18\x03 \x01(\tR\fserialNumber\x12#\n" +
 	"\ragent_version\x18\x04 \x01(\tR\fagentVersion\x12\x17\n" +
 	"\aboot_id\x18\x05 \x01(\tR\x06bootId\x12\x1a\n" +
-	"\bsequence\x18\x06 \x01(\x04R\bsequence\"\xa6\x01\n" +
+	"\bsequence\x18\x06 \x01(\x04R\bsequence\x124\n" +
+	"\x16network_inventory_json\x18\a \x01(\fR\x14networkInventoryJson\"\xa6\x01\n" +
 	"\fHeartbeatAck\x12#\n" +
 	"\rconnection_id\x18\x01 \x01(\tR\fconnectionId\x12\x1a\n" +
 	"\bsequence\x18\x02 \x01(\x04R\bsequence\x12\x1f\n" +

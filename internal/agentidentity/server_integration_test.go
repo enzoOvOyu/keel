@@ -110,6 +110,8 @@ func newIdentityFixture(t *testing.T, tasks ...bool) *identityFixture {
 	requireNoError(t, agentpki.WriteNew(serverKey, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})))
 	config := agentidentity.Config{ServerCertificate: serverCert, ServerKey: serverKey, CACertificate: caPath, CAKey: keyPath}
 	config.RenewalEnabled = len(tasks) > 1 && tasks[1]
+	config.NetworkInventoryEnabled = len(tasks) > 2 && tasks[2]
+	s.AgentNetworkInventoryEnabled = config.NetworkInventoryEnabled
 	var broker *agentrunner.Broker
 	if len(tasks) > 0 && tasks[0] {
 		config.TasksEnabled = true

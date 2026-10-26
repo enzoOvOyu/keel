@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/enzoOvOyu/keel/internal/agentinventory"
 	"github.com/enzoOvOyu/keel/internal/agentpki"
 )
 
@@ -266,6 +267,10 @@ func (s *Store) OpenAgentConnection(ctx context.Context, cert *x509.Certificate,
 	return id, tx.Commit()
 }
 func (s *Store) AgentHeartbeat(ctx context.Context, cert *x509.Certificate, authority, connection string, sequence uint64) error {
+	return s.AgentHeartbeatInventory(ctx, cert, authority, connection, sequence, nil)
+}
+
+func (s *Store) AgentHeartbeatInventory(ctx context.Context, cert *x509.Certificate, authority, connection string, sequence uint64, inventory *agentinventory.NetworkFrame) error {
 	if sequence == 0 || sequence > 1<<62 {
 		return ErrAgentDenied
 	}
@@ -285,6 +290,9 @@ func (s *Store) AgentHeartbeat(ctx context.Context, cert *x509.Certificate, auth
 	n, e := result.RowsAffected()
 	if e != nil || n != 1 {
 		return ErrAgentDenied
+	}
+	if e = s.recordAgentNetworkInventoryTx(ctx, tx, out, connection, agentpki.Hash(cert.Raw), sequence, inventory); e != nil {
+		return e
 	}
 	return tx.Commit()
 }
