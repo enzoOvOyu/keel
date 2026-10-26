@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～82。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～83。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本次两小时开发窗口）
 
 用户于2026-10-26 00:11:10 UTC授权继续两小时开发，当前窗口至02:11:10 UTC。保持单Agent，不启动子代理；P1实现完成后集中联调/全量测试/浏览器验证/镜像发布，开发只做必要编译与静态检查。此前收工/暂停记录是历史快照。
 
-- **本窗口源码尚未发布（§75～82）**：单Agent完成同密钥续签/状态、OS引导介质/BOM配置预览、owner主密钥重包裹、独立审计留证、默认关闭的执行Webhook及其owner查询入口，以及持久装机准备/独立审批/共享独占Execution和页面；新增用例和集中验证入口已写入，除§75早期续签安全检查外均未运行。必要Go/TS编译与静态检查已完成，不等于功能/SQL迁移通过。源迁移50、运行46；3000仍§74。原草稿保留。
+- **本窗口源码尚未发布（§75～83）**：单Agent完成同密钥续签/状态、OS引导介质/BOM配置预览、owner主密钥重包裹、独立审计留证、默认关闭的执行Webhook及其owner查询入口，以及持久装机准备/独立审批/共享独占Execution和页面；新增用例和集中验证入口已写入，除§75早期续签安全检查外均未运行。必要Go/TS编译与静态检查已完成，不等于功能/SQL迁移通过。源迁移50、运行46；3000仍§74。原草稿保留。
 
 - **Agent网页只读链路已发布（§74）**：既有mTLS任务通过认证API/资产页启动并进入原执行五Tab，unknown由当前操作员凭worker查询的真实回执显式对账；实际HTTP/Agent/浏览器和完整CI通过。生产HTTP任务准入、listener及worker继续关闭。
 
@@ -1130,3 +1130,12 @@ Authority是明确的待接业务边界：每次必须证明当前审批、scope
 provisionboot.RenderBootBundle复核完整scope/request/project/machine/attempt/command/fence/hash/期限与NoCloud instance-id，生成绑定原始字节摘要的manifest/preflight与固定iPXE脚本；匹配BOM MAC后仅在对应net0～net255请求DHCP，禁止任意内核参数、下载/引导失败退出。HTTP白名单加入preflight.json及两个固定helper资源。没有签发生产Grant、监听网络或安装写盘；**这是明确的自定义initrd协议，尚无遵守该协议的实际安装环境/一次性回调与当前许可/生产Authority，不能把旧cloud-init或任意rootfs当作已实现装机。** 下一步先构建可审核helper安装包/镜像输入，再接实际安装执行器和授权闭环。
 
 新增角色/ARM与Legacy/摘要/签名篡改/跨请求/fence/seed错绑用例写入未运行，媒体真实PG用例增加缺失固件/helper直接依赖拒绝。实际仅编译mediaboot/mediamanifest/provisionboot/platform/execution/httpapi（go test -p=1 -run '^$'），前四包定向go vet，OpenAPI生成、tsc --noEmit、UI边界/版本输入静态检查及check-design均退出0；日志/tmp/keel-boot-recipe-{compile,vet,types,tsc,ui,version-inputs,design}.log，带原overlay和内存限制。未执行新增用例、SQL、浏览器或镜像构建。source50/runtime46、3000及默认关闭配置不变；用户两小时窗口仍持续至02:11:10 UTC。
+
+
+## 83. 独立 helper-set 与 installer overlay 生产/反向校验（2026-10-26，源码待集中验证）
+
+接续ff7f336，新增mediaboot.HelperSet、provisionimage gzip/newc writer/reader，以及keel-admin provision-overlay-create/verify。独立同架构config先绑定两份已批准OS型helper及ID/SHA256，生产overlay后才构建/审批最终initrd与OS配方，**不要求先有最终OS/initrd/recipe**。原始config/二进制必须匹配独立信任的签名清单；格式检查静态64位ELF/目标架构/可执行入口，输入复制时复验摘要，归档只含固定只读helper与公开元数据，无/init、账户/私钥/设备节点/任意脚本。受保护目录私有暂存+fsync+不覆盖链接发布；反向读取固定CPIO集合，不落地解包，拒绝改路径/属主/模式/错误签名/字节、尾随/串接/截断。复用既有离线媒体安全发布检查，仅抽取原有输出路径校验，不改变其规则。
+
+Make新增build-installer-helpers跨架构生产两份实际helper；CLI不接DB/网络、不执行二进制/安装。独立config避免生产依赖循环；包格式/签名/ELF通过也不是实际initrd驱动、写盘前检查或磁盘安装验收。实际自定义initrd入口、一次性回调许可、当前网络/设备lease Authority、装机Execution及SSH首连仍待开发。
+
+新增有界归档/确定性/ELF/TOCTOU/错误架构、独立批准config/签名/私有输出/符号链接/损坏/反向验证等用例写入未运行；实际仅执行mediaboot/provisionimage/mediamanifest/keel-admin编译（go test -p=1 -run '^$'）、相同范围定向go vet及check-design，均退出0；新的keel-admin以CGO_ENABLED=0交叉构建amd64/arm64成功（未执行CLI）。日志/tmp/keel-installer-overlay-{compile,vet,design,binaries}.log，带原overlay/内存限制。没有运行任何新用例或生成/验证实际安装包。无SQL迁移、镜像构建/发布或生产操作；source50/runtime46、3000仍§74。单Agent继续开发窗口至02:11:10 UTC。

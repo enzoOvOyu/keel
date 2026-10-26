@@ -84,3 +84,20 @@ v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud
 `RenderBootBundle` 绑定同scope/申请/项目/机器/attempt/command/fence/期限、冻结快照、唯一BOM引导MAC、完整批准介质与NoCloud instance-id；生成公开的 `boot.ipxe`、`manifest.json`、`preflight.json`，清单固定所有原始字节摘要及helper版本。iPXE脚本只在匹配BOM MAC的net0～net255上DHCP，固定kernel/initrd参数，失败退出，无任意脚本/内核参数、安装口令、回调凭据或成功投影。HTTPS origin须适合脚本字面值，不把元数据插入脚本表达式；内核的 `keel.manifest_sha256` 固定控制面清单。启动下载依据 [iPXE kernel](https://ipxe.org/cmd/kernel)、[initrd/imgfetch](https://ipxe.org/cmd/imgfetch) 与 [ifconf](https://ipxe.org/cmd/ifconf) 官方协议，使用 `initrd=initrd.magic`。
 
 批准initrd未来应实现：验证清单及固定对象字节/架构→下载或验证固定helper→运行预检→提交同attempt/fence的一次性可信回调→仅当前安装许可允许写盘→安装cloud-init/受限SSH helper→回传新主机密钥→由控制面实际SSH首连确认。**当前尚未实现这条initrd执行协议、一次性回调许可或生产Authority；脚本只描述受控入口，不能启动任何任意rootfs后称为装机完成。** 受控传输与实际装机Execution接线须等这些先决条件完成，无真实监听/安装已启用。
+
+
+## helper 安装包的无循环生产路径（源码增量）
+
+`keel-admin provision-overlay-create` / `provision-overlay-verify` 复用独立签名清单和离线介质工作流，生产/核验只读 gzip/newc helper overlay。**生产入口消费独立 helper-set config，不消费最终 OS recipe 或 initrd**，避免“先有最终镜像才能生产镜像输入”的循环：
+
+1. `make build-installer-helpers` 编译 linux/amd64 与 linux/arm64 的预检和受限SSH helper；不运行二进制。
+2. 将所需架构两个二进制登记为OS型介质并独立审批，记录精确ID/SHA256；架构不得用noarch替代。
+3. 创建同架构config型独立helper-set JSON，其字段为 `schema=keel.installer-helper-set/v1`、`arch`、`preflight_media_id`、`ssh_helper_media_id`、`preflight_sha256`、`ssh_helper_sha256`；直接依赖恰为上述两份批准二进制。保存、独立审批并导出签名清单，不引用任何尚不存在的initrd/OS配方。
+4. 下载原始config与两个helper字节到受控目录，各命名`<media_id>.bin`；使用独立预置的签名公钥，而不是从包中自行信任一个新公钥。
+5. `keel-admin provision-overlay-create --manifest-file <helper-set-manifest.json> --public-key-file <trusted-public.pem> --artifact-directory <inputs> --output-file <new-protected-output/helpers.cpio.gz>`；输出目录须属于当前操作员且禁止组/他人写，已存在路径和符号链接均不会覆盖。
+6. `keel-admin provision-overlay-verify --overlay-file <helpers.cpio.gz> --public-key-file <trusted-public.pem>`；核对报告的完整归档SHA256/大小和原批准helper身份。
+7. **之后**才将overlay作为实际initrd构建输入，接入受控启动入口、驱动/smartctl和写盘前预检/一次性许可流程；验证镜像后登记新的initrd，最后创建绑定该initrd与同一helper版本的OS recipe。这些实际镜像构建/执行协议/许可接线仍未完成，不能反向拿最终配方当第3步的前置条件。
+
+工具严格核验原始config/两份二进制的签名链与实际摘要、尺寸、64位小端目标架构、静态ELF（无解释器/动态库，入口在可执行LOAD段）；静态格式通过不证明二进制功能或真实驱动兼容。归档使用固定所有者/权限/时间、固定文件名与newc trailer，包含两个只读可执行helper、组件元数据、原签名清单与原helper-set JSON；不包含`/init`、用户账户、私钥、设备节点、链接或安装脚本。参考 [Linux initramfs buffer format](https://www.kernel.org/doc/html/latest/driver-api/early-userspace/buffer-format.html)。不把它冒充可启动镜像。
+
+输出只在全部流式校验、gzip关闭和fsync后以不覆盖的方式发布；复制过程中再次核验输入，防止先验后改。反向校验有界读取固定文件集合，不解包到任何宿主路径，拒绝符号链接、任意路径、改属主/权限、未知条目、损坏/尾随/串接归档和自带信任根；完整元数据必须与独立信任的原签名及config匹配。历史导出审批不替代当前线上准入；工具不访问数据库/网络、不执行helper、不操作设备或改变安装状态。本轮仅编译/静态检查，新增用例待P1集中执行。

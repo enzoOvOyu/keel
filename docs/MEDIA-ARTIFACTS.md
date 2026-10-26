@@ -160,3 +160,8 @@
 ### 可选的实际启动配方
 
 OS的`os_boot.recipe`现在可固定`keel-initrd/v1`/squashfs协议，以及直接依赖中的同架构UEFI、可选amd64 Legacy固件、预检helper和SSH helper（精确ID/SHA256）。原四角色准备预览兼容；有配方返回7～8角色。扫描/登记角色、签名清单、当前生命周期及实际字节校验共同保护整个闭包，任意固件/helper不能作为默认内置未审核文件。配方与固定版本可在既有介质页选择，helper摘要来自所选依赖。自定义initrd的可启动性/驱动/写盘前预检仍须独立验证；不是通用ISO自动安装支持。具体协议及剩余接线见PROVISIONING。
+
+
+### 独立 helper-set 与离线 installer overlay
+
+安装helper先独立登记/批准，再由同架构config介质（`keel.installer-helper-set/v1` JSON）显式绑定恰好两份直接依赖及其ID/摘要；该config不引用最终initrd/OS，避免镜像输入与最终配方循环。导出其签名清单和原字节后，`keel-admin provision-overlay-create`生成可审核gzip/newc只读helper包，`provision-overlay-verify`独立信任公钥并反向核验完整归档/配置/ELF/实际摘要，无宿主解包或二进制执行。生产镜像之后才把最终initrd及helper版本固定到OS配方。完整步骤见PROVISIONING；离线历史审批与包校验不代表当前线上批准或可启动镜像验收。

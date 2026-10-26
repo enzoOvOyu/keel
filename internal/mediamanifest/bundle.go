@@ -54,18 +54,8 @@ func CreateBundle(raw []byte, trusted ed25519.PublicKey, directory, output strin
 	if directory == "" || output == "" {
 		return nil, errors.New("artifact directory and new bundle output are required")
 	}
-	// An untrusted writable parent could replace the staging pathname between
-	// byte verification and publication. Use an operator-owned protected directory.
-	parentInfo, parentErr := os.Lstat(filepath.Dir(output))
-	if parentErr != nil || !parentInfo.IsDir() || parentInfo.Mode().Perm()&0022 != 0 {
-		return nil, errors.New("bundle output directory must be protected from group/other writes")
-	}
-	owner, ok := parentInfo.Sys().(*syscall.Stat_t)
-	if !ok || owner.Uid != uint32(os.Geteuid()) {
-		return nil, errors.New("bundle output directory must belong to the current operator")
-	}
-	if _, err := os.Lstat(output); err == nil || !os.IsNotExist(err) {
-		return nil, errors.New("cannot publish bundle; existing output is never replaced")
+	if err := validateNewBundleOutput(output); err != nil {
+		return nil, err
 	}
 	// Temporary output is on the destination filesystem; link publishes it only
 	// after all byte checks, archive closure and fsync, without replacing anything.
@@ -208,4 +198,22 @@ func VerifyBundle(path string, trusted ed25519.PublicKey) (*Envelope, error) {
 		return nil, errors.New("bundle changed during verification")
 	}
 	return manifest, nil
+}
+
+// Shared publication boundary for offline media and installer helper archives.
+func validateNewBundleOutput(output string) error {
+	// An untrusted writable parent could replace the staging pathname between
+	// byte verification and publication. Use an operator-owned protected directory.
+	parentInfo, parentErr := os.Lstat(filepath.Dir(output))
+	if parentErr != nil || !parentInfo.IsDir() || parentInfo.Mode().Perm()&0022 != 0 {
+		return errors.New("bundle output directory must be protected from group/other writes")
+	}
+	owner, ok := parentInfo.Sys().(*syscall.Stat_t)
+	if !ok || owner.Uid != uint32(os.Geteuid()) {
+		return errors.New("bundle output directory must belong to the current operator")
+	}
+	if _, err := os.Lstat(output); err == nil || !os.IsNotExist(err) {
+		return errors.New("cannot publish bundle; existing output is never replaced")
+	}
+	return nil
 }

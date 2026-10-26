@@ -26,9 +26,12 @@ func main() {
 }
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: keel-admin webhook-signing-keygen|webhook-delivery-status|audit-signing-keygen|audit-evidence-export|audit-evidence-verify|audit-evidence-compare|agent-task-create|agent-task-status|agent-task-action|agent-task-reconcile|agent-credential-status|agent-ca-init|agent-enrollment-create|agent-enrollment-cancel|agent-revoke|credential-master-keygen|credential-master-inspect|credential-master-rewrap|ssh-key-create|ssh-key-list|ssh-key-revoke|media-init|media-signing-keygen|media-manifest-verify|media-bundle-create|media-bundle-verify|migrate|init-admin|user-create|user-disable|user-unlock|user-password|member-grant|member-revoke [flags]")
+		return errors.New("usage: keel-admin provision-overlay-create|provision-overlay-verify|webhook-signing-keygen|webhook-delivery-status|audit-signing-keygen|audit-evidence-export|audit-evidence-verify|audit-evidence-compare|agent-task-create|agent-task-status|agent-task-action|agent-task-reconcile|agent-credential-status|agent-ca-init|agent-enrollment-create|agent-enrollment-cancel|agent-revoke|credential-master-keygen|credential-master-inspect|credential-master-rewrap|ssh-key-create|ssh-key-list|ssh-key-revoke|media-init|media-signing-keygen|media-manifest-verify|media-bundle-create|media-bundle-verify|migrate|init-admin|user-create|user-disable|user-unlock|user-password|member-grant|member-revoke [flags]")
 	}
 	command := args[0]
+	if command == "provision-overlay-create" || command == "provision-overlay-verify" {
+		return runProvisionOverlay(command, args[1:])
+	}
 	if command == "webhook-signing-keygen" {
 		return runWebhookKeygen(args[1:])
 	}
