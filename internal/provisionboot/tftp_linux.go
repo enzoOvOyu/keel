@@ -132,7 +132,8 @@ func serveTFTPTransfer(parent context.Context, scope Scope, authority FileAuthor
 	buffer := make([]byte, 517)
 	for !transfer.Done() {
 		started := time.Now()
-		if _, err = udp.WriteToUDP(packet, peer); err != nil {
+		n, writeErr := udp.WriteToUDP(packet, peer)
+		if writeErr != nil || n != len(packet) || transfer.sent(packet) != nil {
 			return
 		}
 		deadline := time.Now().Add(rto)
@@ -157,7 +158,8 @@ func serveTFTPTransfer(parent context.Context, scope Scope, authority FileAuthor
 				attempts++
 				rto = min(5*time.Second, rto*2)
 				deadline = time.Now().Add(rto)
-				if _, err = udp.WriteToUDP(packet, peer); err != nil {
+				n, writeErr := udp.WriteToUDP(packet, peer)
+				if writeErr != nil || n != len(packet) || transfer.sent(packet) != nil {
 					return
 				}
 				continue
@@ -172,6 +174,7 @@ func serveTFTPTransfer(parent context.Context, scope Scope, authority FileAuthor
 			}
 			if data == nil {
 				if transfer.Done() {
+					transfer.recordAcknowledged()
 					return
 				}
 				continue

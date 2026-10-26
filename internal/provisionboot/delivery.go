@@ -6,7 +6,7 @@ import (
 	"net/netip"
 )
 
-// FileDelivery describes bytes fully accepted by the server ResponseWriter.
+// FileDelivery describes verified bytes fully written by the server transport.
 // It is not proof that a client received, verified, booted or executed them.
 type FileDelivery struct {
 	Resource      string
@@ -16,7 +16,8 @@ type FileDelivery struct {
 }
 
 // FileDeliveryAuthority is an optional control-plane evidence sink, called only
-// after a complete verified GET and a final live authorization check. Recording
+// after a complete verified GET, or a fully sent and final-ACKed TFTP transfer,
+// and a final live authorization check. Recording
 // must recheck the frozen identity, current authority and exclusive lease.
 type FileDeliveryAuthority interface {
 	RecordFileServed(context.Context, Scope, Grant, netip.Addr, FileDelivery) error

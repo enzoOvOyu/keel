@@ -304,3 +304,8 @@ SSH未知结果仅显式query原helper回执；只有当前fresh pinned query证
 ### 装机互信待修复列表
 
 原安装列表GET支持可选`repair_only=true`（仅接受单个`true`或`false`）。该视图从同项目未完成安装的持久`first_boot.ssh_repair_required`事件派生，保留租约已过期的`unknown`，与分页总数共用过滤条件。它是当前修复证据的查看入口，不授予新attempt、重装、续租、解除隔离或批量推送权限；逐机进度及显式查询/只读核验仍由原服务端准入决定。`registered/failed/canceled`不列入，摘要仍不返回完整预检报告。源码回归与集中验证状态见HANDOFF §114。
+
+
+### TFTP分发事实
+
+小型iPXE固件仍是TFTP唯一允许资源。隔离socket逐块确认完整UDP写出、严格核对同一客户端TID/interface上的最终ACK后，复用HTTP的`boot.file_served`存储；此前各块必须实际确认发送，重传不加字节，512整数倍文件必须完成空终止块握手。记录前重新检查当前授权，存储层仍核对冻结对象版本/sha/大小和原独占租约。该事件只作服务器传输辅助事实，`server_write_only`不因UDP ACK提升成客户端执行或启动证据。纯协议驱动、部分/取消/撤销和缺ACK不产出事件；写证据失败不触发发送重试。源码边界用例尚未运行，见HANDOFF §115；§110的TFTP缺口历史记录由本节源码补齐，真实UDP/固件PoC仍待验证。

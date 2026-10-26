@@ -26,6 +26,10 @@ type TFTPTransfer struct {
 	final     bool
 	closed    bool
 	guard     *fileGuard
+	sentBlock uint16
+	sentBytes int64
+	finalACK  bool
+	recorded  bool
 }
 
 func ParseTFTPRequest(packet []byte) (string, string, error) {
@@ -129,7 +133,10 @@ func (t *TFTPTransfer) Next(ack []byte) ([]byte, error) {
 			return nil, ErrDenied
 		}
 		if t.final {
-			t.Close()
+			if err := t.Close(); err != nil {
+				return nil, err
+			}
+			t.finalACK = true
 			return nil, nil
 		}
 	}
@@ -157,4 +164,44 @@ func (t *TFTPTransfer) Retry() ([]byte, error) {
 		return nil, ErrDenied
 	}
 	return append([]byte{}, t.last...), nil
+}
+
+// sent is called only by the transport after a full successful UDP write. It
+// counts each sequential DATA block once; timeout retransmissions add no bytes.
+// Building/reading packets or accepting ACKs alone cannot create evidence.
+func (t *TFTPTransfer) sent(packet []byte) error {
+	if t == nil || t.closed || t.block == 0 || len(packet) < 4 || !bytes.Equal(packet, t.last) {
+		return ErrDenied
+	}
+	if t.sentBlock == t.block {
+		return nil
+	}
+	if t.sentBlock+1 != t.block || t.sentBytes+int64(len(packet)-4) > t.artifact.Size {
+		return ErrDenied
+	}
+	t.sentBlock = t.block
+	t.sentBytes += int64(len(packet) - 4)
+	return nil
+}
+
+// recordAcknowledged is internal to the socket path. Its ACK has already been
+// checked for the original client TID and approved interface. It remains a
+// transport observation, never a claim that firmware executed or booted.
+func (t *TFTPTransfer) recordAcknowledged() {
+	if t == nil || t.recorded || !t.closed || !t.finalACK || t.sentBlock != t.block || t.sentBytes != t.artifact.Size || t.guard == nil {
+		return
+	}
+	t.recorded = true
+	t.guard.checked = time.Time{}
+	if !t.guard.check() {
+		return
+	}
+	if authority, ok := t.authority.(FileDeliveryAuthority); ok {
+		// A failed evidence write leaves delivery unproven. Never resend data
+		// or infer a durable observation from the accepted ACK alone.
+		_ = authority.RecordFileServed(t.ctx, t.scope, t.grant, t.peer, FileDelivery{
+			Resource: t.resource, SHA256: t.artifact.SHA256,
+			Bytes: t.artifact.Size, ObjectVersion: t.artifact.ObjectVersion,
+		})
+	}
 }

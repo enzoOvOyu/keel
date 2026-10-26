@@ -37,7 +37,8 @@ func provisionRenderedBytes(scope provisionboot.Scope, grant provisionboot.Grant
 
 // RecordFileServed is a server-side transport observation, not a callback and
 // not installation authority. Repeated full downloads produce one fact per
-// frozen resource; partial or failed downloads are never supplied by Gateway.
+// frozen resource; partial or failed downloads are never supplied by the HTTP
+// or final-ACKed TFTP transport.
 func (a *ProvisionBootAuthority) RecordFileServed(ctx context.Context, scope provisionboot.Scope, grant provisionboot.Grant, peer netip.Addr, delivered provisionboot.FileDelivery) error {
 	if a == nil || a.Store == nil || a.Store.DB == nil || !scope.CheckPeer(peer) || !provisionResource(delivered.Resource) || delivered.Bytes < 1 || !sha256Pattern.MatchString(delivered.SHA256) || delivered.ObjectVersion == "" {
 		return ErrProvisionBootDenied

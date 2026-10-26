@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～114。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～115。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
@@ -1387,3 +1387,10 @@ initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新�
 双语共享Button筛选、独立查询缓存、切换回第一页、空队列提示与OpenAPI/生成TS同步；逐行展开沿用原进度、显式query/经证明失败后的只读核验授权，不提供批量推送或自动重装。过期任务的现有资源隔离和权限不因可见性而放宽。
 
 新增数据库回归源码覆盖仅首启报告不入队、持久修复入队、精确分页/总数、摘要不加载报告、reaper后unknown保留、跨项目/匿名/坏分页拒绝与终态退出；终态种子仅用于过滤断言，不作为真实硬件结果证明。已接集中入口，按用户安排未运行功能用例。三包仅编译、vet、API生成、TypeScript与UI边界检查退出0，日志/tmp/keel-repair-list-{compile,vet,api,tsc,ui}.log；设计及diff检查另见同前缀design日志。3000、SQL、镜像和生产开关未变，无push；WP-1.7/P1 partial。
+
+
+## 115. TFTP完整发送与最终ACK后的分发事实（2026-10-26）
+
+接续26062b5。原Linux隔离TFTP socket路径在每次WriteToUDP返回全长且无错误后才确认当前精确DATA字节，顺序累计一次、超时重传不重复计数；空终止块仍须发出并收到最后ACK。最终ACK沿原客户端IP/port TID与interface校验，全部字节/块一致且文件成功关闭后，强制再验当前权限再调用原FileDeliveryAuthority；部分/跳块/改字节/关闭/无最终ACK/取消/撤销不记完成。纯OpenTFTP/Next消费不等于已发送，也不能记录事实。证据存储失败只缺证据，不重发、不假成功。沿用现有按资源去重的boot.file_served及server_write_only语义，不证明客户端执行、iPXE/OS启动或SSH互信。
+
+新增无socket的传输边界用例源码覆盖1/511/512/513/1024字节、整块末尾空包、重传不重计、无发送确认/最终ACK、提前关闭、撤销、取消、落库失败只调用一次及篡改/跳块拒绝；未执行用例，不冒充真实UDP或硬件验证。集中入口既有provisionboot全包已覆盖新测试。三包仅编译与provisionboot/platform vet退出0（/tmp/keel-tftp-delivery-{compile,vet}.log）；设计/diff检查记录同前缀design日志。无镜像/迁移/生产listener/push，3000未更新，WP-1.7/P1 partial。
