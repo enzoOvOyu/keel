@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～101。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～102。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，三小时开发窗口进行中）
 
@@ -1280,3 +1280,10 @@ WP-1.7/P1仍partial：下一步是同一启动身份下的互动预检刷新/审
 接续2276f9b。利用既有append-only安装事件承载一次待处理刷新请求，不新增迁移或修改055。当前用户/项目/独占租约/来源及精确版本下请求刷新，绑定旧报告摘要/序号；待刷新禁止选盘。同一启动身份的机器review只读签名查询回显随机nonce，不消耗回调序号或业务版本；仅显式请求才再跑只读helper，refresh_id与精确报告原字节共同签名，下一序号一次消费，最多32报告，选盘后不准改报告。页面接请求/等待/新报告版本提示，仍复用shadcn与原字体。
 
 initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新身份；布局批准仅storage_approved_no_write_permit。首份报告在人工等待前保留，刷新报告独立序号目录，错误/丢ACK不重发、不覆盖原证据。完整协议及输入边界见PROVISIONING最后一节。新增签名错绑/nonce重放/只读不消费版本、显式刷新一次采集/留证/审批不写盘及丢ACK用例仅写入未运行。实际定向Go编译、vet、OpenAPI生成、直接tsc、UI静态检查日志/tmp/keel-preflight-refresh-{compile,final-compile,vet,api,tsc,ui}.log退出0；最后纯测试断言增补不改变产品源码，最终结果见本批提交。未运行功能/PG/CLI/浏览器/硬件，没有应用SQL/监听网络/构建发布镜像。P1仍partial，接下来受控writer的独立输入及实际执行/回执，再首启/SSH/阶段投影。
+
+
+## 102. 正向签名归档到DB启动授权的集中用例（2026-10-26，仅新增用例源码）
+
+接续b25d290。新增execution软件集成fixture：先经真实介质登记/独立审批和平台manifest签名导出5个独立runtime输入，再构建/另批完整initrd、冻结OS recipe、实际验证来源字节与签名，取得opaque验证结果后按真实claim/lease激活。内部ELF和硬件观察明确为不可执行格式/软件事实fixture，不执行组件或证明可启动镜像/硬件。原故意损坏initrd的负例保留，未改为假PASS。
+
+新组TestProvisionInstallationLiveBootPostgres覆盖当前文件取得/hash、Token一次消费、报告重放、status不改版本、刷新请求不改版本且阻断旧选盘、刷新一次消费、摘要列表不拉多MiB报告/详情保留精确字节、独立布局审批不签permit、选盘后报告拒绝、并发刷新只接受一个、撤域拒绝新回调。已接provision-only集中入口，只执行go test -run '^$'编译（/tmp/keel-live-boot-fixture-compile.log，退出0）；没有执行用例/CLI/PG迁移/镜像或硬件。P1仍partial。

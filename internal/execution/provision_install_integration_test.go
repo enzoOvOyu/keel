@@ -14,8 +14,11 @@ import (
 // invalid initrd. They must support scheduling/locking and fail before boot;
 // none is accepted as a runnable image or hardware evidence.
 func installationKernel(t *testing.T, installable bool) (*provisionKernelFixture, *platform.ProvisionRequest, *platform.ProvisionBootScope) {
+	return installationKernelSource(t, installable, false)
+}
+func installationKernelSource(t *testing.T, installable, signedImage bool) (*provisionKernelFixture, *platform.ProvisionRequest, *platform.ProvisionBootScope) {
 	t.Helper()
-	f := provisionKernelWithRecipe(t, installable)
+	f := provisionKernelWithImage(t, installable, signedImage)
 	ctx := context.Background()
 	prep := f.prepare(t)
 	claim := f.claim(t, prep.ID)
@@ -34,7 +37,9 @@ func installationKernel(t *testing.T, installable bool) (*provisionKernelFixture
 	mustAgent(t, err)
 	public, _, err := ed25519.GenerateKey(rand.Reader)
 	mustAgent(t, err)
-	f.store.ProvisionImagePublicKey = public
+	if !signedImage {
+		f.store.ProvisionImagePublicKey = public
+	}
 	f.store.ProvisionInstallEnabled = true
 	return f, request, scope
 }

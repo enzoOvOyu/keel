@@ -59,6 +59,9 @@ func provisionKernel(t *testing.T) *provisionKernelFixture {
 }
 
 func provisionKernelWithRecipe(t *testing.T, installable bool) *provisionKernelFixture {
+	return provisionKernelWithImage(t, installable, false)
+}
+func provisionKernelWithImage(t *testing.T, installable, signedImage bool) *provisionKernelFixture {
 	t.Helper()
 	f := agentKernel(t)
 	ctx := context.Background()
@@ -79,7 +82,13 @@ func provisionKernelWithRecipe(t *testing.T, installable bool) *provisionKernelF
 	mustAgent(t, err)
 	model, err := s.CreateDeviceModel(ctx, f.actor, project, platform.CreateDeviceModelInput{Name: "Prep " + suffix, Kind: "server"}, "test")
 	mustAgent(t, err)
-	_, err = s.PublishModelVersion(ctx, f.actor, project, model.ID, platform.PublishModelVersionInput{HwSpec: map[string]any{"cpu_arch": "amd64"}, Slots: []platform.ModelSlot{{SlotNo: 1, PcieSlot: "PCIe-1", ExpectNicModel: "Fixture-NIC", PanelPort: "p1", DefaultRole: "management"}}}, "test")
+	hardware := map[string]any{"cpu_arch": "amd64"}
+	var bom map[string]any
+	if signedImage {
+		hardware["gpu_count"] = 0
+		bom = map[string]any{"nic_count": 1}
+	}
+	_, err = s.PublishModelVersion(ctx, f.actor, project, model.ID, platform.PublishModelVersionInput{HwSpec: hardware, BomExpect: bom, Slots: []platform.ModelSlot{{SlotNo: 1, PcieSlot: "PCIe-1", ExpectNicModel: "Fixture-NIC", PanelPort: "p1", DefaultRole: "management"}}}, "test")
 	mustAgent(t, err)
 	var serial string
 	mustAgent(t, s.DB.QueryRowContext(ctx, "SELECT serial_number FROM machines WHERE id=$1", f.machine).Scan(&serial))
@@ -101,14 +110,24 @@ func provisionKernelWithRecipe(t *testing.T, installable bool) *provisionKernelF
 		return m
 	}
 	kernel := upload("kernel", "os", "amd64", "fixture kernel", nil)
-	initrd := upload("initrd", "os", "amd64", "fixture initrd", nil)
+	var initrd *platform.MediaItemSummary
+	if !signedImage {
+		initrd = upload("initrd", "os", "amd64", "fixture initrd", nil)
+	}
 	template := upload("template", "config", "noarch", "#cloud-config\nlocale: en_US.UTF-8\n", nil)
+	var signedPreflight, signedSSH *platform.MediaItemSummary
+	if signedImage {
+		initrd, signedPreflight, signedSSH = signedProvisionImageFixture(t, s, f.actor, project, upload)
+	}
 	profile := mediaboot.Profile{Schema: mediaboot.Schema, Installer: "cloud-init", KernelMediaID: kernel.ID, InitrdMediaID: initrd.ID, TemplateMediaID: template.ID}
 	refs := []platform.MediaArtifactDependency{{MediaID: kernel.ID, SHA256: kernel.Sha256}, {MediaID: initrd.ID, SHA256: initrd.Sha256}, {MediaID: template.ID, SHA256: template.Sha256}}
 	if installable {
 		uefi := upload("uefi", "os", "amd64", "non-executed fixture UEFI", nil)
-		preflight := upload("preflight", "os", "amd64", "non-executed fixture preflight", nil)
-		ssh := upload("ssh-helper", "os", "amd64", "non-executed fixture SSH helper", nil)
+		preflight, ssh := signedPreflight, signedSSH
+		if !signedImage {
+			preflight = upload("preflight", "os", "amd64", "non-executed fixture preflight", nil)
+			ssh = upload("ssh-helper", "os", "amd64", "non-executed fixture SSH helper", nil)
+		}
 		profile.Recipe = &mediaboot.Recipe{Schema: mediaboot.RecipeSchema, Protocol: mediaboot.InitrdProtocol, RootFSFormat: "squashfs", UEFIMediaID: uefi.ID, PreflightMediaID: preflight.ID, SSHHelperMediaID: ssh.ID, PreflightSHA256: preflight.Sha256, SSHHelperSHA256: ssh.Sha256}
 		for _, media := range []*platform.MediaItemSummary{uefi, preflight, ssh} {
 			refs = append(refs, platform.MediaArtifactDependency{MediaID: media.ID, SHA256: media.Sha256})
