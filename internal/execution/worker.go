@@ -264,7 +264,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 					return nil, tx.Commit()
 				}
 			}
-			if err := s.scriptFrozenTx(ctx, tx, x.ProjectID, x.Mode, task); err != nil {
+			if err := s.hostTaskFrozenTx(ctx, tx, x.ProjectID, x.Mode, task); err != nil {
 				var blocked *platform.Error
 				if !errors.As(err, &blocked) {
 					return nil, err
@@ -275,7 +275,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 				if e = settle(ctx, tx, id); e != nil {
 					return nil, e
 				}
-				if e = event(ctx, tx, id, "execution.authorization_blocked", map[string]string{"reason": "approved_script_changed_or_disabled"}); e != nil {
+				if e = event(ctx, tx, id, "execution.authorization_blocked", map[string]string{"reason": "host_task_admission_changed_or_disabled"}); e != nil {
 					return nil, e
 				}
 				return nil, tx.Commit()

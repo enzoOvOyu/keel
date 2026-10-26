@@ -20,6 +20,8 @@ var idPattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
 const APIVersion = "keel.task/v1"
 
 type TaskCommand struct {
+	CacheCursor            string `json:"cache_cursor,omitempty"`
+	CacheManifestSHA256    string `json:"cache_manifest_sha256,omitempty"`
 	ScriptResultFormat     string `json:"script_result_format,omitempty"`
 	ScriptMediaID          string `json:"script_media_id,omitempty"`
 	ScriptObjectVersion    string `json:"script_object_version,omitempty"`
@@ -43,7 +45,14 @@ func (c TaskCommand) Validate() error {
 	if c.APIVersion != APIVersion || !idPattern.MatchString(c.ProjectID) || !idPattern.MatchString(c.MachineID) || !idPattern.MatchString(c.CommandID) || !idPattern.MatchString(c.AttemptID) || c.FencingToken < 1 || c.TimeoutMS < 100 || c.TimeoutMS > 30000 {
 		return ErrRejected
 	}
-	if c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "trust.verify" && c.Operation != "trust.install" && c.Operation != "script.run" {
+	if c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "trust.verify" && c.Operation != "trust.install" && c.Operation != "script.run" && c.Operation != "host.cache.inventory" {
+		return ErrRejected
+	}
+	if c.Operation == "host.cache.inventory" {
+		if c.CacheCursor != "" && (!scriptDigestPattern.MatchString(c.CacheCursor) || !scriptDigestPattern.MatchString(c.CacheManifestSHA256)) || c.CacheManifestSHA256 != "" && !scriptDigestPattern.MatchString(c.CacheManifestSHA256) {
+			return ErrRejected
+		}
+	} else if c.CacheCursor != "" || c.CacheManifestSHA256 != "" {
 		return ErrRejected
 	}
 	if c.Operation == "script.run" {
@@ -110,6 +119,9 @@ func (o Observation) Validate(c TaskCommand) error {
 		return ErrRejected
 	}
 	if c.Operation == "script.run" && o.Terminal() && validateScriptObservation(o) != nil {
+		return ErrRejected
+	}
+	if c.Operation == "host.cache.inventory" && o.Terminal() && validateCacheObservation(o) != nil {
 		return ErrRejected
 	}
 	if o.Terminal() && (o.StartedAt.IsZero() || o.FinishedAt.Before(o.StartedAt)) {

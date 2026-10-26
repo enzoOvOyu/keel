@@ -17,8 +17,10 @@ import (
 // Wrapper is a per-invocation helper, not a persistent agent. StateDirectory is
 // provisioned by the operator for keel-ctrl, mode0700. Never use a shared /tmp.
 type Wrapper struct {
-	StateDirectory     string
-	AuthorizedKeysFile string
+	ScriptMediaCacheEnabled bool
+	CacheInventoryEnabled   bool
+	StateDirectory          string
+	AuthorizedKeysFile      string
 	// Set only by a dedicated helper process after PrepareScriptProcess.
 	ScriptProcessIsolation bool
 }
@@ -111,6 +113,9 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 		return zero, ErrRejected
 	}
 	if r.Action != "run" && len(r.Script) > 0 {
+		return zero, ErrRejected
+	}
+	if r.Action == "run" && r.Command.Operation == "host.cache.inventory" && !w.CacheInventoryEnabled {
 		return zero, ErrRejected
 	}
 	dir := filepath.Join(w.StateDirectory, r.Command.CommandID)
@@ -218,9 +223,15 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 		}
 	} else if r.Command.Operation == "script.run" {
 		var scriptErr error
-		o.Output, result, reason, scriptErr = executeScriptProcess(work, dir, r.Command, r.Script)
+		o.Output, result, reason, scriptErr = executeScriptProcess(work, dir, r.Command, r.Script, w.ScriptMediaCacheEnabled)
 		if scriptErr != nil {
 			return zero, ErrUnknown
+		}
+	} else if r.Command.Operation == "host.cache.inventory" {
+		o.Output, reason = readMediaCache(work, MediaCacheDirectory, r.Command.CacheCursor, r.Command.CacheManifestSHA256)
+		if o.Output == nil {
+			o.Output = map[string]any{}
+			result = "failed"
 		}
 	} else if r.Command.Operation == "trust.install" {
 		fingerprint, err := installDomainKey(work, w.AuthorizedKeysFile, r.Command)

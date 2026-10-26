@@ -21,7 +21,7 @@ func main() {
 	if scripts && taskrunner.PrepareScriptProcess() != nil {
 		os.Exit(1)
 	}
-	if (taskrunner.Wrapper{ScriptProcessIsolation: scripts, StateDirectory: state, AuthorizedKeysFile: os.Getenv("KEEL_SSH_AUTHORIZED_KEYS_FILE")}).Serve(ctx, os.Stdin, os.Stdout) != nil {
+	if (taskrunner.Wrapper{ScriptMediaCacheEnabled: os.Getenv("KEEL_TASK_MEDIA_CACHE_ENABLED") == "true", CacheInventoryEnabled: os.Getenv("KEEL_TASK_CACHE_INVENTORY_ENABLED") == "true", ScriptProcessIsolation: scripts, StateDirectory: state, AuthorizedKeysFile: os.Getenv("KEEL_SSH_AUTHORIZED_KEYS_FILE")}).Serve(ctx, os.Stdin, os.Stdout) != nil {
 		os.Exit(1)
 	}
 }

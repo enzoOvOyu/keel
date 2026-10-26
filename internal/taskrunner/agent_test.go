@@ -341,3 +341,31 @@ func TestAgentScriptOptOutAndHistoricalQueries(t *testing.T) {
 		t.Fatal("existing script proof caused helper replay", got, err)
 	}
 }
+
+func TestAgentCacheInventoryOptOutKeepsHistoricalReceipt(t *testing.T) {
+	a := agentFixture(t)
+	command := agentCommand("d", 1)
+	command.Operation = "host.cache.inventory"
+	if _, err := a.Handle(context.Background(), Request{Action: "run", Command: command}); !errors.Is(err, ErrRejected) {
+		t.Fatal("cache query enabled by default", err)
+	}
+	if _, err := os.Lstat(filepath.Join(a.StateDirectory, ".agent-fence.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("opt-out query consumed fence", err)
+	}
+	dir := filepath.Join(a.StateDirectory, command.CommandID)
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	observation := cachePageObservation(command, nil, "cache_directory_unavailable")
+	raw, err := json.Marshal(observation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(dir, "receipt.json"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := a.Handle(context.Background(), Request{Action: "query", Command: command})
+	if err != nil || got.Validate(command) != nil || got.State != "failed" {
+		t.Fatal("opt-out hid original cache receipt", got, err)
+	}
+}

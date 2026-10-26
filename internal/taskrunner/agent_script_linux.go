@@ -36,6 +36,9 @@ func (a Agent) runScriptHelper(ctx context.Context, r Request) (Observation, err
 	cmd := exec.CommandContext(ctx, "/proc/self/fd/3")
 	cmd.ExtraFiles = []*os.File{f}
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "KEEL_SSH_RECEIPT_DIRECTORY=" + a.StateDirectory, "KEEL_SSH_SCRIPTS_ENABLED=true"}
+	if a.MediaCacheEnabled {
+		cmd.Env = append(cmd.Env, "KEEL_TASK_MEDIA_CACHE_ENABLED=true")
+	}
 	cmd.Stdin = bytes.NewReader(raw)
 	var out limitedOutput
 	cmd.Stdout = &out

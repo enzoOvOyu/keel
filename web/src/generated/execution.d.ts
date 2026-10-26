@@ -1117,28 +1117,36 @@ export interface components {
             host_key: string;
             config_hash: string;
         };
-        /** @description No arbitrary commands, network addresses, credentials or files. identity requires wait_ms=0. Assets must be provisioned, project-bound and established with the exact operator-pinned host key. */
+        /** @description No arbitrary commands, network addresses, credentials or files. identity requires wait_ms=0. Assets must be provisioned, project-bound and established with the exact operator-pinned host key. Cache inventory is a separately enabled read-only task over the fixed platform-owned cache. It verifies actual content for each returned entry and never adopts or removes unrelated files. */
         SSHCreateInput: {
             machine_ids: string[];
             /** @enum {string} */
-            operation: "host.identity" | "host.wait";
+            operation: "host.identity" | "host.wait" | "host.cache.inventory";
             /** @default 5000 */
             timeout_ms: number;
             /** @default 0 */
             wait_ms: number;
+            /** @description Optional continuation digest; requires cache_manifest_sha256 and exactly one target. */
+            cache_cursor?: string;
+            /** @description Pins all continuation pages to the exact ownership index snapshot; changed snapshots fail explicitly. */
+            cache_manifest_sha256?: string;
         };
         SSHReceiptInput: {
             expected_version: number;
         };
-        /** @description Only bounded host.identity or host.wait on 1..32 unique registered Agent machine IDs. identity requires wait_ms=0; wait_ms must be shorter than timeout_ms. Current project-bound asset must be provisioned, and its serial/version must match the unrevoked/unexpired credential with a fresh authenticated worker task stream. No addresses, secrets, scripts, installation or files. */
+        /** @description Only bounded host.identity or host.wait on 1..32 unique registered Agent machine IDs. identity requires wait_ms=0; wait_ms must be shorter than timeout_ms. Current project-bound asset must be provisioned, and its serial/version must match the unrevoked/unexpired credential with a fresh authenticated worker task stream. No addresses, secrets, scripts, installation or files. Cache inventory is a separately enabled read-only task over the fixed platform-owned cache. It verifies actual content for each returned entry and never adopts or removes unrelated files. */
         AgentCreateInput: {
             machine_ids: string[];
             /** @enum {string} */
-            operation: "host.identity" | "host.wait";
+            operation: "host.identity" | "host.wait" | "host.cache.inventory";
             /** @default 5000 */
             timeout_ms: number;
             /** @default 0 */
             wait_ms: number;
+            /** @description Optional continuation digest; requires cache_manifest_sha256 and exactly one target. */
+            cache_cursor?: string;
+            /** @description Pins all continuation pages to the exact ownership index snapshot; changed snapshots fail explicitly. */
+            cache_manifest_sha256?: string;
         };
         AgentTarget: {
             machine_id: string;

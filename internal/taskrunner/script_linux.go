@@ -124,12 +124,23 @@ func scriptChildren() ([]int, error) {
 // executeScriptProcess runs no request-supplied command line, path, arguments or
 // environment. Approved script bytes are stdin to a fixed interpreter. Effects
 // outside the process tree are not undone by cancellation.
-func executeScriptProcess(ctx context.Context, dir string, c TaskCommand, body []byte) (map[string]any, string, string, error) {
+func executeScriptProcess(ctx context.Context, dir string, c TaskCommand, body []byte, useCache bool) (map[string]any, string, string, error) {
 	if validateScriptBody(c, body) != nil {
 		return nil, "", "", ErrRejected
 	}
 	if ctx.Err() != nil {
 		return map[string]any{"process_tree_stopped": true, "process_started": false}, "failed", "script_authorization_expired_before_start", nil
+	}
+	cacheHit := false
+	if useCache {
+		var err error
+		cacheHit, err = cacheApprovedScript(ctx, MediaCacheDirectory, c, body)
+		if err != nil {
+			if errors.Is(err, ErrUnknown) {
+				return nil, "", "", ErrUnknown
+			}
+			return map[string]any{"process_tree_stopped": true, "process_started": false}, "failed", "script_cache_rejected", nil
+		}
 	}
 	workspace := filepath.Join(dir, "workspace")
 	if os.Mkdir(workspace, 0700) != nil {
@@ -306,6 +317,10 @@ func executeScriptProcess(ctx context.Context, dir string, c TaskCommand, body [
 		return nil, "", "", ErrUnknown
 	}
 	output := map[string]any{"script_media_id": c.ScriptMediaID, "script_object_version": c.ScriptObjectVersion, "script_sha256": c.ScriptSHA256, "script_interpreter": c.ScriptInterpreter, "exit_code": exitCode, "process_tree_stopped": true, "process_started": true, "stdout_prefix_base64": base64.StdEncoding.EncodeToString(out.prefix), "stdout_sha256": out.digest, "stdout_bytes": out.size, "stdout_complete": out.complete, "stderr_prefix_base64": base64.StdEncoding.EncodeToString(errOut.prefix), "stderr_sha256": errOut.digest, "stderr_bytes": errOut.size, "stderr_complete": errOut.complete}
+	if useCache {
+		output["cache_hit"] = cacheHit
+		output["cache_directory"] = MediaCacheDirectory
+	}
 	if c.ScriptResultFormat == "json" && result == "success" {
 		normalized, parseErr := normalizedScriptJSON(out.jsonSource)
 		if parseErr != nil {

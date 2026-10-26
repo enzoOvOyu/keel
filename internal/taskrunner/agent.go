@@ -19,10 +19,12 @@ import (
 // separate operator-installed helper, never inside the persistent Agent. Its own
 // global process lock is supplemental to the control plane's resource leases.
 type Agent struct {
-	StateDirectory string
-	ProjectID      string
-	MachineID      string
-	ScriptsEnabled bool
+	StateDirectory        string
+	ProjectID             string
+	MachineID             string
+	ScriptsEnabled        bool
+	MediaCacheEnabled     bool
+	CacheInventoryEnabled bool
 }
 
 // PrepareAgentState creates only the local tasks child of an already protected
@@ -166,10 +168,13 @@ func writeAgentFence(dir string, fence agentFence) error {
 }
 func (a Agent) Handle(ctx context.Context, r Request) (Observation, error) {
 	var zero Observation
-	if os.Geteuid() == 0 || !idPattern.MatchString(a.ProjectID) || !idPattern.MatchString(a.MachineID) || r.Validate() != nil || r.Command.ProjectID != a.ProjectID || r.Command.MachineID != a.MachineID || (r.Command.Operation != "host.identity" && r.Command.Operation != "host.wait" && r.Command.Operation != "script.run") || (r.Action != "run" && r.Action != "query" && r.Action != "cancel") {
+	if os.Geteuid() == 0 || !idPattern.MatchString(a.ProjectID) || !idPattern.MatchString(a.MachineID) || r.Validate() != nil || r.Command.ProjectID != a.ProjectID || r.Command.MachineID != a.MachineID || (r.Command.Operation != "host.identity" && r.Command.Operation != "host.wait" && r.Command.Operation != "script.run" && r.Command.Operation != "host.cache.inventory") || (r.Action != "run" && r.Action != "query" && r.Action != "cancel") {
 		return zero, ErrRejected
 	}
 	if r.Action == "run" && r.Command.Operation == "script.run" && !a.ScriptsEnabled {
+		return zero, ErrRejected
+	}
+	if r.Action == "run" && r.Command.Operation == "host.cache.inventory" && !a.CacheInventoryEnabled {
 		return zero, ErrRejected
 	}
 	fd, e := agentDirectory(a.StateDirectory)
@@ -185,7 +190,7 @@ func (a Agent) Handle(ctx context.Context, r Request) (Observation, error) {
 	} else if !errors.Is(e, os.ErrNotExist) {
 		return zero, ErrRejected
 	}
-	wrapper := Wrapper{StateDirectory: a.StateDirectory}
+	wrapper := Wrapper{StateDirectory: a.StateDirectory, CacheInventoryEnabled: a.CacheInventoryEnabled}
 	if r.Action != "run" {
 		return wrapper.Handle(ctx, r)
 	}

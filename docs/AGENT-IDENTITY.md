@@ -179,3 +179,10 @@ Heartbeat proto 增加可选 `network_inventory_json`，严格版本 `agent-netw
 当前项目成员可读 `GET /api/v1/projects/:id/agent-targets/:machineId/network-inventory`；只读返回来源agent、enabled、ready/unavailable/disabled/stale和30秒TTL，ready仅指观测可用。采集/成功时间过期或连接关闭即stale；API环境开关关闭则disabled。资产页从现有Agent列表打开网口对话框，显式刷新，本地到期或凭据过期也会停止显示近期观测；历史数据、失败原因与未知区分显示。
 
 此功能不等于缓存清单、双向文件传输、CollectPolicy/mon-svc、LLDP三方比对或硬件验收。新增协议/完整与增量合并/失败不交部分列表、真实隔离mTLS/PostgreSQL与受限runtime角色用例源码，统一Agent入口包含该包，均未运行。proto/TS仅生成；058迁移未应用，生产开关仍关闭。
+
+
+### 批准脚本缓存及只读清单（2026-10-26，源码未验证）
+
+目标受保护JSON可显式`media_cache_enabled:true`，必须同时scripts_enabled/tasks_enabled；Agent只把固定缓存开关传给独立脚本helper，不继承其他环境。缓存与SSH共用上述固定目录/归属/摘要契约，要求同一明确的平台非root所有者，不自动创建账号、改权限或切换身份。默认不开启。
+
+`cache_inventory_enabled:true`（依赖tasks_enabled）才接受`host.cache.inventory`新run；API/worker另需`KEEL_TASK_CACHE_INVENTORY_ENABLED=true`。缓存查询在常驻Agent做有界只读校验，无子reaper/子进程，不需要开启脚本执行。每页16项、续页固定manifest摘要，当前身份/资产/原参数由broker再次核对；禁用后旧query/cancel仍可读原回执。缓存清单由显式查询任务提供，本次未塞进身份心跳，也未将其等同FR-1.2完整缓存心跳/双向文件传输。具体边界见 [SSH-RUNNER](SSH-RUNNER.md)。

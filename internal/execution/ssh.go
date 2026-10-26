@@ -14,12 +14,14 @@ import (
 )
 
 type SSHCreateInput struct {
-	ScriptResultFormat string   `json:"script_result_format,omitempty"`
-	ScriptMediaID      string   `json:"script_media_id,omitempty"`
-	MachineIDs         []string `json:"machine_ids"`
-	Operation          string   `json:"operation"`
-	TimeoutMS          int      `json:"timeout_ms"`
-	WaitMS             int      `json:"wait_ms"`
+	CacheCursor         string   `json:"cache_cursor,omitempty"`
+	CacheManifestSHA256 string   `json:"cache_manifest_sha256,omitempty"`
+	ScriptResultFormat  string   `json:"script_result_format,omitempty"`
+	ScriptMediaID       string   `json:"script_media_id,omitempty"`
+	MachineIDs          []string `json:"machine_ids"`
+	Operation           string   `json:"operation"`
+	TimeoutMS           int      `json:"timeout_ms"`
+	WaitMS              int      `json:"wait_ms"`
 }
 
 func (s *Service) sshTargetTx(ctx context.Context, tx *sql.Tx, project, machine string) (Target, error) {
@@ -63,8 +65,8 @@ func (s *Service) sshFrozenTx(ctx context.Context, tx *sql.Tx, t Target) error {
 }
 
 func (s *Service) CreateSSH(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (*Execution, error) {
-	if in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" {
-		return nil, invalid("Only host.identity and host.wait are admitted by this endpoint")
+	if in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" {
+		return nil, invalid("Only allowlisted bounded read-only host queries are admitted by this endpoint")
 	}
 	return s.createSSH(ctx, a, project, in, "", 0, key, trace)
 }
@@ -80,9 +82,12 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 	if in.TimeoutMS == 0 {
 		in.TimeoutMS = 5000
 	}
-	check := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: project, MachineID: "00000000000000000000000000000000", CommandID: "00000000000000000000000000000000", AttemptID: "00000000000000000000000000000000", FencingToken: 1, Operation: in.Operation, TimeoutMS: in.TimeoutMS, WaitMS: in.WaitMS}
-	if (in.Operation != "script.run" && check.Validate() != nil) || (in.Operation == "script.run" && (in.ScriptResultFormat != "" && in.ScriptResultFormat != "json" || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0 || requestID != "" || !opaqueID.MatchString(in.ScriptMediaID))) || (requestID == "" && len(in.MachineIDs) == 0) || len(in.MachineIDs) > 32 {
+	check := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: project, MachineID: "00000000000000000000000000000000", CommandID: "00000000000000000000000000000000", AttemptID: "00000000000000000000000000000000", FencingToken: 1, Operation: in.Operation, TimeoutMS: in.TimeoutMS, WaitMS: in.WaitMS, CacheCursor: in.CacheCursor, CacheManifestSHA256: in.CacheManifestSHA256}
+	if (in.Operation != "script.run" && check.Validate() != nil) || (in.Operation == "script.run" && (in.CacheCursor != "" || in.CacheManifestSHA256 != "" || in.ScriptResultFormat != "" && in.ScriptResultFormat != "json" || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0 || requestID != "" || !opaqueID.MatchString(in.ScriptMediaID))) || (requestID == "" && len(in.MachineIDs) == 0) || len(in.MachineIDs) > 32 || in.CacheCursor != "" && len(in.MachineIDs) != 1 {
 		return nil, invalid("1..32 machine IDs and a bounded host.identity or host.wait operation are required")
+	}
+	if e := s.cacheInventoryAdmission(in.Operation); e != nil {
+		return nil, e
 	}
 	tx, e := s.DB.BeginTx(ctx, nil)
 	if e != nil {
@@ -202,6 +207,12 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 		return nil, e
 	}
 	params := map[string]any{"ssh_wait_ms": in.WaitMS}
+	if in.CacheCursor != "" {
+		params["cache_cursor"] = in.CacheCursor
+	}
+	if in.CacheManifestSHA256 != "" {
+		params["cache_manifest_sha256"] = in.CacheManifestSHA256
+	}
 	x := &Execution{ID: platform.RandomID(), ProjectID: project, FlowVersionID: flow.ID, Mode: "ssh", State: "created", StateVersion: 1, DesiredState: "running", Parameters: params, Concurrency: 1, CircuitBreakerPercent: 100, CreatedBy: a.User.ID, CreatedAt: now, TargetSetHash: hash(jsonBytes(targetIDs))}
 	x.Snapshot = Snapshot{Mode: "ssh", Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "Read-only allowlisted operation, provisioned project asset, exact operator binding and established pinned host key; not hardware acceptance", FrozenAt: now}
 	if script != nil {
@@ -254,6 +265,8 @@ func sshCommand(c *Claim) taskrunner.TaskCommand {
 		wait = v
 	}
 	command := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: c.Target.ProjectID, MachineID: c.Target.ResourceKey, CommandID: c.Attempt.CommandID, AttemptID: c.Attempt.ID, FencingToken: c.Attempt.FencingToken, Operation: c.Task.Type, TimeoutMS: c.Task.TimeoutMS, WaitMS: wait}
+	command.CacheCursor, _ = c.Parameters["cache_cursor"].(string)
+	command.CacheManifestSHA256, _ = c.Parameters["cache_manifest_sha256"].(string)
 	if c.Target.SSHInstallKey != nil {
 		command.PublicKey = c.Target.SSHInstallKey.PublicKey
 		if c.Target.SSHTrustExpiresAt != nil {
@@ -305,7 +318,7 @@ func (s *Service) recordHost(ctx context.Context, mode string, o taskrunner.Obse
 	if !o.Terminal() {
 		return taskrunner.ErrUnknown
 	}
-	output := map[string]any{"mode": mode, "source": "host", "transport": mode, "hardware_evidence": false, "operation": o.Command.Operation, "observation": o.Output}
+	output := map[string]any{"machine_id": o.Command.MachineID, "mode": mode, "source": "host", "transport": mode, "hardware_evidence": false, "operation": o.Command.Operation, "observation": o.Output}
 	return s.RecordReceipt(ctx, Receipt{CommandID: o.Command.CommandID, AttemptID: o.Command.AttemptID, FencingToken: o.Command.FencingToken, Result: o.State, StartedAt: o.StartedAt, FinishedAt: o.FinishedAt, Output: output})
 }
 
@@ -333,6 +346,9 @@ func (s *Service) runHostClaim(ctx context.Context, c *Claim, mode string) error
 	var scriptBody []byte
 	var creator string
 	e = tx.QueryRowContext(ctx, `SELECT created_by FROM exec_executions WHERE id=$1`, c.Attempt.ExecutionID).Scan(&creator)
+	if e == nil {
+		e = s.cacheInventoryAdmission(c.Task.Type)
+	}
 	if e == nil {
 		if mode == "agent" {
 			e = s.agentFrozenTx(ctx, tx, c.Target)

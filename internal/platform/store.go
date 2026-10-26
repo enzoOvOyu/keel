@@ -29,6 +29,7 @@ type MediaObjectStore interface {
 }
 
 type Store struct {
+	TaskCacheInventoryEnabled    bool
 	AgentNetworkInventoryEnabled bool
 	SSHScriptsEnabled            bool
 	AgentScriptsEnabled          bool

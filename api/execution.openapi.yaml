@@ -5172,7 +5172,8 @@
             "type": "string",
             "enum": [
               "host.identity",
-              "host.wait"
+              "host.wait",
+              "host.cache.inventory"
             ]
           },
           "timeout_ms": {
@@ -5186,13 +5187,23 @@
             "minimum": 0,
             "maximum": 30000,
             "default": 0
+          },
+          "cache_cursor": {
+            "type": "string",
+            "pattern": "^$|^[a-f0-9]{64}$",
+            "description": "Optional continuation digest; requires cache_manifest_sha256 and exactly one target."
+          },
+          "cache_manifest_sha256": {
+            "type": "string",
+            "pattern": "^$|^[a-f0-9]{64}$",
+            "description": "Pins all continuation pages to the exact ownership index snapshot; changed snapshots fail explicitly."
           }
         },
         "required": [
           "machine_ids",
           "operation"
         ],
-        "description": "No arbitrary commands, network addresses, credentials or files. identity requires wait_ms=0. Assets must be provisioned, project-bound and established with the exact operator-pinned host key."
+        "description": "No arbitrary commands, network addresses, credentials or files. identity requires wait_ms=0. Assets must be provisioned, project-bound and established with the exact operator-pinned host key. Cache inventory is a separately enabled read-only task over the fixed platform-owned cache. It verifies actual content for each returned entry and never adopts or removes unrelated files."
       },
       "SSHReceiptInput": {
         "type": "object",
@@ -5225,7 +5236,8 @@
             "type": "string",
             "enum": [
               "host.identity",
-              "host.wait"
+              "host.wait",
+              "host.cache.inventory"
             ]
           },
           "timeout_ms": {
@@ -5239,13 +5251,23 @@
             "minimum": 0,
             "maximum": 30000,
             "default": 0
+          },
+          "cache_cursor": {
+            "type": "string",
+            "pattern": "^$|^[a-f0-9]{64}$",
+            "description": "Optional continuation digest; requires cache_manifest_sha256 and exactly one target."
+          },
+          "cache_manifest_sha256": {
+            "type": "string",
+            "pattern": "^$|^[a-f0-9]{64}$",
+            "description": "Pins all continuation pages to the exact ownership index snapshot; changed snapshots fail explicitly."
           }
         },
         "required": [
           "machine_ids",
           "operation"
         ],
-        "description": "Only bounded host.identity or host.wait on 1..32 unique registered Agent machine IDs. identity requires wait_ms=0; wait_ms must be shorter than timeout_ms. Current project-bound asset must be provisioned, and its serial/version must match the unrevoked/unexpired credential with a fresh authenticated worker task stream. No addresses, secrets, scripts, installation or files."
+        "description": "Only bounded host.identity or host.wait on 1..32 unique registered Agent machine IDs. identity requires wait_ms=0; wait_ms must be shorter than timeout_ms. Current project-bound asset must be provisioned, and its serial/version must match the unrevoked/unexpired credential with a fresh authenticated worker task stream. No addresses, secrets, scripts, installation or files. Cache inventory is a separately enabled read-only task over the fixed platform-owned cache. It verifies actual content for each returned entry and never adopts or removes unrelated files."
       },
       "AgentTarget": {
         "type": "object",

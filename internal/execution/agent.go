@@ -97,7 +97,7 @@ func (s *Service) agentReceiptAllowedTx(ctx context.Context, tx *sql.Tx, r Recei
 // CreateAgent admits only bounded host queries, then creates an ordinary
 // execution consumed by the existing scheduler/outbox/lease machinery.
 func (s *Service) CreateAgent(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (*Execution, error) {
-	if in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" {
+	if in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" {
 		return nil, invalid("Only bounded host queries are admitted by this endpoint")
 	}
 	return s.createAgent(ctx, a, project, in, key, trace)
@@ -111,14 +111,14 @@ func (s *Service) CreateAgentScript(ctx context.Context, a *Actor, project strin
 }
 
 func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (_ *Execution, resultErr error) {
-	if in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "script.run" {
-		return nil, invalid("Only host.identity and host.wait are admitted by the Agent channel")
+	if in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" && in.Operation != "script.run" {
+		return nil, invalid("Only allowlisted bounded host operations are admitted by the Agent channel")
 	}
 	if in.TimeoutMS == 0 {
 		in.TimeoutMS = 5000
 	}
-	check := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: project, MachineID: "00000000000000000000000000000000", CommandID: "00000000000000000000000000000000", AttemptID: "00000000000000000000000000000000", FencingToken: 1, Operation: in.Operation, TimeoutMS: in.TimeoutMS, WaitMS: in.WaitMS}
-	if (in.Operation != "script.run" && check.Validate() != nil) || (in.Operation == "script.run" && (in.ScriptResultFormat != "" && in.ScriptResultFormat != "json" || !opaqueID.MatchString(in.ScriptMediaID) || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0)) || len(in.MachineIDs) < 1 || len(in.MachineIDs) > 32 {
+	check := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: project, MachineID: "00000000000000000000000000000000", CommandID: "00000000000000000000000000000000", AttemptID: "00000000000000000000000000000000", FencingToken: 1, Operation: in.Operation, TimeoutMS: in.TimeoutMS, WaitMS: in.WaitMS, CacheCursor: in.CacheCursor, CacheManifestSHA256: in.CacheManifestSHA256}
+	if (in.Operation != "script.run" && check.Validate() != nil) || (in.Operation == "script.run" && (in.CacheCursor != "" || in.CacheManifestSHA256 != "" || in.ScriptResultFormat != "" && in.ScriptResultFormat != "json" || !opaqueID.MatchString(in.ScriptMediaID) || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0)) || len(in.MachineIDs) < 1 || len(in.MachineIDs) > 32 || in.CacheCursor != "" && len(in.MachineIDs) != 1 {
 		return nil, invalid("1..32 machine IDs and bounded Agent host queries are required")
 	}
 	ids := append([]string{}, in.MachineIDs...)
@@ -128,6 +128,9 @@ func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in 
 		if !opaqueID.MatchString(machine) || (i > 0 && machine == ids[i-1]) {
 			return nil, invalid("Unique valid machine IDs are required")
 		}
+	}
+	if e := s.cacheInventoryAdmission(in.Operation); e != nil {
+		return nil, e
 	}
 	tx, e := s.DB.BeginTx(ctx, nil)
 	if e != nil {
@@ -193,6 +196,12 @@ func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in 
 		return nil, e
 	}
 	params := map[string]any{"agent_wait_ms": in.WaitMS}
+	if in.CacheCursor != "" {
+		params["cache_cursor"] = in.CacheCursor
+	}
+	if in.CacheManifestSHA256 != "" {
+		params["cache_manifest_sha256"] = in.CacheManifestSHA256
+	}
 	x := &Execution{ID: platform.RandomID(), ProjectID: project, FlowVersionID: flow.ID, Mode: "agent", State: "created", StateVersion: 1, DesiredState: "running", Parameters: params, Concurrency: 1, CircuitBreakerPercent: 100, CreatedBy: a.User.ID, CreatedAt: now, TargetSetHash: hash(jsonBytes(targetIDs))}
 	x.Snapshot = Snapshot{Mode: "agent", Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "Bounded read-only host query through a current registered mTLS Agent and exact provisioned project asset; no hardware/G3/installation acceptance", FrozenAt: now}
 	if script != nil {

@@ -26,6 +26,8 @@ import (
 )
 
 type Config struct {
+	MediaCacheEnabled       bool   `json:"media_cache_enabled"`
+	CacheInventoryEnabled   bool   `json:"cache_inventory_enabled"`
 	NetworkInventoryEnabled bool   `json:"network_inventory_enabled"`
 	RenewalEnabled          bool   `json:"renewal_enabled"`
 	TasksEnabled            bool   `json:"tasks_enabled"`
@@ -65,7 +67,7 @@ func Load(path string) (Config, error) {
 	return c, c.Validate()
 }
 func (c Config) Validate() error {
-	if c.ScriptsEnabled && !c.TasksEnabled || (c.TasksEnabled || c.NetworkInventoryEnabled) && os.Geteuid() == 0 {
+	if c.MediaCacheEnabled && !c.ScriptsEnabled || c.CacheInventoryEnabled && !c.TasksEnabled || c.ScriptsEnabled && !c.TasksEnabled || (c.TasksEnabled || c.NetworkInventoryEnabled) && os.Geteuid() == 0 {
 		return ErrIdentity
 	}
 	host, port, e := net.SplitHostPort(c.Endpoint)

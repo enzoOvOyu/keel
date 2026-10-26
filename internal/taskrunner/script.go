@@ -61,7 +61,7 @@ func validateScriptObservation(o Observation) error {
 			return ErrRejected
 		}
 		switch o.Output["reason"] {
-		case "script_interpreter_unavailable", "script_process_not_started", "script_workspace_unavailable", "script_authorization_expired_before_start":
+		case "script_interpreter_unavailable", "script_process_not_started", "script_workspace_unavailable", "script_authorization_expired_before_start", "script_cache_rejected":
 			if _, exists := o.Output["structured_result_json"]; exists {
 				return ErrRejected
 			}
@@ -74,6 +74,13 @@ func validateScriptObservation(o Observation) error {
 		}
 	}
 	if o.Output["script_media_id"] != o.Command.ScriptMediaID || o.Output["script_object_version"] != o.Command.ScriptObjectVersion || o.Output["script_sha256"] != o.Command.ScriptSHA256 || o.Output["script_interpreter"] != o.Command.ScriptInterpreter {
+		return ErrRejected
+	}
+	if hit, exists := o.Output["cache_hit"]; exists {
+		if _, ok := hit.(bool); !ok || o.Output["cache_directory"] != MediaCacheDirectory {
+			return ErrRejected
+		}
+	} else if _, exists := o.Output["cache_directory"]; exists {
 		return ErrRejected
 	}
 	code, ok := scriptOutputInteger(o.Output["exit_code"])

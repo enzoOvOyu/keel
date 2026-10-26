@@ -1,4 +1,5 @@
 import {RerunDialog} from './RerunDialog'
+import { CacheOutput } from './CacheOutput'
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -218,6 +219,7 @@ function Outputs({
                       <details>
                         <summary>{t("executionViewStructuredOutput")}</summary>
                         <ScriptResult output={item.receipt.output} />
+                        <CacheOutput key={item.attempt_id} output={item.receipt.output} />
                       <pre>
                           {JSON.stringify(item.receipt.output, null, 2)}
                         </pre>

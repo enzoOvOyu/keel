@@ -47,6 +47,7 @@ function Launch({ targets, now, onClose, onDenied, onRefresh }: { targets: Agent
   }
   return <ActionDialog title={t('agentLaunchTitle')} description={t('agentLaunchBoundary')} busy={action.busy} confirm={t('sshLaunchConfirm')} submitDisabled={!selected.length} onSubmit={event => void submit(event)} onClose={onClose}>
     <ActionError error={action.error} />
+    {action.error?.code === 'CACHE_INVENTORY_DISABLED' && <p role="status">{t('cacheInventoryDisabled')}</p>}
     {action.error?.code === 'AGENT_DISABLED' && <p className="impact-notice">{t('agentLaunchDisabled')}</p>}
     {action.error && ['AGENT_OFFLINE', 'AGENT_IDENTITY_REQUIRED', 'STATE_CONFLICT'].includes(action.error.code) && <p className="impact-notice">{t('agentUnavailable')} <Button type="button" variant="outline" disabled={action.busy} onClick={onRefresh}>{t('refresh')}</Button></p>}
     {validation && <p className="field-error" role="alert">{validation}</p>}
@@ -55,8 +56,9 @@ function Launch({ targets, now, onClose, onDenied, onRefresh }: { targets: Agent
       {eligible.map(target => <Button key={target.machine_id} type="button" className="ui:h-auto ui:min-h-9 ui:min-w-0 ui:max-w-full ui:whitespace-normal ui:break-all ui:text-left" variant={selected.includes(target.machine_id) ? 'default' : 'outline'} aria-pressed={selected.includes(target.machine_id)} disabled={action.busy || !selected.includes(target.machine_id) && selected.length >= 32} onClick={() => setSelected(previous => previous.includes(target.machine_id) ? previous.filter(id => id !== target.machine_id) : [...previous, target.machine_id])}>{target.hostname} · {target.serial_number}</Button>)}
     </div>
     <p role="status">{t('sshLaunchSelected', { count: selected.length })}</p>
-    <div className="field"><Label htmlFor="agent-launch-operation">{t('sshLaunchOperation')}</Label><NativeSelect id="agent-launch-operation" value={operation} disabled={action.busy} onChange={event => setOperation(event.target.value === 'host.wait' ? 'host.wait' : 'host.identity')}><NativeSelectOption value="host.identity">{t('sshLaunchIdentity')}</NativeSelectOption><NativeSelectOption value="host.wait">{t('sshLaunchWait')}</NativeSelectOption></NativeSelect></div>
+    <div className="field"><Label htmlFor="agent-launch-operation">{t('sshLaunchOperation')}</Label><NativeSelect id="agent-launch-operation" value={operation} disabled={action.busy} onChange={event => setOperation(event.target.value === 'host.wait' ? 'host.wait' : event.target.value === 'host.cache.inventory' ? 'host.cache.inventory' : 'host.identity')}><NativeSelectOption value="host.identity">{t('sshLaunchIdentity')}</NativeSelectOption><NativeSelectOption value="host.wait">{t('sshLaunchWait')}</NativeSelectOption><NativeSelectOption value="host.cache.inventory">{t('cacheInventoryOperation')}</NativeSelectOption></NativeSelect></div>
     <div className="field"><Label htmlFor="agent-launch-timeout">{t('sshLaunchTimeout')}</Label><Input id="agent-launch-timeout" type="number" inputMode="numeric" min={100} max={30000} step={1} required value={timeout} disabled={action.busy} onChange={event => setTimeout(event.target.value)} /></div>
+    {operation === 'host.cache.inventory' && <p className="field-hint">{t('cacheInventoryBoundary')}</p>}
     {operation === 'host.wait' && <div className="field"><Label htmlFor="agent-launch-wait">{t('sshLaunchWaitDuration')}</Label><Input id="agent-launch-wait" type="number" inputMode="numeric" min={0} max={Math.max(0, Number(timeout) - 1)} step={1} required value={wait} disabled={action.busy} onChange={event => setWait(event.target.value)} /></div>}
     <p className="impact-notice">{t('agentLaunchAdmission')}</p>
   </ActionDialog>

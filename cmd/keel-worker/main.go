@@ -45,6 +45,7 @@ func main() {
 	store.SSHScriptsEnabled = os.Getenv("KEEL_SSH_SCRIPTS_ENABLED") == "true"
 	store.AgentScriptsEnabled = os.Getenv("KEEL_AGENT_SCRIPTS_ENABLED") == "true"
 	store.AgentNetworkInventoryEnabled = os.Getenv("KEEL_AGENT_NETWORK_INVENTORY_ENABLED") == "true"
+	store.TaskCacheInventoryEnabled = os.Getenv("KEEL_TASK_CACHE_INVENTORY_ENABLED") == "true"
 	e = store.ConfigureSSHRunner(os.Getenv("KEEL_SSH_RUNNER_FILE"), os.Getenv("KEEL_CREDENTIAL_MASTER_KEY_FILE"))
 	if e != nil {
 		slog.Error("SSH runner configuration rejected")
