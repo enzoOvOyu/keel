@@ -16,9 +16,9 @@ import (
 func installationKernel(t *testing.T, installable bool) (*provisionKernelFixture, *platform.ProvisionRequest, *platform.ProvisionBootScope) {
 	return installationKernelSource(t, installable, false)
 }
-func installationKernelSource(t *testing.T, installable, signedImage bool) (*provisionKernelFixture, *platform.ProvisionRequest, *platform.ProvisionBootScope) {
+func installationKernelSource(t *testing.T, installable, signedImage bool, writer ...bool) (*provisionKernelFixture, *platform.ProvisionRequest, *platform.ProvisionBootScope) {
 	t.Helper()
-	f := provisionKernelWithImage(t, installable, signedImage)
+	f := provisionKernelWithImage(t, installable, signedImage, writer...)
 	ctx := context.Background()
 	prep := f.prepare(t)
 	claim := f.claim(t, prep.ID)

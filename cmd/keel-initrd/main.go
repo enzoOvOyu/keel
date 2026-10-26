@@ -1,8 +1,8 @@
 //go:build linux
 
 // keel-initrd is the /init of a separately approved ephemeral installation
-// image. This first phase retains read-only evidence and waits for storage
-// review. It deliberately has no shell, disk writer or automatic reboot path.
+// image. Read-only preflight and independent storage review precede any
+// explicitly permitted write. It never exposes an interactive shell or retry.
 package main
 
 import (
@@ -13,10 +13,14 @@ import (
 	"syscall"
 
 	"github.com/enzoOvOyu/keel/internal/provisioninitrd"
+	"github.com/enzoOvOyu/keel/internal/provisionwriter"
 	"golang.org/x/sys/unix"
 )
 
 func main() {
+	if handled, code := provisionwriter.RunToolChild(os.Args[1:]); handled {
+		os.Exit(code)
+	}
 	if provisioninitrd.RequireInitramfs() != nil {
 		fmt.Fprintln(os.Stderr, "Keel initrd unavailable: requires root PID1 in an approved ephemeral boot image")
 		if os.Getpid() == 1 {
@@ -24,13 +28,13 @@ func main() {
 		}
 		os.Exit(2)
 	}
-	// The boot phase owns only the fixed read-only helper child. Do not start a
-	// global Wait4 reaper until Cmd.Run has collected that child's exit status.
+	// Owned helper/tool children are collected by their Cmd.Run. Start the
+	// global orphan reaper only after the bounded installation phase returns.
 	p, err := provisioninitrd.RunPreparation(context.Background())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Keel initrd: BLOCKED; installation not performed")
+		fmt.Fprintln(os.Stderr, "Keel initrd: stopped; inspect /run/keel for the authenticated write outcome; no automatic retry")
 	} else {
-		fmt.Fprintf(os.Stdout, "Keel initrd: %s; installation not performed; evidence /run/keel\n", p.Status)
+		fmt.Fprintf(os.Stdout, "Keel initrd: %s; evidence /run/keel\n", p.Status)
 	}
 	hold()
 }

@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"github.com/enzoOvOyu/keel/internal/provisionpreflight"
+	"github.com/enzoOvOyu/keel/internal/provisionstorage"
 	"time"
 	"unicode/utf8"
 )
@@ -34,11 +35,12 @@ type BootEnrollment struct {
 }
 
 type BootAcknowledgment struct {
-	InstallationID string    `json:"installation_id"`
-	BootID         string    `json:"boot_id"`
-	Sequence       int64     `json:"sequence"`
-	State          string    `json:"state"`
-	ExpiresAt      time.Time `json:"expires_at"`
+	RebootBefore   *time.Time `json:"reboot_before,omitempty"`
+	InstallationID string     `json:"installation_id"`
+	BootID         string     `json:"boot_id"`
+	Sequence       int64      `json:"sequence"`
+	State          string     `json:"state"`
+	ExpiresAt      time.Time  `json:"expires_at"`
 }
 type EnrollmentSubmission struct {
 	Enrollment BootEnrollment `json:"enrollment"`
@@ -63,15 +65,17 @@ type ReviewSubmission struct {
 	Proof BootProof   `json:"proof"`
 }
 type ReviewStatus struct {
-	InstallationID    string    `json:"installation_id"`
-	BootID            string    `json:"boot_id"`
-	Sequence          int64     `json:"sequence"`
-	Nonce             string    `json:"nonce"`
-	State             string    `json:"state"`
-	ExpiresAt         time.Time `json:"expires_at"`
-	ReportSHA256      string    `json:"report_sha256"`
-	RefreshID         string    `json:"refresh_id,omitempty"`
-	StoragePlanSHA256 string    `json:"storage_plan_sha256,omitempty"`
+	InstallationID     string                 `json:"installation_id"`
+	BootID             string                 `json:"boot_id"`
+	Sequence           int64                  `json:"sequence"`
+	Nonce              string                 `json:"nonce"`
+	State              string                 `json:"state"`
+	ExpiresAt          time.Time              `json:"expires_at"`
+	ReportSHA256       string                 `json:"report_sha256"`
+	RefreshID          string                 `json:"refresh_id,omitempty"`
+	StoragePlanSHA256  string                 `json:"storage_plan_sha256,omitempty"`
+	RuntimeInputSHA256 string                 `json:"runtime_input_sha256,omitempty"`
+	StoragePlan        *provisionstorage.Plan `json:"storage_plan,omitempty"`
 }
 
 // PreflightProofPayload binds refresh authority to the exact raw helper bytes.
@@ -91,6 +95,7 @@ func PreflightProofPayload(in PreflightSubmission) ([]byte, string, error) {
 }
 
 const MaximumCallbackBytes = (2<<20)*4/3 + 8192
+const MaximumWriteCallbackBytes = (2<<20)*4/3 + (192 << 10)
 
 const BootstrapSchema = "keel.provision-boot-bootstrap/v1"
 
@@ -112,7 +117,7 @@ type Bootstrap struct {
 // Exact re-encoding rejects unknown, duplicate and case-aliased fields without
 // rewriting any signed report bytes inside the base64 field.
 func DecodeCallback(raw []byte, value any) error {
-	if len(raw) == 0 || len(raw) > MaximumCallbackBytes || !utf8.Valid(raw) || json.Unmarshal(raw, value) != nil {
+	if len(raw) == 0 || len(raw) > MaximumWriteCallbackBytes || !utf8.Valid(raw) || json.Unmarshal(raw, value) != nil {
 		return ErrDenied
 	}
 	canonical, err := json.Marshal(value)
@@ -124,7 +129,7 @@ func DecodeCallback(raw []byte, value any) error {
 
 func proofOperation(value string) bool {
 	switch value {
-	case "enroll", "preflight", "preflight-refresh", "review", "write-permit", "install-stopped", "first-boot":
+	case "enroll", "preflight", "preflight-refresh", "review", "write-permit", "write-check", "install-stopped", "first-boot":
 		return true
 	}
 	return false
@@ -141,7 +146,10 @@ func (p BootProof) message() ([]byte, error) {
 	return append([]byte(bootProofDomain), raw...), nil
 }
 func maximumProofBytes(operation string) int {
-	if operation == "preflight-refresh" {
+	if operation == "preflight-refresh" || operation == "write-permit" {
+		if operation == "write-permit" {
+			return (2 << 20) + (192 << 10)
+		}
 		return (2 << 20) + 8192
 	}
 	return 2 << 20

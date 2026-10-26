@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/enzoOvOyu/keel/internal/provisionboot"
+	"github.com/enzoOvOyu/keel/internal/provisionstorage"
 )
 
 // Requests are immutable installation events, serialized under the existing
@@ -108,8 +109,23 @@ func (a *ProvisionBootAuthority) ReviewBoot(ctx context.Context, scope provision
 		return nil, err
 	}
 	out := &provisionboot.ReviewStatus{InstallationID: x.ID, BootID: *x.BootID, Sequence: x.CallbackSequence, Nonce: in.Query.Nonce, State: x.State, ExpiresAt: x.ExpiresAt, ReportSHA256: *x.LatestReportSHA256, RefreshID: refresh}
+	runtime, err := provisionRuntimeEvidenceTx(ctx, tx, x.ID)
+	if err != nil {
+		return nil, err
+	}
+	out.RuntimeInputSHA256 = runtime.ConfigSHA
 	if x.StoragePlanSHA256 != nil {
 		out.StoragePlanSHA256 = *x.StoragePlanSHA256
+	}
+	if x.State == "storage_approved" {
+		var raw []byte
+		if err = tx.QueryRowContext(ctx, "SELECT storage_plan FROM provision_installations WHERE id=$1", x.ID).Scan(&raw); err != nil {
+			return nil, err
+		}
+		out.StoragePlan = &provisionstorage.Plan{}
+		if json.Unmarshal(raw, out.StoragePlan) != nil {
+			return nil, ErrProvisionBootDenied
+		}
 	}
 	if provisionboot.ValidateReviewStatus(out, in.Proof, in.Query.Nonce, time.Now()) != nil {
 		return nil, ErrProvisionBootDenied

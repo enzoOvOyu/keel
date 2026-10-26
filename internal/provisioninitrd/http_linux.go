@@ -142,7 +142,11 @@ func (h *HTTPFiles) Get(ctx context.Context, name string) ([]byte, error) {
 // PostCallback reuses the exact fixed-IP/interface/CA/hostname transport. POSTs
 // carry no idempotency key or replayable body and never follow redirects/retry.
 func (h *HTTPFiles) postBoot(ctx context.Context, operation, token string, raw []byte) ([]byte, error) {
-	if h == nil || h.client == nil || len(raw) == 0 || len(raw) > provisionboot.MaximumCallbackBytes || (operation != "enroll" && operation != "preflight" && operation != "review") || (operation == "enroll" && !digest.MatchString(token)) || (operation != "enroll" && token != "") {
+	requestLimit := provisionboot.MaximumCallbackBytes
+	if operation == "write-permit" {
+		requestLimit = provisionboot.MaximumWriteCallbackBytes
+	}
+	if h == nil || h.client == nil || len(raw) == 0 || len(raw) > requestLimit || (operation != "enroll" && operation != "preflight" && operation != "review" && operation != "write-permit" && operation != "write-check" && operation != "write-receipt") || (operation == "enroll" && !digest.MatchString(token)) || (operation != "enroll" && token != "") {
 		return nil, ErrUnavailable
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.base+operation, bytes.NewReader(raw))
@@ -160,11 +164,15 @@ func (h *HTTPFiles) postBoot(ctx context.Context, operation, token string, raw [
 		return nil, ErrUnavailable
 	}
 	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK || response.ContentLength > 8192 || response.Header.Get("Content-Encoding") != "" || response.Header.Get("Content-Range") != "" {
+	limit := int64(8192)
+	if operation == "review" {
+		limit = 128 << 10
+	}
+	if response.StatusCode != http.StatusOK || response.ContentLength > limit || response.Header.Get("Content-Encoding") != "" || response.Header.Get("Content-Range") != "" {
 		return nil, ErrUnavailable
 	}
-	body, err := io.ReadAll(io.LimitReader(response.Body, 8193))
-	if err != nil || len(body) == 0 || len(body) > 8192 || ctx.Err() != nil {
+	body, err := io.ReadAll(io.LimitReader(response.Body, limit+1))
+	if err != nil || len(body) == 0 || int64(len(body)) > limit || ctx.Err() != nil {
 		return nil, ErrUnavailable
 	}
 	return body, nil

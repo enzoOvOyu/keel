@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/enzoOvOyu/keel/internal/provisionboot"
 	"github.com/enzoOvOyu/keel/internal/provisionimage"
 	"golang.org/x/sys/unix"
 )
@@ -190,6 +191,17 @@ func RunPreparation(ctx context.Context) (*Preparation, error) {
 					}
 					return storePreparationAt(filepath.Join(root, strconv.FormatInt(sequence, 10)), p)
 				})
+				if err == nil && preparation.BootReview != nil && preparation.BootReview.State == "storage_approved" {
+					// v1 images keep their read-only review behavior; the v2
+					// target contract is explicit and never inferred from iPXE.
+					manifest, _, verifyErr := provisionboot.VerifyBootFiles(files.Manifest, input.ManifestSHA256, files.Preflight, files.Seed, time.Now())
+					if verifyErr != nil {
+						return ErrUnavailable
+					}
+					if manifest.Media.ValidateWritable() == nil {
+						preparation, err = session.RunInstallation(ctx, input, files, preparation, filesClient)
+					}
+				}
 			}
 		}
 		return err

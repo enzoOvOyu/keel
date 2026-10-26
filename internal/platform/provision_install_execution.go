@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/enzoOvOyu/keel/internal/mediamanifest"
+	"github.com/enzoOvOyu/keel/internal/provisionimage"
 	"github.com/enzoOvOyu/keel/internal/provisionpreflight"
 )
 
@@ -57,6 +58,8 @@ type VerifiedProvisionInstallSources struct {
 	runtimeSchema           string
 	runtimeInputSHA256      string
 	writerToolBytesVerified bool
+	runtimeConfigID         string
+	runtimeInputs           []provisionimage.Component
 }
 
 func (s *Store) VerifyProvisionInstallationSources(ctx context.Context, project, id string) (*VerifiedProvisionInstallSources, error) {
@@ -111,7 +114,7 @@ func (s *Store) VerifyProvisionInstallationSources(ctx context.Context, project,
 	if _, err = s.ValidateProvisionInstallationQueuedTx(ctx, tx, project, id); err != nil {
 		return nil, err
 	}
-	return &VerifiedProvisionInstallSources{project: project, installation: id, snapshot: x.SnapshotSHA256, execution: x.ExecutionID, verifiedAt: time.Now(), runtimeSchema: runtime.Metadata.Schema, runtimeInputSHA256: runtime.Metadata.ApprovedRuntimeSHA256, writerToolBytesVerified: runtime.Metadata.Runtime.Writer != nil}, nil
+	return &VerifiedProvisionInstallSources{project: project, installation: id, snapshot: x.SnapshotSHA256, execution: x.ExecutionID, verifiedAt: time.Now(), runtimeSchema: runtime.Metadata.Schema, runtimeInputSHA256: runtime.Metadata.ApprovedRuntimeSHA256, writerToolBytesVerified: runtime.Metadata.Runtime.Writer != nil, runtimeConfigID: runtime.ApprovedRuntimeID, runtimeInputs: runtime.Metadata.Components}, nil
 }
 
 func (s *Store) ActivateProvisionInstallation(ctx context.Context, project, id, execution, attempt, command string, fence int64, verified *VerifiedProvisionInstallSources) (*ProvisionInstallation, error) {
@@ -172,7 +175,7 @@ func (s *Store) ActivateProvisionInstallation(ctx context.Context, project, id, 
 	if _, err = tx.ExecContext(ctx, `UPDATE provision_installations SET state='booting',state_version=state_version+1,attempt_id=$2,command_id=$3,fencing_token=$4,spec=$5,updated_at=$6 WHERE id=$1`, id, attempt, command, fence, spec, now); err != nil {
 		return nil, err
 	}
-	if err = appendProvisionEventTx(ctx, tx, x, "boot.activated", map[string]any{"attempt_id": attempt, "fencing_token": fence, "installation_performed": false, "runtime_schema": verified.runtimeSchema, "runtime_input_sha256": verified.runtimeInputSHA256, "writer_tool_bytes_verified": verified.writerToolBytesVerified, "disk_write_authorized": false}); err != nil {
+	if err = appendProvisionEventTx(ctx, tx, x, "boot.activated", map[string]any{"attempt_id": attempt, "fencing_token": fence, "installation_performed": false, "runtime_schema": verified.runtimeSchema, "runtime_input_sha256": verified.runtimeInputSHA256, "runtime_config_id": verified.runtimeConfigID, "runtime_inputs": verified.runtimeInputs, "writer_tool_bytes_verified": verified.writerToolBytesVerified, "disk_write_authorized": false}); err != nil {
 		return nil, err
 	}
 	x, err = LoadProvisionInstallationTx(ctx, tx, project, id)
@@ -201,6 +204,20 @@ func (s *Store) StopProvisionBeforeWrite(ctx context.Context, project, id, execu
 		return nil, err
 	}
 	if x.PermitIssuedAt != nil {
+		// A lost permit/receipt response cannot prove that no device write
+		// happened. Persist the domain uncertainty and retain the native
+		// execution/resource for explicit reconciliation; no known receipt.
+		if x.State == "installing" || x.State == "awaiting_first_boot" {
+			if _, err = tx.ExecContext(ctx, `UPDATE provision_installations SET state='unknown',state_version=state_version+1,failure_reason='write_result_unconfirmed',updated_at=now() WHERE id=$1`, x.ID); err != nil {
+				return nil, err
+			}
+			if err = appendProvisionEventTx(ctx, tx, x, "write.result_unknown", map[string]any{"reason": "write_result_unconfirmed", "permit_issued_at": x.PermitIssuedAt, "resource_release_authorized": false}); err != nil {
+				return nil, err
+			}
+			if err = tx.Commit(); err != nil {
+				return nil, err
+			}
+		}
 		return nil, ErrProvisionBootDenied
 	}
 	if x.State == "failed" || x.State == "canceled" {

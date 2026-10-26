@@ -13,6 +13,7 @@ import (
 
 	"github.com/enzoOvOyu/keel/internal/provisionboot"
 	"github.com/enzoOvOyu/keel/internal/provisionpreflight"
+	"github.com/enzoOvOyu/keel/internal/provisionstorage"
 )
 
 type CallbackSource interface {
@@ -29,6 +30,8 @@ type BootSession struct {
 	closed           bool
 	lastReportSHA256 string
 	refreshID        string
+	approvedStorage  *provisionstorage.Plan
+	runtimeInputSHA  string
 }
 
 // EnrollBoot accepts only an independently delivered protected bootstrap whose
@@ -160,8 +163,23 @@ func (s *BootSession) Review(ctx context.Context, source ReviewSource) (*provisi
 		return nil, ErrUnavailable
 	}
 	s.refreshID = status.RefreshID
+	s.runtimeInputSHA = status.RuntimeInputSHA256
+	if status.State == "storage_approved" && status.StoragePlan != nil {
+		// Keep a private snapshot: neither caller mutation nor a later public
+		// status object can alter the reviewed plan used by the writer.
+		raw, marshalErr := json.Marshal(status.StoragePlan)
+		plan, decodeErr := provisionstorage.Decode(raw, time.Now())
+		want, _ := json.Marshal(s.spec)
+		if marshalErr != nil || decodeErr != nil || !bytes.Equal(want, mustJSON(plan.Spec)) || plan.SHA256 != status.StoragePlanSHA256 {
+			s.Close()
+			return nil, ErrUnavailable
+		}
+		s.approvedStorage = plan
+	}
 	return status, nil
 }
+
+func mustJSON(v any) []byte { raw, _ := json.Marshal(v); return raw }
 
 // AwaitStorageReview keeps the same boot identity and bounded network lease.
 // Only an explicit controller request triggers another read-only collection.

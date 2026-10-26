@@ -24,6 +24,11 @@ type CallbackAuthority interface {
 type ReviewAuthority interface {
 	ReviewBoot(context.Context, Scope, string, netip.Addr, ReviewSubmission) (*ReviewStatus, error)
 }
+type WriteAuthority interface {
+	IssueWritePermit(context.Context, Scope, string, netip.Addr, WritePermitSubmission) (*WritePermit, error)
+	CheckWritePermit(context.Context, Scope, string, netip.Addr, WriteCheckSubmission) (*WriteAuthorization, error)
+	ReportWriteReceipt(context.Context, Scope, string, netip.Addr, WriteReceiptSubmission) (*BootAcknowledgment, error)
+}
 type CallbackGateway struct {
 	Scope         Scope
 	Authority     CallbackAuthority
@@ -63,7 +68,7 @@ func (g *CallbackGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) != 4 || parts[0] != "" || parts[1] != "boot" || !opaqueID.MatchString(parts[2]) || (parts[3] != "enroll" && parts[3] != "preflight" && parts[3] != "review") {
+	if len(parts) != 4 || parts[0] != "" || parts[1] != "boot" || !opaqueID.MatchString(parts[2]) || (parts[3] != "enroll" && parts[3] != "preflight" && parts[3] != "review" && parts[3] != "write-permit" && parts[3] != "write-check" && parts[3] != "write-receipt" && parts[3] != "first-boot") {
 		deny()
 		return
 	}
@@ -110,8 +115,14 @@ func (g *CallbackGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	limit := int64(MaximumCallbackBytes)
-	if parts[3] != "preflight" {
+	if parts[3] == "write-permit" {
+		limit = MaximumWriteCallbackBytes
+	}
+	if parts[3] != "preflight" && parts[3] != "write-permit" {
 		limit = 8192
+	}
+	if parts[3] == "first-boot" {
+		limit = 32 << 10
 	}
 	if r.ContentLength > limit {
 		http.Error(w, "callback too large", http.StatusRequestEntityTooLarge)
@@ -128,6 +139,14 @@ func (g *CallbackGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
+	if parts[3] == "first-boot" {
+		g.serveFirstBoot(ctx, w, r, parts[2], peer, raw)
+		return
+	}
+	if parts[3] == "write-permit" || parts[3] == "write-check" || parts[3] == "write-receipt" {
+		g.serveWriteCallback(ctx, w, r, parts[2], parts[3], peer, raw)
+		return
+	}
 	if parts[3] == "review" {
 		authority, ok := g.Authority.(ReviewAuthority)
 		var in ReviewSubmission
@@ -181,6 +200,12 @@ func ValidateReviewStatus(out *ReviewStatus, proof BootProof, nonce string, now 
 		return ErrDenied
 	}
 	if out.RefreshID != "" && (!opaqueID.MatchString(out.RefreshID) || out.State != "preflight_ready") {
+		return ErrDenied
+	}
+	if out.RuntimeInputSHA256 != "" && !sha256ID.MatchString(out.RuntimeInputSHA256) {
+		return ErrDenied
+	}
+	if out.StoragePlan != nil && (out.State != "storage_approved" || out.StoragePlan.SHA256 != out.StoragePlanSHA256 || out.StoragePlan.Validate(now) != nil) {
 		return ErrDenied
 	}
 	switch out.State {

@@ -35,7 +35,7 @@ import (
 // A valid, independently signed archive format with deliberately non-executed
 // ELF fixtures. It exercises source verification and DB authority, never proves
 // a runnable initrd, firmware/DHCP service, hardware facts or installation.
-func signedProvisionImageFixture(t *testing.T, s *platform.Store, actor *Actor, project *platform.ProjectSummary, upload func(string, string, string, string, map[string]any) *platform.MediaItemSummary) (*platform.MediaItemSummary, *platform.MediaItemSummary, *platform.MediaItemSummary) {
+func signedProvisionImageFixture(t *testing.T, s *platform.Store, actor *Actor, project *platform.ProjectSummary, upload func(string, string, string, string, map[string]any) *platform.MediaItemSummary, writer ...bool) (*platform.MediaItemSummary, *platform.MediaItemSummary, *platform.MediaItemSummary) {
 	t.Helper()
 	dir := t.TempDir()
 	private, public := filepath.Join(dir, "signer.pem"), filepath.Join(dir, "public.pem")
@@ -53,9 +53,18 @@ func signedProvisionImageFixture(t *testing.T, s *platform.Store, actor *Actor, 
 	set := mediaboot.RuntimeSet{Schema: mediaboot.RuntimeSetSchema, Arch: "amd64"}
 	var preflight, ssh *platform.MediaItemSummary
 	refs := []platform.MediaArtifactDependency{}
-	for index, component := range []*mediaboot.RuntimeComponent{&set.Init, &set.Preflight, &set.SSHHelper, &set.SMART, &set.BootCA} {
+	components := []*mediaboot.RuntimeComponent{&set.Init, &set.Preflight, &set.SSHHelper, &set.SMART, &set.BootCA}
+	if len(writer) > 0 && writer[0] {
+		set.Schema = mediaboot.WriterRuntimeSetSchema
+		set.Writer = &mediaboot.WriterTools{}
+		components = append(components, &set.Writer.UnsquashFS, &set.Writer.MkfsExt4, &set.Writer.MkfsVFAT)
+	}
+	for index, component := range components {
 		raw := provisionELFFormatFixture(byte(index))
 		typ, arch := "os", "amd64"
+		if index >= 5 {
+			typ = "tool"
+		}
 		if index == 4 {
 			raw = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 			typ = "config"
@@ -123,10 +132,10 @@ type liveProvisionBootFixture struct {
 	report       []byte
 }
 
-func liveProvisionBoot(t *testing.T) *liveProvisionBootFixture {
+func liveProvisionBoot(t *testing.T, writer ...bool) *liveProvisionBootFixture {
 	t.Helper()
 	ctx := context.Background()
-	f, request, scope := installationKernelSource(t, true, true)
+	f, request, scope := installationKernelSource(t, true, true, writer...)
 	x, err := f.service.CreateProvisionInstallation(ctx, f.actor, f.project, request.ID, CreateProvisionInstallationInput{ExpectedVersion: request.StateVersion, ScopeID: scope.ID, Reason: "isolated signed boot authority software check"}, platform.RandomID(), "test")
 	mustAgent(t, err)
 	_, err = f.service.PumpOutbox(ctx, "boot-source-test", 1000)

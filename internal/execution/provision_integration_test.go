@@ -61,7 +61,7 @@ func provisionKernel(t *testing.T) *provisionKernelFixture {
 func provisionKernelWithRecipe(t *testing.T, installable bool) *provisionKernelFixture {
 	return provisionKernelWithImage(t, installable, false)
 }
-func provisionKernelWithImage(t *testing.T, installable, signedImage bool) *provisionKernelFixture {
+func provisionKernelWithImage(t *testing.T, installable, signedImage bool, writer ...bool) *provisionKernelFixture {
 	t.Helper()
 	f := agentKernel(t)
 	ctx := context.Background()
@@ -117,7 +117,7 @@ func provisionKernelWithImage(t *testing.T, installable, signedImage bool) *prov
 	template := upload("template", "config", "noarch", "#cloud-config\nlocale: en_US.UTF-8\n", nil)
 	var signedPreflight, signedSSH *platform.MediaItemSummary
 	if signedImage {
-		initrd, signedPreflight, signedSSH = signedProvisionImageFixture(t, s, f.actor, project, upload)
+		initrd, signedPreflight, signedSSH = signedProvisionImageFixture(t, s, f.actor, project, upload, writer...)
 	}
 	profile := mediaboot.Profile{Schema: mediaboot.Schema, Installer: "cloud-init", KernelMediaID: kernel.ID, InitrdMediaID: initrd.ID, TemplateMediaID: template.ID}
 	refs := []platform.MediaArtifactDependency{{MediaID: kernel.ID, SHA256: kernel.Sha256}, {MediaID: initrd.ID, SHA256: initrd.Sha256}, {MediaID: template.ID, SHA256: template.Sha256}}
@@ -129,6 +129,10 @@ func provisionKernelWithImage(t *testing.T, installable, signedImage bool) *prov
 			ssh = upload("ssh-helper", "os", "amd64", "non-executed fixture SSH helper", nil)
 		}
 		profile.Recipe = &mediaboot.Recipe{Schema: mediaboot.RecipeSchema, Protocol: mediaboot.InitrdProtocol, RootFSFormat: "squashfs", UEFIMediaID: uefi.ID, PreflightMediaID: preflight.ID, SSHHelperMediaID: ssh.ID, PreflightSHA256: preflight.Sha256, SSHHelperSHA256: ssh.Sha256}
+		if len(writer) > 0 && writer[0] {
+			profile.Recipe.Schema = mediaboot.TargetRecipeSchema
+			profile.Recipe.TargetBoot = &mediaboot.TargetBoot{Schema: mediaboot.TargetBootSchema, Path: mediaboot.TargetUKIPath, SHA256: strings.Repeat("a", 64), Size: 4096, KernelRelease: "fixture-kernel", CommandLine: mediaboot.TargetCommandLine}
+		}
 		for _, media := range []*platform.MediaItemSummary{uefi, preflight, ssh} {
 			refs = append(refs, platform.MediaArtifactDependency{MediaID: media.ID, SHA256: media.Sha256})
 		}

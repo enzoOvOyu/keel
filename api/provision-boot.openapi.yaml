@@ -165,6 +165,214 @@
           }
         }
       }
+    },
+    "/boot/{grantId}/write-permit": {
+      "post": {
+        "operationId": "issueInstallationWritePermit",
+        "description": "One-shot transition from independently approved storage to installing. Exact next boot sequence, fresh recomputed report, reconstructed GPT, v2 target contract, current independently approved runtime inputs, exclusive lease, scope and reviewers are checked in one transaction. A lost response MUST NOT be retried. Permit expiration never replaces per-operation live checks.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "grantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WritePermitSubmission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current authenticated response; no first-boot or SSH success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WritePermit"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unavailable, unauthorized, changed scope/lease or replay; no secret/detail returned"
+          },
+          "413": {
+            "description": "Envelope too large"
+          },
+          "415": {
+            "description": "application/json required"
+          },
+          "503": {
+            "description": "Bounded callback capacity exhausted"
+          }
+        }
+      }
+    },
+    "/boot/{grantId}/write-check": {
+      "post": {
+        "operationId": "checkInstallationWritePermit",
+        "description": "Read-only nonce/stage-bound query signed at the acknowledged permit sequence. No callback sequence or business-version mutation. Validity is at most two seconds and bounded by the current exclusive lease and installation expiry. Writer must check immediately before each step and continuously during long actions; rejection or expired validity stops work with unknown outcome.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "grantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriteCheckSubmission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current authenticated response; no first-boot or SSH success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WriteAuthorization"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unavailable, unauthorized, changed scope/lease or replay; no secret/detail returned"
+          },
+          "413": {
+            "description": "Envelope too large"
+          },
+          "415": {
+            "description": "application/json required"
+          },
+          "503": {
+            "description": "Bounded callback capacity exhausted"
+          }
+        }
+      }
+    },
+    "/boot/{grantId}/write-receipt": {
+      "post": {
+        "operationId": "reportInstallationWriteReceipt",
+        "description": "One-shot next sequence signed using operation install-stopped over canonical WriteReceipt JSON. written requires the exact expected WriteReadback commitment and moves only to awaiting_first_boot. unknown retains the exclusive resource. This callback proves neither actual first boot, SSH trust, nor controller-side observation of disk bytes; no automatic retry on loss.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "grantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriteReceiptSubmission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current authenticated response; no first-boot or SSH success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Acknowledgment"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unavailable, unauthorized, changed scope/lease or replay; no secret/detail returned"
+          },
+          "413": {
+            "description": "Envelope too large"
+          },
+          "415": {
+            "description": "application/json required"
+          },
+          "503": {
+            "description": "Bounded callback capacity exhausted"
+          }
+        }
+      }
+    },
+    "/boot/{grantId}/first-boot": {
+      "post": {
+        "operationId": "registerInstallationFirstBootIdentity",
+        "description": "Separate per-first-boot Ed25519 key fixed in the original signed write preparation; signature domain is UTF-8 Keel provision first boot v1, NUL, canonical FirstBootReport JSON. One observation at sequence 1, different actual kernel boot ID, fresh host key and exact frozen host/disk identity. Current attempt/lease/source/roles/scope, matching permit-bound public binding and auxiliary DHCP fingerprint are checked. Acknowledgment records authenticated identity awaiting actual pinned SSH verification; no trust or registered/success state. No retry after lost ACK.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "grantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirstBootSubmission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated identity persisted once; SSH verification still pending",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirstBootAcknowledgment"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unavailable, unauthorized, changed scope/lease or replay; no secret/detail returned"
+          },
+          "413": {
+            "description": "Envelope too large"
+          },
+          "415": {
+            "description": "application/json required"
+          },
+          "503": {
+            "description": "Bounded callback capacity exhausted"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -211,7 +419,10 @@
               "enroll",
               "preflight",
               "preflight-refresh",
-              "review"
+              "review",
+              "write-permit",
+              "write-check",
+              "install-stopped"
             ]
           },
           "payload_sha256": {
@@ -316,12 +527,19 @@
             "enum": [
               "booting",
               "preflight_ready",
-              "failed"
+              "failed",
+              "awaiting_first_boot",
+              "unknown"
             ]
           },
           "expires_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "reboot_before": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Only an acknowledged written receipt may authorize one immediate controlled reboot; expires within two seconds and before the current exclusive lease."
           }
         }
       },
@@ -407,6 +625,655 @@
           "storage_plan_sha256": {
             "type": "string",
             "pattern": "^[a-f0-9]{64}$"
+          },
+          "runtime_input_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "storage_plan": {
+            "$ref": "./openapi.yaml#/components/schemas/ProvisionStoragePlan",
+            "description": "Complete immutable approved disk plan, returned only for storage_approved. This is not a write permit."
+          }
+        }
+      },
+      "GPTIdentity": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "disk_guid",
+          "efi_partition_guid",
+          "root_partition_guid"
+        ],
+        "properties": {
+          "disk_guid": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+          },
+          "efi_partition_guid": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+          },
+          "root_partition_guid": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+          }
+        }
+      },
+      "WritePreparation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "nonce",
+          "storage_plan_sha256",
+          "gpt_identity",
+          "gpt_sha256",
+          "rootfs_sha256",
+          "target_uki_sha256",
+          "runtime_input_sha256"
+        ],
+        "properties": {
+          "nonce": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "storage_plan_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "gpt_identity": {
+            "$ref": "#/components/schemas/GPTIdentity"
+          },
+          "gpt_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "rootfs_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "target_uki_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "runtime_input_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "first_boot_binding": {
+            "$ref": "#/components/schemas/FirstBootBinding"
+          }
+        }
+      },
+      "WritePermitSubmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "preparation",
+          "report",
+          "proof"
+        ],
+        "properties": {
+          "preparation": {
+            "$ref": "#/components/schemas/WritePreparation"
+          },
+          "report": {
+            "type": "string",
+            "contentEncoding": "base64",
+            "description": "Exact bounded fresh helper stdout. write-permit signs UTF-8 Keel installation write preparation v1, NUL, canonical WritePreparation JSON, NUL, then decoded report bytes."
+          },
+          "proof": {
+            "$ref": "#/components/schemas/BootProof"
+          }
+        }
+      },
+      "WritePermit": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema",
+          "id",
+          "installation_id",
+          "boot_id",
+          "sequence",
+          "nonce",
+          "storage_plan_sha256",
+          "gpt_sha256",
+          "rootfs_sha256",
+          "target_uki_sha256",
+          "runtime_input_sha256",
+          "issued_at",
+          "expires_at"
+        ],
+        "properties": {
+          "schema": {
+            "const": "keel.install-write-permit/v1"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "installation_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "boot_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 3,
+            "maximum": 4096
+          },
+          "nonce": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "storage_plan_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "gpt_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "rootfs_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "target_uki_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "runtime_input_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "issued_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "first_boot_binding_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      },
+      "WriteCheckQuery": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "permit_id",
+          "nonce",
+          "stage"
+        ],
+        "properties": {
+          "permit_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "nonce": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "gpt.write",
+              "efi.format",
+              "root.format",
+              "root.extract",
+              "boot.install",
+              "seed.install",
+              "final.sync",
+              "final.verify"
+            ]
+          }
+        }
+      },
+      "WriteCheckSubmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "query",
+          "proof"
+        ],
+        "properties": {
+          "query": {
+            "$ref": "#/components/schemas/WriteCheckQuery"
+          },
+          "proof": {
+            "$ref": "#/components/schemas/BootProof"
+          }
+        }
+      },
+      "WriteAuthorization": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "permit_id",
+          "installation_id",
+          "boot_id",
+          "sequence",
+          "nonce",
+          "stage",
+          "storage_plan_sha256",
+          "gpt_sha256",
+          "checked_at",
+          "valid_until"
+        ],
+        "properties": {
+          "permit_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "installation_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "boot_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 3,
+            "maximum": 4096
+          },
+          "nonce": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "gpt.write",
+              "efi.format",
+              "root.format",
+              "root.extract",
+              "boot.install",
+              "seed.install",
+              "final.sync",
+              "final.verify"
+            ]
+          },
+          "storage_plan_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "gpt_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "WriteReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "permit_id",
+          "storage_plan_sha256",
+          "gpt_sha256",
+          "rootfs_sha256",
+          "target_uki_sha256",
+          "outcome",
+          "readback_sha256",
+          "reason"
+        ],
+        "properties": {
+          "permit_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "storage_plan_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "gpt_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "rootfs_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "target_uki_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "written",
+              "unknown"
+            ]
+          },
+          "readback_sha256": {
+            "type": "string",
+            "pattern": "^([a-f0-9]{64})?$",
+            "description": "written: domain-separated SHA256 of canonical WriteReadback. unknown: empty. This is an authenticated writer claim matching expected content, not controller-side device observation."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        }
+      },
+      "WriteReceiptSubmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "receipt",
+          "proof"
+        ],
+        "properties": {
+          "receipt": {
+            "$ref": "#/components/schemas/WriteReceipt"
+          },
+          "proof": {
+            "$ref": "#/components/schemas/BootProof"
+          }
+        }
+      },
+      "WriteReadback": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "gpt_sha256",
+          "rootfs_sha256",
+          "target_uki_sha256",
+          "ssh_helper_sha256",
+          "user_data_sha256",
+          "meta_data_sha256"
+        ],
+        "properties": {
+          "gpt_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "rootfs_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "target_uki_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "ssh_helper_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "user_data_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "meta_data_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "description": "SHA256 input: UTF-8 Keel installation authenticated readback v1, NUL, canonical object JSON in the documented property order. Writer verifies exact GPT edges and fixed installed EFI/helper/seed files; rootfs digest names the approved source archive and is not a hash of the mutable installed filesystem."
+      },
+      "FirstBootBinding": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema",
+          "installation_id",
+          "boot_id",
+          "grant_id",
+          "storage_plan",
+          "gpt_identity",
+          "hostname",
+          "origin",
+          "server",
+          "clients",
+          "boot_ca_sha256",
+          "target_uki_sha256",
+          "runtime_input_sha256",
+          "first_boot_public_key",
+          "installer_kernel_boot_id",
+          "created_at"
+        ],
+        "properties": {
+          "schema": {
+            "const": "keel.first-boot-binding/v1"
+          },
+          "installation_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "boot_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "grant_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "storage_plan": {
+            "$ref": "./openapi.yaml#/components/schemas/ProvisionStoragePlan"
+          },
+          "gpt_identity": {
+            "$ref": "#/components/schemas/GPTIdentity"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string",
+            "format": "uri"
+          },
+          "server": {
+            "type": "string"
+          },
+          "clients": {
+            "type": "string"
+          },
+          "boot_ca_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "target_uki_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "runtime_input_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "first_boot_public_key": {
+            "type": "string",
+            "contentEncoding": "base64"
+          },
+          "installer_kernel_boot_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FirstBootReport": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema",
+          "installation_id",
+          "boot_id",
+          "grant_id",
+          "binding_sha256",
+          "sequence",
+          "nonce",
+          "observed_at",
+          "kernel_boot_id",
+          "hostname",
+          "serial_number",
+          "boot_mac",
+          "arch",
+          "disk_wwid",
+          "disk_serial",
+          "disk_size_bytes",
+          "logical_block_bytes",
+          "root_partition_guid",
+          "efi_partition_guid",
+          "host_public_key",
+          "host_fingerprint",
+          "host_key_modified_at"
+        ],
+        "properties": {
+          "schema": {
+            "const": "keel.first-boot-report/v1"
+          },
+          "installation_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "boot_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "grant_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "binding_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "sequence": {
+            "const": 1
+          },
+          "nonce": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "kernel_boot_id": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "serial_number": {
+            "type": "string"
+          },
+          "boot_mac": {
+            "type": "string"
+          },
+          "arch": {
+            "enum": [
+              "amd64",
+              "arm64"
+            ]
+          },
+          "disk_wwid": {
+            "type": "string"
+          },
+          "disk_serial": {
+            "type": "string"
+          },
+          "disk_size_bytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "logical_block_bytes": {
+            "enum": [
+              512,
+              4096
+            ]
+          },
+          "root_partition_guid": {
+            "type": "string"
+          },
+          "efi_partition_guid": {
+            "type": "string"
+          },
+          "host_public_key": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "host_fingerprint": {
+            "type": "string"
+          },
+          "host_key_modified_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FirstBootSubmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "report",
+          "signature"
+        ],
+        "properties": {
+          "report": {
+            "$ref": "#/components/schemas/FirstBootReport"
+          },
+          "signature": {
+            "type": "string",
+            "contentEncoding": "base64"
+          }
+        }
+      },
+      "FirstBootAcknowledgment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "installation_id",
+          "boot_id",
+          "binding_sha256",
+          "nonce",
+          "state",
+          "host_fingerprint",
+          "received_at"
+        ],
+        "properties": {
+          "installation_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "boot_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "binding_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "nonce": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "state": {
+            "const": "awaiting_first_boot"
+          },
+          "host_fingerprint": {
+            "type": "string"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }

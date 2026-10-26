@@ -260,3 +260,16 @@ v1 runtime-set及initrd归档保持原五输入和精确JSON/路径；v2明确�
 目标UKI使用单一PE32+ UEFI application、相同CPU架构，要求实际`.linux`、`.initrd`、`.cmdline`、`.uname`和`.osrel`；核对完整字节摘要、段边界/重叠、固定命令行、release及零填充，拒绝multi-profile和隐藏附加命令。格式依据[UKI规范](https://uapi-group.org/specifications/specs/unified_kernel_image/)；这是Keel首次实现的受限输入格式，不代表所有UKI均须具备这些可选段。目标内容安装到新EFI分区的架构固定fallback路径，amd64为`EFI/BOOT/BOOTX64.EFI`，arm64为`EFI/BOOT/BOOTAA64.EFI`，不会修改固件NVRAM或复用iPXE。
 
 rootfs还须包含`usr/lib/os-release`、对应`usr/lib/modules/<release>/modules.dep`、同冻结版本`usr/local/libexec/keel-ssh-runner`、`usr/bin/cloud-init`及精确NoCloud配置`etc/cloud/cloud.cfg.d/99-keel-datasource.cfg`（内容`datasource_list: [ NoCloud ]`并换行）。安装器只读取/复制内容，不执行rootfs内程序或维护任意模板脚本。静态PE/文件存在与摘要一致均不是启动成功、驱动可用、SecureBoot信任、cloud-init已启用或SSH互信证据；这些须实际镜像和首启验证。页面使用共享组件录入/展示显式目标UKI文件信息，无自动构造或猜测摘要。
+
+
+## 当前许可、受控writer与独立首启身份（源码，未执行）
+
+写盘入口在同一受控boot和有界网络会话内，顺序为：认证批准布局→从当前server review取得真实激活时的runtime config摘要→固定rootfs分发和全字节校验→封存工具/系统内容→独占打开明确盘→再次只读采集VerifyCurrent→一次write-permit→逐步骤当前权限检查→实际回读及同步卸载→一次write-receipt。此前30秒报告不能授权后来写入。运行环境v1或缺v2目标内容不进入writer，缺任何实际配置/能力均拒绝，不自动猜盘或换设备重试。
+
+许可通过当前签名boot key绑定storage plan、精确GPT identity/字节摘要、rootfs、目标UKI、runtime config及可选独立firstboot public binding。服务端重新验证当前执行/独占lease、scope、请求/布局审批人权限和所有独立runtime输入的审批/隔离状态。issue只消费一次序号，同事务asset变为provisioning/version+1并将SSH trust重置unverified；旧pin和已证明域身份作为历史保留。唯有该installation事件中的精确active version能继续核验，普通准备入口仍拒绝provisioning，不放松全局guard。每个破坏步骤和长操作期间250ms复查，authorization最长2秒，独立watchdog及时取消慢查询中的操作。回包丢失不重发mutation；发过许可后的无终态证据保持unknown与资源隔离。
+
+安装环境只接受8GiB以内压缩rootfs，并要求实际可用内存覆盖归档/UKI/工具缓冲和保留空间；这不是要求用户提供固定硬件型号。squashfs v4输入全摘要/尺寸/表边界及有界固定文件只读解码后封存memfd；所有工具来自server绑定的独立批准runtime输入。根内容另须包含同架构静态`usr/local/libexec/keel-firstboot`，信任来自整个已批准rootfs，不拿自算文件摘要当独立批准。SquashFS格式参考[原作者结构定义](https://github.com/plougher/squashfs-tools/blob/master/squashfs-tools/squashfs_fs.h)，命令参数参考同项目unsquashfs帮助源码；本实现独立处理有界字节。
+
+Linux writer仅root PID1 initramfs可启用，持整盘O_EXCL FD并核对设备号/diskseq/几何，使用同一FD精确offset/sizelimit的专属loop映射两分区，不释放整盘后重开动态分区名。固定8阶段为GPT、EFI格式化、根格式化、rootfs提取、UKI安装、seed/首启配置、同步、回读。静态sealed工具在私有PID/mount/net/IPC/UTS namespace的只读jail内运行，不执行rootfs脚本；目标文件写入有路径边界。回读覆盖主备GPT、FS/UUID、UKI/SSH/首启/NoCloud/模块关键文件、seed/fstab及同步卸载；rootfs摘要表示来源绑定，不表示全文件系统逐字节或数据安全擦除证明。任何异常quarantine强持本地设备/挂载引用及控制面资源；即使本地written而ACK未知也不释放或重写。
+
+首启使用安装时新生成的独立Ed25519 key，公开binding由原boot key签入permit，私钥仅通过受控writer写入root-owned 0600文件，不进入公共seed、下载或日志。固定systemd oneshot在cloud-final完成后执行同批准rootfs中的firstboot helper，不自动重试；要求实际kernel boot ID不同于安装环境，核对主机名/SN/MAC/CPU、根盘身份/几何/GPT分区及真正新SSH host key。固定TLS CA/主机名/IP/interface发送一次签名报告，本地durable intent先于IO，丢ACK保留unknown；ACK落盘才删除单次私钥binding。控制面同时核对当前同installation的实际DHCP辅助事件，但不把DHCP当认证。身份登记后仍awaiting_first_boot、SSH trust未建立；仅后续真实SSH首连证明才能registered。以上源协议与格式/DB/HTTP/工作流用例均尚未运行，不等同镜像启动、设备写入或P1验收。

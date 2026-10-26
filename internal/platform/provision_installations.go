@@ -100,12 +100,12 @@ func LoadProvisionInstallationTx(ctx context.Context, tx *sql.Tx, project, id st
 	return scanProvisionInstallation(tx.QueryRowContext(ctx, "SELECT "+provisionInstallationColumns+" FROM provision_installations WHERE id=$1 AND project_id=$2", id, project))
 }
 
-const provisionInstallationBindingColumns = `id,project_id,request_id,machine_id,execution_id,scope_id,scope_sha256,snapshot_sha256,grant_id,created_by,expires_at,state,attempt_id,command_id,fencing_token,spec`
+const provisionInstallationBindingColumns = `id,project_id,request_id,machine_id,execution_id,scope_id,scope_sha256,snapshot_sha256,grant_id,created_by,expires_at,state,attempt_id,command_id,fencing_token,spec,permit_issued_at`
 
 func scanProvisionInstallationBinding(row interface{ Scan(...any) error }) (*ProvisionInstallation, error) {
 	x := &ProvisionInstallation{}
 	var spec []byte
-	err := row.Scan(&x.ID, &x.ProjectID, &x.RequestID, &x.MachineID, &x.ExecutionID, &x.ScopeID, &x.ScopeSHA256, &x.SnapshotSHA256, &x.GrantID, &x.CreatedBy, &x.ExpiresAt, &x.State, &x.AttemptID, &x.CommandID, &x.FencingToken, &spec)
+	err := row.Scan(&x.ID, &x.ProjectID, &x.RequestID, &x.MachineID, &x.ExecutionID, &x.ScopeID, &x.ScopeSHA256, &x.SnapshotSHA256, &x.GrantID, &x.CreatedBy, &x.ExpiresAt, &x.State, &x.AttemptID, &x.CommandID, &x.FencingToken, &spec, &x.PermitIssuedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -181,7 +181,7 @@ func ValidateProvisionInstallationTx(ctx context.Context, tx *sql.Tx, x *Provisi
 	if request.State != "prepared" || request.MachineID != x.MachineID || request.SnapshotSHA256 != x.SnapshotSHA256 || !ProvisionSnapshotValid(request) {
 		return nil, nil, time.Time{}, ErrProvisionBootDenied
 	}
-	if err = ValidateProvisionRequestMetadataTx(ctx, tx, request, now); err != nil {
+	if err = validateProvisionInstallationMetadataTx(ctx, tx, x, request, now); err != nil {
 		return nil, nil, time.Time{}, err
 	}
 	if x.Spec.ProjectID != x.ProjectID || x.Spec.RequestID != x.RequestID || x.Spec.MachineID != x.MachineID || x.Spec.AttemptID != *x.AttemptID || x.Spec.CommandID != *x.CommandID || x.Spec.FencingToken != *x.FencingToken || x.Spec.SnapshotSHA256 != x.SnapshotSHA256 || !x.Spec.ExpiresAt.Equal(x.ExpiresAt) || x.Spec.Expected.Serial != request.Snapshot.Target.Serial || x.Spec.Expected.BootMAC != request.Snapshot.BootPort.MAC || x.Spec.Expected.Arch != request.Snapshot.Target.Arch {

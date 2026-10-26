@@ -36,6 +36,8 @@ type InitrdResult struct {
 	Metadata RuntimeMetadata `json:"metadata"`
 	SHA256   string          `json:"sha256"`
 	Size     int64           `json:"size"`
+	// Populated by the independently authenticated manifest verifier only.
+	ApprovedRuntimeID string `json:"approved_runtime_id,omitempty"`
 }
 type InitrdContents struct {
 	Metadata   RuntimeMetadata

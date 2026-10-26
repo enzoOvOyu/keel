@@ -189,7 +189,7 @@ func verifyInstallerInitrdReader(ctx context.Context, f io.Reader, size int64, t
 			return nil, identityError(a.MediaID)
 		}
 	}
-	return &provisionimage.InitrdResult{Metadata: contents.Metadata, SHA256: hex.EncodeToString(hash.Sum(nil)), Size: reader.size}, nil
+	return &provisionimage.InitrdResult{Metadata: contents.Metadata, SHA256: hex.EncodeToString(hash.Sum(nil)), Size: reader.size, ApprovedRuntimeID: manifest.Payload.RootID}, nil
 }
 
 // VerifyInstallerInitrdForPlan binds the authenticated actual archive to an

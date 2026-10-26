@@ -16,6 +16,12 @@ func LoadProvisionRequestTx(ctx context.Context, tx *sql.Tx, project, id string)
 // ValidateProvisionRequestMetadataTx does not hash objects or execute hardware.
 // It guards admission/dispatch against current BOM, approval and key revocation.
 func ValidateProvisionRequestMetadataTx(ctx context.Context, tx *sql.Tx, x *ProvisionRequest, now time.Time) error {
+	return validateProvisionRequestMetadataTx(ctx, tx, x, now, x.Snapshot.Target.AssetVersion, false)
+}
+
+// Only the owning installation may validate the exact version it activated.
+// General preparation/admission keeps rejecting assets already provisioning.
+func validateProvisionRequestMetadataTx(ctx context.Context, tx *sql.Tx, x *ProvisionRequest, now time.Time, expectedAssetVersion int64, active bool) error {
 	if !x.ExpiresAt.After(now) || x.ApprovedBy == nil {
 		return apiError(409, "PROVISION_REQUEST_EXPIRED", "Unexpired independently approved preparation required")
 	}
@@ -32,7 +38,7 @@ func ValidateProvisionRequestMetadataTx(ctx context.Context, tx *sql.Tx, x *Prov
 		return err
 	}
 	expected := x.Snapshot.Target
-	if assetVersion != expected.AssetVersion || model != expected.ModelVersionID || serial != expected.Serial || hostname != expected.Hostname || state == "provisioning" || ((!x.Reinstall) && (state == "provisioned" || trust == "established")) {
+	if assetVersion != expectedAssetVersion || model != expected.ModelVersionID || serial != expected.Serial || hostname != expected.Hostname || (!active && state == "provisioning") || (active && (state != "provisioning" || trust == "established")) || ((!active && !x.Reinstall) && (state == "provisioned" || trust == "established")) {
 		return apiError(409, "PROVISION_TARGET_CHANGED", "Frozen asset identity or reinstall admission changed")
 	}
 	var mac string

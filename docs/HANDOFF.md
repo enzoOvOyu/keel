@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～105。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～106。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
@@ -1310,3 +1310,10 @@ initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新�
 接续e35f1d9，用户于05:40:29 UTC要求继续三小时，至08:40:29 UTC；随后明确启用全部Agent并将可并行后续任务马上推进，覆盖之前的单Agent偏好。本轮root+3 Agent分工为目标内容/客户端集成、当前写盘许可、受控介质校验、writer。继续本地/禁tmux和SSH、P1完成后集中测试；只必要编译/静态检查，不部署3000或应用SQL/真实设备操作。
 
 新增显式v2Recipe目标UKI契约，v1字节兼容且不能通过ValidateWritable；固定rootfs内路径、精确摘要/大小/kernel release和本地GPT根命令行。新增有界全字节PE/同架构/固定单profile校验，不执行镜像。签名manifest严格字段和API/生成TS及共享UI录入/展示同步。新增格式/错架构/重叠/隐藏命令/篡改及签名拒绝用例仅写入。实际Go编译/vet日志/tmp/keel-target-boot-{compile,vet}.log、API生成/直接tsc/UI静态检查/tmp/keel-target-boot-{api,tsc,ui}.log通过；第一次从web查找不存在tsc退出127，已改用根目录既有工具成功。没有运行功能/PG/CLI/浏览器/固件或硬件验收。P1仍partial，本轮后续许可/介质/writer以新章节为准。
+
+
+## 106. 四Agent当前许可/写盘/首启源码集成检查点（2026-10-26）
+
+接续0a11d74，4Agent按用户最新安排并行且完成后接后续任务。已接当前write-permit/只读nonce check/一次receipt、运行输入的当前独立审批、完整批准Plan及runtime SHA只读交付、asset同事务provisioning版本切换及自有active校验。受控介质全hash+SquashFS/关键内容+sealed工具，Linux writer8阶段/私有工具jail/O_EXCL整盘与精确loop/回读同步/unknown强持引用已落源码。root将审批等待→staging→独立firstboot key→fresh report→permit→writer→receipt ACK串在同一网络会话，main最早dispatch受保护工具子进程并移除“错误必然未安装”的日志断言。真实首启helper/独立公钥绑定及服务端HTTP+DHCP辅助身份登记已落源码，但仍不建立SSH信任。详情与严格证据边界见PROVISIONING末节。
+
+新增pure protocol/PE/SquashFS/HTTP/工作流/宿主拒绝与真实DB composition软件fixture用例，仅写入未执行；firstboot/write-permit DB组已接集中入口regex。实际只Go test -run '^$'编译/vet：/tmp/keel-rootfs-stage-{final-compile,vet}.log、/tmp/keel-firstboot-source-final-{compile,vet}.log、/tmp/keel-write-permit-{final-compile,vet}.log、/tmp/keel-first-boot-server-{final-compile,vet}.log、/tmp/keel-writer-exec-final-{compile,vet}.log及root全链/tmp/keel-install-chain-compile.log均退出0。没有执行上述功能用例/CLI/实际工具/磁盘/网络/首启/SSH、应用SQL或重建发布镜像。3000仍6668a72c；P1仍partial。下一并行单元为受控重启、真实SSH首连/修复队列及七阶段真实事件投影，不能按这批源码或纯格式fixture判闭环。
