@@ -22,7 +22,7 @@ func runProvisionInitrd(command string, args []string) error {
 		directory = flags.String("artifact-directory", "", "directory containing exact <media_id>.bin inputs")
 		output = flags.String("output-file", "", "new initrd gzip/newc in a protected operator-owned directory")
 	} else {
-		archive = flags.String("initrd-file", "", "regular read-only installer initrd archive")
+		archive = flags.String("initrd-file", "", "regular approved-input installer initrd archive")
 	}
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -58,5 +58,5 @@ func runProvisionInitrd(command string, args []string) error {
 			return err
 		}
 	}
-	return json.NewEncoder(os.Stdout).Encode(map[string]any{"status": "ok", "operation": command, "sha256": result.SHA256, "size": result.Size, "metadata": result.Metadata, "runtime_input_bytes_verified": true, "image_boot_verified": false, "installation_performed": false, "attestation": "offline read-only runtime archive; independent final-media approval, kernel/driver acceptance and live installation permission remain required"})
+	return json.NewEncoder(os.Stdout).Encode(map[string]any{"status": "ok", "operation": command, "sha256": result.SHA256, "size": result.Size, "metadata": result.Metadata, "runtime_input_bytes_verified": true, "writer_tool_bytes_verified": result.Metadata.Runtime.Writer != nil, "disk_write_authorized": false, "image_boot_verified": false, "installation_performed": false, "attestation": "offline runtime input bytes only; independent final-media approval, kernel/driver acceptance and live installation permission remain required"})
 }

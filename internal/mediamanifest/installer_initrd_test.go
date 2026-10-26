@@ -25,6 +25,9 @@ import (
 
 // All ELF bytes are non-executed format fixtures, not accepted runtime tools.
 func signedInitrdFixture(t *testing.T) ([]byte, ed25519.PublicKey, string) {
+	return signedInitrdFixtureMode(t, false)
+}
+func signedInitrdFixtureMode(t *testing.T, writer bool) ([]byte, ed25519.PublicKey, string) {
 	t.Helper()
 	signer, key, payload := fixture(t)
 	base := payload.Artifacts[0]
@@ -40,7 +43,13 @@ func signedInitrdFixture(t *testing.T) ([]byte, ed25519.PublicKey, string) {
 		t.Fatal(err)
 	}
 	directory := t.TempDir()
-	for i, c := range []*mediaboot.RuntimeComponent{&set.Init, &set.Preflight, &set.SSHHelper, &set.SMART, &set.BootCA} {
+	components := []*mediaboot.RuntimeComponent{&set.Init, &set.Preflight, &set.SSHHelper, &set.SMART, &set.BootCA}
+	if writer {
+		set.Schema = mediaboot.WriterRuntimeSetSchema
+		set.Writer = &mediaboot.WriterTools{}
+		components = append(components, &set.Writer.UnsquashFS, &set.Writer.MkfsExt4, &set.Writer.MkfsVFAT)
+	}
+	for i, c := range components {
 		data := append(overlayExecutableFixture(), byte(i))
 		if i == 4 {
 			data = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
@@ -53,6 +62,9 @@ func signedInitrdFixture(t *testing.T) ([]byte, ed25519.PublicKey, string) {
 		a.SHA256 = c.SHA256
 		a.Size = int64(len(data))
 		a.Type = "os"
+		if i >= 5 {
+			a.Type = "tool"
+		}
 		a.Arch = "amd64"
 		if i == 4 {
 			a.Type = "config"
@@ -72,6 +84,9 @@ func signedInitrdFixture(t *testing.T) ([]byte, ed25519.PublicKey, string) {
 	sum := sha256.Sum256(config)
 	root := base
 	root.MediaID = strings.Repeat("6", 32)
+	if writer {
+		root.MediaID = strings.Repeat("9", 32)
+	}
 	root.Type = "config"
 	root.Arch = "amd64"
 	root.Name = "independent-runtime-set"
@@ -100,7 +115,7 @@ func signedInitrdFixture(t *testing.T) ([]byte, ed25519.PublicKey, string) {
 
 func runtimeBootPlan(result *provisionimage.InitrdResult) mediaboot.Plan {
 	set := result.Metadata.Runtime
-	ids := map[string]string{"rootfs": strings.Repeat("7", 32), "kernel": strings.Repeat("8", 32), "initrd": strings.Repeat("9", 32), "template": strings.Repeat("a", 32), "uefi": strings.Repeat("b", 32), "preflight": set.Preflight.MediaID, "ssh-helper": set.SSHHelper.MediaID}
+	ids := map[string]string{"rootfs": strings.Repeat("a", 32), "kernel": strings.Repeat("b", 32), "initrd": strings.Repeat("c", 32), "template": strings.Repeat("d", 32), "uefi": strings.Repeat("e", 32), "preflight": set.Preflight.MediaID, "ssh-helper": set.SSHHelper.MediaID}
 	p := mediaboot.Plan{RootID: ids["rootfs"], Profile: mediaboot.Profile{Schema: mediaboot.Schema, Installer: "cloud-init", KernelMediaID: ids["kernel"], InitrdMediaID: ids["initrd"], TemplateMediaID: ids["template"], Recipe: &mediaboot.Recipe{Schema: mediaboot.RecipeSchema, Protocol: mediaboot.InitrdProtocol, RootFSFormat: "squashfs", UEFIMediaID: ids["uefi"], PreflightMediaID: set.Preflight.MediaID, PreflightSHA256: set.Preflight.SHA256, SSHHelperMediaID: set.SSHHelper.MediaID, SSHHelperSHA256: set.SSHHelper.SHA256}}}
 	for _, role := range []string{"rootfs", "kernel", "initrd", "template", "uefi", "preflight", "ssh-helper"} {
 		a := mediaboot.Artifact{Role: role, MediaID: ids[role], ScopeKey: "global", Arch: set.Arch, SHA256: strings.Repeat("c", 64), Size: 1, ObjectVersion: "exact-object-v1"}
@@ -209,5 +224,37 @@ func TestInstallerInitrdRejectsCanceledAndUntrustedBuild(t *testing.T) {
 	_, other, _ := signedInitrdFixture(t)
 	if _, err := CreateInstallerInitrd(context.Background(), raw, other, directory, output); err == nil {
 		t.Fatal("untrusted signing key")
+	}
+}
+
+func TestInstallerInitrdWriterToolsIndependentClosure(t *testing.T) {
+	raw, key, directory := signedInitrdFixtureMode(t, true)
+	output := filepath.Join(t.TempDir(), "writer-inputs.cpio.gz")
+	result, err := CreateInstallerInitrd(context.Background(), raw, key, directory, output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verified, err := VerifyInstallerInitrd(context.Background(), output, key)
+	if err != nil || result.Metadata.Schema != provisionimage.WriterInitrdSchema || verified.Metadata.Runtime.Writer == nil || len(verified.Metadata.Components) != 8 || !verified.Metadata.Runtime.Equal(result.Metadata.Runtime) {
+		t.Fatal("writer tool inputs not independently bound", err)
+	}
+	archive, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = VerifyInstallerInitrdForPlan(context.Background(), bytes.NewReader(archive), runtimeBootPlan(result), key); err != nil {
+		t.Fatal("final role plan did not retain actual approved inputs", err)
+	}
+	// Changing a tool after independent approval must leave no published archive.
+	id := result.Metadata.Runtime.Writer.MkfsExt4.MediaID
+	if err = os.WriteFile(filepath.Join(directory, id+".bin"), []byte("changed tool bytes"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	changed := filepath.Join(t.TempDir(), "changed-tool.cpio.gz")
+	if _, err = CreateInstallerInitrd(context.Background(), raw, key, directory, changed); err == nil {
+		t.Fatal("changed tool accepted")
+	}
+	if _, err = os.Stat(changed); !os.IsNotExist(err) {
+		t.Fatal("failed writer-input build published")
 	}
 }

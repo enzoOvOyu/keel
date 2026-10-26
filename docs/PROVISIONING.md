@@ -242,3 +242,12 @@ initrd审批等待受原DHCP租约、ARP冲突监测、Spec到期和上下文共
 provisionstorage.PrepareGPT消费完整有效Plan和独立的3个UUIDv4（磁盘/EFI分区/根分区），确定性生成目标盘首尾各1MiB的PMBR、primary/backup GPT、128×128字节分区数组、CRC和零保留区。保持明确的UEFI FAT32+ext4两分区布局与512/4Kn几何，不变动批准的分区边界；两端字节与完整Plan摘要/UUID/容量/扇区共同摘要，供后续当前许可绑定。InspectGPTEdges只读核对上述精确区域，返回同一摘要；不证明真实盘身份/几何、文件系统、擦除完成或可启动。无打开设备、写入/格式化/挂载调用，没有许可接口调用或安装成功投影。
 
 格式字段依据[Linux GPT结构定义](https://github.com/torvalds/linux/blob/master/block/partitions/efi.h)与[GPT解析校验](https://github.com/torvalds/linux/blob/master/block/partitions/efi.c)，类型GUID参照[gptfdisk类型登记](https://android.googlesource.com/platform/external/gptfdisk/+/c59dc86/parttypes.cc)。实现为独立Go字节构造，不复制其源码；generic Linux filesystem类型不冒称DPS根分区自动发现，GPT不等同安装bootloader。真实writer仍须独立批准工具/镜像、当前VerifyCurrent及一次性许可、受控设备FD和每个破坏操作前的权限检查，再回读/回执。
+
+
+## 独立writer工具输入进入完整镜像（v2源码，尚无工具执行）
+
+v1 runtime-set及initrd归档保持原五输入和精确JSON/路径；v2明确使用`keel.installer-runtime-set/v2`与`keel.installer-initrd/v2`，增加writer_tools.unsquashfs、writer_tools.mkfs_ext4、writer_tools.mkfs_vfat三项media_id/sha256。对应制品类型tool、相同amd64/arm64架构、静态ELF且无子依赖；固定归档路径usr/sbin/unsquashfs、usr/sbin/mkfs.ext4、usr/sbin/mkfs.vfat。八个输入ID必须互异，CA仍config/noarch。v1不能悄悄携带工具，v2不能省略任何一项；拒绝大小写别名/重复/未知字段、架构错绑、动态ELF、缺项和改字节。原大小/展开边界继续生效。
+
+开发/生产顺序：先取得并独立批准实际三个工具字节（工具构建与行为验收由镜像输入/PoC提供）；与已有五项共同登记v2 config的八条直接依赖，独立批准并导出签名manifest；复用现有provision-initrd-create/verify离线链生成/反向验证单一严格归档，不能追加另一未批准CPIO；最后将生成的initrd作为新制品另行批准并纳入OS recipe。不要求未来OS成品先存在，不启动工具或设备操作。独立签名与所有八项字节核对后才记writer_tool_bytes_verified，CLI与boot.activated事件同时明确disk_write_authorized=false；运行入口目前仍只有只读预检/审批等待。
+
+该输入链不等于写盘器或可启动系统。后续先落实目标OS的安装启动内容契约（网络引导iPXE EFI不是目标盘bootloader），再将当前硬件复核、GPT摘要、可信工具/系统内容与独占lease绑定到一次性许可，执行受控操作/回读/失败unknown回执，之后接首启/SSH。未执行本批CLI、工具、归档生产、网络监听或镜像/硬件启动。

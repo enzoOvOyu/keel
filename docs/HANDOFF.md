@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～103。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～104。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
-## 当前恢复入口（2026-10-26，三小时开发窗口进行中）
+## 当前恢复入口（2026-10-26，本轮开发检查点）
 
-用户最新安排：直接在当前本地环境`/opt/keel`开发，不使用tmux或SSH绕转；相关AGENTS/README/DEPLOYMENT入口已修正。继续单Agent、集中验证。硬件/网络参数保持配置输入，PoC环节由用户后续提供，不阻断独立软件开发。当前HEAD接续2276f9b，本批启动文件Authority/认证回调与显式隔离服务源码见§99。
+用户最新安排：直接在当前本地环境`/opt/keel`开发，不使用tmux或SSH绕转；相关AGENTS/README/DEPLOYMENT入口已修正。继续单Agent、集中验证。硬件/网络参数保持配置输入，PoC环节由用户后续提供，不阻断独立软件开发。当前提交接续e500c2a，本批v2批准工具输入归档见§104；本轮依次提交4f176f5、2276f9b、b25d290、ed1906b、e500c2a及§104对应提交。启动文件Authority/认证回调、页面与互动预检源码见§99～101，新增集中用例见§102，GPT字节核心见§103。
 
-接续c0eb0c0，用户于2026-10-26 02:12:04 UTC授权继续三小时，窗口至05:12:04 UTC。单Agent，保持P1实现闭环后集中测试/浏览器/镜像策略；当前只执行必要编译和静态检查。本轮WP-1.7/FR-2.2～2.4先交付只读磁盘稳定身份与明确布局契约，再接受控安装环境、当前许可/一次性回调。输入为既有冻结申请、批准helper/配方和预检报告；磁盘计划绑定实际只读事实及独立选择，不自动选盘。输出为有界规范契约、采集和拒绝边界；后续API/持久审批/页面与真实执行分别落地，不把pure plan当授权。当前源码/服务与原草稿保护沿用§92。
+接续c0eb0c0，用户于2026-10-26 02:12:04 UTC授权继续三小时，窗口至05:12:04 UTC。单Agent，保持P1实现闭环后集中测试/浏览器/镜像策略；当前只执行必要编译和静态检查。截至本轮检查点，WP-1.7/FR-2.2～2.4已接通启动授权、认证预检/互动刷新、显式选盘和独立布局审批源码，并完成无设备操作的GPT字节核心及独立批准writer工具的v2归档输入。P1仍partial，以上不是实际安装完成。下一步先明确目标OS启动内容契约，再实现当前写盘许可、受控设备写入和回执，随后首启host-key/SSH、七阶段投影与集中验收。3000仍运行6668a72c，源52迁移（不含026草稿）、运行46；未应用SQL、构建/部署镜像或推送，两份原草稿保留。
 
 - **累计未发布源码（§75～92）**：此前的续签/主密钥重包裹/审计/Webhook等增量继续保留；本次从e0a9467接续，单Agent完成持久装机准备/独立审批/共享独占Execution与页面、隔离ProxyDHCP/HTTP/TFTP传输、Linux只读硬件预检与双架构helper、固定固件/helper启动配方与iPXE/清单生成和消费校验，以及无最终镜像前置循环的离线helper overlay生产/反向校验。修正Linux槽位ABI、NVMe实际health输出、传输中失效和准备完成时的当前准入边界。新增用例与集中/CI入口已写入但未运行。必要Go/TS编译、静态检查和指定双架构构建通过，不等于功能/SQL/镜像/硬件验证。源迁移50、运行46；3000仍§74。原草稿保留。
 
@@ -1294,3 +1294,12 @@ initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新�
 接续ed1906b。新增provisionstorage的确定性GPT构造/只读回验，绑定完整Plan摘要、3个唯一显式UUIDv4、精确容量和512/4Kn扇区，输出首尾各1MiB及摘要；主备header/array、PMBR/饱和逻辑块数、CRC、GUID端序和零保留区均固定。Segments返回独立副本，调用方不能修改已准备对象。此核心只处理内存字节和调用方提供的ReaderAt，不打开设备/文件、不写盘/格式化/挂载或签发许可，不把GPT正确当实际安装/擦除完成。
 
 新增512/4Kn/大容量和PMBR非饱和计数、主备CRC/数组/稳定ID/边界、篡改/部分读/换GUID/过期/改布局/副本保护用例，仅写入。实际go test -run '^$'编译与vet（/tmp/keel-gpt-layout-{compile,vet}.log）退出0；随后增补同一测试函数的PMBR非饱和断言，不改变产品源码。格式来源见PROVISIONING，不执行任何设备/磁盘工具。P1仍partial，下一块是独立批准的writer工具输入接入完整镜像，之后当前许可及实际写盘回执。
+
+
+## 104. 无循环的writer工具输入与v2完整归档（2026-10-26，源码待集中验证）
+
+接续e500c2a。mediaboot新增显式v2 runtime-set/归档，在原5输入外独立批准tool类型/同架构静态unsquashfs、mkfs.ext4、mkfs.vfat，八项ID唯一、精确依赖闭包/签名/摘要/路径和反向实际字节校验；保留v1 JSON/五项布局，不通过追加CPIO旁路。复用原离线CLI/发布保护，没有新增并行生产流程或依赖未来成品。RuntimeSet按值比较可选工具，避免解码后误用指针相等。平台真实源验证保留已验runtime schema/config摘要与工具字节能力，boot.activated审计及CLI明确disk_write_authorized=false；没有增加实际工具执行/设备写入或许可。下一步先完成目标OS安装启动内容契约，不能把iPXE EFI当目标系统bootloader，再许可/实际writer/回执、首启/SSH。
+
+新增双架构v2严格归档、确定性、缺项/改字节/错架构/v1降级/追加归档拒绝、独立签名闭包生产/反向绑定与失败不发布用例，只写入未运行。代码复核另修execution共享临时库fixture：在各自cleanup经真实scope API只撤销自己的域，避免下一fixture与遗留批准CIDR冲突；不删表/数据，不绕过网络冲突规则。实际定向Go编译/vet及最终静态结果记录/tmp/keel-writer-runtime-{compile,final-compile,vet,final-vet}.log，CLI/平台审计补充后的终检编译/vet日志为/tmp/keel-writer-runtime-source-final-{compile,vet}.log，无编译/静态错误；设计检查/tmp/keel-writer-runtime-design.log及git diff --check通过。没有应用SQL、运行CLI/新用例/浏览器、实际归档/镜像构建、网络或硬件操作。P1保持partial；3000/5173、运行46迁移和两份原未跟踪草稿继续保留。
+
+本轮最终只读运行复查（2026-10-26 05:08 UTC）：3000 /healthz返回process级ok、版本6668a72c；keel-api/postgres/minio/redis与auth-test-postgres容器healthy，runsun服务保留，.env权限600。此健康证据不覆盖本轮未发布源码或P1端到端验收。

@@ -16,13 +16,13 @@ import (
 
 func installerRuntimeRecords(manifest *Envelope, config []byte) (mediaboot.RuntimeSet, []Artifact, error) {
 	var set mediaboot.RuntimeSet
-	invalid := errors.New("independently signed runtime config must bind four static binaries and one public CA file")
+	invalid := errors.New("independently signed runtime config must bind exact static runtime inputs, optional writer tools and one public CA")
 	nodes := map[string]Artifact{}
 	for _, a := range manifest.Payload.Artifacts {
 		nodes[a.MediaID] = a
 	}
 	root := nodes[manifest.Payload.RootID]
-	if root.Type != "config" || (root.Arch != "amd64" && root.Arch != "arm64") || root.Size < 1 || root.Size > 64<<10 || int64(len(config)) != root.Size || len(root.Dependencies) != 5 || len(nodes) != 6 {
+	if root.Type != "config" || (root.Arch != "amd64" && root.Arch != "arm64") || root.Size < 1 || root.Size > 64<<10 || int64(len(config)) != root.Size {
 		return set, nil, invalid
 	}
 	hash := sha256.Sum256(config)
@@ -30,7 +30,7 @@ func installerRuntimeRecords(manifest *Envelope, config []byte) (mediaboot.Runti
 		return set, nil, invalid
 	}
 	set, err := mediaboot.DecodeRuntimeSet(config)
-	if err != nil || set.Arch != root.Arch {
+	if err != nil || set.Arch != root.Arch || len(root.Dependencies) != len(set.Components()) || len(nodes) != len(set.Components())+1 {
 		return set, nil, invalid
 	}
 	direct := map[string]string{}
@@ -43,8 +43,12 @@ func installerRuntimeRecords(manifest *Envelope, config []byte) (mediaboot.Runti
 		if !ok || a.SHA256 != component.SHA256 || direct[a.MediaID] != component.SHA256 || len(a.Dependencies) != 0 {
 			return set, nil, invalid
 		}
-		if i < 4 {
-			if a.Type != "os" || a.Arch != set.Arch || a.Size < 64 || a.Size > provisionimage.MaxBinaryBytes {
+		if i != 4 {
+			typ := "os"
+			if i >= 5 {
+				typ = "tool"
+			}
+			if a.Type != typ || a.Arch != set.Arch || a.Size < 64 || a.Size > provisionimage.MaxBinaryBytes {
 				return set, nil, invalid
 			}
 		} else if a.Type != "config" || a.Arch != "noarch" || a.Size < 1 || a.Size > 1<<20 {
@@ -176,7 +180,7 @@ func verifyInstallerInitrdReader(ctx context.Context, f io.Reader, size int64, t
 	if err != nil {
 		return nil, err
 	}
-	if set != contents.Metadata.Runtime {
+	if !set.Equal(contents.Metadata.Runtime) {
 		return nil, errors.New("runtime differs from independently signed config")
 	}
 	for i, a := range records {

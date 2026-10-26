@@ -35,3 +35,43 @@ func TestIndependentRuntimeSetRejectsAmbiguousInputs(t *testing.T) {
 		t.Fatal("same artifact in two roles")
 	}
 }
+
+func TestIndependentRuntimeSetWriterInputsRequireExplicitV2(t *testing.T) {
+	s := RuntimeSet{Schema: WriterRuntimeSetSchema, Arch: "arm64", Writer: &WriterTools{}}
+	fields := []*RuntimeComponent{&s.Init, &s.Preflight, &s.SSHHelper, &s.SMART, &s.BootCA, &s.Writer.UnsquashFS, &s.Writer.MkfsExt4, &s.Writer.MkfsVFAT}
+	for i, c := range fields {
+		c.MediaID = strings.Repeat(string(rune('1'+i)), 32)
+		c.SHA256 = strings.Repeat("a", 64)
+	}
+	raw, _ := json.Marshal(s)
+	decoded, err := DecodeRuntimeSet(raw)
+	if err != nil || !decoded.Equal(s) || len(decoded.Components()) != 8 {
+		t.Fatal("independent v2 inputs rejected", err)
+	}
+	legacy := s
+	legacy.Schema = RuntimeSetSchema
+	if legacy.Validate() == nil {
+		t.Fatal("writer tools silently added to v1")
+	}
+	missing := s
+	missing.Writer = nil
+	if missing.Validate() == nil {
+		t.Fatal("v2 lacks explicit tools")
+	}
+	copyOf := *s.Writer
+	changed := s
+	changed.Writer = &copyOf
+	changed.Writer.MkfsVFAT = changed.Init
+	if changed.Validate() == nil || changed.Equal(s) {
+		t.Fatal("tool reused init role or pointer comparison hid mutation")
+	}
+	for _, bad := range [][]byte{
+		bytes.Replace(raw, []byte(`"unsquashfs":{`), []byte(`"unsquashfs":{"shell":"unsafe",`), 1),
+		bytes.Replace(raw, []byte(`"mkfs_ext4"`), []byte(`"MKFS_EXT4"`), 1),
+		append(append([]byte{}, raw...), byte('\n')),
+	} {
+		if _, err := DecodeRuntimeSet(bad); err == nil {
+			t.Fatal("ambiguous tool configuration accepted")
+		}
+	}
+}

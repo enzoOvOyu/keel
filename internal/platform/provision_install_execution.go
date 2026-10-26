@@ -49,11 +49,14 @@ func (s *Store) ValidateProvisionInstallationQueuedTx(ctx context.Context, tx *s
 // resource rows during object IO, so the owner's heartbeat can renew its lease.
 // Activation subsequently rechecks all live bindings in a short transaction.
 type VerifiedProvisionInstallSources struct {
-	project      string
-	installation string
-	snapshot     string
-	execution    string
-	verifiedAt   time.Time
+	project                 string
+	installation            string
+	snapshot                string
+	execution               string
+	verifiedAt              time.Time
+	runtimeSchema           string
+	runtimeInputSHA256      string
+	writerToolBytesVerified bool
 }
 
 func (s *Store) VerifyProvisionInstallationSources(ctx context.Context, project, id string) (*VerifiedProvisionInstallSources, error) {
@@ -98,7 +101,8 @@ func (s *Store) VerifyProvisionInstallationSources(ctx context.Context, project,
 		return nil, err
 	}
 	defer file.close()
-	if _, err = mediamanifest.VerifyInstallerInitrdForPlan(ctx, file.file, request.Snapshot.Media, s.ProvisionImagePublicKey); err != nil {
+	runtime, err := mediamanifest.VerifyInstallerInitrdForPlan(ctx, file.file, request.Snapshot.Media, s.ProvisionImagePublicKey)
+	if err != nil {
 		return nil, apiError(422, "PROVISION_INITRD_INVALID", "Actual approved initrd does not match its authenticated runtime inputs and frozen role plan")
 	}
 	if ctx.Err() != nil {
@@ -107,7 +111,7 @@ func (s *Store) VerifyProvisionInstallationSources(ctx context.Context, project,
 	if _, err = s.ValidateProvisionInstallationQueuedTx(ctx, tx, project, id); err != nil {
 		return nil, err
 	}
-	return &VerifiedProvisionInstallSources{project: project, installation: id, snapshot: x.SnapshotSHA256, execution: x.ExecutionID, verifiedAt: time.Now()}, nil
+	return &VerifiedProvisionInstallSources{project: project, installation: id, snapshot: x.SnapshotSHA256, execution: x.ExecutionID, verifiedAt: time.Now(), runtimeSchema: runtime.Metadata.Schema, runtimeInputSHA256: runtime.Metadata.ApprovedRuntimeSHA256, writerToolBytesVerified: runtime.Metadata.Runtime.Writer != nil}, nil
 }
 
 func (s *Store) ActivateProvisionInstallation(ctx context.Context, project, id, execution, attempt, command string, fence int64, verified *VerifiedProvisionInstallSources) (*ProvisionInstallation, error) {
@@ -168,7 +172,7 @@ func (s *Store) ActivateProvisionInstallation(ctx context.Context, project, id, 
 	if _, err = tx.ExecContext(ctx, `UPDATE provision_installations SET state='booting',state_version=state_version+1,attempt_id=$2,command_id=$3,fencing_token=$4,spec=$5,updated_at=$6 WHERE id=$1`, id, attempt, command, fence, spec, now); err != nil {
 		return nil, err
 	}
-	if err = appendProvisionEventTx(ctx, tx, x, "boot.activated", map[string]any{"attempt_id": attempt, "fencing_token": fence, "installation_performed": false}); err != nil {
+	if err = appendProvisionEventTx(ctx, tx, x, "boot.activated", map[string]any{"attempt_id": attempt, "fencing_token": fence, "installation_performed": false, "runtime_schema": verified.runtimeSchema, "runtime_input_sha256": verified.runtimeInputSHA256, "writer_tool_bytes_verified": verified.writerToolBytesVerified, "disk_write_authorized": false}); err != nil {
 		return nil, err
 	}
 	x, err = LoadProvisionInstallationTx(ctx, tx, project, id)

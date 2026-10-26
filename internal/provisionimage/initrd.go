@@ -15,6 +15,10 @@ import (
 )
 
 const InitrdSchema = "keel.installer-initrd/v1"
+const WriterInitrdSchema = "keel.installer-initrd/v2"
+const UnsquashFSPath = "usr/sbin/unsquashfs"
+const MkfsExt4Path = "usr/sbin/mkfs.ext4"
+const MkfsVFATPath = "usr/sbin/mkfs.vfat"
 const InitPath = "init"
 const SMARTPath = "usr/sbin/smartctl"
 const BootCAPath = "etc/keel/boot-ca.pem"
@@ -42,10 +46,23 @@ type InitrdContents struct {
 var runtimeDirectories = []string{"dev", "proc", "sys", "run", "etc", "etc/keel", "usr", "usr/lib", "usr/lib/keel", "usr/local", "usr/local/libexec", "usr/sbin"}
 var runtimePaths = []string{InitPath, PreflightPath, SSHHelperPath, SMARTPath, BootCAPath}
 
+func pathsForRuntime(set mediaboot.RuntimeSet) []string {
+	if set.Writer == nil {
+		return runtimePaths
+	}
+	return append(append([]string{}, runtimePaths...), UnsquashFSPath, MkfsExt4Path, MkfsVFATPath)
+}
+func schemaForRuntime(set mediaboot.RuntimeSet) string {
+	if set.Schema == mediaboot.WriterRuntimeSetSchema {
+		return WriterInitrdSchema
+	}
+	return InitrdSchema
+}
+
 func rawSHA(raw []byte) string { h := sha256.Sum256(raw); return hex.EncodeToString(h[:]) }
 
 func verifyRuntimeInput(ctx context.Context, in Input, arch string, index int) error {
-	if index < 4 {
+	if (index >= 0 && index < 4) || (index >= 5 && index < 8) {
 		return VerifyStaticBinary(ctx, in, arch)
 	}
 	if index != 4 || in.File == nil || in.Size < 1 || in.Size > 1<<20 || ctx.Err() != nil {
@@ -64,7 +81,8 @@ func verifyRuntimeInput(ctx context.Context, in Input, arch string, index int) e
 	return nil
 }
 
-// WriteInitrd produces the complete read-only runtime archive, without booting,
+// WriteInitrd produces the complete runtime archive (optional approved tool
+// inputs do not activate a writer), without booting,
 // extracting, running a component, or requiring a future OS/initrd recipe.
 // The caller authenticates the signed approval records before this byte layer.
 func WriteInitrd(ctx context.Context, w io.Writer, set mediaboot.RuntimeSet, manifest, config []byte, inputs []Input) (*InitrdResult, error) {
@@ -72,16 +90,17 @@ func WriteInitrd(ctx context.Context, w io.Writer, set mediaboot.RuntimeSet, man
 		return nil, ctx.Err()
 	}
 	decoded, err := mediaboot.DecodeRuntimeSet(config)
-	if w == nil || err != nil || decoded != set || set.Validate() != nil || len(manifest) == 0 || len(manifest) > 16<<20 || len(inputs) != 5 {
+	if w == nil || err != nil || !decoded.Equal(set) || set.Validate() != nil || len(manifest) == 0 || len(manifest) > 16<<20 || len(inputs) != len(set.Components()) {
 		return nil, ErrInvalid
 	}
-	metadata := RuntimeMetadata{Schema: InitrdSchema, Arch: set.Arch, Runtime: set, ApprovedRuntimeSHA256: rawSHA(config), ApprovedManifestSHA256: rawSHA(manifest), Components: []Component{}}
+	paths := pathsForRuntime(set)
+	metadata := RuntimeMetadata{Schema: schemaForRuntime(set), Arch: set.Arch, Runtime: set, ApprovedRuntimeSHA256: rawSHA(config), ApprovedManifestSHA256: rawSHA(manifest), Components: []Component{}}
 	for i, want := range set.Components() {
 		in := inputs[i]
 		if in.MediaID != want.MediaID || in.SHA256 != want.SHA256 || verifyRuntimeInput(ctx, in, set.Arch, i) != nil {
 			return nil, ErrInvalid
 		}
-		metadata.Components = append(metadata.Components, Component{Path: runtimePaths[i], MediaID: in.MediaID, SHA256: in.SHA256, Size: in.Size})
+		metadata.Components = append(metadata.Components, Component{Path: paths[i], MediaID: in.MediaID, SHA256: in.SHA256, Size: in.Size})
 	}
 	encoded, err := json.Marshal(metadata)
 	if err != nil {
@@ -116,7 +135,7 @@ func WriteInitrd(ctx context.Context, w io.Writer, set mediaboot.RuntimeSet, man
 		if i == 4 {
 			mode = 0100444
 		}
-		if err = archive.entry(runtimePaths[i], mode, in.Size, io.TeeReader(contextReader{ctx, in.File}, h)); err != nil {
+		if err = archive.entry(paths[i], mode, in.Size, io.TeeReader(contextReader{ctx, in.File}, h)); err != nil {
 			return nil, err
 		}
 		var extra [1]byte
@@ -167,16 +186,39 @@ func ReadInitrd(ctx context.Context, reader io.Reader) (*InitrdContents, error) 
 	for _, entry := range []struct {
 		path  string
 		limit int64
-	}{{"usr/lib/keel/installer-runtime.json", 64 << 10}, {"usr/lib/keel/approved-media-manifest.json", 16 << 20}, {"usr/lib/keel/approved-runtime-set.json", 64 << 10}, {InitPath, MaxBinaryBytes}, {PreflightPath, MaxBinaryBytes}, {SSHHelperPath, MaxBinaryBytes}, {SMARTPath, MaxBinaryBytes}, {BootCAPath, 1 << 20}} {
-		mode := uint64(0100444)
-		if entry.path == InitPath || entry.path == PreflightPath || entry.path == SSHHelperPath || entry.path == SMARTPath {
-			mode = 0100555
-		}
-		data, e := archive.entry(entry.path, mode, entry.limit)
+	}{{"usr/lib/keel/installer-runtime.json", 64 << 10}, {"usr/lib/keel/approved-media-manifest.json", 16 << 20}, {"usr/lib/keel/approved-runtime-set.json", 64 << 10}} {
+		data, e := archive.entry(entry.path, 0100444, entry.limit)
 		if e != nil || len(data) == 0 {
 			return nil, ErrInvalid
 		}
 		files[entry.path] = data
+	}
+	var metadata RuntimeMetadata
+	raw := files["usr/lib/keel/installer-runtime.json"]
+	if json.Unmarshal(raw, &metadata) != nil {
+		return nil, ErrInvalid
+	}
+	canonical, err := json.Marshal(metadata)
+	if err != nil || !bytes.Equal(raw, canonical) || metadata.Runtime.Validate() != nil || metadata.Schema != schemaForRuntime(metadata.Runtime) || metadata.Arch != metadata.Runtime.Arch || len(metadata.Components) != len(metadata.Runtime.Components()) {
+		return nil, ErrInvalid
+	}
+	config := files["usr/lib/keel/approved-runtime-set.json"]
+	set, err := mediaboot.DecodeRuntimeSet(config)
+	manifest := files["usr/lib/keel/approved-media-manifest.json"]
+	if err != nil || !set.Equal(metadata.Runtime) || metadata.ApprovedRuntimeSHA256 != rawSHA(config) || metadata.ApprovedManifestSHA256 != rawSHA(manifest) {
+		return nil, ErrInvalid
+	}
+	paths := pathsForRuntime(set)
+	for i, path := range paths {
+		mode, limit := uint64(0100555), MaxBinaryBytes
+		if i == 4 {
+			mode, limit = 0100444, 1<<20
+		}
+		data, e := archive.entry(path, mode, limit)
+		if e != nil || len(data) == 0 {
+			return nil, ErrInvalid
+		}
+		files[path] = data
 	}
 	if _, err = archive.entry("TRAILER!!!", 0, 0); err != nil {
 		return nil, err
@@ -188,25 +230,10 @@ func ReadInitrd(ctx context.Context, reader io.Reader) (*InitrdContents, error) 
 	if _, err = buffered.ReadByte(); err != io.EOF {
 		return nil, ErrInvalid
 	}
-	var metadata RuntimeMetadata
-	raw := files["usr/lib/keel/installer-runtime.json"]
-	if json.Unmarshal(raw, &metadata) != nil {
-		return nil, ErrInvalid
-	}
-	canonical, err := json.Marshal(metadata)
-	if err != nil || !bytes.Equal(raw, canonical) || metadata.Schema != InitrdSchema || metadata.Runtime.Validate() != nil || metadata.Arch != metadata.Runtime.Arch || len(metadata.Components) != 5 {
-		return nil, ErrInvalid
-	}
-	config := files["usr/lib/keel/approved-runtime-set.json"]
-	set, err := mediaboot.DecodeRuntimeSet(config)
-	manifest := files["usr/lib/keel/approved-media-manifest.json"]
-	if err != nil || set != metadata.Runtime || metadata.ApprovedRuntimeSHA256 != rawSHA(config) || metadata.ApprovedManifestSHA256 != rawSHA(manifest) {
-		return nil, ErrInvalid
-	}
 	for i, want := range set.Components() {
 		c := metadata.Components[i]
-		data := files[runtimePaths[i]]
-		if c.Path != runtimePaths[i] || c.MediaID != want.MediaID || c.SHA256 != want.SHA256 || c.Size != int64(len(data)) || verifyRuntimeInput(ctx, Input{MediaID: c.MediaID, SHA256: c.SHA256, Size: c.Size, File: bytes.NewReader(data)}, set.Arch, i) != nil {
+		data := files[paths[i]]
+		if c.Path != paths[i] || c.MediaID != want.MediaID || c.SHA256 != want.SHA256 || c.Size != int64(len(data)) || verifyRuntimeInput(ctx, Input{MediaID: c.MediaID, SHA256: c.SHA256, Size: c.Size, File: bytes.NewReader(data)}, set.Arch, i) != nil {
 			return nil, ErrInvalid
 		}
 	}

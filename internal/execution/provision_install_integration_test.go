@@ -35,6 +35,23 @@ func installationKernelSource(t *testing.T, installable, signedImage bool) (*pro
 	mustAgent(t, err)
 	scope, err = f.store.ChangeProvisionBootScope(ctx, f.reviewer, f.project, scope.ID, "approve", platform.ProvisionBootScopeActionInput{ExpectedVersion: scope.StateVersion, CustomerApprovalRef: "fixture:customer-consent", NetworkApprovalRef: "fixture:network-team-consent"}, "test")
 	mustAgent(t, err)
+	// This suite shares one disposable DB across fixtures. Retire only this
+	// fixture's domain through the real API so a later fixture can use its CIDR.
+	t.Cleanup(func() {
+		cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		current, e := f.store.ReadProvisionBootScope(cleanup, f.actor, f.project, scope.ID)
+		if e != nil {
+			t.Error("read fixture scope for retirement", e)
+			return
+		}
+		if current.State != "revoked" {
+			_, e = f.store.ChangeProvisionBootScope(cleanup, f.actor, f.project, current.ID, "revoke", platform.ProvisionBootScopeActionInput{ExpectedVersion: current.StateVersion, Reason: "retire this isolated software fixture domain"}, "test")
+			if e != nil {
+				t.Error("retire fixture scope", e)
+			}
+		}
+	})
 	public, _, err := ed25519.GenerateKey(rand.Reader)
 	mustAgent(t, err)
 	if !signedImage {
