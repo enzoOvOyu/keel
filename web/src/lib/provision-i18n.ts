@@ -37,7 +37,10 @@ export const provisionTranslations = {
 "installProgressReason_rootfs_delivery_reported": "冻结 rootfs 已由服务器完整发送；客户端校验和安装状态另行确认。",
 "installProgressReason_server_delivery_recorded": "服务器已完整发送部分安装文件；尚不证明客户端收到全部文件或校验通过。",
 
-  "installProgressTitle": "安装七阶段进度",
+  "installPrewriteRecoveryTitle": "结束未获写盘许可的任务",
+ "installPrewriteRecoveryImpact": "服务器将核实原任务从未获得写盘许可，再记录失败并释放原隔离资源；不会连接设备、执行写盘或自动重装。若存在写盘许可，此操作会拒绝。",
+ "installPrewriteRecoverySubmit": "核实并结束任务",
+ "installProgressTitle": "安装七阶段进度",
   "installProgressEvidenceHint": "按已记录证据显示；缺少阶段证据时保持待确认。分发、首启回调与 SSH 验证分别展示。",
   "installProgressReservation": "机器安装保留",
   "installProgressReserved": "保留中",
@@ -194,7 +197,10 @@ export const provisionTranslations = {
 "installProgressReason_rootfs_delivery_reported": "Frozen rootfs fully sent by the server; client verification and installation are tracked separately.",
 "installProgressReason_server_delivery_recorded": "Server completed delivery of installation files; receipt of every file and client verification remain unproven.",
 
-  "installProgressTitle": "Seven installation stages",
+  "installPrewriteRecoveryTitle": "Close an installation without a write permit",
+ "installPrewriteRecoveryImpact": "The server must prove that the original task never received a write permit before recording failure and releasing its quarantined resource. No device connection, disk write or automatic reinstall occurs. Any issued permit blocks this action.",
+ "installPrewriteRecoverySubmit": "Verify and close task",
+ "installProgressTitle": "Seven installation stages",
   "installProgressEvidenceHint": "Stages reflect recorded evidence. Missing evidence remains pending. Delivery, first-boot reporting and SSH verification are tracked separately.",
   "installProgressReservation": "Machine reservation",
   "installProgressReserved": "Reserved",

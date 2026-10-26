@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～111。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～112。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
@@ -1364,3 +1364,12 @@ initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新�
 从e5aa77e继续。复核发现：真实SSH核验/资产trust/registered/native receipt已同事务提交后，worker可能在Complete前退出；reaper将原attempt置unknown、原独占lease置reconciling，而原注册回执准入仅接受running/live lease，导致既有不可变成功证据也无法走通既有Reconcile。现仅扩展registered分支：在原command/attempt/fence、原机器exclusive reconciling资源、reconciling execution、完整SSH事件转录承诺与实际当前asset版本/hostpin/domain身份全部吻合时，允许原授权Reconcile应用已有native receipt。正常live Complete路径保持原限制；没有续租、重新SSH、写盘、另建attempt或新资源授权。实际资源/资产行在准入事务锁住，错fence/已释放/改变版本/转录不符拒绝。
 
 七阶段资源显示同时修正：registered只说明域投影成功，实际held/reconciling lease仍显示保留；到期或reconciling提示需要执行对账，只有真实released才解除，不覆盖已存SSH成功事实。新增真实DB下游崩溃边界源码fixture明确手工种已提交记录，不冒充实际SSH；覆盖显式对账/幂等/不续租不建attempt及上述拒绝项，已接集中regex。progress pure回归同样只写入。必要两包仅编译与vet退出0，日志/tmp/keel-registered-recovery-{compile,vet}.log；无功能/SQL/浏览器/镜像/硬件测试，P1 partial。
+
+
+## 112. 从未签发写盘许可的隔离任务人工收尾（2026-10-26）
+
+接续eb3161f，单Agent新增prewrite-reconcile API与双语共享组件入口。仅当前Admin/DL/SRE显式提交准确installation版本、原因和幂等键；执行必须reconciling，原attempt unknown且身份/原机器exclusive reconciling claim一致，安装unknown且permit_issued_at为空，并在正常execution→attempt→installation锁序下再次证实没有write.permit_issued事件。原许可签发无法越过同一锁序并发提交。服务端同事务记录stopped_before_write、原native failed receipt、人工审计、原attempt结束和资源释放；复用原执行settle，不连接目标、不续租、不创建重试/attempt、不改资产/互信。任何发过许可、版本变更、live任务、已失claim或越权都拒绝，unknown写盘结果不借此释放。
+
+进度面板仅在unknown/未签许可/实际reconciling、当前版本和权限吻合时提供显式确认入口，表单网络未知时相同原因保留幂等键。服务端验证始终权威。API/OpenAPI/TS保持一致，安装创建旧描述同步到当前受控writer/首启/SSH源码边界。
+
+新增数据库软件用例源码覆盖并发幂等/一次proof/一次停止、不动资产信任/不重试，以及上述拒绝项；已接集中regex，未运行。必要execution/httpapi仅编译、vet、API生成、TypeScript与UI边界均退出0，日志/tmp/keel-prewrite-recovery-{compile,vet,api,tsc,ui}.log；git diff --check、脚本AST和设计检查通过。3000/SQL/镜像/生产开关未变，P1 partial。

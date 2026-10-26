@@ -294,3 +294,8 @@ SSH未知结果仅显式query原helper回执；只有当前fresh pinned query证
 ### 已注册成功后的worker崩溃对账（当前源码）
 
 若注册/trust和native receipt已原子提交而Complete前worker退出，原attempt/lease会由reaper隔离。授权用户可通过既有执行Reconcile消费该份已存证明：必须原native身份、exclusive reconciling资源、reconciling执行、准确SSH事件承诺和当前投影身份/资产版本一致；错误、失去claim或没有证明均拒绝。该路径不续租、不调用SSH、不重装，也不适用于尚无成功证明的unknown安装。页面区分registered投影与实际资源释放。仅编译/vet，崩溃边界fixture未运行，见HANDOFF 111。
+
+
+### 写盘前隔离任务的显式收尾（当前源码）
+
+对于reaper隔离但从未签发写盘许可的安装，当前Admin/DL/SRE可提交准确版本/原因/幂等键至`prewrite-reconcile`。服务器锁住原执行、attempt和installation，再证明permit字段和事件均不存在、原机器独占claim仍reconciling，才同事务记失败/回执/审计并释放原资源。原资产与互信不变；不启动设备、不续租或重试。任何发过许可的unknown不允许此操作，必须继续隔离核实真实结果。页面按钮依赖当前事实，服务端始终复核；功能/数据库/浏览器用例未运行，见HANDOFF 112。

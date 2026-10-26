@@ -13,8 +13,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Default off. Admin/DE/DL/SRE consumes an exact prepared installable source once into a separate no-retry execution with a fresh exclusive machine lease. Read-only boot and authenticated preflight precede disk selection and independent approval. A separate explicitly enabled isolated service can serve approved boot files and signed read-only preflight. The writer and first-boot/SSH completion remain unavailable; this phase cannot report installation success. */
+        /** @description Default off. Admin/DE/DL/SRE consumes an exact prepared installable source once into a separate no-retry execution with a fresh exclusive machine lease. Read-only boot and authenticated preflight precede disk selection and independent approval. A separate explicitly enabled isolated service can serve approved boot files and signed read-only preflight. Controlled writes require a v2 approved target/runtime, independent disk review and a current one-time write permit. Completion requires authenticated first boot and fresh pinned SSH proof; feature enablement or a write report cannot claim success. */
         post: operations["createProvisionInstallation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/installations/{installationId}/prewrite-reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Admin/DL/SRE explicit recovery for an unchanged unknown native installation. Under the original execution/attempt locks, prove no write permit was ever issued and the exact exclusive resource remains reconciling. Persist a pre-write stop, native failed receipt and settlement atomically. No target command, lease renewal or automatic retry; any issued permit or uncertain write outcome is rejected. */
+        post: operations["reconcileProvisionBeforeWrite"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5478,6 +5495,51 @@ export interface operations {
                 content?: never;
             };
             /** @description Installation feature disabled, image trust missing or service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reconcileProvisionBeforeWrite: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                installationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionRequestAction"];
+            };
+        };
+        responses: {
+            /** @description Original native execution settled from server pre-write proof */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Installation runtime disabled */
             503: {
                 headers: {
                     [name: string]: unknown;

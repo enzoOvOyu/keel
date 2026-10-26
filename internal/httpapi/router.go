@@ -92,6 +92,7 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 		auth.registerProvisionRequests(r)
 		auth.registerProvisionScopes(r)
 		auth.registerProvisionInstallations(r)
+		auth.registerProvisionPrewriteRecovery(r)
 		auth.registerProvisionInstallationProgress(r)
 		auth.registerProvisionSSHRetry(r)
 		auth.registerProvisionSSHVerification(r)
