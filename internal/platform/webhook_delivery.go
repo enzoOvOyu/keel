@@ -29,7 +29,7 @@ func (d *WebhookDispatcher) Bind(ctx context.Context) error {
 		if e != nil {
 			return e
 		}
-		inserted, e := tx.ExecContext(ctx, "INSERT INTO notification_webhook_policies(sink_id,project_id,policy_sha256,event_types,not_before) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING", s.ID, s.ProjectID, s.PolicyHash(), types, s.NotBefore)
+		inserted, e := tx.ExecContext(ctx, "INSERT INTO notification_webhook_policies(sink_id,project_id,policy_sha256,event_types,not_before,delivery_format) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING", s.ID, s.ProjectID, s.PolicyHash(), types, s.NotBefore, s.DeliveryFormat())
 		if e != nil {
 			return e
 		}
@@ -38,13 +38,13 @@ func (d *WebhookDispatcher) Bind(ctx context.Context) error {
 			return e
 		}
 		if count == 1 {
-			if e = appendAudit(ctx, tx, "", s.ProjectID, "notification.webhook.bound", s.ID, "worker", map[string]any{"policy_sha256": s.PolicyHash(), "key_id": s.KeyID()}); e != nil {
+			if e = appendAudit(ctx, tx, "", s.ProjectID, "notification.webhook.bound", s.ID, "worker", map[string]any{"policy_sha256": s.PolicyHash(), "key_id": s.KeyID(), "delivery_format": s.DeliveryFormat()}); e != nil {
 				return e
 			}
 		}
 		var project, hash string
 		var matching bool
-		if err = tx.QueryRowContext(ctx, "SELECT project_id,policy_sha256,event_types=$2::jsonb AND not_before=$3 FROM notification_webhook_policies WHERE sink_id=$1", s.ID, types, s.NotBefore).Scan(&project, &hash, &matching); err != nil {
+		if err = tx.QueryRowContext(ctx, "SELECT project_id,policy_sha256,event_types=$2::jsonb AND not_before=$3 AND delivery_format=$4 FROM notification_webhook_policies WHERE sink_id=$1", s.ID, types, s.NotBefore, s.DeliveryFormat()).Scan(&project, &hash, &matching); err != nil {
 			return err
 		}
 		if project != s.ProjectID || hash != s.PolicyHash() || !matching {
@@ -164,7 +164,9 @@ func (d *WebhookDispatcher) DeliverOne(ctx context.Context, s *webhook.Sink) (bo
 	if sendErr != nil || status < 200 || status >= 300 {
 		state = "dead"
 		reason = "http_rejected"
-		if sendErr != nil {
+		if errors.Is(sendErr, webhook.ErrDeliveryWindowExpired) {
+			reason = "event_expired"
+		} else if sendErr != nil && !errors.Is(sendErr, webhook.ErrProviderRejected) {
 			reason = "transport_unknown"
 		}
 		if retry && attempts < 6 {

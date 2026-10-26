@@ -24,28 +24,48 @@ func (f *Fetcher) CheckURL(source string) error {
 // PostJSON reuses DNS/dial pinning, metadata exclusions and proxy isolation.
 // Notifications never follow redirects or retain a receiver's response body.
 func (f *Fetcher) PostJSON(ctx context.Context, target string, headers http.Header, body []byte) (int, error) {
+	status, _, err := f.postJSON(ctx, target, headers, body, false)
+	return status, err
+}
+
+// PostJSONAcknowledgement returns at most 4096 bytes to a protocol adapter.
+// The adapter must interpret them without logging or persisting receiver data.
+func (f *Fetcher) PostJSONAcknowledgement(ctx context.Context, target string, headers http.Header, body []byte) (int, []byte, error) {
+	return f.postJSON(ctx, target, headers, body, true)
+}
+
+func (f *Fetcher) postJSON(ctx context.Context, target string, headers http.Header, body []byte, acknowledgement bool) (int, []byte, error) {
 	if len(body) > 64<<10 || f.CheckURL(target) != nil {
-		return 0, ErrNotAllowed
+		return 0, nil, ErrNotAllowed
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, target, bytes.NewReader(body))
 	if err != nil {
-		return 0, ErrNotAllowed
+		return 0, nil, ErrNotAllowed
 	}
 	request.Header = headers.Clone()
 	if request.Header == nil {
 		request.Header = make(http.Header)
 	}
-	request.Header.Set("Content-Type", "application/cloudevents+json")
+	if request.Header.Get("Content-Type") == "" {
+		request.Header.Set("Content-Type", "application/cloudevents+json")
+	}
 	request.Header.Set("User-Agent", "Keel event webhook")
 	client := *f.client
 	client.Timeout = 8 * time.Second
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	response, err := client.Do(request)
 	if err != nil {
-		return 0, ErrUnavailable
+		return 0, nil, ErrUnavailable
 	}
 	defer response.Body.Close()
+	if acknowledgement {
+		raw, readErr := io.ReadAll(io.LimitReader(response.Body, 4097))
+		if readErr != nil || len(raw) > 4096 {
+			return response.StatusCode, nil, ErrUnavailable
+		}
+		return response.StatusCode, raw, nil
+	}
 	// The acknowledgement is its status, not untrusted receiver content.
 	io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
-	return response.StatusCode, nil
+	return response.StatusCode, nil, nil
 }

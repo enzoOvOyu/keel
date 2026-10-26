@@ -30,7 +30,7 @@ export function WebhookDeliveryPanel({ projectId }: { projectId: string }) {
           <TableBody>{data.items.map(item => <TableRow key={`${item.sink_id}:${item.event_id}`}>
             <TableCell className="ui:whitespace-normal"><span>{t(`notificationType_${item.event_type.replaceAll('.', '_')}`)}</span><span className="cell-subtitle mono-value">{item.event_id}</span>
               <Link to="/p/$projectId/executions" params={{ projectId }} search={{ execution: item.execution_id, tab: 'overview' }}>{item.execution_id}</Link></TableCell>
-            <TableCell className="mono-value ui:whitespace-normal">{item.sink_id}</TableCell>
+            <TableCell className="mono-value ui:whitespace-normal">{item.sink_id}<span className="cell-subtitle">{t(`notificationFormat_${item.format}`)}</span></TableCell>
             <TableCell className="ui:whitespace-normal"><span className="state-badge">{t(`notificationState_${item.state}`)}</span>{item.last_error && <span className="cell-subtitle">{t(`notificationError_${item.last_error}`)}</span>}{item.http_status && <span className="cell-subtitle">HTTP {item.http_status}</span>}</TableCell>
             <TableCell>{item.attempts} / 6</TableCell>
             <TableCell className="ui:whitespace-normal">{t('updatedAt')}: {date(item.updated_at)}<span className="cell-subtitle">{item.state === 'delivered' ? `${t('notificationDeliveredAt')}: ${date(item.delivered_at)}` : item.state === 'pending' ? `${t('notificationNextAttempt')}: ${date(item.next_attempt_at)}` : item.state === 'dead' ? t('notificationDeadHint') : t('notificationDeliveringHint')}</span></TableCell>

@@ -381,4 +381,103 @@ func TestWebhookDurableOutboxDeliveryAndIsolation(t *testing.T) {
 		t.Fatal("non-owner bypassed status maintenance boundary")
 	}
 
+	t.Run("provider_adapters_share_durable_project_outbox", func(t *testing.T) {
+		for _, format := range []string{"resend", "slack"} {
+			t.Run(format, func(t *testing.T) {
+				var calls atomic.Int64
+				hmacKey := bytes.Repeat([]byte{0x62}, 32)
+				provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					calls.Add(1)
+					body, err := io.ReadAll(io.LimitReader(r.Body, 64<<10))
+					if err != nil {
+						t.Error(err)
+					}
+					if err = webhook.Verify(hmacKey, r.Header.Get("X-Keel-Timestamp"), r.Header.Get("X-Keel-Event-ID"), r.Header.Get("X-Keel-Signature"), body, time.Now()); err != nil {
+						t.Error("provider wire signature", err)
+					}
+					if bytes.Contains(body, []byte("private_metadata")) || bytes.Contains(body, []byte("private_token")) || !bytes.Contains(body, []byte(project.ID)) {
+						t.Error("provider public projection boundary")
+					}
+					if format == "resend" {
+						if r.Header.Get("Authorization") != "Bearer re_private_token_1234567890" || r.Header.Get("Idempotency-Key") == "" {
+							t.Error("mail provider authority")
+						}
+						_, _ = io.WriteString(w, `{"id":"49a3999c-0ce1-4ea6-ab68-afcd6dc2e794"}`)
+					} else {
+						_, _ = io.WriteString(w, "ok")
+					}
+				}))
+				defer provider.Close()
+				dir := t.TempDir()
+				keyFile, tokenFile := filepath.Join(dir, "signing"), filepath.Join(dir, "provider")
+				if err := os.WriteFile(keyFile, hmacKey, 0600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(tokenFile, []byte("re_private_token_1234567890"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				var lower time.Time
+				if err := s.DB.QueryRowContext(ctx, "SELECT clock_timestamp()").Scan(&lower); err != nil {
+					t.Fatal(err)
+				}
+				sink := webhook.Sink{ID: "provider-" + format, ProjectID: project.ID, NotBefore: lower, EventTypes: []string{"execution.authorization_blocked"}, Format: format, SigningKeyFile: keyFile}
+				if format == "resend" {
+					sink.URL = provider.URL + "/emails"
+					sink.APIKeyFile = tokenFile
+					sink.Email = &webhook.EmailDestination{From: "keel@example.com", To: []string{"ops@example.com"}}
+				} else {
+					sink.URL = provider.URL + "/services/T1/B1/fixture"
+				}
+				configFile := filepath.Join(dir, "config.json")
+				settings := webhook.Config{Schema: webhook.Schema, AllowedOrigins: []string{provider.URL}, Sinks: []webhook.Sink{sink}}
+				writeConfig := func() *webhook.Config {
+					t.Helper()
+					raw, err := json.Marshal(settings)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err = os.WriteFile(configFile, raw, 0600); err != nil {
+						t.Fatal(err)
+					}
+					loaded, err := webhook.Load(configFile, true)
+					if err != nil {
+						t.Fatal(err)
+					}
+					t.Cleanup(loaded.Close)
+					return loaded
+				}
+				config := writeConfig()
+				dispatcher := &WebhookDispatcher{DB: s.DB, Config: config}
+				if err := dispatcher.Bind(ctx); err != nil {
+					t.Fatal(err)
+				}
+				expectedEvent := seedEvent(execution, "execution.authorization_blocked", `{"state":"failed","private_metadata":"never-forward"}`)
+				seedEvent(foreignExecution, "execution.authorization_blocked", `{"state":"failed"}`)
+				if n, err := dispatcher.Enqueue(ctx, &config.Sinks[0]); err != nil || n != 1 {
+					t.Fatal("provider enqueue isolation", n, err)
+				}
+				if sent, err := dispatcher.DeliverOne(ctx, &config.Sinks[0]); err != nil || !sent {
+					t.Fatal("provider dispatch", sent, err)
+				}
+				if sent, err := dispatcher.DeliverOne(ctx, &config.Sinks[0]); err != nil || sent || calls.Load() != 1 {
+					t.Fatal("terminal provider event replayed", sent, err)
+				}
+				var state, recordedFormat string
+				var attempts, status int
+				if err := s.DB.QueryRowContext(ctx, `SELECT d.state,d.attempts,d.http_status,p.delivery_format FROM notification_webhook_deliveries d JOIN notification_webhook_policies p ON p.sink_id=d.sink_id WHERE d.sink_id=$1 AND d.event_id=$2`, sink.ID, expectedEvent).Scan(&state, &attempts, &status, &recordedFormat); err != nil || state != "delivered" || attempts != 1 || status != 200 || recordedFormat != format {
+					t.Fatal("provider durable acknowledgement", state, attempts, status, recordedFormat, err)
+				}
+				if format == "resend" {
+					settings.Sinks[0].Email.To = []string{"another@example.com"}
+				} else {
+					settings.Sinks[0].URL = provider.URL + "/services/T1/B2/different"
+				}
+				changed := &WebhookDispatcher{DB: s.DB, Config: writeConfig()}
+				if err := changed.Bind(ctx); err == nil {
+					t.Fatal("provider destination changed under an existing immutable sink ID")
+				}
+			})
+		}
+	})
+
 }

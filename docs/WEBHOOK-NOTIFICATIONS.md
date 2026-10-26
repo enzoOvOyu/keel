@@ -1,6 +1,6 @@
 # P1 出站执行通知（源码，待集中验证）
 
-WP-1.6 / PRD FR-10.4 的首个通知通道：现有执行 outbox 的项目级 Webhook。默认关闭，当前没有向外部接收人发送通知，也没有启用运行 worker。邮件、IM 专用适配、通知配置编辑页面、工单/门禁/AI 告警来源和入站 Flow 触发器尚未完成；不能将此子集计为 F-10.3 或 P1 全部通过。
+WP-1.6 / PRD FR-10.4 的出站通道复用现有执行 outbox：签名CloudEvents Webhook、Resend邮件和Slack机器人。默认关闭，当前没有向外部接收人发送通知，也没有启用运行 worker。通知配置编辑页面、工单/门禁/AI 告警来源和入站 Flow 触发器尚未完成；不能将此子集计为 F-10.3 或 P1 全部通过。
 
 ## 配置与独立凭据
 
@@ -65,3 +65,28 @@ keel-admin webhook-delivery-status --project 0123456789abcdef0123456789abcdef --
 ## 待集中验证
 
 新单元/实际 PostgreSQL 与本地 HTTP 接收 fixture 用例覆盖签名、过期/错密钥/报文改写、白名单/metadata/重定向、项目隔离、无原始 metadata 出站、独立调度 ACK、不可变策略、503→204、有界退避、403终止、过期认领恢复、并发不重认领、六次后停止及实际 owner 状态 CLI。已加入 `check-p1-lifecycle-integration.py`，尚未执行；该入口不是完整 P1 或硬件验收。必要编译结果以 HANDOFF 记录为准。
+
+## 邮件与IM适配（源码，未启用）
+
+同一配置的sink可选`format`：省略或`cloudevents`保留原报文/原策略摘要；`resend`和`slack`在发送边界转换公开事实。配置schema仍为v1，新增可选字段；065为不可变策略保存通道类型，不修改原投递载荷。现有CLI/API/审计页显示类型。未新增队列或自动发送入口。
+
+邮件采用[Resend Send Email API](https://resend.com/docs/api-reference/emails/send-email)，不要求SMTP账号或另建邮件服务器。sink额外字段示例（其他id/project/not_before/event_types/signing_key_file沿用前例）：
+
+```json
+{
+  "format": "resend",
+  "url": "https://api.resend.com/emails",
+  "api_key_file": "/run/keel/webhooks/project-mail.api-key",
+  "email": { "from": "keel@example.com", "to": ["ops@example.com"] }
+}
+```
+
+`allowed_origins`须明确包含`https://api.resend.com`。独立provider token文件0600/当前UID/普通单链接/无符号链接，内容为token本身，无尾随换行；不得复用HMAC密钥。最多16个明确收件人，重复或地址注入拒绝。sender/recipient、通道、URL、独立provider凭据指纹均进入策略摘要，同ID变更拒绝绑定，收件人和token不写DB/审计/页面。邮件只含固定标题、项目/执行/事件ID、版本、时间及可识别状态，无HTML、附件、日志或执行输出。
+
+`Idempotency-Key=keel/<sink_id>/<event_id>`重启/重试保持一致。[供应商幂等保留24小时](https://resend.com/docs/dashboard/emails/idempotency-keys)，本适配仅发送创建后23小时内的事件，保证全部尝试在该窗口内；积压超时记dead/event_expired且不再发出请求，不能在幂等失效后盲目重发。HTTP 2xx还须包含有效provider message UUID才记接受；缺失/损坏应答按未知结果有限重试，响应不保存。此状态仅证明邮件API接受，不能证明收件箱已投递或用户已读。
+
+IM采用[Slack Incoming Webhooks](https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/)：`format=slack`，`url=https://hooks.slack.com/services/<team>/<bot>/<secret>`，明确白名单`https://hooks.slack.com`。URL本身是凭据，只保存在受保护配置；不填`email/api_key_file`。使用固定纯文本公开事实，禁链接展开，不允许调用者注入@提醒或任意模板；仅HTTP200及纯文本`ok`应答记接受，2xx错误文本不计成功。该通道至少一次投递，传输未知时可能重复，不声明恰好一次。
+
+两个适配均保留对实际发送JSON的X-Keel HMAC头；供应商身份认证分别依赖独立API token或Slack secret URL，**不声称供应商会验证Keel HMAC**。原CloudEvents自建接收方仍须按前文验证HMAC/时间窗/持久去重。生产只接受上述精确供应商host/path，受同一DNS固定、metadata排除、无代理/重定向及8秒边界限制；显式development仅可替换为loopback协议fixture。未开放任意邮件API/IM供应商或通用SMTP。
+
+新增本地HTTP协议及PG持久outbox用例源码，覆盖实际wire签名、token隔离、稳定邮件幂等键、跨项目/错误200应答拒绝、超时窗口、收件人/密钥变更绑定冲突及关闭清除凭据；未运行，不代表外部服务、真实邮箱或IM验收。后续门禁/工单/AI等事件源按所属阶段接入，不为P1提前实现后续业务。

@@ -7,6 +7,7 @@ import (
 )
 
 type WebhookDeliverySummary struct {
+	Format        string     `json:"format"`
 	SinkID        string     `json:"sink_id"`
 	ExecutionID   string     `json:"execution_id"`
 	EventType     string     `json:"event_type"`
@@ -89,7 +90,7 @@ func readWebhookDeliveriesTx(ctx context.Context, tx *sql.Tx, project string, li
 	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM notification_webhook_deliveries d JOIN notification_webhook_policies p ON p.sink_id=d.sink_id WHERE p.project_id=$1", project).Scan(&out.Total); err != nil {
 		return nil, err
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT d.sink_id,o.execution_id,o.event_type,d.event_id,d.state,d.attempts,d.http_status,d.last_error,d.next_attempt_at,d.delivered_at,d.updated_at
+	rows, err := tx.QueryContext(ctx, `SELECT p.delivery_format,d.sink_id,o.execution_id,o.event_type,d.event_id,d.state,d.attempts,d.http_status,d.last_error,d.next_attempt_at,d.delivered_at,d.updated_at
  FROM notification_webhook_deliveries d JOIN notification_webhook_policies p ON p.sink_id=d.sink_id
  JOIN exec_outbox o ON o.id=d.event_id
  WHERE p.project_id=$1 ORDER BY d.updated_at DESC,d.sink_id,d.event_id LIMIT $2 OFFSET $3`, project, limit, offset)
@@ -99,7 +100,7 @@ func readWebhookDeliveriesTx(ctx context.Context, tx *sql.Tx, project string, li
 	defer rows.Close()
 	for rows.Next() {
 		var item WebhookDeliverySummary
-		if err = rows.Scan(&item.SinkID, &item.ExecutionID, &item.EventType, &item.EventID, &item.State, &item.Attempts, &item.HTTPStatus, &item.LastError, &item.NextAttemptAt, &item.DeliveredAt, &item.UpdatedAt); err != nil {
+		if err = rows.Scan(&item.Format, &item.SinkID, &item.ExecutionID, &item.EventType, &item.EventID, &item.State, &item.Attempts, &item.HTTPStatus, &item.LastError, &item.NextAttemptAt, &item.DeliveredAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		out.Items = append(out.Items, item)

@@ -5801,6 +5801,8 @@ export interface components {
             page_size: number;
         };
         WebhookDeliverySummary: {
+            /** @enum {string} */
+            format: "cloudevents" | "resend" | "slack";
             sink_id: string;
             event_id: components["schemas"]["EntityID"];
             execution_id: components["schemas"]["EntityID"];
@@ -5811,7 +5813,7 @@ export interface components {
             attempts: number;
             http_status?: number;
             /** @enum {string} */
-            last_error?: "transport_unknown" | "http_rejected" | "attempts_exhausted";
+            last_error?: "transport_unknown" | "http_rejected" | "attempts_exhausted" | "event_expired";
             /** Format: date-time */
             next_attempt_at: string;
             /** Format: date-time */

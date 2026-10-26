@@ -29,12 +29,16 @@ var sinkIdentity = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 var eventTypes = map[string]bool{"execution.state_changed": true, "execution.circuit_breaker": true, "execution.authorization_blocked": true}
 
 type Sink struct {
-	ID             string    `json:"id"`
-	ProjectID      string    `json:"project_id"`
-	NotBefore      time.Time `json:"not_before"`
-	EventTypes     []string  `json:"event_types"`
-	URL            string    `json:"url"`
-	SigningKeyFile string    `json:"signing_key_file"`
+	ID             string            `json:"id"`
+	ProjectID      string            `json:"project_id"`
+	NotBefore      time.Time         `json:"not_before"`
+	EventTypes     []string          `json:"event_types"`
+	URL            string            `json:"url"`
+	SigningKeyFile string            `json:"signing_key_file"`
+	Format         string            `json:"format,omitempty"`
+	APIKeyFile     string            `json:"api_key_file,omitempty"`
+	Email          *EmailDestination `json:"email,omitempty"`
+	apiKey         []byte
 	key            []byte
 	keyID          string
 	policy         string
@@ -73,6 +77,8 @@ func (c *Config) Close() {
 		for i := range c.Sinks {
 			clear(c.Sinks[i].key)
 			c.Sinks[i].key = nil
+			clear(c.Sinks[i].apiKey)
+			c.Sinks[i].apiKey = nil
 		}
 	}
 }
@@ -118,11 +124,22 @@ func Load(path string, development bool) (*Config, error) {
 			return nil, errors.New("webhook HMAC key must be a protected 32-byte file")
 		}
 		s.keyID = signingKeyID(s.key)
+		if err = s.loadFormat(development); err != nil {
+			c.Close()
+			return nil, err
+		}
 		projection, _ := json.Marshal(struct {
 			ID, ProjectID, URL, KeyID string
 			NotBefore                 time.Time
 			Types                     []string
 		}{s.ID, s.ProjectID, s.URL, s.keyID, s.NotBefore.UTC(), s.EventTypes})
+		if s.Format != "cloudevents" {
+			projection, _ = json.Marshal(struct {
+				Base             json.RawMessage
+				Format, APIKeyID string
+				Email            *EmailDestination
+			}{projection, s.Format, providerCredentialID(s.apiKey), s.Email})
+		}
 		sum := sha256.Sum256(projection)
 		s.policy = hex.EncodeToString(sum[:])
 	}
@@ -137,6 +154,9 @@ func signature(key []byte, timestamp, id string, body []byte) string {
 func (c *Config) Deliver(ctx context.Context, sink *Sink, eventID string, body []byte) (status int, retry bool, err error) {
 	if c == nil || sink == nil || len(sink.key) != 32 || !identity.MatchString(eventID) {
 		return 0, false, errors.New("webhook signing identity unavailable")
+	}
+	if sink.Format != "" && sink.Format != "cloudevents" {
+		return c.deliverProvider(ctx, sink, eventID, body)
 	}
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	headers := http.Header{"X-Keel-Event-Id": {eventID}, "X-Keel-Timestamp": {timestamp}, "X-Keel-Key-Id": {sink.keyID}, "X-Keel-Signature": {signature(sink.key, timestamp, eventID, body)}}
