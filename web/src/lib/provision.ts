@@ -3,6 +3,13 @@ import type { components } from '../generated/api'
 import type { components as execution } from '../generated/execution'
 export type ProvisionRequest = components['schemas']['ProvisionRequest']
 export type ProvisionBootScope = components['schemas']['ProvisionBootScope']
+export type ProvisionInstallation = components['schemas']['ProvisionInstallation']
+export type ProvisionDisk = components['schemas']['ProvisionDiskObservation']
+export const listProvisionInstallations = (project:string,page:number,signal:AbortSignal) => request<components['schemas']['ProvisionInstallationPage']>(`${provisionBase(project)}/installations?page=${page}&page_size=20`,{signal})
+export const getProvisionInstallation = (project:string,id:string,signal:AbortSignal) => request<ProvisionInstallation>(`${provisionBase(project)}/installations/${encodeURIComponent(id)}`,{signal})
+export const startProvisionInstallation = (item:ProvisionRequest,scope:string,reason:string,csrf:string,key:string) => request<execution['schemas']['Execution']>(`${provisionBase(item.project_id)}/requests/${encodeURIComponent(item.id)}/install`,{method:'POST',headers:{'X-CSRF-Token':csrf,'Idempotency-Key':key},body:JSON.stringify({expected_version:item.state_version,scope_id:scope,reason} satisfies components['schemas']['CreateProvisionInstallation'])})
+export const selectProvisionStorage = (item:ProvisionInstallation,intent:components['schemas']['ProvisionStorageIntent'],reason:string,csrf:string) => request<ProvisionInstallation>(`${provisionBase(item.project_id)}/installations/${encodeURIComponent(item.id)}/storage`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify({expected_version:item.state_version,intent,reason} satisfies components['schemas']['SelectProvisionStorage'])})
+export const approveProvisionStorage = (item:ProvisionInstallation,reason:string,csrf:string) => request<ProvisionInstallation>(`${provisionBase(item.project_id)}/installations/${encodeURIComponent(item.id)}/storage/approve`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify({expected_version:item.state_version,reason} satisfies components['schemas']['ProvisionRequestAction'])})
 export type CreateProvisionBootScope = components['schemas']['CreateProvisionBootScope']
 export const listProvisionBootScopes = (project:string,page:number,signal:AbortSignal) => request<components['schemas']['ProvisionBootScopePage']>(`${provisionBase(project)}/boot-scopes?page=${page}&page_size=20`,{signal})
 export const createProvisionBootScope = (project:string,input:CreateProvisionBootScope,csrf:string) => request<ProvisionBootScope>(`${provisionBase(project)}/boot-scopes`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify(input)})

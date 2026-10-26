@@ -247,7 +247,10 @@ func (s *Store) ListProvisionInstallations(ctx context.Context, a *AuthSession, 
 	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM provision_installations WHERE project_id=$1", project).Scan(&out.Total); err != nil {
 		return out, err
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT "+provisionInstallationColumns+" FROM provision_installations WHERE project_id=$1 ORDER BY created_at DESC,id LIMIT $2 OFFSET $3", project, p.PageSize, p.Offset())
+	// Polling the board must not repeatedly load multi-MiB hardware reports.
+	// The scoped detail endpoint supplies the exact evidence for an explicit review.
+	columns := strings.Replace(provisionInstallationColumns, "latest_report,", "NULL::bytea AS latest_report,", 1)
+	rows, err := tx.QueryContext(ctx, "SELECT "+columns+" FROM provision_installations WHERE project_id=$1 ORDER BY created_at DESC,id LIMIT $2 OFFSET $3", project, p.PageSize, p.Offset())
 	if err != nil {
 		return out, err
 	}
