@@ -90,7 +90,15 @@ func TestControlKVAtomicReceiptCASAndProjectIsolationPostgres(t *testing.T) {
 	if _, err = f.service.Create(ctx, f.actor, f.project, CreateInput{Mode: "sim", FlowVersionID: flow.ID, TargetIDs: []string{f.machine}}, platform.RandomID(), "kv"); err == nil {
 		t.Fatal("control admitted as simulation")
 	}
-	put := claimControlKV(t, f, x.ID)
+	// Exercise the public scheduler scan used by keel-worker, not only the
+	// project-specific fixture helper: control must need no device transport.
+	_, err = f.service.PumpOutbox(ctx, "kv-public-worker", 1000)
+	mustAgent(t, err)
+	put, err := f.service.Claim(ctx, "kv-public-worker", 10*time.Second)
+	mustAgent(t, err)
+	if put != nil && put.Attempt.ExecutionID != x.ID {
+		t.Fatal("public control claim selected an unrelated fixture")
+	}
 	if put == nil || put.Task.Type != "kv.put" {
 		t.Fatal("put not dispatched")
 	}

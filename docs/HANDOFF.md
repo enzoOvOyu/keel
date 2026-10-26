@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～154。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～155。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
 当前用户规模调整（2026-10-26）：P1逻辑设备扇出按200台，原2,000台后续优化，不再阻断当前P1闭环；成功率/介质完整性/权限/恢复要求保留。默认脚本已改，尚未运行，详见§136。
 
-### 低Token接续入口（2026-10-26，接续§154）
+### 低Token接续入口（2026-10-26，接续§155）
 
 - 工作区`/opt/keel`、分支`dev/p1-network-bom`，单Agent。§137～140为批准制品/取回/未启动证明；§141～145为DHCPv6 136协议及项目模拟链、双通道版本化主机DAG/批准介质步骤和YAML定位；§146为重装/RMA身份历史。§147～150已补参数熔断默认值、无介质项目KV、独立RMA审批及200逻辑ZTP/H-15/H-16材料，最近提交`0c3bc0b`；§151接通知投递可见性，不重做已有功能。
 - 用户要求直接推进至P1闭环；集中验证仍由用户另行安排。不运行测试、编译、静态检查、数据库、浏览器或镜像验证；必要gofmt/API生成只算源码产物。无tmux、SSH绕转、子Agent、工作树或推送。
@@ -1726,3 +1726,11 @@ WP-1.4/1.5/1.9：原重跑只支持sim，现接发布过的keel.host/v1 SSH/Agen
 200逻辑执行容量报告先写suite_completed=false，后续恢复/权限等整批完成才改true，避免容量子项已通过却被当成整批通过。所有脚本/新单元源码均未运行，没有编译、测试、数据库/浏览器/镜像操作、部署或推送；源62迁移/运行46不变。
 
 本轮定向读源码发现两个真实后续项：Control KV已接RunClaim，但公开worker Claim的mode查询遗漏control，需修复并从公开领取入口覆盖；WP-1.3/ADR-01的Redis Streams可重建队列仍未实现，目前PumpOutbox为PostgreSQL消费/去重/调度，Redis仅部署，不可写成Redis事件总线已交付。不要再把已存在的Machine/Component/PhysicalPort/项目资产/稳定BOM/outbox写成planned。
+
+## 155. KV公开worker领取与控制权限修正（2026-10-26，源码未验证）
+
+修复§154发现的control模式断链：公开Service.Claim现在将control与sim作为不依赖设备Runner的候选，原项目资源/租约/fence/当前权限和原子KV回执不变。TestControlKVAtomicReceiptCASAndProjectIsolationPostgres的第一次put改走PumpOutbox+公开Claim，双通道Runner均nil，防止只调用claimExecution私有fixture漏掉正式worker筛选。执行工作台把control归入Admin/DE/DL/SRE控制权限，修正先前错误落入网络NDE分支；后端原来已按该权限校验。
+
+同时补ExecutionSummary列表的rerun_supported只读能力投影，原生DAG与sim列表不再因字段零值被报不支持；实际预览/提交仍执行完整验证。仅gofmt，新增/修改用例未运行，无编译、静态/数据库/浏览器/镜像验证、部署或推送。源62迁移/运行46不变。
+
+下一完整主线是WP-1.3/ADR-01的可重建Redis Streams队列。现有PostgreSQL权威状态、outbox去重、资源锁及unknown恢复必须保留，Redis丢失/重启不得重放副作用或阻断已有DB对账；不是把内存channel或Redis服务存活当成队列交付。

@@ -317,14 +317,14 @@ func (s *Service) List(ctx context.Context, projectID string, p platform.Paginat
 	if e := s.DB.QueryRowContext(ctx, "SELECT count(*) FROM exec_executions WHERE project_id=$1", projectID).Scan(&out.Total); e != nil {
 		return out, e
 	}
-	rows, e := s.DB.QueryContext(ctx, "SELECT id,project_id,flow_version_id,mode,state,state_version,desired_state,target_set_hash,jsonb_array_length(snapshot->'targets'),concurrency,circuit_breaker_percent,created_by,created_at,started_at,finished_at FROM exec_executions WHERE project_id=$1 ORDER BY created_at DESC,id DESC LIMIT $2 OFFSET $3", projectID, p.PageSize, p.Offset())
+	rows, e := s.DB.QueryContext(ctx, "SELECT id,project_id,flow_version_id,mode,state,state_version,desired_state,target_set_hash,jsonb_array_length(snapshot->'targets'),concurrency,circuit_breaker_percent,created_by,created_at,started_at,finished_at,coalesce((mode='sim' AND snapshot#>>'{flow,definition,api_version}'='keel.sim/v1') OR (mode IN('ssh','agent') AND snapshot#>>'{flow,definition,api_version}'='keel.host/v1'),false) FROM exec_executions WHERE project_id=$1 ORDER BY created_at DESC,id DESC LIMIT $2 OFFSET $3", projectID, p.PageSize, p.Offset())
 	if e != nil {
 		return out, e
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var x ExecutionSummary
-		if e = rows.Scan(&x.ID, &x.ProjectID, &x.FlowVersionID, &x.Mode, &x.State, &x.StateVersion, &x.DesiredState, &x.TargetSetHash, &x.TargetCount, &x.Concurrency, &x.CircuitBreakerPercent, &x.CreatedBy, &x.CreatedAt, &x.StartedAt, &x.FinishedAt); e != nil {
+		if e = rows.Scan(&x.ID, &x.ProjectID, &x.FlowVersionID, &x.Mode, &x.State, &x.StateVersion, &x.DesiredState, &x.TargetSetHash, &x.TargetCount, &x.Concurrency, &x.CircuitBreakerPercent, &x.CreatedBy, &x.CreatedAt, &x.StartedAt, &x.FinishedAt, &x.RerunSupported); e != nil {
 			return out, e
 		}
 		out.Items = append(out.Items, x)
