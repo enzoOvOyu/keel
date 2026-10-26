@@ -67,10 +67,10 @@ v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud
 
 控制面将项目/申请/机器、实际安装 attempt/command/fence、快照摘要、期限及固定型号期望形成 `keel.provision-preflight/v1` Spec；helper 仅从本地 `--spec-file` 读取有界、严格无重复字段的 JSON，不接受自定义 sysfs 根目录或用户命令。该 Spec 尚待真实装机执行器和受限文件授权链签发；准备阶段不是签发权限。helper 输出原始事实与 PASS/FAIL/BLOCKED 报告，退出0仅代表本地预检 PASS，退出1为 FAIL/BLOCKED、退出2为非法/过期规格或输出失败。没有 HTTP 回调、凭据、安装命令、挂载、擦盘或资产状态更新。
 
-- 硬件事实读取 DMI/ARM device-tree SN、运行架构、PCI 类别/精确 vendor:device、物理槽位、VF 标记和物理 netdev/MAC。按 `physical_slot` 聚合多端口/多功能 NIC，不把端口或 VF 算成物理卡；未知槽位/驱动缺失阻断。BOM 引导 MAC 必须在真实非 VF 的 network-class PCI 端口上唯一出现；不能用 GPU 的 BDF、bond/VLAN/loopback 证明网卡。
+- 硬件事实读取 DMI/ARM device-tree SN、运行架构、PCI 类别/精确 vendor:device、物理槽位、VF 标记和物理 netdev/MAC。按内核 `/sys/bus/pci/slots/*/address` 的明确槽位映射聚合多端口/多功能 NIC，不把端口或 VF 算成物理卡；未知槽位/驱动缺失阻断。BOM 引导 MAC 必须在真实非 VF 的 network-class PCI 端口上唯一出现；不能用 GPU 的 BDF、bond/VLAN/loopback 证明网卡。
 - `ExpectationFromModel` 只消费申请固定的已发布型号，调用方仍须复核版本与内容摘要。`bom_expect.nic_count`、`hw_spec.gpu_count` 缺失保持 unknown，不从本次观测反推期望。新增可选 `hw_spec.gpu_pci_ids` / `non_gpu_pci_ids` 为非空、互斥、无重复的小写 `vendor:device` 列表；前者识别 GPU，后者由型号审核显式排除 BMC 显示等非 GPU 设备。未知显示/加速设备阻断，即使期望 GPU=0；不按厂商名字静默猜测，VF 不算物理 GPU。PCI 类别/ID 只证明在位，不证明 GPU 驱动、HBM 或 G2/G3 健康。
 - 磁盘只运行固定绝对路径 smartctl 的 `--json=c --health /dev/<受限设备名>`，不启用 SMART、不启动自测。进程/JSON exit_status 必须一致；读取/解析/不支持（位0～2）为 unknown，当前失败（位3～4）或 NVMe critical warning 非零为 FAIL。仅历史位不是当前故障结论；原 exit status 留在事实中，此项不替代完整磁盘验收。语义参照 [smartmontools 官方状态位定义](https://github.com/smartmontools/smartmontools/blob/main/src/smartctl.h)。至少1块磁盘是预检工程底线，不是目标盘选择授权；未支持的非虚拟磁盘类型或 RAID 后端须补可信适配，否则 BLOCKED。
-- 文件/目录/JSON有界，采集最多90秒、每盘8秒、报告输入2MiB上限；陈旧/不完整来源不得算零硬件。控制面 `EvaluateReport` 比对整个冻结 Spec，并根据事实重算结论/逐项检查，拒绝改期望、改 fence、伪造 PASS/WAIVED。这个函数不提供认证：真正消费前必须核验一次性回调凭据、当前审批/独占 lease、同一安装 attempt/command/fence/申请/项目；报告不能独立授权擦盘或安装。
+- 文件/目录/JSON有界，采集预算90秒、每盘SMART子进程8秒、报告输入2MiB上限；陈旧/不完整来源不得算零硬件。控制面 `EvaluateReport` 比对整个冻结 Spec，并根据事实重算结论/逐项检查，拒绝改期望、改 fence、伪造 PASS/WAIVED。这个函数不提供认证：真正消费前必须核验一次性回调凭据、当前审批/独占 lease、同一安装 attempt/command/fence/申请/项目；报告不能独立授权擦盘或安装。
 
 本批仅编译/静态检查，新增采集/判定/SMART/规格错绑用例待 P1 集中执行；没有在开发宿主机执行任何采集/SMART/装机操作。后续仍缺批准的引导固件与安装 recipe、把 helper 打入实际可启动介质、装机执行器及网络 Authority、一次性回调、SSH 首连和真实/规模验收。WP-1.7/P1 保持 partial。
 
@@ -101,3 +101,8 @@ v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud
 工具严格核验原始config/两份二进制的签名链与实际摘要、尺寸、64位小端目标架构、静态ELF（无解释器/动态库，入口在可执行LOAD段）；静态格式通过不证明二进制功能或真实驱动兼容。归档使用固定所有者/权限/时间、固定文件名与newc trailer，包含两个只读可执行helper、组件元数据、原签名清单与原helper-set JSON；不包含`/init`、用户账户、私钥、设备节点、链接或安装脚本。参考 [Linux initramfs buffer format](https://www.kernel.org/doc/html/latest/driver-api/early-userspace/buffer-format.html)。不把它冒充可启动镜像。
 
 输出只在全部流式校验、gzip关闭和fsync后以不覆盖的方式发布；复制过程中再次核验输入，防止先验后改。反向校验有界读取固定文件集合，不解包到任何宿主路径，拒绝符号链接、任意路径、改属主/权限、未知条目、损坏/尾随/串接归档和自带信任根；完整元数据必须与独立信任的原签名及config匹配。历史导出审批不替代当前线上准入；工具不访问数据库/网络、不执行helper、不操作设备或改变安装状态。本轮仅编译/静态检查，新增用例待P1集中执行。
+
+
+### Linux 物理槽位事实来源修正
+
+预检使用 `/sys/bus/pci/slots/<kernel-slot-name>/address` 解析精确device地址；不读取不存在的通用`devices/<BDF>/physical_slot`属性。`domain:bus`占位地址不能证明一张物理卡；同一device映射多个槽位时保持unknown。多端口/多功能共用槽位，卡内PCIe桥的子设备沿实际sysfs父链匹配最近的显式槽位；没有内核槽位事实的onboard设备继续BLOCKED，不把BDF或一条MAC直接算一张卡。名为`0`的真实内核槽位本身合法。支持规范4～8位PCI域，设备号限00～1f、function限0～7，无法解析的实际PCI条目和未支持的非PCI物理网卡记缺失而非静默忽略。参考 [Linux PCI slot ABI实现](https://github.com/torvalds/linux/blob/master/drivers/pci/slot.c) 与 [pciutils sysfs槽位读取](https://github.com/pciutils/pciutils/blob/master/lib/sysfs.c)。仍仅源码与编译检查，未采集宿主或真机。

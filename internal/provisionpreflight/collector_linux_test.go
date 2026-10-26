@@ -46,7 +46,7 @@ func (f *fixtureHost) health(_ context.Context, name string) Disk {
 	return Disk{Device: "/dev/" + name, Healthy: &yes, Reason: "fixture-only"}
 }
 func collectorFixture() *fixtureHost {
-	f := &fixtureHost{files: map[string]string{"/sys/class/dmi/id/product_serial": "fixture-server"}, directories: map[string][]string{"/sys/bus/pci/devices": {}, "/sys/class/net": {"eth0", "eth1", "vf0", "lo", "bond0"}, "/sys/block": {"loop0", "ram0", "sda", "nvme0n1", "dm-0"}}, links: map[string]string{}, existing: map[string]bool{}}
+	f := &fixtureHost{files: map[string]string{"/sys/class/dmi/id/product_serial": "fixture-server"}, directories: map[string][]string{"/sys/bus/pci/devices": {}, "/sys/bus/pci/slots": {"slot-1", "slot-2"}, "/sys/class/net": {"eth0", "eth1", "vf0", "lo", "bond0"}, "/sys/block": {"loop0", "ram0", "sda", "nvme0n1", "dm-0"}}, links: map[string]string{}, existing: map[string]bool{}}
 	for _, v := range []struct {
 		address, class, identity, slot string
 		vf                             bool
@@ -57,10 +57,11 @@ func collectorFixture() *fixtureHost {
 		f.files[base+"/class"] = v.class
 		f.files[base+"/vendor"] = "0x" + parts[0]
 		f.files[base+"/device"] = "0x" + parts[1]
-		f.files[base+"/physical_slot"] = v.slot
 		f.existing[base+"/physfn"] = v.vf
 		f.existing[base+"/driver"] = true
 	}
+	f.files["/sys/bus/pci/slots/slot-1/address"] = "0000:01:00"
+	f.files["/sys/bus/pci/slots/slot-2/address"] = "0000:02:00"
 	for i, name := range []string{"eth0", "eth1", "vf0"} {
 		address := []string{"0000:01:00.0", "0000:01:00.1", "0000:01:00.2"}[i]
 		f.links["/sys/class/net/"+name+"/device"] = "/sys/devices/pci0000:00/" + address
@@ -106,5 +107,21 @@ func TestCollectorARMSerialAndCanceledCollection(t *testing.T) {
 	o := (&Collector{source: f, arch: "arm64"}).Collect(ctx)
 	if o.Serial != "arm-server" || o.Arch != "arm64" || len(o.Missing) == 0 || len(f.probes) != 0 {
 		t.Fatalf("%+v probes=%v", o, f.probes)
+	}
+}
+
+func TestCollectorUnsupportedPhysicalNetworkStaysUnknown(t *testing.T) {
+	f := collectorFixture()
+	f.directories["/sys/class/net"] = append(f.directories["/sys/class/net"], "platform0")
+	f.links["/sys/class/net/platform0/device"] = "/sys/devices/platform/physical-network-controller"
+	o := (&Collector{source: f, arch: "amd64"}).Collect(context.Background())
+	found := false
+	for _, missing := range o.Missing {
+		if missing == "physical_network_identity_unsupported:platform0" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("non-PCI physical network source was silently omitted")
 	}
 }

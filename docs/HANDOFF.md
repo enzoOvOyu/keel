@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～83。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～84。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本次两小时开发窗口）
 
 用户于2026-10-26 00:11:10 UTC授权继续两小时开发，当前窗口至02:11:10 UTC。保持单Agent，不启动子代理；P1实现完成后集中联调/全量测试/浏览器验证/镜像发布，开发只做必要编译与静态检查。此前收工/暂停记录是历史快照。
 
-- **本窗口源码尚未发布（§75～83）**：单Agent完成同密钥续签/状态、OS引导介质/BOM配置预览、owner主密钥重包裹、独立审计留证、默认关闭的执行Webhook及其owner查询入口，以及持久装机准备/独立审批/共享独占Execution和页面；新增用例和集中验证入口已写入，除§75早期续签安全检查外均未运行。必要Go/TS编译与静态检查已完成，不等于功能/SQL迁移通过。源迁移50、运行46；3000仍§74。原草稿保留。
+- **本窗口源码尚未发布（§75～84）**：单Agent完成同密钥续签/状态、OS引导介质/BOM配置预览、owner主密钥重包裹、独立审计留证、默认关闭的执行Webhook及其owner查询入口，以及持久装机准备/独立审批/共享独占Execution和页面；新增用例和集中验证入口已写入，除§75早期续签安全检查外均未运行。必要Go/TS编译与静态检查已完成，不等于功能/SQL迁移通过。源迁移50、运行46；3000仍§74。原草稿保留。
 
 - **Agent网页只读链路已发布（§74）**：既有mTLS任务通过认证API/资产页启动并进入原执行五Tab，unknown由当前操作员凭worker查询的真实回执显式对账；实际HTTP/Agent/浏览器和完整CI通过。生产HTTP任务准入、listener及worker继续关闭。
 
@@ -1139,3 +1139,10 @@ provisionboot.RenderBootBundle复核完整scope/request/project/machine/attempt/
 Make新增build-installer-helpers跨架构生产两份实际helper；CLI不接DB/网络、不执行二进制/安装。独立config避免生产依赖循环；包格式/签名/ELF通过也不是实际initrd驱动、写盘前检查或磁盘安装验收。实际自定义initrd入口、一次性回调许可、当前网络/设备lease Authority、装机Execution及SSH首连仍待开发。
 
 新增有界归档/确定性/ELF/TOCTOU/错误架构、独立批准config/签名/私有输出/符号链接/损坏/反向验证等用例写入未运行；实际仅执行mediaboot/provisionimage/mediamanifest/keel-admin编译（go test -p=1 -run '^$'）、相同范围定向go vet及check-design，均退出0；新的keel-admin以CGO_ENABLED=0交叉构建amd64/arm64成功（未执行CLI）。日志/tmp/keel-installer-overlay-{compile,vet,design,binaries}.log，带原overlay/内存限制。没有运行任何新用例或生成/验证实际安装包。无SQL迁移、镜像构建/发布或生产操作；source50/runtime46、3000仍§74。单Agent继续开发窗口至02:11:10 UTC。
+
+
+## 84. Linux 物理槽位 ABI 与 PCI 地址边界修正（2026-10-26，源码待集中验证）
+
+接续3b6118a，对照Linux/pciutils官方源码发现§81初稿对通用devices/<BDF>/physical_slot属性的假设不成立，已改读/sys/bus/pci/slots/<name>/address；明确槽位聚合多功能网卡，PCIe桥下按真实sysfs父链的最近映射归组，不把BDF/端口本身当物理NIC。两段bus占位地址不算卡，同地址多槽位/无来源保持unknown；槽位名0合法。PCI域支持规范4～8位并限有符号domain范围，设备00～1f/function0～7；不可解析条目及未支持非PCI物理网卡记缺失、非法port PCI不形成通过。无内核槽位事实的onboard仍BLOCKED，尚无猜测式fallback。
+
+删除采集fixture虚构的per-device physical_slot属性，增加真实slots ABI、多功能/桥下设备/零槽名/占位/冲突/扩展域/非法路径用例；均只写入未运行。实际仅执行带原overlay/内存限制的go test -p=1 ./internal/provisionpreflight ./cmd/keel-preflight -run '^$'编译、同范围go vet及check-design，均退出0（/tmp/keel-preflight-slots-{compile,vet,design}.log）。没有宿主采集、SMART、网络监听或镜像/SQL变化；P1集中验证策略和原两份草稿保护不变。

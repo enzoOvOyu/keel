@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -21,7 +22,8 @@ const Source = "linux-sysfs-smartctl/v1"
 var ErrInvalid = errors.New("invalid provision preflight document")
 var id = regexp.MustCompile(`^[a-f0-9]{32}$`)
 var sha = regexp.MustCompile(`^[a-f0-9]{64}$`)
-var pciAddress = regexp.MustCompile(`^[a-f0-9]{4}:[a-f0-9]{2}:[a-f0-9]{2}\.[0-7]$`)
+var pciAddress = regexp.MustCompile(`^[a-f0-9]{4,8}:[a-f0-9]{2}:[01][a-f0-9]\.[0-7]$`)
+var physicalSlotName = regexp.MustCompile(`^[A-Za-z0-9_.: -]{1,64}$`)
 var diskName = regexp.MustCompile(`^(sd[a-z]+|nvme[0-9]+n[0-9]+|vd[a-z]+|xvd[a-z]+)$`)
 var netName = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,64}$`)
 var classCode = regexp.MustCompile(`^0x[0-9a-f]{6}$`)
@@ -174,7 +176,7 @@ func Evaluate(s Spec, o Observation, now time.Time) (*Report, error) {
 	physicalNICs := map[string]bool{}
 	addresses := map[string]bool{}
 	for _, device := range o.PCI {
-		if !pciAddress.MatchString(device.Address) || !pciIdentity.MatchString(device.Identity) || !classCode.MatchString(device.Class) || addresses[device.Address] {
+		if !validPCIAddress(device.Address) || !pciIdentity.MatchString(device.Identity) || !classCode.MatchString(device.Class) || addresses[device.Address] {
 			nicComplete, gpuComplete = false, false
 			add("pci_inventory", "BLOCKED", "invalid_or_duplicate_pci_identity", 0, 0)
 			continue
@@ -185,7 +187,7 @@ func Evaluate(s Spec, o Observation, now time.Time) (*Report, error) {
 		}
 		if strings.HasPrefix(device.Class, "0x02") {
 			physicalNICs[device.Address] = true
-			if device.PhysicalSlot == "" || device.PhysicalSlot == "0" {
+			if !physicalSlotName.MatchString(device.PhysicalSlot) || device.PhysicalSlot == "." || device.PhysicalSlot == ".." {
 				nicComplete = false
 			} else {
 				slots[device.PhysicalSlot] = true
@@ -204,7 +206,7 @@ func Evaluate(s Spec, o Observation, now time.Time) (*Report, error) {
 	seenPorts := map[string]bool{}
 	for _, port := range o.Ports {
 		mac, err := net.ParseMAC(port.MAC)
-		if err != nil || len(mac) != 6 || mac[0]&1 != 0 || port.MAC != mac.String() || !netName.MatchString(port.Name) || seenPorts[port.Name] || port.MAC == "00:00:00:00:00:00" {
+		if err != nil || len(mac) != 6 || mac[0]&1 != 0 || port.MAC != mac.String() || !netName.MatchString(port.Name) || !validPCIAddress(port.PCI) || seenPorts[port.Name] || port.MAC == "00:00:00:00:00:00" {
 			portsComplete = false
 			add("port_inventory", "BLOCKED", "invalid_port_identity", 0, 0)
 			continue
@@ -339,4 +341,16 @@ func uniqueSpecKeys(raw []byte) error {
 		return ErrInvalid
 	}
 	return nil
+}
+
+func validPCIAddress(value string) bool {
+	if !pciAddress.MatchString(value) {
+		return false
+	}
+	domain := strings.SplitN(value, ":", 2)[0]
+	if len(domain) > 4 && domain[0] == '0' {
+		return false
+	}
+	number, err := strconv.ParseUint(domain, 16, 32)
+	return err == nil && number <= 0x7fffffff
 }

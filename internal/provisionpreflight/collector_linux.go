@@ -60,6 +60,7 @@ func (c *Collector) Collect(parent context.Context) Observation {
 		out.Arch = ""
 		missing("architecture_unsupported")
 	}
+	slots := collectSlots(source, missing)
 	names, err := source.names("/sys/bus/pci/devices", 4096)
 	if err != nil {
 		missing("pci_inventory_unavailable")
@@ -70,7 +71,8 @@ func (c *Collector) Collect(parent context.Context) Observation {
 			missing("collection_deadline")
 			break
 		}
-		if !pciAddress.MatchString(name) {
+		if !validPCIAddress(name) {
+			missing("pci_address_unsupported:" + name)
 			continue
 		}
 		base := "/sys/bus/pci/devices/" + name
@@ -90,10 +92,7 @@ func (c *Collector) Collect(parent context.Context) Observation {
 			missing("pci_function_identity_unavailable:" + name)
 			continue
 		}
-		slot, _ := source.read(base+"/physical_slot", 64)
-		if strings.ContainsAny(slot, "\r\n\x00") {
-			slot = ""
-		}
+		slot := physicalSlot(source, name, slots)
 		record := PCI{Address: name, Class: class, Identity: vendor[2:] + ":" + device[2:], PhysicalSlot: slot, VirtualFunction: vf}
 		if !vf && strings.HasPrefix(class, "0x02") {
 			bound, driverErr := source.exists(base + "/driver")
@@ -110,6 +109,7 @@ func (c *Collector) Collect(parent context.Context) Observation {
 	}
 	for _, name := range interfaces {
 		if !netName.MatchString(name) {
+			missing("network_name_unsupported")
 			continue
 		}
 		path, e := source.link("/sys/class/net/" + name + "/device")
@@ -118,7 +118,15 @@ func (c *Collector) Collect(parent context.Context) Observation {
 		} // Loopback/bonds/VLANs do not establish physical NIC identity.
 		address := filepath.Base(path)
 		device, ok := pci[address]
-		if !ok || device.VirtualFunction || !strings.HasPrefix(device.Class, "0x02") {
+		if !ok {
+			missing("physical_network_identity_unsupported:" + name)
+			continue
+		}
+		if device.VirtualFunction {
+			continue
+		}
+		if !strings.HasPrefix(device.Class, "0x02") {
+			missing("physical_network_pci_class_unsupported:" + name)
 			continue
 		}
 		raw, e := source.read("/sys/class/net/"+name+"/address", 64)
