@@ -56,6 +56,29 @@ func TestOSBootMediaComposition(t *testing.T) {
 		return map[string]any{"os_boot": p, "artifacts": refs}
 	}
 	root := upload(project, "rootfs", "os", "amd64", deps(profile, refs))
+	driver := upload(project, "approved-driver-dependency", "driver", "amd64", map[string]any{"compatibility": map[string]any{"source": "fixture-report", "version": "matrix-1", "report_ref": "fixture:report", "requires": map[string][]string{"cpu.arch": {"amd64"}}}})
+	driverRefs := append(append([]MediaArtifactDependency(nil), refs...), MediaArtifactDependency{MediaID: driver.ID, SHA256: driver.Sha256})
+	driverRoot := upload(project, "rootfs-with-driver-reference", "os", "amd64", deps(profile, driverRefs))
+	// Selection hints must remain a metadata read, without artifact streaming.
+	s.MediaObjects = nil
+	hints, e := s.ProvisionOSDependencies(ctx, owner, project, driverRoot.ID)
+	s.MediaObjects = objects
+	if e != nil || len(hints.Drivers) != 1 || hints.Drivers[0].MediaID != driver.ID || hints.Drivers[0].Version != driver.Version || hints.Drivers[0].SHA256 != driver.Sha256 || hints.Drivers[0].Compatibility == nil || hints.Drivers[0].Compatibility.ReportRef != "fixture:report" {
+		t.Fatal("driver selection metadata", e)
+	}
+	if _, e = s.ProvisionOSDependencies(ctx, owner, other, driverRoot.ID); e == nil {
+		t.Fatal("driver hints crossed project")
+	}
+	empty, e := s.ProvisionOSDependencies(ctx, owner, project, root.ID)
+	if e != nil || empty.Drivers == nil || len(empty.Drivers) != 0 {
+		t.Fatal("missing driver references inferred", e)
+	}
+	if _, e = s.TransitionMedia(ctx, reviewer, project, driver.ID, "retired", "test"); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.ProvisionOSDependencies(ctx, owner, project, driverRoot.ID); e == nil {
+		t.Fatal("retired driver hint retained")
+	}
 	plan, err := s.ResolveMediaBootPlan(ctx, owner, project, root.ID, "test")
 	if err != nil {
 		t.Fatal(err)

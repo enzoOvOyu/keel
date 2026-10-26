@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{id}/provision/os-images/{mediaId}/dependencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Current approved OS dependency metadata and registered driver compatibility matrix provenance. Metadata only: no image byte streaming, compatibility verdict, package installation or claim of preinstalled drivers. Actual provisioning separately checks full artifact integrity and admission. */
+        get: operations["getProvisionOSDependencies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/provision/installations/key-repairs": {
         parameters: {
             query?: never;
@@ -3091,6 +3108,22 @@ export interface components {
             /** Format: int64 */
             state_version: number;
         };
+        ProvisionOSDriver: {
+            media_id: string;
+            sha256: string;
+            type: string;
+            name: string;
+            version: string;
+            arch: string;
+            compatibility?: components["schemas"]["CompatibilityMatrix"];
+        };
+        ProvisionOSDependencies: {
+            media_id: string;
+            sha256: string;
+            arch: string;
+            drivers: components["schemas"]["ProvisionOSDriver"][];
+            compatibility?: components["schemas"]["CompatibilityMatrix"];
+        };
         ProvisionInstallationProgress: {
             installation_id: string;
             state: string;
@@ -5731,6 +5764,41 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getProvisionOSDependencies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved immutable dependency relationships */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionOSDependencies"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Invalid/unavailable dependency metadata */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     requestProvisionKeyRepairBatch: {
         parameters: {
             query?: never;

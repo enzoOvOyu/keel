@@ -7,6 +7,24 @@ import (
 
 func (a *authAPI) registerProvisionRequests(r *gin.Engine) {
 	a.registerProvisionKeyRepairs(r)
+	r.GET("/api/v1/projects/:id/provision/os-images/:mediaId/dependencies", func(c *gin.Context) {
+		actor, _, ok := a.executionProject(c, false)
+		if !ok {
+			return
+		}
+		project, err := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		out, err := a.store.ProvisionOSDependencies(c.Request.Context(), actor, project, c.Param("mediaId"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.Header("Cache-Control", "private, no-store")
+		c.JSON(200, out)
+	})
 	r.GET("/api/v1/projects/:id/provision/requests/:requestId/rollout", func(c *gin.Context) {
 		actor, _, ok := a.executionProject(c, false)
 		if !ok {

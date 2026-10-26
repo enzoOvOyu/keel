@@ -1,5 +1,12 @@
 export const provisionTranslations = {
  zh: {
+"osDriverDependencies": "镜像登记的驱动依赖版本",
+"osDriverDependenciesHint": "按已审批介质依赖展示精确版本和矩阵出处；不自动安装驱动，也不据此推定镜像已预装、目标机已安装或该组合兼容。实际预装信息在首启软件基线记录。",
+"osDriverDependenciesEmpty": "此镜像未登记驱动依赖；兼容版本未知。",
+"osDriverMatrixMissing": "此驱动未登记兼容矩阵，不能推定兼容。",
+"osDriverMatrixSource": "兼容矩阵出处",
+"osDriverMatrixCombinations": "每行是一个完整组合，不能跨行混搭。",
+
 "keyRepairBatch_create": "批量申请恢复域公钥",
 "keyRepairBatch_approve": "批量独立审批修复",
 "keyRepairBatch_revoke": "批量撤销未执行修复",
@@ -225,6 +232,13 @@ export const provisionTranslations = {
   provisionTitle:'服务器装机准备', provisionDetail:'从 BOM 冻结装机配置，经独立审批后核验介质与公钥。',provisionPreparationOnly:'准备完成仅代表配置与介质校验完成；后续网络引导、安装和 SSH 首连仍需执行。',provisionFromBOM:'从 BOM 创建申请',provisionCreateRequest:'提交装机准备申请',provisionReason:'申请理由',provisionReinstall:'重新安装已有系统',provisionSerialConfirmation:'输入完整序列号以确认重装',provisionRequested:'申请已提交，请由另一位管理员或 DL 审批。',provisionReview:'审批准备申请',provisionCancel:'取消申请',provisionPrepare:'执行准备校验',provisionActionReason:'审批或取消理由',provisionExpiry:'有效期',provisionIdentity:'目标与冻结配置',provisionProof:'准备证据',provisionNoRequests:'暂无装机准备申请，请从 BOM 选择服务器创建。',provisionNoSelfApprove:'申请人不能审批自己的申请。',provisionExpired:'已过期，请重新申请',provisionPendingWorker:'准备校验依赖显式启用的工作节点。',provisionState_requested:'待审批',provisionState_approved:'已批准',provisionState_preparing:'准备中',provisionState_prepared:'准备完成',provisionState_failed:'准备失败',provisionState_canceled:'已取消',provisionState_expired:'已过期',
  },
  en: {
+"osDriverDependencies": "Registered image driver dependency versions",
+"osDriverDependenciesHint": "Exact approved dependency versions and matrix provenance. This does not install drivers or prove preinstallation, target inventory or compatibility. Actual first-boot observations appear in the software baseline.",
+"osDriverDependenciesEmpty": "No driver dependencies registered for this image; compatible versions remain unknown.",
+"osDriverMatrixMissing": "No compatibility matrix registered for this driver; compatibility is unknown.",
+"osDriverMatrixSource": "Compatibility matrix provenance",
+"osDriverMatrixCombinations": "Each row is one complete combination; values cannot be mixed across rows.",
+
 "keyRepairBatch_create": "Request domain-key restores in batch",
 "keyRepairBatch_approve": "Approve repairs independently in batch",
 "keyRepairBatch_revoke": "Revoke unused repairs in batch",

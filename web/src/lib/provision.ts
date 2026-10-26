@@ -44,3 +44,5 @@ export const actProvisionKeyRepair = (item:ProvisionKeyRepair,action:'approve'|'
 
 export type ProvisionKeyRepairBatchInput = components['schemas']['ProvisionKeyRepairBatchInput']
 export const requestProvisionKeyRepairBatch = (project:string,input:ProvisionKeyRepairBatchInput,csrf:string,key:string) => request<components['schemas']['ProvisionKeyRepairBatch']>(`${provisionBase(project)}/installations/key-repairs`,{method:'POST',headers:{'X-CSRF-Token':csrf,'Idempotency-Key':key},body:JSON.stringify(input)})
+
+export const getProvisionOSDependencies = (project:string,media:string,signal:AbortSignal) => request<components['schemas']['ProvisionOSDependencies']>(`${provisionBase(project)}/os-images/${encodeURIComponent(media)}/dependencies`,{signal})
