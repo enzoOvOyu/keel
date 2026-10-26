@@ -7,6 +7,7 @@ import (
 	"github.com/enzoOvOyu/keel/internal/agentidentity"
 	"github.com/enzoOvOyu/keel/internal/agentrunner"
 	"github.com/enzoOvOyu/keel/internal/execution"
+	"github.com/enzoOvOyu/keel/internal/executionqueue"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/mediaartifact"
 	"github.com/enzoOvOyu/keel/internal/platform"
@@ -67,6 +68,14 @@ func main() {
 		}
 	}
 	service := execution.New(store.DB)
+	queue, queueErr := executionqueue.Load(os.Getenv("KEEL_EXECUTION_QUEUE_FILE"), os.Getenv("KEEL_ENV") == "development")
+	if queueErr != nil {
+		fail("execution queue configuration rejected")
+	}
+	if queue != nil {
+		service.Queue = queue
+		defer queue.Close()
+	}
 	service.MediaStore = store
 	if store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled {
 		service.ProvisionStore = store
@@ -147,7 +156,11 @@ func main() {
 	var jobs sync.WaitGroup
 	var active atomic.Int64
 	lastBeat := time.Time{}
-	slog.Info("keel execution worker started", "worker", id, "kea_enabled", service.KeaStore != nil, "agent_enabled", service.AgentRunner != nil, "concurrency", concurrency)
+	queueMode := "postgresql-only"
+	if service.Queue != nil {
+		queueMode = "redis-streams"
+	}
+	slog.Info("keel execution worker started", "worker", id, "queue_mode", queueMode, "kea_enabled", service.KeaStore != nil, "agent_enabled", service.AgentRunner != nil, "concurrency", concurrency)
 loop:
 	for {
 		select {
@@ -162,15 +175,18 @@ loop:
 			stop()
 			break loop
 		case <-ticker.C:
-			if _, e = service.PumpOutbox(ctx, id, 100); e != nil {
+			queueCtx, queueCancel := context.WithTimeout(ctx, 3*time.Second)
+			_, queueErr = service.PumpQueue(queueCtx, id, 100)
+			queueCancel()
+			queueOK := queueErr == nil
+			if !queueOK {
 				slog.Error("worker outbox operation failed")
-				continue
 			}
 			if _, e = service.ReapExpired(ctx); e != nil {
 				slog.Error("worker reconciliation scan failed")
 				continue
 			}
-			cycleOK := true
+			cycleOK := queueOK
 			for int(active.Load()) < concurrency {
 				claim, err := service.Claim(ctx, id, lease)
 				if err != nil {

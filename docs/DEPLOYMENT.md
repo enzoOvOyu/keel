@@ -30,6 +30,22 @@ curl --fail http://127.0.0.1:3000/healthz
 
 配置目录700、秘密文件600；不打印配置内容。PostgreSQL/Redis/MinIO 命名卷保留；更新不使用 `down -v`。数据服务可用不等于其上业务已实现。开发 MinIO 采用仓库固定的官方源码构建，生产维护/备份/授权按发布要求另行验证。
 
+### 可选 Redis Streams 执行队列（源码待集中验证）
+
+worker 未配置 `KEEL_EXECUTION_QUEUE_FILE` 时保持 PostgreSQL-only 模式，不能据此宣称 Redis 队列通过。启用需先按正式迁移流程应用066（本轮未执行），准备独占命名空间的 Redis 7+ 服务，并提供属主可读、无符号链接的0600配置文件：
+
+```json
+{"schema":"keel.execution-queue/v1","address":"redis.example.internal:6379","namespace":"keel_dev","tls":true,"username":"keel-worker","password_file":"/run/keel/execution-queue/redis.password","ca_file":"/run/keel/execution-queue/ca.pem","server_name":"redis.example.internal"}
+```
+
+口令单独0600文件，至少16字符，可有末尾换行；不写入环境、示例或日志。CA可省略以使用系统信任。Compose 使用 `KEEL_EXECUTION_QUEUE_DIRECTORY` 只读挂载整个目录至 `/run/keel/execution-queue`，`KEEL_EXECUTION_QUEUE_FILE` 指向其中配置；不修改现有 `.env`、不自动启用。生产必须校验TLS并认证。仅 `KEEL_ENV=development` 且字面量loopback地址允许无TLS/匿名协议fixture；Compose自带明文Redis不因此自动成为已启用队列，容器部署需独立配置合适的TLS端点。
+
+PostgreSQL业务状态与outbox同事务。Redis只存版本化CloudEvent公共引用；发布成功但落库前崩溃可重复投递，消费者使用固定 `execution-scheduler-v1` 去重、锁定当前聚合版本并CAS，业务与去重事务提交后才XACK。原始outbox payload、输出和凭据不进入Redis。XAUTOCLAIM恢复超过30秒的PEL；队列代次在stream/group重建时轮换。即使代次未变，未消费事件超过2分钟仍从数据库重发，覆盖局部缓存损失及近似MAXLEN 20,000裁剪；这是可重建缓存界限，不是消息只保存在Redis的保留承诺。
+
+配置Redis后故障不静默冒充DB-only成功：新created等待队列恢复，已scheduled任务仍走原Claim、fence和权限检查；租约回收继续运行，失败周期停止刷新健康心跳（原10秒时效）。缓存重建不生成TaskAttempt、不重放unknown副作用。非法/未知/投影不匹配引用先写无载荷的拒绝记录再ACK。没有故障自动删除数据库数据或放弃对账。
+
+后续集中验收可为Agent入口显式传 `--redis-address 127.0.0.1:16379`，只连接独立Redis测试服务，不启动或清空服务，随机命名空间仅清理自身两键。报告分别列PostgreSQL事务/去重、真实Redis协议与Redis+PostgreSQL串联组；未提供fixture或用例skip不算Redis通过。该入口及本批源码本轮均未执行，现有3000/数据库/Redis配置不变。
+
 当前环境直接访问loopback服务。只有从另一台电脑访问历史远端部署时才配置可选SSH隧道，本地开发不执行：
 
 ```sh

@@ -92,6 +92,7 @@ services:
       KEEL_WORKER_ID: ${KEEL_WORKER_ID:-keel-sim-worker}
       KEEL_WORKER_CONCURRENCY: ${KEEL_WORKER_CONCURRENCY:-8}
       KEEL_WORKER_LEASE: ${KEEL_WORKER_LEASE:-5s}
+      KEEL_EXECUTION_QUEUE_FILE: ${KEEL_EXECUTION_QUEUE_FILE:-}
       KEEL_AGENT_WORKER_FILE: ${KEEL_AGENT_WORKER_FILE:-}
       KEEL_WEBHOOK_SINKS_FILE: ${KEEL_WEBHOOK_SINKS_FILE:-}
       KEEL_SSH_RUNNER_FILE: ${KEEL_SSH_RUNNER_FILE:-}
@@ -102,6 +103,12 @@ services:
       KEEL_TASK_CACHE_INVENTORY_ENABLED: ${KEEL_TASK_CACHE_INVENTORY_ENABLED:-false}
       KEEL_CREDENTIAL_MASTER_KEY_FILE: ${KEEL_CREDENTIAL_MASTER_KEY_FILE:-}
     volumes:
+      - type: bind
+        source: ${KEEL_EXECUTION_QUEUE_DIRECTORY:-./infra/execution-queue-disabled}
+        target: /run/keel/execution-queue
+        read_only: true
+        bind:
+          create_host_path: false
       - type: bind
         source: ${KEEL_WEBHOOK_DIRECTORY:-./infra/webhook-disabled}
         target: /run/keel/webhooks

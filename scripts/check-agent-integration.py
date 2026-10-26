@@ -13,7 +13,8 @@ from p1_evidence import go_test_evidence, repository_source, source_provenance
 os.umask(0o077)
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--browser', action='store_true', help='Also exercise built web UI with the actual Agent transport')
-parser.add_argument('--run', default='TestAgent|TestProtected|TestWriteNew|TestAuthority|TestIssued|TestCSR|TestControlKV|TestHostFlow|TestHostMedia|TestArtifact|TestFlowYAML|TestWorkflowYAML', help='Go test name filter for a targeted rerun')
+parser.add_argument('--run', default='TestAgent|TestProtected|TestWriteNew|TestAuthority|TestIssued|TestCSR|TestControlKV|TestHostFlow|TestHostMedia|TestArtifact|TestFlowYAML|TestWorkflowYAML|TestExecutionStream|TestExecutionQueue', help='Go test name filter for a targeted rerun')
+parser.add_argument('--redis-address', help='Opt-in dedicated Redis fixture, literal loopback:16379; never the application Redis')
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 os.chdir(root)
@@ -36,6 +37,8 @@ try:
     created = True
     env = {key: value for key, value in os.environ.items() if not key.startswith('KEEL_')}
     env['KEEL_TEST_AGENT_DATABASE_URL'] = 'postgresql://' + urllib.parse.quote(owner, safe='') + ':' + urllib.parse.quote(config['POSTGRES_PASSWORD'], safe='') + '@127.0.0.1:15433/' + database + '?sslmode=disable'
+    if args.redis_address:
+        env['KEEL_TEST_REDIS_ADDRESS'] = args.redis_address
     if args.browser:
         env['KEEL_TEST_AGENT_STATIC_DIR'] = str(root / 'web/dist')
         env['KEEL_TEST_AGENT_BROWSER_SCRIPT'] = str(root / 'scripts/check-agent-launch-browser.mjs')
@@ -47,7 +50,7 @@ try:
             binary = binary_dir / ('keel-' + name)
             subprocess.run(['go', 'build', '-o', str(binary), './cmd/keel-' + name], env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
             env['KEEL_TEST_AGENT_' + name.upper() + '_BIN'] = str(binary)
-        result = subprocess.run(['go', 'test', '-p=1', '-race', '-count=1', '-v', './internal/agentpki', './internal/agentinventory', './internal/agentidentity', './internal/agentclient', './internal/platform', './internal/execution', './internal/taskrunner', './internal/httpapi', '-run', args.run], env=env, stdout=log, stderr=subprocess.STDOUT)
+        result = subprocess.run(['go', 'test', '-p=1', '-race', '-count=1', '-v', './internal/agentpki', './internal/agentinventory', './internal/agentidentity', './internal/agentclient', './internal/platform', './internal/execution', './internal/executionqueue', './internal/taskrunner', './internal/httpapi', '-run', args.run], env=env, stdout=log, stderr=subprocess.STDOUT)
     transcript = (work / 'go-integration.log').read_text()
     evidence = go_test_evidence(transcript, result.returncode, {
         'loopback_tls_grpc': ['TestAgentIdentityPostgresMTLSLifecycle', 'TestAgentTasksPostgresExecutionAndRecovery'],
@@ -56,6 +59,9 @@ try:
         'native_host_dag': ['TestHostFlowDAGAgentAdmissionAndReceiptsPostgres', 'TestHostFlowUnknownBlocksDependencyUntilExplicitReconcilePostgres', 'TestHostFlowFailureSkipsDependentAndPauseStopsDispatchPostgres'],
         'native_host_rerun': ['TestHostFlowRerunCreatesIndependentAgentDAGPostgres', 'TestHostFlowRerunRefusesRetiredFrozenArtifactPostgres', 'TestHostFlowRerunSnapshotRejectsOwnedWorkflows'],
         'control_kv': ['TestControlKVAtomicReceiptCASAndProjectIsolationPostgres', 'TestControlKVExpiredClaimHasNonCommitProofPostgres', 'TestControlKVPauseKillAndCurrentAuthorityPostgres'],
+        'streams_postgresql': ['TestExecutionStreamsCommitBeforeACKAndDuplicatePostgres', 'TestExecutionStreamsRejectAndBusyRecoveryPostgres', 'TestExecutionStreamsRebuildAndFailureIsolationPostgres'],
+        'redis_streams_protocol': ['TestExecutionQueueRedisStreamsRecovery'],
+        'redis_postgresql_scheduler': ['TestExecutionStreamsRedisPostgresScheduler'],
     })
     (work / 'result.json').write_text(json.dumps({
         'exit_code': result.returncode, 'test_filter': args.run,

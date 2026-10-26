@@ -1,18 +1,18 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～155。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～156。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
 当前用户规模调整（2026-10-26）：P1逻辑设备扇出按200台，原2,000台后续优化，不再阻断当前P1闭环；成功率/介质完整性/权限/恢复要求保留。默认脚本已改，尚未运行，详见§136。
 
-### 低Token接续入口（2026-10-26，接续§155）
+### 低Token接续入口（2026-10-26，接续§156）
 
 - 工作区`/opt/keel`、分支`dev/p1-network-bom`，单Agent。§137～140为批准制品/取回/未启动证明；§141～145为DHCPv6 136协议及项目模拟链、双通道版本化主机DAG/批准介质步骤和YAML定位；§146为重装/RMA身份历史。§147～150已补参数熔断默认值、无介质项目KV、独立RMA审批及200逻辑ZTP/H-15/H-16材料，最近提交`0c3bc0b`；§151接通知投递可见性，不重做已有功能。
 - 用户要求直接推进至P1闭环；集中验证仍由用户另行安排。不运行测试、编译、静态检查、数据库、浏览器或镜像验证；必要gofmt/API生成只算源码产物。无tmux、SSH绕转、子Agent、工作树或推送。
 - P1仍partial：源码实现、软件验收和真实PoC分开记录。当前逻辑扇出200；批准脚本/制品可组合为主机DAG，未知副作用不自动重放。重装历史保持不可变，RMA需独立批准并按sim/device隔离退役旧绑定；不迁移凭据或覆盖旧物理身份。
 - 下一主线按P1实际WP和F-0.5/F-1退出判据收口软件缺口与集中验收材料；136已接项目模拟，不开放真实136设备会话或监听路由。真实PoC由用户提供，后续G3+、完整IPv6规划和P2～P4能力不强拉进P1。
-- 源62迁移（排除026原草稿）/运行46，新增059～065未应用。3000仅保留上次已知`6668a72c`，本轮未探测、部署或访问GitHub。`.env`及其他项目进程未动。原`internal/platform/fabric_precheck.go`与`migrations/026_fabric_precheck.sql`保留，不提交或执行。
+- 源63迁移（排除026原草稿）/运行46，新增059～066未应用。3000仅保留上次已知`6668a72c`，本轮未探测、部署或访问GitHub。`.env`及其他项目进程未动。原`internal/platform/fabric_precheck.go`与`migrations/026_fabric_precheck.sql`保留，不提交或执行。
 
 
 用户最新安排（2026-10-26）：合并本轮四Agent工作后恢复单Agent开发，不再启动或续派子代理；此前四Agent并行安排已被本指令替代。直接在当前本地环境`/opt/keel`开发，不使用tmux或SSH绕转。硬件/网络参数保持配置输入，PoC由用户提供。用户进一步明确：集中验证由用户在P1闭环时另行安排；当前只推进实现，不逐步重复编译、静态或功能/数据库/浏览器/镜像验证。必要格式化/API类型生成只记为产物生成，不记作验证。
@@ -1734,3 +1734,15 @@ WP-1.4/1.5/1.9：原重跑只支持sim，现接发布过的keel.host/v1 SSH/Agen
 同时补ExecutionSummary列表的rerun_supported只读能力投影，原生DAG与sim列表不再因字段零值被报不支持；实际预览/提交仍执行完整验证。仅gofmt，新增/修改用例未运行，无编译、静态/数据库/浏览器/镜像验证、部署或推送。源62迁移/运行46不变。
 
 下一完整主线是WP-1.3/ADR-01的可重建Redis Streams队列。现有PostgreSQL权威状态、outbox去重、资源锁及unknown恢复必须保留，Redis丢失/重启不得重放副作用或阻断已有DB对账；不是把内存channel或Redis服务存活当成队列交付。
+
+## 156. Redis Streams可重建队列接入（2026-10-26，源码未验证）
+
+WP-1.3/ADR-01新增executionqueue Transport/go-redis v9.23.0及worker的PumpQueue。066保存可重建发布提示与无载荷拒绝记录；源63迁移/运行46，059～066未应用。正式模式默认仍PostgreSQL-only；显式0600队列配置启用Redis Streams，生产TLS+独立口令，Compose提供禁用目录和只读挂载，不修改.env或现有服务。启动日志明确queue_mode，未启用不能算Redis完成。
+
+outbox已提交事件投影为版本化CloudEvent引用，无原payload/脚本/输出/秘密。XADD使用Redis自动ID，避免事务序列分配与提交次序不同导致迟到事件被拒；发布提示落库前崩溃允许重复。消费重新核对DB事件/项目/序列/版本/时间，固定逻辑consumer去重，同事务锁定当前aggregate并CAS created→scheduled，提交后XACK；不创建命令/尝试或触碰unknown任务。非法/未知/投影不符先持久化不带载荷的拒绝原因才ACK。
+
+XAUTOCLAIM恢复30秒PEL，扫描游标持续推进。stream/group重建轮换epoch，发布/ACK带epoch原子检查；未消费引用即使同代次也在2分钟后从outbox重发，覆盖局部Redis丢失/20,000近似裁剪。无数据库锁期间的Redis网络调用。配置队列故障不静默降级冒充成功，created等待恢复，原scheduled领取及DB租约回收继续，失败周期不刷新健康心跳。
+
+新增未执行源码：PG提交后ACK/ACK丢失/重复/忙聚合/非法投影/代次与局部丢失/队列故障隔离，独立真实Redis协议PEL和代次恢复，以及Redis+PG串联调度/缓存丢失不重建TaskAttempt。Agent集中入口增加TestExecutionStream/TestExecutionQueue和独立--redis-address选项，报告三个组分别PASS/SKIP，未提供loopback16379 fixture不能记Redis通过。fixture不启动服务或flush数据库，只清理随机自有命名空间。
+
+仅获取锁定依赖源码/校验和并gofmt；没有编译、静态检查、测试、SQL/迁移/服务探测、浏览器或镜像验证、部署、推送。两份原fabric_precheck/026草稿不变。P1仍partial，实际退出判据及集中验收未闭环；下一步继续按设计检查软件缺口和验收材料，不反复执行验证或强拉后续P2～P4。

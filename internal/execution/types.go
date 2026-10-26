@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/enzoOvOyu/keel/internal/executionqueue"
 	"github.com/enzoOvOyu/keel/internal/platform"
 	"github.com/enzoOvOyu/keel/internal/taskrunner"
 	"gopkg.in/yaml.v3"
@@ -24,6 +25,7 @@ import (
 )
 
 type Service struct {
+	Queue                executionqueue.Transport
 	scriptProofMu        sync.Mutex
 	scriptProofCursor    int64
 	agentReceiptMu       sync.Mutex
