@@ -9,6 +9,7 @@ import (
 )
 
 type SSHScriptCreateInput struct {
+	PreferCache  bool     `json:"prefer_cache,omitempty"`
 	ResultFormat string   `json:"result_format,omitempty"`
 	MachineIDs   []string `json:"machine_ids"`
 	MediaID      string   `json:"media_id"`
@@ -22,7 +23,7 @@ func (s *Service) CreateSSHScript(ctx context.Context, a *Actor, project string,
 	if !opaqueID.MatchString(in.MediaID) {
 		return nil, invalid("An approved script media ID is required")
 	}
-	return s.createSSH(ctx, a, project, SSHCreateInput{MachineIDs: in.MachineIDs, Operation: "script.run", ScriptMediaID: in.MediaID, TimeoutMS: in.TimeoutMS, ScriptResultFormat: in.ResultFormat}, "", 0, key, trace)
+	return s.createSSH(ctx, a, project, SSHCreateInput{MachineIDs: in.MachineIDs, Operation: "script.run", ScriptMediaID: in.MediaID, TimeoutMS: in.TimeoutMS, ScriptResultFormat: in.ResultFormat, PreferScriptCache: in.PreferCache}, "", 0, key, trace)
 }
 
 func (s *Service) scriptFrozenTx(ctx context.Context, tx *sql.Tx, project, mode string, task Task) error {

@@ -123,3 +123,26 @@ func TestScriptBodyMismatchHasNoDurableAcceptance(t *testing.T) {
 		t.Fatal("rejected input created command state", err)
 	}
 }
+
+func TestCachedScriptRunFailsClosedWhenTargetCacheDisabled(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("helper intentionally rejects root")
+	}
+	state := t.TempDir()
+	if err := os.Chmod(state, 0700); err != nil {
+		t.Fatal(err)
+	}
+	c := scriptTestCommand([]byte("printf must-not-execute\n"), "shell")
+	c.ScriptCacheAllowed = true
+	run := Request{Action: "run", Command: c, UseCachedScript: true}
+	result, err := invokeScriptFixture(t, state, run)
+	if err != nil || result.State != "failed" || result.Output["reason"] != "script_cache_rejected" || result.Output["process_started"] != false || result.Output["process_tree_stopped"] != true {
+		t.Fatal("cache opt-out did not prove non-start", result, err)
+	}
+	// Even a full-body duplicate can only return the original failure.
+	run.UseCachedScript, run.Script = false, []byte("printf must-not-execute\n")
+	again, err := invokeScriptFixture(t, state, run)
+	if err != nil || again.State != result.State || !again.FinishedAt.Equal(result.FinishedAt) {
+		t.Fatal("failed cached run replayed with body", again, err)
+	}
+}

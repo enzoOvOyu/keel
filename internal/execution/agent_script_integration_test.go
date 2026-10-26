@@ -33,18 +33,26 @@ func (o *agentScriptObjects) Open(_ context.Context, key, version string) (io.Re
 // Software-only runner: deliberately loses all receipts. It exercises actual
 // PostgreSQL authority/leases/one-shot dispatch, never fabricates script success.
 type agentScriptLostRunner struct {
-	base       *agentKernelRunner
-	store      *platform.Store
-	credential *platform.AgentCredential
-	request    taskrunner.Request
-	runs       int
-	admission  error
+	base           *agentKernelRunner
+	store          *platform.Store
+	credential     *platform.AgentCredential
+	request        taskrunner.Request
+	runs           int
+	probes         int
+	probeAdmission error
+	admission      error
 }
 
 func (r *agentScriptLostRunner) Binding(project, machine string) (taskrunner.Binding, error) {
 	return r.base.Binding(project, machine)
 }
 func (r *agentScriptLostRunner) Do(ctx context.Context, request taskrunner.Request) (taskrunner.Observation, error) {
+	if request.Action == "cache" {
+		r.probes++
+		r.probeAdmission = r.store.AgentRequestAllowed(ctx, request, r.credential)
+		// Miss-only fixture: it never fabricates verified cache content or success.
+		return taskrunner.Observation{}, taskrunner.ErrUnknown
+	}
 	if request.Action == "run" {
 		r.runs++
 		r.request = request
@@ -73,7 +81,7 @@ func TestAgentApprovedScriptPostgresAdmissionAndUnknown(t *testing.T) {
 		media, err = f.store.TransitionMedia(ctx, approver, project, media.ID, state, "agent-script-test")
 		mustAgent(t, err)
 	}
-	in := SSHScriptCreateInput{ResultFormat: "json", MachineIDs: []string{f.machine}, MediaID: media.ID, TimeoutMS: 5000}
+	in := SSHScriptCreateInput{PreferCache: true, ResultFormat: "json", MachineIDs: []string{f.machine}, MediaID: media.ID, TimeoutMS: 5000}
 	if _, err = f.service.CreateAgentScript(ctx, f.actor, f.project, in, platform.RandomID(), "test"); err == nil {
 		t.Fatal("default-off Agent script admitted")
 	}
@@ -83,7 +91,7 @@ func TestAgentApprovedScriptPostgresAdmissionAndUnknown(t *testing.T) {
 	mustAgent(t, err)
 	replay, err := f.service.CreateAgentScript(ctx, f.actor, f.project, in, key, "test")
 	mustAgent(t, err)
-	if replay.ID != x.ID || x.Snapshot.Flow.Definition.Tasks[0].Script == nil || x.Snapshot.Flow.Definition.Tasks[0].Idempotent {
+	if replay.ID != x.ID || x.Snapshot.Flow.Definition.Tasks[0].Script == nil || x.Snapshot.Flow.Definition.Tasks[0].Idempotent || !x.Snapshot.Flow.Definition.Tasks[0].ScriptPreferCache {
 		t.Fatal("script snapshot/idempotency lost")
 	}
 	if _, err = f.service.CreateAgent(ctx, f.actor, f.project, SSHCreateInput{MachineIDs: in.MachineIDs, Operation: "script.run", ScriptMediaID: media.ID}, platform.RandomID(), "test"); err == nil {
@@ -101,7 +109,7 @@ func TestAgentApprovedScriptPostgresAdmissionAndUnknown(t *testing.T) {
 	runner := &agentScriptLostRunner{base: f.runner, store: f.store, credential: f.credential}
 	f.service.AgentRunner = runner
 	_ = f.service.RunClaim(ctx, claim)
-	if runner.runs != 1 || runner.admission != nil || runner.request.Validate() != nil || runner.request.Command.ScriptResultFormat != "json" {
+	if runner.probes != 1 || runner.probeAdmission != nil || len(runner.request.Script) == 0 || runner.request.UseCachedScript || !runner.request.Command.ScriptCacheAllowed || runner.runs != 1 || runner.admission != nil || runner.request.Validate() != nil || runner.request.Command.ScriptResultFormat != "json" {
 		t.Fatal("committed Agent dispatch rejected", runner.runs, runner.admission)
 	}
 	var state string
@@ -114,6 +122,10 @@ func TestAgentApprovedScriptPostgresAdmissionAndUnknown(t *testing.T) {
 		t.Fatal("script run replayed after consumption")
 	}
 	f.store.AgentScriptsEnabled = false
+	probe := taskrunner.Request{Action: "cache", Command: runner.request.Command}
+	if err = f.store.AgentRequestAllowed(ctx, probe, f.credential); err == nil {
+		t.Fatal("cache probe admitted after opt-out/unknown")
+	}
 	query := taskrunner.Request{Action: "query", Command: runner.request.Command}
 	mustAgent(t, f.store.AgentRequestAllowed(ctx, query, f.credential))
 	if err = f.store.AgentRequestAllowed(ctx, runner.request, f.credential); err == nil {

@@ -14,6 +14,7 @@ import (
 )
 
 type SSHCreateInput struct {
+	PreferScriptCache   bool     `json:"prefer_script_cache,omitempty"`
 	CacheCursor         string   `json:"cache_cursor,omitempty"`
 	CacheManifestSHA256 string   `json:"cache_manifest_sha256,omitempty"`
 	ScriptResultFormat  string   `json:"script_result_format,omitempty"`
@@ -65,7 +66,7 @@ func (s *Service) sshFrozenTx(ctx context.Context, tx *sql.Tx, t Target) error {
 }
 
 func (s *Service) CreateSSH(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (*Execution, error) {
-	if in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" {
+	if in.PreferScriptCache || in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" {
 		return nil, invalid("Only allowlisted bounded read-only host queries are admitted by this endpoint")
 	}
 	return s.createSSH(ctx, a, project, in, "", 0, key, trace)
@@ -83,7 +84,7 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 		in.TimeoutMS = 5000
 	}
 	check := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: project, MachineID: "00000000000000000000000000000000", CommandID: "00000000000000000000000000000000", AttemptID: "00000000000000000000000000000000", FencingToken: 1, Operation: in.Operation, TimeoutMS: in.TimeoutMS, WaitMS: in.WaitMS, CacheCursor: in.CacheCursor, CacheManifestSHA256: in.CacheManifestSHA256}
-	if (in.Operation != "script.run" && check.Validate() != nil) || (in.Operation == "script.run" && (in.CacheCursor != "" || in.CacheManifestSHA256 != "" || in.ScriptResultFormat != "" && in.ScriptResultFormat != "json" || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0 || requestID != "" || !opaqueID.MatchString(in.ScriptMediaID))) || (requestID == "" && len(in.MachineIDs) == 0) || len(in.MachineIDs) > 32 || in.CacheCursor != "" && len(in.MachineIDs) != 1 {
+	if (in.Operation != "script.run" && (in.PreferScriptCache || check.Validate() != nil)) || (in.Operation == "script.run" && (in.CacheCursor != "" || in.CacheManifestSHA256 != "" || in.ScriptResultFormat != "" && in.ScriptResultFormat != "json" || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0 || requestID != "" || !opaqueID.MatchString(in.ScriptMediaID))) || (requestID == "" && len(in.MachineIDs) == 0) || len(in.MachineIDs) > 32 || in.CacheCursor != "" && len(in.MachineIDs) != 1 {
 		return nil, invalid("1..32 machine IDs and a bounded host.identity or host.wait operation are required")
 	}
 	if e := s.cacheInventoryAdmission(in.Operation); e != nil {
@@ -192,7 +193,7 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 	if requestID != "" && targets[0].SSHInstallKey != nil {
 		in.Operation = "trust.install"
 	}
-	task := Task{ScriptResultFormat: in.ScriptResultFormat, Script: script, ID: "ssh-query", Type: in.Operation, Idempotent: true, Retry: 0, TimeoutMS: in.TimeoutMS, Resources: []string{"device", "ssh"}}
+	task := Task{ScriptPreferCache: in.PreferScriptCache, ScriptResultFormat: in.ScriptResultFormat, Script: script, ID: "ssh-query", Type: in.Operation, Idempotent: true, Retry: 0, TimeoutMS: in.TimeoutMS, Resources: []string{"device", "ssh"}}
 	if script != nil {
 		task.ID = "ssh-script"
 		task.Idempotent = false
@@ -276,6 +277,7 @@ func sshCommand(c *Claim) taskrunner.TaskCommand {
 	if c.Task.Script != nil {
 		command = c.Task.Script.Command(command)
 		command.ScriptResultFormat = c.Task.ScriptResultFormat
+		command.ScriptCacheAllowed = c.Task.ScriptPreferCache
 	}
 	return command
 }
@@ -415,7 +417,22 @@ func (s *Service) runHostClaim(ctx context.Context, c *Claim, mode string) error
 		}
 	}()
 	defer func() { close(stop); wg.Wait() }()
-	o, e := runner.Do(work, taskrunner.Request{Action: "run", Command: command, Script: scriptBody})
+	run := taskrunner.Request{Action: "run", Command: command, Script: scriptBody}
+	if command.ScriptCacheAllowed {
+		// The dispatch is already consumed. Probe is metadata only; there is
+		// still exactly one run, with no body fallback after that run is sent.
+		probe, done := context.WithTimeout(work, time.Second)
+		cached, err := runner.Do(probe, taskrunner.Request{Action: "cache", Command: command})
+		done()
+		if hit, valid := taskrunner.ScriptCacheProbeHit(cached, command); err == nil && valid == nil && hit {
+			run.Script = nil
+			run.UseCachedScript = true
+		}
+	}
+	if work.Err() != nil || command.Operation == "script.run" && !time.UnixMicro(command.AuthorizationExpiresAt).After(time.Now()) {
+		return taskrunner.ErrUnknown
+	}
+	o, e := runner.Do(work, run)
 	if e != nil || !o.Terminal() {
 		// One bounded status/cancel query, never a second run. Terminal proof can
 		// arrive after the worker's cancellation but before lease reconciliation.

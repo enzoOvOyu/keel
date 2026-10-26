@@ -102,17 +102,13 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 	if os.Geteuid() == 0 {
 		return zero, ErrRejected
 	}
-	if r.Command.Validate() != nil || (r.Action != "run" && r.Action != "query" && r.Action != "cancel") || privateDirectory(w.StateDirectory) != nil {
+	if r.Validate() != nil || privateDirectory(w.StateDirectory) != nil {
 		return zero, ErrRejected
 	}
-	if r.Command.Operation == "script.run" {
-		if r.Action == "run" && (!w.ScriptProcessIsolation || validateScriptBody(r.Command, r.Script) != nil) {
-			return zero, ErrRejected
-		}
-	} else if len(r.Script) > 0 {
-		return zero, ErrRejected
+	if r.Action == "cache" {
+		return probeScriptCache(ctx, MediaCacheDirectory, w.ScriptProcessIsolation && w.ScriptMediaCacheEnabled, r.Command)
 	}
-	if r.Action != "run" && len(r.Script) > 0 {
+	if r.Command.Operation == "script.run" && r.Action == "run" && !w.ScriptProcessIsolation {
 		return zero, ErrRejected
 	}
 	if r.Action == "run" && r.Command.Operation == "host.cache.inventory" && !w.CacheInventoryEnabled {
@@ -223,7 +219,7 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 		}
 	} else if r.Command.Operation == "script.run" {
 		var scriptErr error
-		o.Output, result, reason, scriptErr = executeScriptProcess(work, dir, r.Command, r.Script, w.ScriptMediaCacheEnabled)
+		o.Output, result, reason, scriptErr = executeScriptProcess(work, dir, r.Command, r.Script, w.ScriptMediaCacheEnabled, r.UseCachedScript)
 		if scriptErr != nil {
 			return zero, ErrUnknown
 		}

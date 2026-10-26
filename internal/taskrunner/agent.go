@@ -168,7 +168,7 @@ func writeAgentFence(dir string, fence agentFence) error {
 }
 func (a Agent) Handle(ctx context.Context, r Request) (Observation, error) {
 	var zero Observation
-	if os.Geteuid() == 0 || !idPattern.MatchString(a.ProjectID) || !idPattern.MatchString(a.MachineID) || r.Validate() != nil || r.Command.ProjectID != a.ProjectID || r.Command.MachineID != a.MachineID || (r.Command.Operation != "host.identity" && r.Command.Operation != "host.wait" && r.Command.Operation != "script.run" && r.Command.Operation != "host.cache.inventory") || (r.Action != "run" && r.Action != "query" && r.Action != "cancel") {
+	if os.Geteuid() == 0 || !idPattern.MatchString(a.ProjectID) || !idPattern.MatchString(a.MachineID) || r.Validate() != nil || r.Command.ProjectID != a.ProjectID || r.Command.MachineID != a.MachineID || (r.Command.Operation != "host.identity" && r.Command.Operation != "host.wait" && r.Command.Operation != "script.run" && r.Command.Operation != "host.cache.inventory") {
 		return zero, ErrRejected
 	}
 	if r.Action == "run" && r.Command.Operation == "script.run" && !a.ScriptsEnabled {
@@ -182,6 +182,9 @@ func (a Agent) Handle(ctx context.Context, r Request) (Observation, error) {
 		return zero, e
 	}
 	defer unix.Close(fd)
+	if r.Action == "cache" {
+		return probeScriptCache(ctx, MediaCacheDirectory, a.ScriptsEnabled && a.MediaCacheEnabled, r.Command)
+	}
 	dir := filepath.Join(a.StateDirectory, r.Command.CommandID)
 	if _, e = os.Lstat(dir); e == nil {
 		if e = agentCommandFiles(dir); e != nil {

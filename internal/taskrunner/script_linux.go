@@ -124,15 +124,25 @@ func scriptChildren() ([]int, error) {
 // executeScriptProcess runs no request-supplied command line, path, arguments or
 // environment. Approved script bytes are stdin to a fixed interpreter. Effects
 // outside the process tree are not undone by cancellation.
-func executeScriptProcess(ctx context.Context, dir string, c TaskCommand, body []byte, useCache bool) (map[string]any, string, string, error) {
+func executeScriptProcess(ctx context.Context, dir string, c TaskCommand, body []byte, useCache, fromCache bool) (map[string]any, string, string, error) {
+	if fromCache {
+		if !useCache || !c.ScriptCacheAllowed {
+			return map[string]any{"process_tree_stopped": true, "process_started": false}, "failed", "script_cache_rejected", nil
+		}
+		var err error
+		body, err = readCachedScriptBody(ctx, MediaCacheDirectory, c)
+		if err != nil {
+			return map[string]any{"process_tree_stopped": true, "process_started": false}, "failed", "script_cache_rejected", nil
+		}
+	}
 	if validateScriptBody(c, body) != nil {
 		return nil, "", "", ErrRejected
 	}
 	if ctx.Err() != nil {
 		return map[string]any{"process_tree_stopped": true, "process_started": false}, "failed", "script_authorization_expired_before_start", nil
 	}
-	cacheHit := false
-	if useCache {
+	cacheHit := fromCache
+	if useCache && !fromCache {
 		var err error
 		cacheHit, err = cacheApprovedScript(ctx, MediaCacheDirectory, c, body)
 		if err != nil {

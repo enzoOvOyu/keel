@@ -185,3 +185,88 @@ func TestScriptCacheLinkAndManifestBoundaries(t *testing.T) {
 		t.Fatal("valid cache continuation rejected")
 	}
 }
+
+func TestScriptCacheProbeCopiesOnlyOwnedVerifiedBytes(t *testing.T) {
+	dir := cacheDirectoryFixture(t)
+	ctx := context.Background()
+	body := []byte("printf cache-probe-fixture\n")
+	c := scriptTestCommand(body, "shell")
+	c.ScriptCacheAllowed = true
+	if _, err := cacheApprovedScript(ctx, dir, c, body); err != nil {
+		t.Fatal(err)
+	}
+	probe, err := probeScriptCache(ctx, dir, true, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hit, err := ScriptCacheProbeHit(probe, c); err != nil || !hit {
+		t.Fatal("owned content not a hit", hit, err)
+	}
+	copy, err := readCachedScriptBody(ctx, dir, c)
+	if err != nil || string(copy) != string(body) {
+		t.Fatal("cached bytes differ", err)
+	}
+	path := filepath.Join(dir, c.ScriptSHA256)
+	if err := os.Chmod(path, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("changed after probe\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readCachedScriptBody(ctx, dir, c); err == nil {
+		t.Fatal("changed content accepted after hit")
+	}
+	if string(copy) != string(body) {
+		t.Fatal("pinned verified copy changed")
+	}
+	probe, err = probeScriptCache(ctx, dir, true, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hit, err := ScriptCacheProbeHit(probe, c); err != nil || hit {
+		t.Fatal("corrupt cache promoted to hit", hit, err)
+	}
+	// Neither a miss nor an opt-out deletes, repairs or takes ownership.
+	probe, err = probeScriptCache(ctx, dir, false, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hit, err := ScriptCacheProbeHit(probe, c); err != nil || hit {
+		t.Fatal("disabled cache reported a hit", hit, err)
+	}
+	actual, err := os.ReadFile(path)
+	if err != nil || string(actual) != "changed after probe\n" {
+		t.Fatal("probe repaired cache", err)
+	}
+	orphan := scriptTestCommand([]byte("unowned\n"), "shell")
+	orphan.ScriptCacheAllowed = true
+	if err := os.WriteFile(filepath.Join(dir, orphan.ScriptSHA256), []byte("unowned\n"), 0400); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readCachedScriptBody(ctx, dir, orphan); err == nil {
+		t.Fatal("unregistered object adopted")
+	}
+}
+
+func TestScriptCacheProbeDoesNotConsumeAgentFenceOrCreateReceipt(t *testing.T) {
+	state := cacheDirectoryFixture(t)
+	c := scriptTestCommand([]byte("exit 0\n"), "shell")
+	c.ScriptCacheAllowed = true
+	a := Agent{StateDirectory: state, ProjectID: c.ProjectID, MachineID: c.MachineID}
+	// Cache/scripts opt-out is a miss, never task acceptance or script execution.
+	o, err := a.Handle(context.Background(), Request{Action: "cache", Command: c})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hit, err := ScriptCacheProbeHit(o, c); err != nil || hit {
+		t.Fatal("disabled Agent probe", hit, err)
+	}
+	entries, err := os.ReadDir(state)
+	if err != nil || len(entries) != 0 {
+		t.Fatal("probe created execution/fence state", entries, err)
+	}
+	c.AuthorizationExpiresAt = time.Now().Add(-time.Second).UnixMicro()
+	if _, err := a.Handle(context.Background(), Request{Action: "cache", Command: c}); err == nil {
+		t.Fatal("expired probe admitted")
+	}
+}

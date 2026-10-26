@@ -5624,6 +5624,8 @@ export interface components {
              * @enum {string}
              */
             script_result_format?: "" | "json";
+            /** @description Frozen policy for approved native script executions only; rejected by simulation flow admission. */
+            script_prefer_cache?: boolean;
         };
         FlowDefinition: {
             /** @enum {string} */

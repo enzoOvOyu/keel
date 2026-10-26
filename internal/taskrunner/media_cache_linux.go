@@ -260,3 +260,68 @@ func readMediaCache(ctx context.Context, directory, cursor, expected string) (ma
 	}
 	return map[string]any{"cache_version": mediaCacheVersion, "cache_directory": MediaCacheDirectory, "manifest_sha256": digest, "registered_count": len(m.Entries), "offset": start, "page_size": mediaCachePageSize, "items": items, "next_cursor": next, "page_content_verified": true}, "cache_page_verified"
 }
+
+// readCachedScriptBody copies verified bytes while holding the ownership index
+// lock. Execution uses this copy, never a pathname reopened after verification.
+func readCachedScriptBody(ctx context.Context, directory string, c TaskCommand) ([]byte, error) {
+	if c.Validate() != nil || c.Operation != "script.run" || !c.ScriptCacheAllowed || ctx.Err() != nil {
+		return nil, ErrRejected
+	}
+	dir, err := agentDirectory(directory)
+	if err != nil {
+		return nil, ErrRejected
+	}
+	defer unix.Close(dir)
+	lock, err := agentFile(dir, ".keel-cache.lock", true)
+	if err != nil {
+		return nil, ErrRejected
+	}
+	defer unix.Close(lock)
+	if unix.Flock(lock, unix.LOCK_SH|unix.LOCK_NB) != nil {
+		return nil, ErrRejected
+	}
+	defer unix.Flock(lock, unix.LOCK_UN)
+	m, _, err := loadCacheManifest(dir)
+	if err != nil {
+		return nil, ErrRejected
+	}
+	for _, entry := range m.Entries {
+		if entry.SHA256 != c.ScriptSHA256 {
+			continue
+		}
+		if entry.Size != c.ScriptSize {
+			return nil, ErrRejected
+		}
+		f, err := openCacheFile(dir, entry.SHA256, MaxScriptBytes)
+		if err != nil {
+			return nil, ErrRejected
+		}
+		defer f.Close()
+		body, err := io.ReadAll(io.LimitReader(f, MaxScriptBytes+1))
+		if err != nil || ctx.Err() != nil || validateScriptBody(c, body) != nil {
+			return nil, ErrRejected
+		}
+		return body, nil
+	}
+	return nil, ErrRejected
+}
+
+// Probe never creates a command receipt or consumes its fence. A miss authorizes
+// no execution; the controller may supply the approved body before its single run.
+func probeScriptCache(ctx context.Context, directory string, enabled bool, c TaskCommand) (Observation, error) {
+	if (Request{Action: "cache", Command: c}).Validate() != nil || ctx.Err() != nil || !time.UnixMicro(c.AuthorizationExpiresAt).After(time.Now()) {
+		return Observation{}, ErrRejected
+	}
+	hit := false
+	if enabled {
+		_, err := readCachedScriptBody(ctx, directory, c)
+		hit = err == nil
+	}
+	if ctx.Err() != nil {
+		return Observation{}, ErrRejected
+	}
+	return Observation{Command: c, State: "accepted", Output: map[string]any{
+		"cache_probe": "keel-script-cache/v1", "cache_hit": hit,
+		"sha256": c.ScriptSHA256, "size": c.ScriptSize,
+	}}, nil
+}

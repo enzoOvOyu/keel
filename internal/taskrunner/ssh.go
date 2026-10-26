@@ -471,7 +471,7 @@ func (s *SSH) Do(ctx context.Context, r Request) (Observation, error) {
 
 func (s *SSH) doEndpoint(ctx context.Context, r Request, id string, ep endpoint) (Observation, error) {
 	var zero Observation
-	if r.Command.Validate() != nil || (r.Action != "run" && r.Action != "query" && r.Action != "cancel") {
+	if r.Validate() != nil {
 		return zero, ErrRejected
 	}
 	work, cancel := context.WithTimeout(ctx, 35*time.Second)

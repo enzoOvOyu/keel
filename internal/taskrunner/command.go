@@ -20,6 +20,7 @@ var idPattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
 const APIVersion = "keel.task/v1"
 
 type TaskCommand struct {
+	ScriptCacheAllowed     bool   `json:"script_cache_allowed,omitempty"`
 	CacheCursor            string `json:"cache_cursor,omitempty"`
 	CacheManifestSHA256    string `json:"cache_manifest_sha256,omitempty"`
 	ScriptResultFormat     string `json:"script_result_format,omitempty"`
@@ -59,7 +60,7 @@ func (c TaskCommand) Validate() error {
 		if (c.ScriptResultFormat != "" && c.ScriptResultFormat != "json") || !idPattern.MatchString(c.ScriptMediaID) || !scriptDigestPattern.MatchString(c.ScriptSHA256) || c.ScriptSize < 1 || c.ScriptSize > MaxScriptBytes || c.AuthorizationExpiresAt < 1 || !validScriptVersion(c.ScriptObjectVersion) || (c.ScriptInterpreter != "shell" && c.ScriptInterpreter != "python") {
 			return ErrRejected
 		}
-	} else if c.ScriptResultFormat != "" || c.ScriptMediaID != "" || c.ScriptObjectVersion != "" || c.ScriptSHA256 != "" || c.ScriptSize != 0 || c.ScriptInterpreter != "" {
+	} else if c.ScriptCacheAllowed || c.ScriptResultFormat != "" || c.ScriptMediaID != "" || c.ScriptObjectVersion != "" || c.ScriptSHA256 != "" || c.ScriptSize != 0 || c.ScriptInterpreter != "" {
 		return ErrRejected
 	}
 	if c.Operation == "trust.install" {
@@ -82,21 +83,35 @@ func (c TaskCommand) Digest() string {
 }
 
 type Request struct {
-	Action  string      `json:"action"`
-	Command TaskCommand `json:"command"`
-	Script  []byte      `json:"script,omitempty"`
+	UseCachedScript bool        `json:"use_cached_script,omitempty"`
+	Action          string      `json:"action"`
+	Command         TaskCommand `json:"command"`
+	Script          []byte      `json:"script,omitempty"`
 }
 
 // Validate binds the optional body to the immutable command before transport or
-// receipt state can be consumed. Query/cancel never carry executable bytes.
+// receipt state can be consumed. Query/cancel/cache never carry executable bytes.
+// Cached runs carry only frozen metadata; the target verifies actual owned bytes.
 func (r Request) Validate() error {
-	if r.Command.Validate() != nil || (r.Action != "run" && r.Action != "query" && r.Action != "cancel") {
+	if r.Command.Validate() != nil || (r.Action != "run" && r.Action != "query" && r.Action != "cancel" && r.Action != "cache") {
 		return ErrRejected
 	}
+	if r.Action == "cache" {
+		if r.Command.Operation != "script.run" || !r.Command.ScriptCacheAllowed || r.UseCachedScript || len(r.Script) != 0 {
+			return ErrRejected
+		}
+		return nil
+	}
 	if r.Command.Operation == "script.run" && r.Action == "run" {
+		if r.UseCachedScript {
+			if !r.Command.ScriptCacheAllowed || len(r.Script) != 0 {
+				return ErrRejected
+			}
+			return nil
+		}
 		return validateScriptBody(r.Command, r.Script)
 	}
-	if len(r.Script) != 0 {
+	if len(r.Script) != 0 || r.UseCachedScript {
 		return ErrRejected
 	}
 	return nil

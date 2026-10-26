@@ -569,6 +569,8 @@ export interface components {
              * @enum {string}
              */
             script_result_format?: "" | "json";
+            /** @description Frozen policy for approved native script executions only; rejected by simulation flow admission. */
+            script_prefer_cache?: boolean;
         };
         FlowDefinition: {
             /** @enum {string} */
@@ -1209,6 +1211,11 @@ export interface components {
              * @enum {string}
              */
             result_format: "" | "json";
+            /**
+             * @description Probe the fixed owned media cache before the single script run. A verified hit omits body transfer; no body fallback or rerun after dispatch.
+             * @default false
+             */
+            prefer_cache: boolean;
         };
         AgentNetworkInterface: {
             index: number;

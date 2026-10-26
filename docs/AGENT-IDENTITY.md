@@ -186,3 +186,6 @@ Heartbeat proto 增加可选 `network_inventory_json`，严格版本 `agent-netw
 目标受保护JSON可显式`media_cache_enabled:true`，必须同时scripts_enabled/tasks_enabled；Agent只把固定缓存开关传给独立脚本helper，不继承其他环境。缓存与SSH共用上述固定目录/归属/摘要契约，要求同一明确的平台非root所有者，不自动创建账号、改权限或切换身份。默认不开启。
 
 `cache_inventory_enabled:true`（依赖tasks_enabled）才接受`host.cache.inventory`新run；API/worker另需`KEEL_TASK_CACHE_INVENTORY_ENABLED=true`。缓存查询在常驻Agent做有界只读校验，无子reaper/子进程，不需要开启脚本执行。每页16项、续页固定manifest摘要，当前身份/资产/原参数由broker再次核对；禁用后旧query/cancel仍可读原回执。缓存清单由显式查询任务提供，本次未塞进身份心跳，也未将其等同FR-1.2完整缓存心跳/双向文件传输。具体边界见 [SSH-RUNNER](SSH-RUNNER.md)。
+
+
+批准脚本可显式选择`prefer_cache`，经原派发授权做只读缓存探测，命中后唯一run省略正文、目标端重新核对实际缓存字节；未命中只在首次run前传正文，派发后不得补传重跑。探测不创建Agent fence/任务回执，Agent broker按run同等当前权限/租约/独占资源/介质审批/原授权期限校验；禁用脚本后不可新探测，历史query/cancel不受此影响。固定目录、容量、归属边界和具体字段见SSH-RUNNER「命中缓存后省略脚本正文」。本段为源码实现，未运行集中验证。
