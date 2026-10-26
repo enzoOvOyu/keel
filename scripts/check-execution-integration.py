@@ -49,7 +49,7 @@ def passed(label):checks.append(label);print('PASS '+label,flush=True)
 admin=Client();admin.login(credentials['username'],credentials['password'])
 p=admin.call('POST','/projects',{'name':'执行引擎隔离模拟验收','slug':prefix},code=201)
 path='/projects/'+p['id']
-count=int(os.environ.get('KEEL_SIM_TEST_TARGETS','2000'))
+count=int(os.environ.get('KEEL_SIM_TEST_TARGETS','200'))
 assert 1<=count<=2000
 registration={'prefix':prefix,'count':count,'seed':42};key=secrets.token_hex(16)
 targets=admin.call('POST',path+'/sim-targets',registration,key=key,code=201)['items']
@@ -65,7 +65,7 @@ def definition(outcome='success',duration=10,retry=0,fail_first=0,kind='sim.read
     return {'api_version':'keel.sim/v1','inputs':{'profile':{'type':'enum','required':True,'enum':['smoke','capacity']}},'tasks':[{'id':'inspect','type':kind,'retry':retry,'idempotent':True,'timeout_ms':5000,'resources':['machine'],'sim':{'outcome':outcome,'duration_ms':duration,'seed':42,'fail_first':fail_first}}]}
 def publish(name,d):return admin.call('POST',path+'/flows',{'name':prefix+' '+name,'definition':d},code=201)
 def execute(flow,selected=None,**extra):
-    body={'mode':'sim','flow_version_id':flow['id'],'target_ids':[t['id'] for t in (selected or targets[:1])],'parameters':{'profile':'capacity' if count==2000 else 'smoke'},'concurrency':64,**extra}
+    body={'mode':'sim','flow_version_id':flow['id'],'target_ids':[t['id'] for t in (selected or targets[:1])],'parameters':{'profile':'capacity' if count>=200 else 'smoke'},'concurrency':64,**extra}
     return admin.call('POST',path+'/executions',body,code=201)
 def detail(e):return admin.call('GET',path+'/executions/'+e['id'])
 def wait(e,states,timeout=60):

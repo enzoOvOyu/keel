@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the existing execution acceptance against an owned, disposable API/worker/database.
 
-Default: 2,000 logical targets. No production database, hardware adapters, or
+Default: 200 logical targets (current P1); 2,000 remains an explicit expansion profile. No production database, hardware adapters, or
 transport credentials are inherited. Logs and resource evidence stay private.
 """
 import argparse
@@ -22,7 +22,7 @@ import urllib.request
 import uuid
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--targets', type=int, choices=[100, 2000], default=2000)
+parser.add_argument('--targets', type=int, choices=[100, 200, 2000], default=200)
 args = parser.parse_args()
 os.umask(0o077)
 root = Path(__file__).resolve().parents[1]

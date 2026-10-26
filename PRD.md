@@ -418,6 +418,8 @@
 
 **FR-1.1 作业流模型**：Flow（作业流）→ Task（任务）→ Runnable（执行单元）分层；YAML 声明式定义，支持 inputs（含条件输入）、variables、subflow、retry、timeout、并发控制、failedNext/警告分支、labels、触发器（cron/webhook/事件）。
 
+**当前P1实施规模调整（用户决策，2026-10-26）**：逻辑设备扇出按200台开发和集中验收，原2,000台后续优化；不降低成功率/介质完整性/权限/恢复语义，不以200台证明万台NFR。阶段安排见IMPLEMENTATION-PLAN §2。
+
 **FR-1.2 双执行模式**：
 - **有代理（Agent 模式）**：目标机常驻 agent（systemd 服务），支持任务下发、断点续跑、文件双向传输、心跳上报；
 - **无代理（Agentless 模式）**：控制端通过 SSH（凭据/密钥托管）直接执行，适用于装机后未装 agent、以及**优雅退出阶段清理 agent 自身**的场景。

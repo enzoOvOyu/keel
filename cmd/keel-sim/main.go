@@ -12,7 +12,7 @@ import (
 
 func main() {
 	seed := flag.Int64("seed", 1, "reproducible seed")
-	count := flag.Int("targets", 2000, "logical targets (1..2000)")
+	count := flag.Int("targets", 200, "logical targets (1..2000; current P1 default: 200)")
 	prefix := flag.String("prefix", "sim", "registration prefix")
 	scenario := flag.String("scenario", "success", "success|failed|drop_receipt")
 	flag.Parse()

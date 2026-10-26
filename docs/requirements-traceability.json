@@ -1247,7 +1247,8 @@
         "scripts/check-execution-workspace-integration.py",
         "docs/DEPLOYMENT.md",
         "docs/HANDOFF.md"
-      ]
+      ],
+      "evidence": " User scope change 2026-10-26: current P1 fanout target and CI default are 200 logical devices, retaining >=99.5% success and zero media integrity failures. Former 2000-device profile remains explicitly selectable for later optimization and is not a current P1 closure prerequisite; 200-device evidence cannot establish 2000/10000-device PASS. No acceptance executed; HANDOFF section136."
     },
     {
       "id": "WP-1.3",
@@ -1626,7 +1627,7 @@
         "H-1"
       ],
       "implementation_status": "partial",
-      "evidence": "P1 simulator fan-out evidence remains separate from hardware acceptance. H-1 package was corrected to offline evidence validation: the previous Bearer-token/root/accept-new driver and optional-readback success path were incompatible with current authentication and trust boundaries. The validator now requires exactly ten BOM-matched HGX B300 declarations, full current asset and successful bootstrap-request exports, captured release health, independently collected host public keys, exact SSH identity snapshots and durable receipts, UTC observation bounds, boot logs and customer-key preservation artifacts. File digests, path/symlink/type/size boundaries and identity/project/fence/hostname/pin consistency are checked. Synthetic self-checks do not contact services or prove PXE readiness. Only BLOCKED or READY_FOR_REVIEW is emitted; hardware acceptance remains UNVERIFIED and requires engineering-owner review. Existing historical self-check output is retained solely as an outdated snapshot. WP-1.7/PXE/automatic registration and real H-1 backfill remain incomplete; WP-1.9/P1 stays partial.",
+      "evidence": "P1 simulator fan-out evidence remains separate from hardware acceptance. H-1 package was corrected to offline evidence validation: the previous Bearer-token/root/accept-new driver and optional-readback success path were incompatible with current authentication and trust boundaries. The validator now requires exactly ten BOM-matched HGX B300 declarations, full current asset and successful bootstrap-request exports, captured release health, independently collected host public keys, exact SSH identity snapshots and durable receipts, UTC observation bounds, boot logs and customer-key preservation artifacts. File digests, path/symlink/type/size boundaries and identity/project/fence/hostname/pin consistency are checked. Synthetic self-checks do not contact services or prove PXE readiness. Only BLOCKED or READY_FOR_REVIEW is emitted; hardware acceptance remains UNVERIFIED and requires engineering-owner review. Existing historical self-check output is retained solely as an outdated snapshot. WP-1.7/PXE/automatic registration and real H-1 backfill remain incomplete; WP-1.9/P1 stays partial. User scope change 2026-10-26: current P1 fanout target and CI default are 200 logical devices, retaining >=99.5% success and zero media integrity failures. Former 2000-device profile remains explicitly selectable for later optimization and is not a current P1 closure prerequisite; 200-device evidence cannot establish 2000/10000-device PASS. No acceptance executed; HANDOFF section136.",
       "evidence_refs": [
         "poc/selfcheck.sh",
         "poc/run-h1.sh",
