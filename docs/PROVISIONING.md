@@ -210,7 +210,7 @@ prepared只证明源准备完成，不能复用已经释放的准备锁开始装
 
 平台接口复核live独占租约及完整冻结来源，认证预检复算后存精确原始报告。`/provision/installations`列表/读取供Admin/DE/DL/SRE查看；`/{id}/storage`在30秒新鲜预检窗口显式选择WWID/serial/容量/扇区与擦盘意图，生成完整绑定Spec/原报告/设备号/diskseq的固定UEFI GPT/ext4布局；过期必须先在启动环境刷新预检，不能复用历史PASS。`/{id}/storage/approve`由另一当前Admin/DL批准确切版本，且不同于安装发起人与选盘人。人工批准不要求历史报告永远保持新鲜，但将来实际写入前必须重新采集验证并取得当前许可。每次变更重查scope审批、BOM、介质和公钥；失败或撤域不能制造安装成功/主机信任。
 
-当前没有生产文件Authority、注册/预检HTTP监听接线、initrd带外文件接收与互动预检刷新、write-permit端点、真实写盘、首启回调/host-key或SSH首连/修复、完整阶段投影。worker仅能证明从未发出写盘许可的失败/取消；将来发过permit而无终态证据须unknown，保留资源对账，不盲重试。055及新用例尚未运行，不能开启此源码增量当作已完成安装服务。
+此批次当时尚无生产文件Authority与回调接线；后续小节已补源码接线、initrd带外文件输入及显式互动预检刷新。仍没有write-permit端点、真实写盘、首启回调/host-key或SSH首连/修复、完整阶段投影。worker仅能证明从未发出写盘许可的失败/取消；将来发过permit而无终态证据须unknown，保留资源对账，不盲重试。055及新用例尚未运行，不能开启此源码增量当作已完成安装服务。
 
 
 ### 当前授权与隔离引导服务（源码，尚未启用）
@@ -221,6 +221,17 @@ prepared只证明源准备完成，不能复用已经释放的准备锁开始装
 
 新增可执行源码`cmd/keel-provision`，仅显式启动，API/worker和Compose不自动拉起。须同时设置KEEL_PROVISION_SERVICE_ENABLED=true与KEEL_PROVISION_INSTALL_ENABLED=true、KEEL_PROVISION_PROJECT_ID/KEEL_PROVISION_SCOPE_ID、KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE、介质存储配置及KEEL_PROVISION_TLS_CERT_FILE/KEEL_PROVISION_TLS_KEY_FILE。scope须已独立批准并与实际服务器地址/接口/子网一致。证书须匹配批准origin且当前有效，私钥文件归当前操作者且0600；HTTPS仅TLS1.3，bind固定server IPv4及SO_BINDTODEVICE，UDP复用原ProxyDHCP与TFTP约束，不分配地址。scope失效/DB无法确认或子服务退出会取消其他listener；运行需显式网络端口/设备绑定权限，不自动提权/修改NIC。当前未执行该命令，未部署或验证监听。
 
-`/run/keel-bootstrap.json`是保留的可信带外输入，不在公共initrd/iPXE/seed中；必须由PoC确定的可信机制在runtime LoadBootstrap时交付，当前不提供自动交付。只在root PID1 ephemeral环境从tmpfs、root单链接私有文件读取；不存在则保持未注册只读准备，存在却无效则阻断。bootstrap整个Spec与独立验证boot files完全匹配才生成内存Ed25519密钥并注册。成功后删除Token文件，后续预检不再带Token。报告原字节签名；回包未知不重发、不重新注册、不声称成功，已采集事实仍保留本地tmpfs。当前只提供一次预检上报，后续互动刷新/审批/新网络会话与writer仍待接，不将历史事实当实时写盘依据。
+`/run/keel-bootstrap.json`是保留的可信带外输入，不在公共initrd/iPXE/seed中；必须由PoC确定的可信机制在runtime LoadBootstrap时交付，当前不提供自动交付。只在root PID1 ephemeral环境从tmpfs、root单链接私有文件读取；不存在则保持未注册只读准备，存在却无效则阻断。bootstrap整个Spec与独立验证boot files完全匹配才生成内存Ed25519密钥并注册。成功后删除Token文件，后续预检不再带Token。报告原字节签名；回包未知不重发、不重新注册、不声称成功，已采集事实仍保留本地tmpfs。初次预检之后可按下节显式请求刷新并读取审批状态；新网络会话与writer仍待接，不将历史事实当实时写盘依据。
 
 装机准备页面现提供独立安装会话发起、会话列表和存储选盘/独立审批。列表仅摘要，复核窗口读取完整认证事实并固定版本；前台轮询不刷新硬件报告。磁盘必须明确选择，稳定身份/几何/占用完整、新鲜PASS和UEFI才显示可选，并确认磁盘序列号及擦除意图。审批不同于写盘许可；没有Token浏览器交付、手动成功或未知结果自动解锁。该页面源码尚未发布/浏览器验收。
+
+
+## 同一启动会话的显式预检刷新与审批等待（源码，待集中验证）
+
+POST项目安装会话`/preflight/refresh`要求当前Admin/DE/DL/SRE、未选盘的preflight_ready、精确版本和理由，将请求ID/当前报告摘要/回调序号记入既有append-only事件及审计。相同报告序号只准一个待处理请求；请求登记不变更业务版本，收到新签名报告才递增版本。等待中的请求阻断旧事实选盘。初次报告序号2，最多32份报告，不无限续签事实。
+
+机器POST `/boot/{grant}/review`使用已注册启动密钥签署canonical `{nonce}`及最后确认的报告序号；完整当前执行/来源/scope/peer仍在同一短事务重查。只读查询不消费序号，不修改审批状态/版本，不授权写盘；固定TLS连接返回匹配nonce/boot/installation/sequence/expiry和当前报告摘要。客户端每次生成新的128-bit随机nonce，核对本地最后ACK的报告摘要，拒绝旧回包/换报告。查询只允许preflight_ready/awaiting_storage_review/storage_approved，未知、撤销、租约失效或网络错误停止会话。
+
+只有待处理请求触发同一内存启动密钥下再次调用原只读helper。刷新POST仍走preflight路径，附refresh_id，proof operation为preflight-refresh，签名输入为`Keel preflight refresh v1`、NUL、请求ID、NUL、精确helper原字节。控制器同时核对当前待处理请求、下一序号和新鲜事实；重复请求、错绑及选盘后报告均拒绝。回包丢失不重发，已有报告留本地。首份证据在等待人工前即落tmpfs；后续各份保留独立`/run/keel/reports/<sequence>`目录，不覆盖历史证据。
+
+initrd审批等待受原DHCP租约、ARP冲突监测、Spec到期和上下文共同约束，不自动续租/重新注册/换接口。布局批准后仅返回storage_approved_no_write_permit并撤下临时网络，仍没有写盘器、写盘许可或自动重启；未来writer必须在独立工具/镜像输入及当前许可完成后接在同一受控运行阶段。页面增加请求刷新按钮与等待提示；列表刷新只是读取状态，不能刷新硬件时间戳。

@@ -141,8 +141,8 @@ func (h *HTTPFiles) Get(ctx context.Context, name string) ([]byte, error) {
 
 // PostCallback reuses the exact fixed-IP/interface/CA/hostname transport. POSTs
 // carry no idempotency key or replayable body and never follow redirects/retry.
-func (h *HTTPFiles) PostCallback(ctx context.Context, operation, token string, raw []byte) (*provisionboot.BootAcknowledgment, error) {
-	if h == nil || h.client == nil || len(raw) == 0 || len(raw) > provisionboot.MaximumCallbackBytes || (operation != "enroll" && operation != "preflight") || (operation == "enroll" && !digest.MatchString(token)) || (operation == "preflight" && token != "") {
+func (h *HTTPFiles) postBoot(ctx context.Context, operation, token string, raw []byte) ([]byte, error) {
+	if h == nil || h.client == nil || len(raw) == 0 || len(raw) > provisionboot.MaximumCallbackBytes || (operation != "enroll" && operation != "preflight" && operation != "review") || (operation == "enroll" && !digest.MatchString(token)) || (operation != "enroll" && token != "") {
 		return nil, ErrUnavailable
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.base+operation, bytes.NewReader(raw))
@@ -167,9 +167,35 @@ func (h *HTTPFiles) PostCallback(ctx context.Context, operation, token string, r
 	if err != nil || len(body) == 0 || len(body) > 8192 || ctx.Err() != nil {
 		return nil, ErrUnavailable
 	}
+	return body, nil
+}
+
+func (h *HTTPFiles) PostCallback(ctx context.Context, operation, token string, raw []byte) (*provisionboot.BootAcknowledgment, error) {
+	if operation != "enroll" && operation != "preflight" {
+		return nil, ErrUnavailable
+	}
+	body, err := h.postBoot(ctx, operation, token, raw)
+	if err != nil {
+		return nil, err
+	}
 	var ack provisionboot.BootAcknowledgment
 	if json.Unmarshal(body, &ack) != nil {
 		return nil, ErrUnavailable
 	}
 	return &ack, nil
+}
+
+func (h *HTTPFiles) ReviewBoot(ctx context.Context, raw []byte) (*provisionboot.ReviewStatus, error) {
+	if len(raw) > 8192 {
+		return nil, ErrUnavailable
+	}
+	body, err := h.postBoot(ctx, "review", "", raw)
+	if err != nil {
+		return nil, err
+	}
+	var out provisionboot.ReviewStatus
+	if json.Unmarshal(body, &out) != nil {
+		return nil, ErrUnavailable
+	}
+	return &out, nil
 }

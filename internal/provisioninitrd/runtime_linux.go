@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/enzoOvOyu/keel/internal/provisionimage"
@@ -145,6 +146,7 @@ func RunPreparation(ctx context.Context) (*Preparation, error) {
 		return nil, ErrUnavailable
 	}
 	var preparation *Preparation
+	retained := false
 	err = WithNetworkLease(ctx, lease, func(ctx context.Context) error {
 		filesClient, err := NewHTTPFiles(HTTPConfig{Input: input, RootCAs: roots, Interface: lease.Interface, LocalAddress: lease.Address})
 		if err != nil {
@@ -174,14 +176,44 @@ func RunPreparation(ctx context.Context) (*Preparation, error) {
 			if err == nil {
 				preparation.BootCallbackStatus = "acknowledged"
 			}
+			// Retain the first exact facts before waiting on a human decision.
+			// Later reports get independent append-only revision directories.
+			if storePreparation(preparation) != nil {
+				return ErrUnavailable
+			}
+			retained = true
+			if err == nil && preparation.Report.Status == "PASS" {
+				preparation, err = session.AwaitStorageReview(ctx, input, files, preparation, LinuxHelpers{}, filesClient, func(p *Preparation, sequence int64) error {
+					root := "/run/keel/reports"
+					if os.MkdirAll(root, 0700) != nil {
+						return ErrUnavailable
+					}
+					return storePreparationAt(filepath.Join(root, strconv.FormatInt(sequence, 10)), p)
+				})
+			}
 		}
 		return err
 	})
 	if preparation == nil {
 		return nil, ErrUnavailable
 	}
-	if storeErr := storePreparation(preparation); storeErr != nil {
+	if !retained && storePreparation(preparation) != nil {
 		return nil, ErrUnavailable
+	}
+	if preparation.BootReview != nil {
+		raw, marshalErr := json.Marshal(preparation.BootReview)
+		if marshalErr != nil {
+			return preparation, ErrUnavailable
+		}
+		f, openErr := os.OpenFile("/run/keel/review-status.json", os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+		if openErr != nil {
+			return preparation, ErrUnavailable
+		}
+		n, writeErr := f.Write(raw)
+		closeErr := f.Close()
+		if writeErr != nil || closeErr != nil || n != len(raw) {
+			return preparation, ErrUnavailable
+		}
 	}
 	if err != nil {
 		return preparation, ErrUnavailable
@@ -190,6 +222,9 @@ func RunPreparation(ctx context.Context) (*Preparation, error) {
 }
 
 func storePreparation(p *Preparation) error {
+	return storePreparationAt("/run/keel", p)
+}
+func storePreparationAt(dir string, p *Preparation) error {
 	if RequireInitramfs() != nil || p == nil || len(p.ReportBytes) == 0 || len(p.ReportBytes) > 2<<20 || p.InstallationPerformed || p.Schema != PreparationSchema {
 		return ErrUnavailable
 	}
@@ -197,7 +232,6 @@ func storePreparation(p *Preparation) error {
 	if hex.EncodeToString(hash[:]) != p.ReportSHA256 {
 		return ErrUnavailable
 	}
-	const dir = "/run/keel"
 	if err := os.Mkdir(dir, 0700); err != nil {
 		return ErrUnavailable
 	}

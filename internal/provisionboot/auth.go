@@ -48,8 +48,46 @@ type EnrollmentSubmission struct {
 // Report is base64 in the envelope so the signed helper stdout bytes survive
 // JSON serialization exactly; it is decoded and recomputed by the authority.
 type PreflightSubmission struct {
-	Report []byte    `json:"report"`
-	Proof  BootProof `json:"proof"`
+	Report    []byte    `json:"report"`
+	Proof     BootProof `json:"proof"`
+	RefreshID string    `json:"refresh_id,omitempty"`
+}
+
+// Review uses the last acknowledged sequence without consuming it. This is a
+// read-only, nonce-bound query; it cannot authorize a write or mutate versions.
+type ReviewQuery struct {
+	Nonce string `json:"nonce"`
+}
+type ReviewSubmission struct {
+	Query ReviewQuery `json:"query"`
+	Proof BootProof   `json:"proof"`
+}
+type ReviewStatus struct {
+	InstallationID    string    `json:"installation_id"`
+	BootID            string    `json:"boot_id"`
+	Sequence          int64     `json:"sequence"`
+	Nonce             string    `json:"nonce"`
+	State             string    `json:"state"`
+	ExpiresAt         time.Time `json:"expires_at"`
+	ReportSHA256      string    `json:"report_sha256"`
+	RefreshID         string    `json:"refresh_id,omitempty"`
+	StoragePlanSHA256 string    `json:"storage_plan_sha256,omitempty"`
+}
+
+// PreflightProofPayload binds refresh authority to the exact raw helper bytes.
+// Initial reporting keeps the original raw-byte transcript.
+func PreflightProofPayload(in PreflightSubmission) ([]byte, string, error) {
+	if len(in.Report) == 0 || len(in.Report) > 2<<20 {
+		return nil, "", ErrDenied
+	}
+	if in.RefreshID == "" {
+		return in.Report, "preflight", nil
+	}
+	if !opaqueID.MatchString(in.RefreshID) {
+		return nil, "", ErrDenied
+	}
+	payload := append([]byte("Keel preflight refresh v1\x00"+in.RefreshID+"\x00"), in.Report...)
+	return payload, "preflight-refresh", nil
 }
 
 const MaximumCallbackBytes = (2<<20)*4/3 + 8192
@@ -86,7 +124,7 @@ func DecodeCallback(raw []byte, value any) error {
 
 func proofOperation(value string) bool {
 	switch value {
-	case "enroll", "preflight", "write-permit", "install-stopped", "first-boot":
+	case "enroll", "preflight", "preflight-refresh", "review", "write-permit", "install-stopped", "first-boot":
 		return true
 	}
 	return false
@@ -102,9 +140,15 @@ func (p BootProof) message() ([]byte, error) {
 	}
 	return append([]byte(bootProofDomain), raw...), nil
 }
+func maximumProofBytes(operation string) int {
+	if operation == "preflight-refresh" {
+		return (2 << 20) + 8192
+	}
+	return 2 << 20
+}
 func SignBootProof(key ed25519.PrivateKey, installation, boot string, sequence int64, operation string, payload []byte) (BootProof, error) {
 	p := BootProof{Schema: BootProofSchema, InstallationID: installation, BootID: boot, Sequence: sequence, Operation: operation}
-	if len(key) != ed25519.PrivateKeySize || len(payload) == 0 || len(payload) > 2<<20 {
+	if len(key) != ed25519.PrivateKeySize || len(payload) == 0 || len(payload) > maximumProofBytes(operation) {
 		return BootProof{}, ErrDenied
 	}
 	hash := sha256.Sum256(payload)
@@ -117,7 +161,7 @@ func SignBootProof(key ed25519.PrivateKey, installation, boot string, sequence i
 	return p, nil
 }
 func VerifyBootProof(key ed25519.PublicKey, installation, boot string, next int64, operation string, payload []byte, p BootProof) error {
-	if len(key) != ed25519.PublicKeySize || len(payload) == 0 || len(payload) > 2<<20 || p.InstallationID != installation || p.BootID != boot || p.Sequence != next || p.Operation != operation {
+	if len(key) != ed25519.PublicKeySize || len(payload) == 0 || len(payload) > maximumProofBytes(operation) || p.InstallationID != installation || p.BootID != boot || p.Sequence != next || p.Operation != operation {
 		return ErrDenied
 	}
 	hash := sha256.Sum256(payload)

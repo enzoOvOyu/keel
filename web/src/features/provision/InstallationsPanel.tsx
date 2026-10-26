@@ -14,7 +14,7 @@ import { useSession, useExpireOnUnauthorized } from '../../lib/session'
 import { useAction } from '../../lib/management'
 import {
  approveProvisionStorage, getProvisionInstallation, listProvisionBootScopes, listProvisionInstallations,
- selectProvisionStorage, startProvisionInstallation, type ProvisionDisk, type ProvisionInstallation, type ProvisionRequest,
+ selectProvisionStorage, startProvisionInstallation, requestProvisionPreflightRefresh, type ProvisionDisk, type ProvisionInstallation, type ProvisionRequest,
 } from '../../lib/provision'
 
 export function StartInstallation({ item, onClose, onDone }: { item: ProvisionRequest; onClose: () => void; onDone: () => Promise<void> }) {
@@ -47,7 +47,7 @@ function diskEligible(disk: ProvisionDisk, all: ProvisionDisk[]) {
   all.filter(value => value.wwid === disk.wwid || value.serial_number === disk.serial_number || value.device === disk.device || value.device_number === disk.device_number).length === 1
 }
 
-function InstallationAction({ item, kind, onClose, onDone }: { item: ProvisionInstallation; kind: 'select' | 'approve'; onClose: () => void; onDone: () => Promise<void> }) {
+function InstallationAction({ item, kind, onClose, onDone }: { item: ProvisionInstallation; kind: 'select' | 'approve' | 'refresh'; onClose: () => void; onDone: () => Promise<void> }) {
  const { t } = useTranslation(), session = useSession(), action = useAction()
  const [selected, setSelected] = useState(''), [reason, setReason] = useState(''), [erase, setErase] = useState(false), [confirmation, setConfirmation] = useState(''), [now, setNow] = useState(Date.now())
  // Pin the fetched version for this review. Background board polling must not
@@ -64,16 +64,17 @@ function InstallationAction({ item, kind, onClose, onDone }: { item: ProvisionIn
  const expired = !current || Date.parse(current.expires_at) <= now
  const versionChanged = !!current && current.state_version !== item.state_version
  const canApprove = !!current && current.state === 'awaiting_storage_review' && !!plan && plan.plan_sha256 === current.storage_plan_sha256 && current.storage_requested_by !== session.user.id && current.created_by !== session.user.id
- const valid = !expired && !versionChanged && !!reason.trim() && !!current && !evidence.error && (kind === 'select' ? current.state === 'preflight_ready' && fresh && !!disk && diskEligible(disk, disks) && erase && confirmation === disk.serial_number : canApprove && erase)
- return <ActionDialog title={t(kind === 'select' ? 'installSelectStorage' : 'installApproveStorage')} description={current?.spec?.expected.serial_number ?? item.machine_id} busy={action.busy} confirm={t(kind === 'select' ? 'installSubmitStorage' : 'installApproveStorage')} submitDisabled={!valid} danger onClose={onClose} onSubmit={event => {
+ const valid = !expired && !versionChanged && !!reason.trim() && !!current && !evidence.error && (kind === 'select' ? current.state === 'preflight_ready' && fresh && !!disk && diskEligible(disk, disks) && erase && confirmation === disk.serial_number : kind === 'refresh' ? current.state === 'preflight_ready' && !current.storage_plan && current.callback_sequence < 33 : canApprove && erase)
+ return <ActionDialog title={t(kind === 'select' ? 'installSelectStorage' : kind === 'refresh' ? 'installRefreshPreflight' : 'installApproveStorage')} description={current?.spec?.expected.serial_number ?? item.machine_id} busy={action.busy} confirm={t(kind === 'select' ? 'installSubmitStorage' : kind === 'refresh' ? 'installRefreshPreflight' : 'installApproveStorage')} submitDisabled={!valid} danger={kind !== 'refresh'} onClose={onClose} onSubmit={event => {
   event.preventDefault()
   if (!valid || !current) return
   void action.run(async () => {
-   if (kind === 'approve') await approveProvisionStorage(current, reason.trim(), session.csrf_token)
+   if (kind === 'refresh') await requestProvisionPreflightRefresh(current, reason.trim(), session.csrf_token)
+   else if (kind === 'approve') await approveProvisionStorage(current, reason.trim(), session.csrf_token)
    else if (disk && disk.size_bytes && disk.logical_block_bytes && disk.wwid && disk.serial_number) await selectProvisionStorage(current, { schema: 'keel.install-storage-intent/v1', layout: 'uefi-gpt-ext4/v1', wwid: disk.wwid, serial_number: disk.serial_number, size_bytes: disk.size_bytes, logical_block_bytes: disk.logical_block_bytes, erase_selected_disk: true }, reason.trim(), session.csrf_token)
   }).then(async result => { if (result.ok) await onDone() })
  }}>
-  <p className="impact-notice">{t('installStorageImpact')}</p><ActionError error={evidence.error || action.error} />
+  <p className="impact-notice">{t(kind === 'refresh' ? 'installRefreshImpact' : 'installStorageImpact')}</p><ActionError error={evidence.error || action.error} />
   {evidence.isPending && <p role="status">{t('loadingRecords')}</p>}
   {versionChanged && <p role="alert">{t('installVersionChanged')}</p>}
   {expired && current && <p role="alert">{t('provisionExpired')}</p>}
@@ -87,7 +88,7 @@ function InstallationAction({ item, kind, onClose, onDone }: { item: ProvisionIn
   </>}
   {kind === 'approve' && plan && <><StoragePlan plan={plan} /><p>{t('installIndependentApproval')}</p></>}
   <div className="field"><Label htmlFor="install-storage-reason">{t('installReason')}</Label><Input id="install-storage-reason" maxLength={500} value={reason} required disabled={action.busy} onChange={event => setReason(event.target.value)} /></div>
-  <div className="checkbox-field"><NativeCheckbox id="install-erase-confirm" checked={erase} disabled={action.busy} onChange={event => setErase(event.target.checked)} /><Label htmlFor="install-erase-confirm">{t('installEraseConfirm')}</Label></div>
+  {kind !== 'refresh' && <div className="checkbox-field"><NativeCheckbox id="install-erase-confirm" checked={erase} disabled={action.busy} onChange={event => setErase(event.target.checked)} /><Label htmlFor="install-erase-confirm">{t('installEraseConfirm')}</Label></div>}
  </ActionDialog>
 }
 
@@ -98,23 +99,25 @@ function StoragePlan({ plan }: { plan: NonNullable<ProvisionInstallation['storag
 
 export function InstallationsPanel() {
  const { t } = useTranslation(), project = useProject(), session = useSession(), client = useQueryClient()
- const [page, setPage] = useState(1), [choice, setChoice] = useState<{ item: ProvisionInstallation; kind: 'select' | 'approve' }>()
+ const [page, setPage] = useState(1), [choice, setChoice] = useState<{ item: ProvisionInstallation; kind: 'select' | 'approve' | 'refresh' }>()
+ const [pendingRefresh, setPendingRefresh] = useState<{ id: string; version: number }>()
  const readable = session.user.is_admin || ['Admin', 'DE', 'DL', 'SRE'].includes(project.role)
  const writable = readable && !['archived', 'delivered'].includes(project.state)
  const reviewer = writable && (session.user.is_admin || ['Admin', 'DL'].includes(project.role))
  const prefix = ['private', session.user.id, 'project', project.id, 'provision-installations']
  const records = useQuery({ queryKey: [...prefix, page], enabled: readable, queryFn: ({ signal }) => listProvisionInstallations(project.id, page, signal), retry: false, refetchInterval: query => query.state.error || !query.state.data?.items.some(item => !['registered', 'failed', 'canceled', 'unknown'].includes(item.state)) ? false : 5000, refetchIntervalInBackground: false })
  useExpireOnUnauthorized(records.error)
- useEffect(() => { setPage(1); setChoice(undefined) }, [project.id])
+ useEffect(() => { setPage(1); setChoice(undefined); setPendingRefresh(undefined) }, [project.id])
  useEffect(() => { if (!writable || records.error || (choice?.kind === 'approve' && !reviewer)) setChoice(undefined) }, [writable, reviewer, records.error, choice?.kind])
+ useEffect(() => { if (pendingRefresh && records.data?.items.some(item => item.id === pendingRefresh.id && item.state_version !== pendingRefresh.version)) setPendingRefresh(undefined) }, [records.data, pendingRefresh])
  const refresh = async () => { await client.invalidateQueries({ queryKey: prefix }) }
  if (!readable) return null
  return <section className="management-page" aria-labelledby="installations-title"><div className="page-heading"><div><h2 id="installations-title">{t('installTitle')}</h2><p>{t('installDetail')}</p></div><Button variant="outline" disabled={records.isFetching} onClick={() => void refresh()}>{t('refresh')}</Button></div>
-  <ActionError error={records.error} />{records.isPending && <p role="status">{t('loadingRecords')}</p>}
+  {pendingRefresh && <p role="status">{t('installRefreshPending')}</p>}<ActionError error={records.error} />{records.isPending && <p role="status">{t('loadingRecords')}</p>}
   {records.data && !records.error && <>{!records.data.items.length && <p>{t('installEmpty')}</p>}<div className="table-scroll" role="region" aria-label={t('installTitle')} tabIndex={0}><Table><TableHeader><TableRow><TableHead>{t('provisionIdentity')}</TableHead><TableHead>{t('status')}</TableHead><TableHead>{t('provisionExpiry')}</TableHead><TableHead>{t('actions')}</TableHead></TableRow></TableHeader><TableBody>{records.data.items.map(item => {
    const expired = Date.parse(item.expires_at) <= Date.now()
-   return <TableRow key={item.id} data-provision-installation={item.id}><TableCell><span>{item.spec?.expected.serial_number ?? item.machine_id}</span><span className="cell-subtitle mono-value">{item.id} · v{item.state_version}</span><details><summary>{t('provisionProof')}</summary><dl className="ui:max-w-96 ui:whitespace-normal ui:break-all"><dt>{t('provisionReason')}</dt><dd>{item.reason}</dd><dt>{t('provisionSnapshot')}</dt><dd>{item.snapshot_sha256}</dd><dt>{t('bootScopeDomain')}</dt><dd>{item.scope_id}</dd><dt>{t('installEvidenceDigest')}</dt><dd>{item.latest_report_sha256 || '—'}</dd><dt>{t('installPlanDigest')}</dt><dd>{item.storage_plan_sha256 || '—'}</dd></dl>{item.failure_reason && <p role="status">{item.failure_reason}</p>}</details></TableCell><TableCell>{t(`installState_${item.state}`)}{expired && !['registered', 'failed', 'canceled', 'unknown'].includes(item.state) && <span className="cell-subtitle">{t('provisionExpired')}</span>}{item.state === 'unknown' && <span className="cell-subtitle">{t('installUnknown')}</span>}</TableCell><TableCell>{new Date(item.expires_at).toLocaleString()}</TableCell><TableCell><div className="table-actions">{writable && !expired && item.state === 'preflight_ready' && <Button size="sm" onClick={() => setChoice({ item, kind: 'select' })}>{t('installSelectStorage')}</Button>}{reviewer && !expired && item.state === 'awaiting_storage_review' && item.created_by !== session.user.id && item.storage_requested_by !== session.user.id && <Button size="sm" variant="outline" onClick={() => setChoice({ item, kind: 'approve' })}>{t('installApproveStorage')}</Button>}<Link to="/p/$projectId/executions" params={{ projectId: project.id }} search={{ execution: item.execution_id, tab: 'overview' }}>{t('sshTrustViewExecution')}</Link></div></TableCell></TableRow>
+   return <TableRow key={item.id} data-provision-installation={item.id}><TableCell><span>{item.spec?.expected.serial_number ?? item.machine_id}</span><span className="cell-subtitle mono-value">{item.id} · v{item.state_version}</span><details><summary>{t('provisionProof')}</summary><dl className="ui:max-w-96 ui:whitespace-normal ui:break-all"><dt>{t('provisionReason')}</dt><dd>{item.reason}</dd><dt>{t('provisionSnapshot')}</dt><dd>{item.snapshot_sha256}</dd><dt>{t('bootScopeDomain')}</dt><dd>{item.scope_id}</dd><dt>{t('installEvidenceDigest')}</dt><dd>{item.latest_report_sha256 || '—'}</dd><dt>{t('installPlanDigest')}</dt><dd>{item.storage_plan_sha256 || '—'}</dd></dl>{item.failure_reason && <p role="status">{item.failure_reason}</p>}</details></TableCell><TableCell>{t(`installState_${item.state}`)}{expired && !['registered', 'failed', 'canceled', 'unknown'].includes(item.state) && <span className="cell-subtitle">{t('provisionExpired')}</span>}{item.state === 'unknown' && <span className="cell-subtitle">{t('installUnknown')}</span>}</TableCell><TableCell>{new Date(item.expires_at).toLocaleString()}</TableCell><TableCell><div className="table-actions">{writable && !expired && item.state === 'preflight_ready' && item.callback_sequence < 33 && pendingRefresh?.id !== item.id && <Button size="sm" variant="outline" onClick={() => setChoice({ item, kind: 'refresh' })}>{t('installRefreshPreflight')}</Button>}{writable && !expired && item.state === 'preflight_ready' && pendingRefresh?.id !== item.id && <Button size="sm" onClick={() => setChoice({ item, kind: 'select' })}>{t('installSelectStorage')}</Button>}{reviewer && !expired && item.state === 'awaiting_storage_review' && item.created_by !== session.user.id && item.storage_requested_by !== session.user.id && <Button size="sm" variant="outline" onClick={() => setChoice({ item, kind: 'approve' })}>{t('installApproveStorage')}</Button>}<Link to="/p/$projectId/executions" params={{ projectId: project.id }} search={{ execution: item.execution_id, tab: 'overview' }}>{t('sshTrustViewExecution')}</Link></div></TableCell></TableRow>
   })}</TableBody></Table></div><Pagination offset={(page - 1) * records.data.page_size} limit={records.data.page_size} total={records.data.total} busy={records.isFetching} onChange={offset => setPage(offset / records.data!.page_size + 1)} /></>}
-  {choice && choice.item.project_id === project.id && writable && !records.error && (choice.kind !== 'approve' || reviewer) && <InstallationAction key={`${choice.item.id}:${choice.item.state_version}:${choice.kind}`} {...choice} onClose={() => { setChoice(undefined); void refresh() }} onDone={async () => { setChoice(undefined); await refresh() }} />}
+  {choice && choice.item.project_id === project.id && writable && !records.error && (choice.kind !== 'approve' || reviewer) && <InstallationAction key={`${choice.item.id}:${choice.item.state_version}:${choice.kind}`} {...choice} onClose={() => { setChoice(undefined); void refresh() }} onDone={async () => { if (choice.kind === 'refresh') setPendingRefresh({ id: choice.item.id, version: choice.item.state_version }); setChoice(undefined); await refresh() }} />}
  </section>
 }

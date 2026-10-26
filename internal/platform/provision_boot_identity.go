@@ -200,9 +200,9 @@ func (s *Store) enrollProvisionBoot(ctx context.Context, project, grant, token s
 // enrolled private-key proof, exact next sequence and live execution authority.
 // It never projects installation success or accepts an unauthenticated PASS.
 func (s *Store) SubmitProvisionPreflight(ctx context.Context, project, grant string, raw []byte, proof provisionboot.BootProof) (*ProvisionBootIdentity, error) {
-	return s.submitProvisionPreflight(ctx, project, grant, raw, proof, nil)
+	return s.submitProvisionPreflight(ctx, project, grant, raw, proof, "", nil)
 }
-func (s *Store) submitProvisionPreflight(ctx context.Context, project, grant string, raw []byte, proof provisionboot.BootProof, peer *provisionCallbackPeer) (*ProvisionBootIdentity, error) {
+func (s *Store) submitProvisionPreflight(ctx context.Context, project, grant string, raw []byte, proof provisionboot.BootProof, refreshID string, peer *provisionCallbackPeer) (*ProvisionBootIdentity, error) {
 	if !s.ProvisionInstallEnabled || len(raw) == 0 || len(raw) > 2<<20 {
 		return nil, ErrProvisionBootDenied
 	}
@@ -218,8 +218,22 @@ func (s *Store) submitProvisionPreflight(ctx context.Context, project, grant str
 	if err = checkProvisionCallbackPeer(peer, scope); err != nil {
 		return nil, err
 	}
-	if x.GrantID != grant || x.BootID == nil || (x.State != "booting" && x.State != "preflight_ready") || x.StoragePlan != nil || x.CallbackSequence > 32 || provisionboot.VerifyBootProof(x.BootPublicKey, x.ID, *x.BootID, x.CallbackSequence+1, "preflight", raw, proof) != nil {
+	payload, operation, payloadErr := provisionboot.PreflightProofPayload(provisionboot.PreflightSubmission{Report: raw, RefreshID: refreshID})
+	if x.GrantID != grant || x.BootID == nil || (x.State != "booting" && x.State != "preflight_ready") || x.StoragePlan != nil || x.CallbackSequence > 32 || payloadErr != nil || provisionboot.VerifyBootProof(x.BootPublicKey, x.ID, *x.BootID, x.CallbackSequence+1, operation, payload, proof) != nil {
 		return nil, ErrProvisionBootDenied
+	}
+	if x.State == "booting" {
+		if refreshID != "" || x.CallbackSequence != 1 {
+			return nil, ErrProvisionBootDenied
+		}
+	} else {
+		pending, err := pendingProvisionRefreshTx(ctx, tx, x)
+		if err != nil {
+			return nil, err
+		}
+		if refreshID == "" || pending != refreshID {
+			return nil, ErrProvisionBootDenied
+		}
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	report, err := provisionpreflight.EvaluateReport(*x.Spec, raw, now)
@@ -237,7 +251,7 @@ func (s *Store) submitProvisionPreflight(ctx context.Context, project, grant str
 	if _, err = tx.ExecContext(ctx, `UPDATE provision_installations SET state=$2,state_version=state_version+1,callback_sequence=callback_sequence+1,latest_report=$3,latest_report_sha256=$4,failure_reason=$5,updated_at=$6 WHERE id=$1`, x.ID, state, raw, hash, reason, now); err != nil {
 		return nil, err
 	}
-	if err = appendProvisionEventTx(ctx, tx, x, "preflight.reported", map[string]any{"status": report.Status, "report_sha256": hash, "sequence": proof.Sequence, "installation_performed": false}); err != nil {
+	if err = appendProvisionEventTx(ctx, tx, x, "preflight.reported", map[string]any{"status": report.Status, "report_sha256": hash, "sequence": proof.Sequence, "installation_performed": false, "refresh_id": refreshID}); err != nil {
 		return nil, err
 	}
 	x.State = state

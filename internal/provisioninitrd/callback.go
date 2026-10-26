@@ -19,14 +19,16 @@ type CallbackSource interface {
 	PostCallback(context.Context, string, string, []byte) (*provisionboot.BootAcknowledgment, error)
 }
 type BootSession struct {
-	key            ed25519.PrivateKey
-	installation   string
-	boot           string
-	sequence       int64
-	expires        time.Time
-	spec           provisionpreflight.Spec
-	manifestSHA256 string
-	closed         bool
+	key              ed25519.PrivateKey
+	installation     string
+	boot             string
+	sequence         int64
+	expires          time.Time
+	spec             provisionpreflight.Spec
+	manifestSHA256   string
+	closed           bool
+	lastReportSHA256 string
+	refreshID        string
 }
 
 // EnrollBoot accepts only an independently delivered protected bootstrap whose
@@ -95,7 +97,10 @@ func (s *BootSession) Close() {
 // Report sends exact locally verified helper bytes once. This phase ends at
 // storage review or preflight failure; it has no write-permit operation.
 func (s *BootSession) Report(ctx context.Context, p *Preparation, source CallbackSource) (*provisionboot.BootAcknowledgment, error) {
-	if s == nil || s.closed || s.sequence != 1 || p == nil || source == nil || p.InstallationPerformed || p.Schema != PreparationSchema || p.ManifestSHA256 != s.manifestSHA256 || !s.expires.After(time.Now()) {
+	return s.report(ctx, p, source, "")
+}
+func (s *BootSession) report(ctx context.Context, p *Preparation, source CallbackSource, refreshID string) (*provisionboot.BootAcknowledgment, error) {
+	if s == nil || s.closed || (refreshID == "" && s.sequence != 1) || (refreshID != "" && (s.refreshID != refreshID || s.sequence < 2 || s.sequence > 32)) || p == nil || source == nil || p.InstallationPerformed || p.Schema != PreparationSchema || p.ManifestSHA256 != s.manifestSHA256 || !s.expires.After(time.Now()) {
 		return nil, ErrUnavailable
 	}
 	report, err := provisionpreflight.EvaluateReport(s.spec, p.ReportBytes, time.Now())
@@ -103,20 +108,111 @@ func (s *BootSession) Report(ctx context.Context, p *Preparation, source Callbac
 	if err != nil || report == nil || hex.EncodeToString(sum[:]) != p.ReportSHA256 {
 		return nil, ErrUnavailable
 	}
-	proof, err := provisionboot.SignBootProof(s.key, s.installation, s.boot, 2, "preflight", p.ReportBytes)
+	in := provisionboot.PreflightSubmission{Report: p.ReportBytes, RefreshID: refreshID}
+	payload, operation, err := provisionboot.PreflightProofPayload(in)
 	if err != nil {
 		return nil, ErrUnavailable
 	}
-	raw, err := json.Marshal(provisionboot.PreflightSubmission{Report: p.ReportBytes, Proof: proof})
+	proof, err := provisionboot.SignBootProof(s.key, s.installation, s.boot, s.sequence+1, operation, payload)
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	in.Proof = proof
+	raw, err := json.Marshal(in)
 	if err != nil {
 		return nil, ErrUnavailable
 	}
 	// Consume the local send opportunity before IO; loss cannot cause replay.
-	s.sequence = 2
+	s.sequence++
+	s.refreshID = ""
 	ack, err := source.PostCallback(ctx, "preflight", "", raw)
 	if err != nil || ctx.Err() != nil || !validAcknowledgment(ack, proof, s.expires) || (report.Status == "PASS" && ack.State != "preflight_ready") || (report.Status != "PASS" && ack.State != "failed") {
 		s.Close()
 		return nil, ErrUnavailable
 	}
+	s.lastReportSHA256 = p.ReportSHA256
 	return ack, nil
+}
+
+type ReviewSource interface {
+	CallbackSource
+	ReviewBoot(context.Context, []byte) (*provisionboot.ReviewStatus, error)
+}
+
+func (s *BootSession) Review(ctx context.Context, source ReviewSource) (*provisionboot.ReviewStatus, error) {
+	if s == nil || s.closed || s.sequence < 2 || s.lastReportSHA256 == "" || source == nil || !s.expires.After(time.Now()) || ctx.Err() != nil {
+		return nil, ErrUnavailable
+	}
+	var nonce [16]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return nil, ErrUnavailable
+	}
+	query := provisionboot.ReviewQuery{Nonce: hex.EncodeToString(nonce[:])}
+	payload, _ := json.Marshal(query)
+	proof, err := provisionboot.SignBootProof(s.key, s.installation, s.boot, s.sequence, "review", payload)
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	raw, _ := json.Marshal(provisionboot.ReviewSubmission{Query: query, Proof: proof})
+	status, err := source.ReviewBoot(ctx, raw)
+	if err != nil || ctx.Err() != nil || provisionboot.ValidateReviewStatus(status, proof, query.Nonce, time.Now()) != nil || !status.ExpiresAt.Equal(s.expires) || status.ReportSHA256 != s.lastReportSHA256 {
+		s.Close()
+		return nil, ErrUnavailable
+	}
+	s.refreshID = status.RefreshID
+	return status, nil
+}
+
+// AwaitStorageReview keeps the same boot identity and bounded network lease.
+// Only an explicit controller request triggers another read-only collection.
+// Approval ends this phase; it never enters a writer or starts another lease.
+func (s *BootSession) AwaitStorageReview(ctx context.Context, input Input, files *Files, p *Preparation, runner HelperRunner, source ReviewSource, retain func(*Preparation, int64) error) (*Preparation, error) {
+	if s == nil || p == nil || p.Report == nil || p.Report.Status != "PASS" || runner == nil || retain == nil {
+		return p, ErrUnavailable
+	}
+	ctx, cancel := context.WithDeadline(ctx, s.expires)
+	defer cancel()
+	for {
+		status, err := s.Review(ctx, source)
+		if err != nil {
+			return p, err
+		}
+		p.BootReview = status
+		if status.State == "storage_approved" {
+			p.Status = "storage_approved_no_write_permit"
+			return p, nil
+		}
+		if status.RefreshID != "" {
+			next, err := Prepare(ctx, input, files, runner, time.Now)
+			if err != nil {
+				s.Close()
+				return p, ErrUnavailable
+			}
+			next.BootCallbackStatus = "unknown"
+			next.BootAcknowledgment, err = s.report(ctx, next, source, status.RefreshID)
+			if err == nil {
+				next.BootCallbackStatus = "acknowledged"
+			}
+			p = next
+			if retain(p, s.sequence) != nil {
+				s.Close()
+				return p, ErrUnavailable
+			}
+			if err != nil {
+				return p, err
+			}
+			if p.Report.Status != "PASS" {
+				return p, nil
+			}
+			continue
+		}
+		timer := time.NewTimer(3 * time.Second)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			s.Close()
+			return p, ErrUnavailable
+		case <-timer.C:
+		}
+	}
 }

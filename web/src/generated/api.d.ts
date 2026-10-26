@@ -13,7 +13,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Default off. Admin/DE/DL/SRE consumes an exact prepared installable source once into a separate no-retry execution with a fresh exclusive machine lease. Read-only boot and authenticated preflight precede disk selection and independent approval. This source increment has no activated boot listener or disk writer and cannot report installation success. */
+        /** @description Default off. Admin/DE/DL/SRE consumes an exact prepared installable source once into a separate no-retry execution with a fresh exclusive machine lease. Read-only boot and authenticated preflight precede disk selection and independent approval. A separate explicitly enabled isolated service can serve approved boot files and signed read-only preflight. The writer and first-boot/SSH completion remain unavailable; this phase cannot report installation success. */
         post: operations["createProvisionInstallation"];
         delete?: never;
         options?: never;
@@ -28,7 +28,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Admin/DE/DL/SRE project-scoped installation evidence. Historical preflight facts do not prove current disk identity or authorize writes. */
+        /** @description Admin/DE/DL/SRE project-scoped installation summaries; preflight omitted to bound polling. Use the scoped detail endpoint for report review. Historical facts do not prove current disk identity or authorize writes. */
         get: operations["listProvisionInstallations"];
         put?: never;
         post?: never;
@@ -49,6 +49,23 @@ export interface paths {
         get: operations["getProvisionInstallation"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/installations/{installationId}/preflight/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Explicit current Admin/DE/DL/SRE request for fresh read-only hardware collection under the same enrolled boot and live attempt. Immutable request event binds current report and sequence. No business version changes until a signed report arrives. Pending refresh blocks storage selection. No write permit. */
+        post: operations["requestProvisionPreflightRefresh"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2621,6 +2638,11 @@ export interface components {
                 expected?: number;
                 observed?: number;
             }[];
+        };
+        ProvisionPreflightRefresh: {
+            id: string;
+            installation_id: string;
+            sequence: number;
         };
         ProvisionStorageIntent: {
             /** @constant */
@@ -5330,6 +5352,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProvisionInstallation"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Invalid frozen image, expectation or explicit disk intent */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Installation feature disabled, image trust missing or service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestProvisionPreflightRefresh: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+                installationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionRequestAction"];
+            };
+        };
+        responses: {
+            /** @description Refresh requested; no claim of hardware collection or callback delivery */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionPreflightRefresh"];
                 };
             };
             400: components["responses"]["InvalidRequest"];

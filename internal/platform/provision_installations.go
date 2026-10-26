@@ -300,6 +300,13 @@ func (s *Store) SelectProvisionStorage(ctx context.Context, a *AuthSession, proj
 	if x.State != "preflight_ready" || x.StateVersion != in.ExpectedVersion || x.StoragePlan != nil {
 		return nil, apiError(409, "PROVISION_STORAGE_STATE_CHANGED", "Fresh authenticated preflight and exact current version required")
 	}
+	pending, err := pendingProvisionRefreshTx(ctx, tx, x)
+	if err != nil {
+		return nil, err
+	}
+	if pending != "" {
+		return nil, apiError(409, "PROVISION_PREFLIGHT_REFRESH_PENDING", "Wait for the requested signed fresh report before disk selection")
+	}
 	plan, err := provisionstorage.Build(*x.Spec, x.LatestReport, in.Intent, time.Now())
 	if err != nil {
 		return nil, apiError(409, "PROVISION_STORAGE_FACTS_REQUIRED", "Selected disk requires fresh matching verified preflight facts; refresh in the boot environment")

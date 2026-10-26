@@ -1,5 +1,9 @@
 export const provisionTranslations = {
  zh: {
+  installRefreshPreflight:'请求刷新硬件预检',
+  installRefreshImpact:'向当前受控启动环境请求再次只读采集。不会重新启动机器、续租或写盘；收到新的签名报告前暂停选盘。若启动环境已退出或网络租约到期，需核实现场状态。',
+  installRefreshPending:'预检刷新请求已登记，等待同一启动身份回传新报告；请求登记不代表硬件采集成功。',
+
   installStart:"发起安装会话",
   installStartImpact:"会话会独占该机器并等待受控引导及新鲜预检。磁盘布局另行选择并独立审批；请确认现场已有获批的启动条件。",
   installStartConfirm:"确认目标序列号与网络域，发起本次安装会话",
@@ -14,7 +18,7 @@ export const provisionTranslations = {
   installSubmitStorage:"提交存储布局审批",
   installStorageImpact:"该布局授权后续安装擦除所选整盘。提交和审批本身不会签发写盘许可。请核对磁盘稳定身份、容量及分区。",
   installVersionChanged:"会话版本已变化。关闭此窗口并刷新后重新核对。",
-  installFactsStale:"选盘要求 30 秒内的认证 PASS 预检与 UEFI 事实。请在受控引导环境刷新后重新打开；刷新页面不会刷新硬件事实。",
+  installFactsStale:"选盘要求 30 秒内的认证 PASS 预检与 UEFI 事实。关闭此窗口，请求刷新硬件预检，收到新报告后重新选盘。刷新页面不会刷新硬件事实。",
   installObservedAt:"硬件采集完成时间",
   installDisk:"目标磁盘",
   installChooseDisk:"明确选择磁盘，不自动选择首盘",
@@ -73,6 +77,10 @@ export const provisionTranslations = {
   provisionTitle:'服务器装机准备', provisionDetail:'从 BOM 冻结装机配置，经独立审批后核验介质与公钥。',provisionPreparationOnly:'准备完成仅代表配置与介质校验完成；后续网络引导、安装和 SSH 首连仍需执行。',provisionFromBOM:'从 BOM 创建申请',provisionCreateRequest:'提交装机准备申请',provisionReason:'申请理由',provisionReinstall:'重新安装已有系统',provisionSerialConfirmation:'输入完整序列号以确认重装',provisionRequested:'申请已提交，请由另一位管理员或 DL 审批。',provisionReview:'审批准备申请',provisionCancel:'取消申请',provisionPrepare:'执行准备校验',provisionActionReason:'审批或取消理由',provisionExpiry:'有效期',provisionIdentity:'目标与冻结配置',provisionProof:'准备证据',provisionNoRequests:'暂无装机准备申请，请从 BOM 选择服务器创建。',provisionNoSelfApprove:'申请人不能审批自己的申请。',provisionExpired:'已过期，请重新申请',provisionPendingWorker:'准备校验依赖显式启用的工作节点。',provisionState_requested:'待审批',provisionState_approved:'已批准',provisionState_preparing:'准备中',provisionState_prepared:'准备完成',provisionState_failed:'准备失败',provisionState_canceled:'已取消',provisionState_expired:'已过期',
  },
  en: {
+  installRefreshPreflight:'Request fresh hardware preflight',
+  installRefreshImpact:'Request another read-only collection from the current controlled boot. No reboot, lease renewal or disk write. Disk selection waits for a new signed report. If the boot environment exited or its network lease expired, verify site state.',
+  installRefreshPending:'Refresh requested; awaiting a new report from the same boot identity. Request acceptance does not prove collection succeeded.',
+
   installStart:"Start installation session",
   installStartImpact:"This session exclusively reserves the machine and awaits controlled boot and fresh preflight. Disk selection and independent approval follow. Confirm approved site boot prerequisites.",
   installStartConfirm:"Confirm the target serial and boot domain for this session",
@@ -87,7 +95,7 @@ export const provisionTranslations = {
   installSubmitStorage:"Submit layout for review",
   installStorageImpact:"This layout authorizes erasing the selected whole disk during a later installation. Submission and approval alone issue no write permit. Verify stable disk identity, capacity and partitions.",
   installVersionChanged:"The session version changed. Close this dialog, refresh and review again.",
-  installFactsStale:"Disk selection requires authenticated PASS and UEFI facts collected within 30 seconds. Refresh in the controlled boot environment, then reopen. Refreshing this page does not refresh hardware facts.",
+  installFactsStale:"Disk selection requires authenticated PASS and UEFI facts collected within 30 seconds. Close this dialog, request fresh hardware preflight, then reopen after the new report. Refreshing this page does not refresh hardware facts.",
   installObservedAt:"Collection completed",
   installDisk:"Target disk",
   installChooseDisk:"Choose explicitly; no default disk",

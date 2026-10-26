@@ -21,6 +21,9 @@ type CallbackAuthority interface {
 	EnrollBoot(context.Context, Scope, string, netip.Addr, string, EnrollmentSubmission) (*BootAcknowledgment, error)
 	ReportPreflight(context.Context, Scope, string, netip.Addr, PreflightSubmission) (*BootAcknowledgment, error)
 }
+type ReviewAuthority interface {
+	ReviewBoot(context.Context, Scope, string, netip.Addr, ReviewSubmission) (*ReviewStatus, error)
+}
 type CallbackGateway struct {
 	Scope         Scope
 	Authority     CallbackAuthority
@@ -60,7 +63,7 @@ func (g *CallbackGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) != 4 || parts[0] != "" || parts[1] != "boot" || !opaqueID.MatchString(parts[2]) || (parts[3] != "enroll" && parts[3] != "preflight") {
+	if len(parts) != 4 || parts[0] != "" || parts[1] != "boot" || !opaqueID.MatchString(parts[2]) || (parts[3] != "enroll" && parts[3] != "preflight" && parts[3] != "review") {
 		deny()
 		return
 	}
@@ -107,7 +110,7 @@ func (g *CallbackGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	limit := int64(MaximumCallbackBytes)
-	if parts[3] == "enroll" {
+	if parts[3] != "preflight" {
 		limit = 8192
 	}
 	if r.ContentLength > limit {
@@ -125,6 +128,22 @@ func (g *CallbackGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
+	if parts[3] == "review" {
+		authority, ok := g.Authority.(ReviewAuthority)
+		var in ReviewSubmission
+		if !ok || DecodeCallback(raw, &in) != nil || !opaqueID.MatchString(in.Query.Nonce) || in.Proof.Operation != "review" || in.Proof.Sequence < 2 {
+			deny()
+			return
+		}
+		out, err := authority.ReviewBoot(ctx, g.Scope, parts[2], peer, in)
+		if err != nil || ctx.Err() != nil || ValidateReviewStatus(out, in.Proof, in.Query.Nonce, time.Now()) != nil {
+			deny()
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(out)
+		return
+	}
 	var ack *BootAcknowledgment
 	var proof BootProof
 	if parts[3] == "enroll" {
@@ -137,7 +156,12 @@ func (g *CallbackGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ack, err = g.Authority.EnrollBoot(ctx, g.Scope, parts[2], peer, token, in)
 	} else {
 		var in PreflightSubmission
-		if DecodeCallback(raw, &in) != nil || len(in.Report) == 0 || len(in.Report) > 2<<20 || in.Proof.Operation != "preflight" || in.Proof.Sequence < 2 {
+		if DecodeCallback(raw, &in) != nil {
+			deny()
+			return
+		}
+		_, operation, payloadErr := PreflightProofPayload(in)
+		if payloadErr != nil || in.Proof.Operation != operation || in.Proof.Sequence < 2 {
 			deny()
 			return
 		}
@@ -150,4 +174,26 @@ func (g *CallbackGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(ack)
+}
+
+func ValidateReviewStatus(out *ReviewStatus, proof BootProof, nonce string, now time.Time) error {
+	if out == nil || out.InstallationID != proof.InstallationID || out.BootID != proof.BootID || out.Sequence != proof.Sequence || !opaqueID.MatchString(nonce) || out.Nonce != nonce || !out.ExpiresAt.After(now) || !sha256ID.MatchString(out.ReportSHA256) {
+		return ErrDenied
+	}
+	if out.RefreshID != "" && (!opaqueID.MatchString(out.RefreshID) || out.State != "preflight_ready") {
+		return ErrDenied
+	}
+	switch out.State {
+	case "preflight_ready":
+		if out.StoragePlanSHA256 != "" {
+			return ErrDenied
+		}
+	case "awaiting_storage_review", "storage_approved":
+		if !sha256ID.MatchString(out.StoragePlanSHA256) {
+			return ErrDenied
+		}
+	default:
+		return ErrDenied
+	}
+	return nil
 }

@@ -26,6 +26,7 @@ type Preparation struct {
 	InstallationPerformed bool                              `json:"installation_performed"`
 	BootAcknowledgment    *provisionboot.BootAcknowledgment `json:"boot_acknowledgment,omitempty"`
 	BootCallbackStatus    string                            `json:"boot_callback_status,omitempty"`
+	BootReview            *provisionboot.ReviewStatus       `json:"boot_review,omitempty"`
 	// Exact verified report bytes are retained separately for evidence and a
 	// subsequent independently approved storage plan; never hash a re-encoding.
 	ReportBytes []byte `json:"-"`

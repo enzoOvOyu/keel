@@ -294,7 +294,7 @@ func (a *ProvisionBootAuthority) ReportPreflight(ctx context.Context, scope prov
 	if a == nil || a.Store == nil || a.Store.DB == nil || scope.Validate() != nil || !scope.CheckPeer(peer) {
 		return nil, ErrProvisionBootDenied
 	}
-	return a.Store.submitProvisionPreflight(ctx, scope.ProjectID, grant, in.Report, in.Proof, &provisionCallbackPeer{scope: scope, peer: peer})
+	return a.Store.submitProvisionPreflight(ctx, scope.ProjectID, grant, in.Report, in.Proof, in.RefreshID, &provisionCallbackPeer{scope: scope, peer: peer})
 }
 
 // Revalidation is bounded by time, not file size. Even a tiny object is checked
