@@ -63,3 +63,29 @@ func TestScriptReceiptRequiresStoppedProcessTree(t *testing.T) {
 		t.Fatal("pre-exec rejection promoted to success")
 	}
 }
+
+func TestScriptTransportRequestBodyBoundary(t *testing.T) {
+	body := []byte("exit 0\n")
+	command := scriptTestCommand(body, "shell")
+	for _, action := range []string{"query", "cancel"} {
+		if (Request{Action: action, Command: command}).Validate() != nil {
+			t.Fatal("historical script request rejected", action)
+		}
+		if (Request{Action: action, Command: command, Script: body}).Validate() == nil {
+			t.Fatal("non-run carried executable bytes", action)
+		}
+	}
+	if (Request{Action: "run", Command: command, Script: body}).Validate() != nil {
+		t.Fatal("approved bytes rejected")
+	}
+	if (Request{Action: "run", Command: command}).Validate() == nil {
+		t.Fatal("missing script body accepted")
+	}
+	if (Request{Action: "run", Command: command, Script: []byte("exit 1\n")}).Validate() == nil {
+		t.Fatal("mutated script body accepted")
+	}
+	command = agentCommand("d", 1)
+	if (Request{Action: "run", Command: command, Script: body}).Validate() == nil {
+		t.Fatal("read-only command carried script bytes")
+	}
+}

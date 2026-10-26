@@ -31,8 +31,11 @@ func (s *Service) scriptFrozenTx(ctx context.Context, tx *sql.Tx, project, mode 
 		}
 		return nil
 	}
-	if mode != "ssh" || task.Type != "script.run" || task.Retry != 0 || task.Idempotent || s.MediaStore == nil {
+	if (mode != "ssh" && mode != "agent") || task.Type != "script.run" || task.Retry != 0 || task.Idempotent || s.MediaStore == nil {
 		return failure(409, "TASK_SCRIPT_DISABLED", "Script adapter or frozen execution policy is unavailable")
+	}
+	if mode == "ssh" && !s.MediaStore.SSHScriptsEnabled || mode == "agent" && !s.MediaStore.AgentScriptsEnabled {
+		return failure(409, "TASK_SCRIPT_DISABLED", "Approved script transport is disabled")
 	}
 	_, _, err := s.MediaStore.ResolveTaskScriptTx(ctx, tx, project, task.Script.MediaID, task.Script, false)
 	return err
@@ -67,7 +70,7 @@ func (s *Service) commitScriptDispatchTx(ctx context.Context, tx *sql.Tx, c *Cla
 		return command, taskrunner.ErrUnknown
 	}
 	var claims int
-	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM exec_resource_leases WHERE attempt_id=$1 AND fencing_token=$2 AND mode='exclusive' AND state='held' AND expires_at>clock_timestamp() AND resource_id IN($3,$4)`, c.Attempt.ID, c.Attempt.FencingToken, "device:machine:"+c.Target.ResourceKey, "ssh:machine:"+c.Target.ResourceKey).Scan(&claims); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM exec_resource_leases WHERE attempt_id=$1 AND fencing_token=$2 AND mode='exclusive' AND state='held' AND expires_at>clock_timestamp() AND resource_id IN($3,$4)`, c.Attempt.ID, c.Attempt.FencingToken, "device:machine:"+c.Target.ResourceKey, c.Target.Mode+":machine:"+c.Target.ResourceKey).Scan(&claims); err != nil {
 		return command, err
 	}
 	if claims != 2 {

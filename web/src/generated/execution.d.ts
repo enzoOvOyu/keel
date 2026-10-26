@@ -480,10 +480,33 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Project/global independently approved bounded script candidates, paginated before display. Metadata only; actual submit and dispatch recheck eligibility. */
+        /**
+         * List approved bounded task scripts for the selected transport
+         * @description Project/global independently approved bounded script candidates, paginated before display. Metadata only; actual submit and dispatch recheck eligibility.
+         */
         get: operations["listTaskScripts"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/agent-script-executions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Execute an approved bounded script through the registered mTLS Agent
+         * @description Defaults off. Freezes the independently approved media and current Agent identity, consumes one bounded dispatch authorization under exclusive device and Agent leases, and retains unknown effects for explicit receipt reconciliation. No automatic retry.
+         */
+        post: operations["createAgentScriptExecution"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2328,6 +2351,8 @@ export interface operations {
             query?: {
                 page?: components["parameters"]["Page"];
                 page_size?: components["parameters"]["PageSize"];
+                /** @description The execution channel whose current script admission switch is returned. */
+                transport?: "ssh" | "agent";
             };
             header?: never;
             path: {
@@ -2344,6 +2369,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaskScriptCatalog"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createAgentScriptExecution: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SSHScriptCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Created immutable SSH execution */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
                 };
             };
             400: components["responses"]["InvalidRequest"];

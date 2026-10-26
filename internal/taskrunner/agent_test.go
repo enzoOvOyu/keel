@@ -304,3 +304,40 @@ func TestAgentLocalPrepareAndAncestorCustody(t *testing.T) {
 		t.Fatal("ancestor link caused write", e)
 	}
 }
+
+func TestAgentScriptOptOutAndHistoricalQueries(t *testing.T) {
+	a := agentFixture(t)
+	body := []byte("exit 0\n")
+	command := scriptTestCommand(body, "shell")
+	command.ProjectID, command.MachineID = a.ProjectID, a.MachineID
+	if _, err := a.Handle(context.Background(), Request{Action: "run", Command: command, Script: body}); !errors.Is(err, ErrRejected) {
+		t.Fatal("default-off Agent script admitted", err)
+	}
+	if _, err := os.Lstat(filepath.Join(a.StateDirectory, ".agent-fence.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("rejected script consumed Agent fence", err)
+	}
+	// Persist a running proof as if a dedicated helper disconnected. Opting out
+	// must leave that proof queryable and must never restart the script.
+	dir := filepath.Join(a.StateDirectory, command.CommandID)
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	observation := Observation{Command: command, State: "running", StartedAt: now, Output: map[string]any{}}
+	raw, err := json.Marshal(observation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(dir, "receipt.json"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := a.Handle(context.Background(), Request{Action: "query", Command: command})
+	if err != nil || got.State != "running" || got.Command != command {
+		t.Fatal("opt-out hid original script receipt", got, err)
+	}
+	a.ScriptsEnabled = true
+	got, err = a.Handle(context.Background(), Request{Action: "run", Command: command, Script: body})
+	if err != nil || got.State != "running" {
+		t.Fatal("existing script proof caused helper replay", got, err)
+	}
+}

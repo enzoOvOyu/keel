@@ -2331,6 +2331,20 @@
           },
           {
             "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "in": "query",
+            "name": "transport",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ssh",
+                "agent"
+              ],
+              "default": "ssh"
+            },
+            "description": "The execution channel whose current script admission switch is returned."
           }
         ],
         "responses": {
@@ -2369,7 +2383,91 @@
             "$ref": "#/components/responses/Unavailable"
           }
         },
-        "description": "Project/global independently approved bounded script candidates, paginated before display. Metadata only; actual submit and dispatch recheck eligibility."
+        "description": "Project/global independently approved bounded script candidates, paginated before display. Metadata only; actual submit and dispatch recheck eligibility.",
+        "summary": "List approved bounded task scripts for the selected transport"
+      }
+    },
+    "/api/v1/projects/{id}/agent-script-executions": {
+      "post": {
+        "operationId": "createAgentScriptExecution",
+        "tags": [
+          "SSH execution"
+        ],
+        "x-permission": "execution:create",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created immutable SSH execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Execution"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Defaults off. Freezes the independently approved media and current Agent identity, consumes one bounded dispatch authorization under exclusive device and Agent leases, and retains unknown effects for explicit receipt reconciliation. No automatic retry.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SSHScriptCreateInput"
+              }
+            }
+          }
+        },
+        "summary": "Execute an approved bounded script through the registered mTLS Agent"
       }
     }
   },

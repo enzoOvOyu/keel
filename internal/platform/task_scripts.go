@@ -35,8 +35,8 @@ func (p TaskScriptArtifact) Command(c taskrunner.TaskCommand) taskrunner.TaskCom
 }
 
 func (s *Store) ResolveTaskScriptTx(ctx context.Context, tx *sql.Tx, project, mediaID string, frozen *TaskScriptArtifact, withBytes bool) (*TaskScriptArtifact, []byte, error) {
-	if s == nil || !s.SSHScriptsEnabled {
-		return nil, nil, apiError(409, "SSH_SCRIPTS_DISABLED", "Approved SSH script execution is not enabled")
+	if s == nil || (!s.SSHScriptsEnabled && !s.AgentScriptsEnabled) {
+		return nil, nil, apiError(409, "TASK_SCRIPTS_DISABLED", "Approved script execution is not enabled")
 	}
 	m, err := mediaForScopeLocked(ctx, tx, mediaID, s.scopeKeyFor(&ProjectSummary{ID: project}), true)
 	if err != nil {
@@ -105,6 +105,10 @@ func (s *Store) ResolveTaskScriptTx(ctx context.Context, tx *sql.Tx, project, me
 
 // ListTaskScripts does not fetch artifact bytes or connect to a target.
 func (s *Store) ListTaskScripts(ctx context.Context, a *AuthSession, project *ProjectSummary, page Pagination) (Page[TaskScriptArtifact], bool, error) {
+	return s.ListTaskScriptsForTransport(ctx, a, project, page, "ssh")
+}
+
+func (s *Store) ListTaskScriptsForTransport(ctx context.Context, a *AuthSession, project *ProjectSummary, page Pagination, transport string) (Page[TaskScriptArtifact], bool, error) {
 	out := NewPage[TaskScriptArtifact](page)
 	if err := page.Validate(); err != nil {
 		return out, false, err
@@ -117,7 +121,10 @@ func (s *Store) ListTaskScripts(ctx context.Context, a *AuthSession, project *Pr
 	if err = requireProjectMember(ctx, tx, a, project.ID); err != nil {
 		return out, false, err
 	}
-	if !s.SSHScriptsEnabled {
+	if transport != "ssh" && transport != "agent" {
+		return out, false, apiError(422, "INVALID_TRANSPORT", "Script transport must be ssh or agent")
+	}
+	if transport == "ssh" && !s.SSHScriptsEnabled || transport == "agent" && (!s.AgentScriptsEnabled || !s.AgentTasksEnabled) {
 		return out, false, tx.Commit()
 	}
 	filter := `(m.scope_key=$1 OR m.scope_key='global') AND m.state='approved' AND m.type='tool' AND m.arch='noarch' AND m.os_scope='linux' AND m.hw_scope='' AND m.size BETWEEN 1 AND 8192 AND m.approved_by IS NOT NULL AND m.approved_by<>m.uploaded_by AND m.manifest_ref IN('keel.task-script/shell/v1','keel.task-script/python/v1') AND (m.deps->'artifacts' IS NULL OR m.deps->'artifacts'='[]'::jsonb) AND (m.deps->'compatibility' IS NULL OR m.deps->'compatibility'='null'::jsonb) AND (m.deps->'os_boot' IS NULL OR m.deps->'os_boot'='null'::jsonb) AND a.sha256=m.sha256 AND a.size=m.size AND NOT EXISTS(SELECT 1 FROM media_artifact_integrity i WHERE i.media_id=m.id AND i.quarantined_at IS NOT NULL)`

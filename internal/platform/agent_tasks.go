@@ -135,18 +135,28 @@ func (s *Store) CloseAgentTaskSession(ctx context.Context, connection, session s
 // lease, submitter, project and immutable command snapshot must still agree.
 func (s *Store) AgentRequestAllowed(ctx context.Context, request taskrunner.Request, credential *AgentCredential) error {
 	c := request.Command
-	if c.Validate() != nil || credential == nil || c.ProjectID != credential.ProjectID || c.MachineID != credential.MachineID || (c.Operation != "host.identity" && c.Operation != "host.wait") {
+	if request.Validate() != nil || credential == nil || c.ProjectID != credential.ProjectID || c.MachineID != credential.MachineID || (c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "script.run") {
 		return taskrunner.ErrRejected
 	}
+	tx, e := s.DB.BeginTx(ctx, nil)
+	if e != nil {
+		return e
+	}
+	defer tx.Rollback()
 	var valid bool
-	e := s.DB.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM exec_task_attempts a JOIN exec_executions x ON x.id=a.execution_id JOIN users u ON u.id=x.created_by JOIN projects p ON p.id=x.project_id WHERE a.id=$1 AND a.command_id=$2 AND a.fencing_token=$3 AND a.runner='agent' AND x.mode='agent' AND x.project_id=$4 AND p.state NOT IN('delivered','archived') AND (($5='run' AND u.enabled AND (u.is_admin OR EXISTS(SELECT 1 FROM memberships m WHERE m.user_id=u.id AND m.project_id=x.project_id AND m.role IN('Admin','DE','DL','SRE'))) AND a.state='running' AND a.lease_until>now() AND x.desired_state='running') OR ($5 IN('query','cancel') AND a.state IN('running','unknown'))) AND EXISTS(SELECT 1 FROM jsonb_array_elements(x.snapshot->'flow'->'definition'->'tasks') task WHERE task->>'id'=a.task_id AND task->>'type'=$9 AND (task->>'timeout_ms')::bigint=$10) AND COALESCE((x.parameters->>'agent_wait_ms')::bigint,0)=$11 AND EXISTS(SELECT 1 FROM jsonb_array_elements(x.snapshot->'targets') t WHERE t->>'id'=a.target_id AND t->>'resource_key'=$6 AND t->'agent'->>'host_key'=$7 AND t->'agent'->>'config_hash'=$8))`, c.AttemptID, c.CommandID, c.FencingToken, c.ProjectID, request.Action, c.MachineID, credential.ID, credential.CertificateHash, c.Operation, c.TimeoutMS, c.WaitMS).Scan(&valid)
+	e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM exec_task_attempts a JOIN exec_executions x ON x.id=a.execution_id JOIN users u ON u.id=x.created_by JOIN projects p ON p.id=x.project_id WHERE a.id=$1 AND a.command_id=$2 AND a.fencing_token=$3 AND a.runner='agent' AND x.mode='agent' AND x.project_id=$4 AND p.state NOT IN('delivered','archived') AND (($5='run' AND u.enabled AND (u.is_admin OR EXISTS(SELECT 1 FROM memberships m WHERE m.user_id=u.id AND m.project_id=x.project_id AND m.role IN('Admin','DE','DL','SRE'))) AND a.state='running' AND a.lease_until>now() AND x.desired_state='running') OR ($5 IN('query','cancel') AND a.state IN('running','unknown'))) AND EXISTS(SELECT 1 FROM jsonb_array_elements(x.snapshot->'flow'->'definition'->'tasks') task WHERE task->>'id'=a.task_id AND task->>'type'=$9 AND (task->>'timeout_ms')::bigint=$10) AND COALESCE((x.parameters->>'agent_wait_ms')::bigint,0)=$11 AND EXISTS(SELECT 1 FROM jsonb_array_elements(x.snapshot->'targets') t WHERE t->>'id'=a.target_id AND t->>'resource_key'=$6 AND t->'agent'->>'host_key'=$7 AND t->'agent'->>'config_hash'=$8))`, c.AttemptID, c.CommandID, c.FencingToken, c.ProjectID, request.Action, c.MachineID, credential.ID, credential.CertificateHash, c.Operation, c.TimeoutMS, c.WaitMS).Scan(&valid)
 	if e != nil {
 		return e
 	}
 	if !valid {
 		return taskrunner.ErrRejected
 	}
-	return nil
+	if c.Operation == "script.run" {
+		if e = s.agentScriptRequestTx(ctx, tx, request); e != nil {
+			return e
+		}
+	}
+	return tx.Commit()
 }
 
 // CertificateHash is derived from DER; PEM formatting is never an identity.
@@ -173,6 +183,11 @@ func (s *Store) AgentRequestExpiry(ctx context.Context, r taskrunner.Request) (t
 		e := s.DB.QueryRowContext(ctx, `SELECT lease_until FROM exec_task_attempts WHERE id=$1 AND command_id=$2 AND fencing_token=$3 AND state='running' AND lease_until>now()`, r.Command.AttemptID, r.Command.CommandID, r.Command.FencingToken).Scan(&lease)
 		if e != nil {
 			return time.Time{}, taskrunner.ErrUnknown
+		}
+		if r.Command.Operation == "script.run" {
+			if until := time.UnixMicro(r.Command.AuthorizationExpiresAt); until.Before(deadline) {
+				deadline = until
+			}
 		}
 		if lease.Before(deadline) {
 			deadline = lease

@@ -93,7 +93,7 @@ func (b *Broker) Binding(project, machine string) (taskrunner.Binding, error) {
 }
 func (b *Broker) Do(ctx context.Context, r taskrunner.Request) (taskrunner.Observation, error) {
 	var zero taskrunner.Observation
-	if r.Command.Validate() != nil || (r.Command.Operation != "host.identity" && r.Command.Operation != "host.wait") || (r.Action != "run" && r.Action != "query" && r.Action != "cancel") {
+	if r.Validate() != nil || (r.Command.Operation != "host.identity" && r.Command.Operation != "host.wait" && r.Command.Operation != "script.run") || (r.Action != "run" && r.Action != "query" && r.Action != "cancel") {
 		return zero, taskrunner.ErrRejected
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(r.Command.TimeoutMS)*time.Millisecond+5*time.Second)
@@ -117,7 +117,7 @@ func (b *Broker) Do(ctx context.Context, r taskrunner.Request) (taskrunner.Obser
 		return zero, e
 	}
 	raw, e := json.Marshal(r)
-	if e != nil || len(raw) > 4096 {
+	if e != nil || len(raw) > 14336 {
 		return zero, taskrunner.ErrRejected
 	}
 	requestID := platform.RandomID()

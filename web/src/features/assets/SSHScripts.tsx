@@ -11,17 +11,20 @@ import { ActionDialog, ActionError, Pagination } from '../../components/Manageme
 import { useProject } from '../../components/ProjectWorkspace'
 import { ApiError } from '../../lib/api'
 import type { ProjectAsset } from '../../lib/bom'
-import { createSSHScriptExecution, listTaskScripts, type SSHScriptCreateInput } from '../../lib/execution'
+import { createAgentScriptExecution, createSSHScriptExecution, listTaskScripts, type SSHScriptCreateInput } from '../../lib/execution'
 import { useAction } from '../../lib/management'
 import { useSession, useExpireOnUnauthorized } from '../../lib/session'
 
-function LaunchScript({ assets, onClose, onDenied }: { assets: ProjectAsset[]; onClose: () => void; onDenied: (error: ApiError) => void }) {
+type ScriptTarget = Pick<ProjectAsset, 'machine_id' | 'hostname' | 'serial_number'>
+type Transport = 'ssh' | 'agent'
+
+function LaunchScript({ assets, transport, onClose, onDenied }: { assets: ScriptTarget[]; transport: Transport; onClose: () => void; onDenied: (error: ApiError) => void }) {
   const { t } = useTranslation(), project = useProject(), session = useSession(), action = useAction(), navigate = useNavigate(), client = useQueryClient()
   const [targets, setTargets] = useState<string[]>([]), [media, setMedia] = useState(''), [page, setPage] = useState(1), [timeout, setTimeout] = useState('5000'), [confirmed, setConfirmed] = useState(false), [invalid, setInvalid] = useState(false)
   const attempt = useRef({ body: '', key: '' }), mounted = useRef(true)
-  const catalog = useQuery({ queryKey: ['private', session.user.id, project.id, 'task-scripts', page], queryFn: ({ signal }) => listTaskScripts(project.id, page, signal), retry: false, refetchOnWindowFocus: false })
+  const catalog = useQuery({ queryKey: ['private', session.user.id, project.id, 'task-scripts', transport, page], queryFn: ({ signal }) => listTaskScripts(project.id, page, signal, transport), retry: false, refetchOnWindowFocus: false })
   useExpireOnUnauthorized(catalog.error ?? action.error)
-  const eligible = assets.filter(asset => asset.state === 'provisioned' && asset.ssh_trust === 'established' && asset.ssh_trust_source === 'ssh')
+  const eligible = assets
   const pageSize = catalog.data?.page_size ?? 20
   const chosen = !catalog.isError && !catalog.isFetching ? catalog.data?.items.find(item => item.media_id === media) : undefined
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
@@ -37,17 +40,17 @@ function LaunchScript({ assets, onClose, onDenied }: { assets: ProjectAsset[]; o
     const body: SSHScriptCreateInput = { machine_ids: [...targets].sort(), media_id: chosen.media_id, timeout_ms: timeoutMS }
     const serialized = JSON.stringify(body)
     if (attempt.current.body !== serialized) attempt.current = { body: serialized, key: crypto.randomUUID() }
-    const result = await action.run(() => createSSHScriptExecution(project.id, body, session.csrf_token, attempt.current.key))
+    const result = await action.run(() => (transport === 'agent' ? createAgentScriptExecution : createSSHScriptExecution)(project.id, body, session.csrf_token, attempt.current.key))
     if (result.ok && mounted.current) {
       await client.invalidateQueries({ queryKey: ['private', session.user.id, 'project', project.id, 'executions'] })
       if (mounted.current) await navigate({ to: '/p/$projectId/executions', params: { projectId: project.id }, search: { execution: result.value.id, tab: 'overview' } })
     }
   }
-  return <ActionDialog title={t('sshScriptTitle')} description={t('sshScriptBoundary')} busy={action.busy} confirm={t('sshScriptSubmit')} submitDisabled={!targets.length || !chosen || !confirmed || !catalog.data?.enabled} onSubmit={event => void submit(event)} onClose={onClose}>
+  return <ActionDialog title={t(transport === 'agent' ? 'agentScriptTitle' : 'sshScriptTitle')} description={t(transport === 'agent' ? 'agentScriptBoundary' : 'sshScriptBoundary')} busy={action.busy} confirm={t('sshScriptSubmit')} submitDisabled={!targets.length || !chosen || !confirmed || !catalog.data?.enabled} onSubmit={event => void submit(event)} onClose={onClose}>
     <ActionError error={action.error ?? catalog.error} />
-    {(action.error?.code === 'SSH_SCRIPTS_DISABLED' || catalog.data && !catalog.data.enabled) && <p role="status">{t('sshScriptDisabled')}</p>}
+    {(['SSH_SCRIPTS_DISABLED', 'AGENT_SCRIPTS_DISABLED', 'AGENT_DISABLED'].includes(action.error?.code ?? '') || catalog.data && !catalog.data.enabled) && <p role="status">{t(transport === 'agent' ? 'agentScriptDisabled' : 'sshScriptDisabled')}</p>}
     {invalid && <p className="field-error" role="alert">{t('sshScriptInvalid')}</p>}
-    <p className="field-hint">{t('sshLaunchCurrentPage')}</p>
+    <p className="field-hint">{t(transport === 'agent' ? 'agentLaunchCurrentPage' : 'sshLaunchCurrentPage')}</p>
     <div className="ui:flex ui:flex-wrap ui:gap-2" role="group" aria-label={t('sshLaunchTargets')}>
       {eligible.map(asset => <Button key={asset.machine_id} type="button" variant={targets.includes(asset.machine_id) ? 'default' : 'outline'} aria-pressed={targets.includes(asset.machine_id)} disabled={action.busy || !targets.includes(asset.machine_id) && targets.length >= 32} onClick={() => setTargets(previous => previous.includes(asset.machine_id) ? previous.filter(id => id !== asset.machine_id) : [...previous, asset.machine_id])}>{asset.hostname} · {asset.serial_number}</Button>)}
     </div>
@@ -62,13 +65,17 @@ function LaunchScript({ assets, onClose, onDenied }: { assets: ProjectAsset[]; o
 }
 
 export function SSHScripts({ assets }: { assets: ProjectAsset[] }) {
+  return <ApprovedScripts assets={assets.filter(asset => asset.state === 'provisioned' && asset.ssh_trust === 'established' && asset.ssh_trust_source === 'ssh')} transport="ssh" />
+}
+
+export function ApprovedScripts({ assets, transport }: { assets: ScriptTarget[]; transport: Transport }) {
   const { t } = useTranslation(), project = useProject(), session = useSession(), client = useQueryClient()
   const [open, setOpen] = useState(false), [denied, setDenied] = useState<ApiError | null>(null)
   const allowed = !['archived', 'delivered'].includes(project.state) && (session.user.is_admin || ['Admin', 'DE', 'DL', 'SRE'].includes(project.role))
-  const eligible = assets.some(asset => asset.state === 'provisioned' && asset.ssh_trust === 'established' && asset.ssh_trust_source === 'ssh')
+  const eligible = assets.length > 0
   useEffect(() => { if (!allowed || denied) setOpen(false) }, [allowed, denied])
   useEffect(() => { setOpen(false); setDenied(null) }, [project.id, session.user.id])
   if (!allowed) return null
   function onDenied(error: ApiError) { setDenied(error); void client.invalidateQueries({ queryKey: ['private', session.user.id, 'project', project.id] }) }
-  return <section className="management-panel"><div className="panel-heading"><div><h2>{t('sshScriptTitle')}</h2><p>{t('sshScriptIntro')}</p></div><Button type="button" disabled={!eligible || !!denied} onClick={() => setOpen(true)}>{t('sshScriptOpen')}</Button></div><ActionError error={denied} />{open && <LaunchScript key={`${project.id}:${session.user.id}`} assets={assets} onClose={() => setOpen(false)} onDenied={onDenied} />}</section>
+  return <section className="management-panel"><div className="panel-heading"><div><h2>{t(transport === 'agent' ? 'agentScriptTitle' : 'sshScriptTitle')}</h2><p>{t(transport === 'agent' ? 'agentScriptIntro' : 'sshScriptIntro')}</p></div><Button type="button" disabled={!eligible || !!denied} onClick={() => setOpen(true)}>{t('sshScriptOpen')}</Button></div><ActionError error={denied} />{open && <LaunchScript key={`${project.id}:${session.user.id}:${transport}`} assets={assets} transport={transport} onClose={() => setOpen(false)} onDenied={onDenied} />}</section>
 }

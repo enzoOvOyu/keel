@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { ApprovedScripts } from './SSHScripts'
 import { ActionDialog, ActionError, Pagination } from '../../components/Management'
 import { useProject } from '../../components/ProjectWorkspace'
 import { ApiError } from '../../lib/api'
@@ -86,7 +87,7 @@ export function AgentExecutions() {
   const eligible = !records.isError && !denied && records.data?.enabled && records.data.items.some(target => connected(target, now))
   function onDenied(error: ApiError) { setDenied(error); void client.invalidateQueries({ queryKey: ['private', session.user.id, 'project', project.id] }) }
   function refresh() { setNow(Date.now()); void records.refetch() }
-  return <section className="management-panel ui:mt-6" aria-labelledby="agent-executions-heading" aria-busy={records.isFetching}>
+  return <><section className="management-panel ui:mt-6" aria-labelledby="agent-executions-heading" aria-busy={records.isFetching}>
     <div className="panel-heading"><div><h2 id="agent-executions-heading">{t('agentLaunchTitle')}</h2><p>{t('agentLaunchIntro')}</p></div><div className="table-actions"><Button type="button" variant="outline" disabled={records.isFetching || !!denied} onClick={refresh}>{t('refresh')}</Button>{canLaunch && <Button type="button" disabled={!eligible || records.isFetching} onClick={() => setOpen(true)}>{t('agentLaunchOpen')}</Button>}</div></div>
     <ActionError error={denied ?? records.error} />
     {records.isPending && <p className="table-loading" role="status">{t('loadingRecords')}</p>}
@@ -99,5 +100,5 @@ export function AgentExecutions() {
     </>}
     <p className="impact-notice">{t('agentConnectionBoundary')}</p>
     {open && canLaunch && !denied && !records.isError && records.data?.enabled && <Launch targets={records.data.items} now={now} onClose={() => setOpen(false)} onDenied={onDenied} onRefresh={refresh} />}
-  </section>
+  </section><ApprovedScripts transport="agent" assets={!records.isError && !denied && !records.isFetching && records.data?.enabled ? records.data.items.filter(target => connected(target, now)) : []} /></>
 }

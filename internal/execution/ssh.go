@@ -339,7 +339,9 @@ func (s *Service) runHostClaim(ctx context.Context, c *Claim, mode string) error
 		}
 	}
 	if e == nil && c.Task.Script != nil {
-		if mode != "ssh" || s.MediaStore == nil {
+		if e = s.scriptFrozenTx(ctx, tx, c.Target.ProjectID, mode, c.Task); e != nil {
+			// Revocation/approval changes stop admission before body delivery.
+		} else if s.MediaStore == nil {
 			e = taskrunner.ErrRejected
 		} else {
 			_, scriptBody, e = s.MediaStore.ResolveTaskScriptTx(ctx, tx, c.Target.ProjectID, c.Task.Script.MediaID, c.Task.Script, true)

@@ -97,14 +97,28 @@ func (s *Service) agentReceiptAllowedTx(ctx context.Context, tx *sql.Tx, r Recei
 // CreateAgent admits only bounded host queries, then creates an ordinary
 // execution consumed by the existing scheduler/outbox/lease machinery.
 func (s *Service) CreateAgent(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (*Execution, error) {
-	if in.Operation != "host.identity" && in.Operation != "host.wait" {
+	if in.ScriptMediaID != "" || in.Operation != "host.identity" && in.Operation != "host.wait" {
+		return nil, invalid("Only bounded host queries are admitted by this endpoint")
+	}
+	return s.createAgent(ctx, a, project, in, key, trace)
+}
+
+func (s *Service) CreateAgentScript(ctx context.Context, a *Actor, project string, in SSHScriptCreateInput, key, trace string) (*Execution, error) {
+	if s.MediaStore == nil || !s.MediaStore.AgentScriptsEnabled {
+		return nil, failure(409, "AGENT_SCRIPTS_DISABLED", "Approved Agent scripts are not enabled")
+	}
+	return s.createAgent(ctx, a, project, SSHCreateInput{MachineIDs: in.MachineIDs, Operation: "script.run", ScriptMediaID: in.MediaID, TimeoutMS: in.TimeoutMS}, key, trace)
+}
+
+func (s *Service) createAgent(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (_ *Execution, resultErr error) {
+	if in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "script.run" {
 		return nil, invalid("Only host.identity and host.wait are admitted by the Agent channel")
 	}
 	if in.TimeoutMS == 0 {
 		in.TimeoutMS = 5000
 	}
 	check := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: project, MachineID: "00000000000000000000000000000000", CommandID: "00000000000000000000000000000000", AttemptID: "00000000000000000000000000000000", FencingToken: 1, Operation: in.Operation, TimeoutMS: in.TimeoutMS, WaitMS: in.WaitMS}
-	if check.Validate() != nil || len(in.MachineIDs) < 1 || len(in.MachineIDs) > 32 {
+	if (in.Operation != "script.run" && check.Validate() != nil) || (in.Operation == "script.run" && (!opaqueID.MatchString(in.ScriptMediaID) || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0)) || len(in.MachineIDs) < 1 || len(in.MachineIDs) > 32 {
 		return nil, invalid("1..32 machine IDs and bounded Agent host queries are required")
 	}
 	ids := append([]string{}, in.MachineIDs...)
@@ -119,7 +133,12 @@ func (s *Service) CreateAgent(ctx context.Context, a *Actor, project string, in 
 	if e != nil {
 		return nil, e
 	}
-	defer tx.Rollback()
+	defer func() {
+		tx.Rollback()
+		if resultErr != nil && s.MediaStore != nil && a != nil {
+			resultErr = s.MediaStore.RecordMediaIntegrityFailure(ctx, resultErr, a.User.ID, trace)
+		}
+	}()
 	if e = authorize(ctx, tx, a, project, "Admin", "DE", "DL", "SRE"); e != nil {
 		return nil, e
 	}
@@ -133,6 +152,16 @@ func (s *Service) CreateAgent(ctx context.Context, a *Actor, project string, in 
 	if prior != nil {
 		x, e := decode[Execution](prior)
 		return &x, e
+	}
+	var script *platform.TaskScriptArtifact
+	if in.Operation == "script.run" {
+		if s.MediaStore == nil || !s.MediaStore.AgentScriptsEnabled {
+			return nil, failure(409, "AGENT_SCRIPTS_DISABLED", "Approved Agent scripts are disabled")
+		}
+		script, _, e = s.MediaStore.ResolveTaskScriptTx(ctx, tx, project, in.ScriptMediaID, nil, true)
+		if e != nil {
+			return nil, e
+		}
 	}
 	targets := []Target{}
 	targetIDs := []string{}
@@ -149,7 +178,11 @@ func (s *Service) CreateAgent(ctx context.Context, a *Actor, project string, in 
 		targetIDs = append(targetIDs, target.ID)
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	task := Task{ID: "agent-query", Type: in.Operation, Idempotent: true, Retry: 0, TimeoutMS: in.TimeoutMS, Resources: []string{"device", "agent"}}
+	task := Task{Script: script, ID: "agent-query", Type: in.Operation, Idempotent: true, Retry: 0, TimeoutMS: in.TimeoutMS, Resources: []string{"device", "agent"}}
+	if script != nil {
+		task.ID = "agent-script"
+		task.Idempotent = false
+	}
 	definition := Definition{APIVersion: "keel.agent/v1", Inputs: map[string]Input{}, Tasks: []Task{task}}
 	flow := FlowVersion{ID: platform.RandomID(), FlowID: platform.RandomID(), ProjectID: project, Name: "Agent " + in.Operation, Version: 1, Definition: definition, ContentHash: hash(jsonBytes(definition)), CreatedAt: now}
 	flow.Name += " " + flow.FlowID[:8]
@@ -162,6 +195,9 @@ func (s *Service) CreateAgent(ctx context.Context, a *Actor, project string, in 
 	params := map[string]any{"agent_wait_ms": in.WaitMS}
 	x := &Execution{ID: platform.RandomID(), ProjectID: project, FlowVersionID: flow.ID, Mode: "agent", State: "created", StateVersion: 1, DesiredState: "running", Parameters: params, Concurrency: 1, CircuitBreakerPercent: 100, CreatedBy: a.User.ID, CreatedAt: now, TargetSetHash: hash(jsonBytes(targetIDs))}
 	x.Snapshot = Snapshot{Mode: "agent", Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "Bounded read-only host query through a current registered mTLS Agent and exact provisioned project asset; no hardware/G3/installation acceptance", FrozenAt: now}
+	if script != nil {
+		x.Snapshot.Admission = "Independently approved immutable bounded script through the pinned mTLS Agent; exclusive device lease, one dispatch, no automatic retry; unknown effects retain isolation"
+	}
 	if _, e = tx.ExecContext(ctx, `INSERT INTO exec_executions(id,project_id,flow_version_id,mode,parameters,snapshot,target_set_hash,concurrency,circuit_breaker_percent,created_by,created_at)VALUES($1,$2,$3,'agent',$4,$5,$6,1,100,$7,$8)`, x.ID, project, flow.ID, jsonBytes(params), jsonBytes(x.Snapshot), x.TargetSetHash, a.User.ID, now); e != nil {
 		return nil, e
 	}
@@ -241,7 +277,6 @@ func (s *Service) FetchAgentReceipt(ctx context.Context, a *Actor, project, id, 
 	if e = s.agentFrozenTx(ctx, tx, target); e != nil {
 		return nil, e
 	}
-	tx.Rollback()
 	task, e := taskByID(x.Snapshot.Flow.Definition, attempt.TaskID)
 	if e != nil {
 		return nil, e
@@ -250,6 +285,13 @@ func (s *Service) FetchAgentReceipt(ctx context.Context, a *Actor, project, id, 
 	query, stop := context.WithTimeout(ctx, 5*time.Second)
 	defer stop()
 	command := sshCommand(claim)
+	if task.Script != nil {
+		command, e = originalScriptCommandTx(ctx, tx, claim)
+		if e != nil {
+			return nil, e
+		}
+	}
+	tx.Rollback()
 	observation, e := s.AgentRunner.Do(query, taskrunner.Request{Action: "query", Command: command})
 	if e != nil || !observation.Terminal() {
 		return nil, failure(409, "AGENT_RECEIPT_PENDING", "No terminal Agent receipt; resources remain quarantined")
@@ -350,13 +392,19 @@ func (s *Service) refreshAgentReceipt(ctx context.Context, executionID, attemptI
 	if e = s.agentFrozenTx(ctx, tx, target); e != nil {
 		return e
 	}
-	tx.Rollback()
 	task, e := taskByID(x.Snapshot.Flow.Definition, attempt.TaskID)
 	if e != nil {
 		return e
 	}
 	claim := &Claim{Attempt: attempt, Target: target, Task: task, Parameters: x.Parameters}
 	command := sshCommand(claim)
+	if task.Script != nil {
+		command, e = originalScriptCommandTx(ctx, tx, claim)
+		if e != nil {
+			return e
+		}
+	}
+	tx.Rollback()
 	query, stop := context.WithTimeout(ctx, 3*time.Second)
 	defer stop()
 	observation, e := s.AgentRunner.Do(query, taskrunner.Request{Action: "query", Command: command})

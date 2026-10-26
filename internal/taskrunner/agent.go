@@ -15,12 +15,14 @@ import (
 )
 
 // Agent shares the SSH wrapper's durable command/receipt protocol, but admits
-// only read-only host operations under one enrolled machine identity. Its own
+// bounded host operations under one enrolled machine identity. Scripts run in a
+// separate operator-installed helper, never inside the persistent Agent. Its own
 // global process lock is supplemental to the control plane's resource leases.
 type Agent struct {
 	StateDirectory string
 	ProjectID      string
 	MachineID      string
+	ScriptsEnabled bool
 }
 
 // PrepareAgentState creates only the local tasks child of an already protected
@@ -164,7 +166,10 @@ func writeAgentFence(dir string, fence agentFence) error {
 }
 func (a Agent) Handle(ctx context.Context, r Request) (Observation, error) {
 	var zero Observation
-	if os.Geteuid() == 0 || !idPattern.MatchString(a.ProjectID) || !idPattern.MatchString(a.MachineID) || r.Command.Validate() != nil || r.Command.ProjectID != a.ProjectID || r.Command.MachineID != a.MachineID || (r.Command.Operation != "host.identity" && r.Command.Operation != "host.wait") || (r.Action != "run" && r.Action != "query" && r.Action != "cancel") {
+	if os.Geteuid() == 0 || !idPattern.MatchString(a.ProjectID) || !idPattern.MatchString(a.MachineID) || r.Validate() != nil || r.Command.ProjectID != a.ProjectID || r.Command.MachineID != a.MachineID || (r.Command.Operation != "host.identity" && r.Command.Operation != "host.wait" && r.Command.Operation != "script.run") || (r.Action != "run" && r.Action != "query" && r.Action != "cancel") {
+		return zero, ErrRejected
+	}
+	if r.Action == "run" && r.Command.Operation == "script.run" && !a.ScriptsEnabled {
 		return zero, ErrRejected
 	}
 	fd, e := agentDirectory(a.StateDirectory)
@@ -230,6 +235,9 @@ func (a Agent) Handle(ctx context.Context, r Request) (Observation, error) {
 		if e = agentCommandFiles(dir); e != nil {
 			return zero, e
 		}
+	}
+	if r.Command.Operation == "script.run" {
+		return a.runScriptHelper(ctx, r)
 	}
 	return wrapper.Handle(ctx, r)
 }

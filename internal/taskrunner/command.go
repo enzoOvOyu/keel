@@ -77,6 +77,21 @@ type Request struct {
 	Script  []byte      `json:"script,omitempty"`
 }
 
+// Validate binds the optional body to the immutable command before transport or
+// receipt state can be consumed. Query/cancel never carry executable bytes.
+func (r Request) Validate() error {
+	if r.Command.Validate() != nil || (r.Action != "run" && r.Action != "query" && r.Action != "cancel") {
+		return ErrRejected
+	}
+	if r.Command.Operation == "script.run" && r.Action == "run" {
+		return validateScriptBody(r.Command, r.Script)
+	}
+	if len(r.Script) != 0 {
+		return ErrRejected
+	}
+	return nil
+}
+
 type Observation struct {
 	Command    TaskCommand    `json:"command"`
 	State      string         `json:"state"` // accepted/running/success/failed/cancelled

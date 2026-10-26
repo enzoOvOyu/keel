@@ -1,4 +1,4 @@
-// Package agentclient implements enrollment, authenticated liveness and opt-in read-only tasks.
+// Package agentclient implements enrollment, authenticated liveness and opt-in bounded tasks.
 package agentclient
 
 import (
@@ -27,6 +27,7 @@ import (
 type Config struct {
 	RenewalEnabled bool   `json:"renewal_enabled"`
 	TasksEnabled   bool   `json:"tasks_enabled"`
+	ScriptsEnabled bool   `json:"scripts_enabled"`
 	Endpoint       string `json:"endpoint"`
 	ServerName     string `json:"server_name"`
 	ServerCA       string `json:"server_ca"`
@@ -62,7 +63,7 @@ func Load(path string) (Config, error) {
 	return c, c.Validate()
 }
 func (c Config) Validate() error {
-	if c.TasksEnabled && os.Geteuid() == 0 {
+	if c.ScriptsEnabled && !c.TasksEnabled || c.TasksEnabled && os.Geteuid() == 0 {
 		return ErrIdentity
 	}
 	host, port, e := net.SplitHostPort(c.Endpoint)

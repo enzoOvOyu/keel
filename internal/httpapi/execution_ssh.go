@@ -16,7 +16,15 @@ func (a *authAPI) registerSSHExecution(r *gin.Engine, base string) {
 		if !ok {
 			return
 		}
-		out, enabled, err := a.store.ListTaskScripts(c.Request.Context(), actor, &platform.ProjectSummary{ID: c.Param("id")}, page)
+		transport := "ssh"
+		if values, exists := c.Request.URL.Query()["transport"]; exists {
+			if len(values) != 1 || values[0] != "ssh" && values[0] != "agent" {
+				failure(c, 422, "INVALID_TRANSPORT", "Script transport must be ssh or agent")
+				return
+			}
+			transport = values[0]
+		}
+		out, enabled, err := a.store.ListTaskScriptsForTransport(c.Request.Context(), actor, &platform.ProjectSummary{ID: c.Param("id")}, page, transport)
 		if err != nil {
 			a.respondError(c, err)
 			return

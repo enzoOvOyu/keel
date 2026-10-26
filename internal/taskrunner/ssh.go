@@ -458,7 +458,7 @@ func (b *limitedOutput) Write(p []byte) (int, error) {
 
 func (s *SSH) Do(ctx context.Context, r Request) (Observation, error) {
 	var zero Observation
-	if s == nil || r.Command.Validate() != nil || (r.Action != "run" && r.Action != "query" && r.Action != "cancel") {
+	if s == nil || r.Validate() != nil {
 		return zero, ErrRejected
 	}
 	id := r.Command.ProjectID + ":" + r.Command.MachineID

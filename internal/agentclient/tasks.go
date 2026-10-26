@@ -29,7 +29,7 @@ func (c Config) taskStream(ctx context.Context, pair tls.Certificate, connection
 	if e != nil {
 		return ErrIdentity
 	}
-	handler := taskrunner.Agent{StateDirectory: dir, ProjectID: c.ProjectID, MachineID: c.MachineID}
+	handler := taskrunner.Agent{StateDirectory: dir, ProjectID: c.ProjectID, MachineID: c.MachineID, ScriptsEnabled: c.ScriptsEnabled}
 	connection, e := c.connect([]tls.Certificate{pair})
 	if e != nil {
 		return ErrIdentity
@@ -83,7 +83,7 @@ func (c Config) taskStream(ctx context.Context, pair tls.Certificate, connection
 			}
 		}
 		id := request.GetRequestId()
-		if !identityID.MatchString(id) || seen[id] || len(seen) >= 256 || len(request.GetRequestJson()) == 0 || len(request.GetRequestJson()) > 4096 {
+		if !identityID.MatchString(id) || seen[id] || len(seen) >= 256 || len(request.GetRequestJson()) == 0 || len(request.GetRequestJson()) > 14336 {
 			return ErrIdentity
 		}
 		seen[id] = true

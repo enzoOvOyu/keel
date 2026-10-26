@@ -1,8 +1,8 @@
-# Agent 身份、连接与有界只读任务（WP-1.5 部分交付）
+# Agent 身份、连接与有界任务（WP-1.5 部分交付）
 
 本增量消费已存在的项目、Machine 和 provisioned ProjectAsset，提供一次性注册、短期 mTLS 身份及连接心跳。开发验证使用隔离软件身份，运维显式预配目标；不假定 PXE/cloud-init、G3 或 FR-5.7 安装作业已经完成。WP-1.5、FR-1.2、S-3 和 P1 仍为 partial。
 
-正式契约为 `api/agent/v1/agent.proto`，生成代码在 `internal/agentproto`。身份服务提供 `Enroll` 和双向 `Heartbeats`；可选worker另启 `Tasks` 承载下文规定的有界只读任务，默认关闭。不接受任意命令、文件或遥测指标。心跳仅证明当前凭据持有者能通信，不证明硬件健康、SSH/BMC 互信、装机成功或版本来源可信；版本为客户端声明值。
+正式契约为 `api/agent/v1/agent.proto`，生成代码在 `internal/agentproto`。身份服务提供 `Enroll` 和双向 `Heartbeats`；可选worker另启 `Tasks` 承载下文规定的有界任务，默认关闭。只读操作与批准小脚本分别准入；不接受内联代码、任意命令路径、文件操作或遥测指标。心跳仅证明当前凭据持有者能通信，不证明硬件健康、SSH/BMC 互信、装机成功或版本来源可信；版本为客户端声明值。
 
 ## 身份边界
 
@@ -96,7 +96,7 @@ make build-agent APP_VERSION=SOURCE_COMMIT
 
 ## 可选有界只读任务与统一执行内核
 
-此能力是WP-1.5的下一小段，仍不等于完整Agent任务目录或P1闭环。仅允许 `host.identity` 和 `host.wait`，不允许 trust.install/trust.verify、shell、脚本、文件操作、软件升级或设备写入。复用已有 `keel.task/v1` Request/Observation，不另建持久派发队列。任务由既有Execution/outbox/TaskAttempt/资源租约/fencing调度，目标device资源与SSH使用相同机器稳定ID，不能绕过unknown隔离。
+此能力是WP-1.5的下一小段，仍不等于完整Agent任务目录或P1闭环。只读入口仅允许 `host.identity` 和 `host.wait`，不允许 trust.install/trust.verify、shell、脚本、文件操作、软件升级或设备写入。独立批准脚本入口见下节，不改变只读入口边界。复用已有 `keel.task/v1` Request/Observation，不另建持久派发队列。任务由既有Execution/outbox/TaskAttempt/资源租约/fencing调度，目标device资源与SSH使用相同机器稳定ID，不能绕过unknown隔离。
 
 任务流必须由拥有当前mTLS身份的Agent主动连接**执行worker**，并绑定同一Agent当前心跳的connection_id。任务池与调度器在同一worker进程；普通API身份listener保持不派发任务。worker只能使用归属于自身活动连接的Agent，不能因为另一worker写有在线标记就向错误进程派发。心跳或证书失效会结束相应任务流；断线后先查询原command_id持久回执，不能把重新连接当成重新执行。
 
@@ -151,3 +151,16 @@ create成功后由既有outbox调度，无单独start命令；action仅支持pau
 050需在P1集中发布里程碑前进行隔离迁移验证及运行库备份/恢复演练；本段实现不表示已经迁移或发布3000。真实软件测试使用受控短期初始证书避免等待45分钟，不是生产注册或真机验收。续签、CA轮换、私钥轮换、软件升级和自动安装是不同能力，不能互相代替。
 
 owner复核可用 `keel-admin agent-credential-status --project PROJECT_ID --id CREDENTIAL_ID`：返回原始身份锚、初始/有效到期时间、撤销版本、当前资产绑定、最近10条续签与5条连接（含各自实际叶摘要）；不输出PEM、注册令牌、私钥或任务session handle。active指当前登记身份可用，heartbeat_connected/tasks_connected单列，不等于设备健康。已过期或撤销的历史身份仍可查询，读请求严格限定项目。该命令使用已有受控数据库配置，不是公共HTTP查询接口。
+
+
+### 可选批准小脚本（2026-10-26，源码未验证）
+
+接续 SSH 批准脚本契约，Agent 增加独立的 `POST /api/v1/projects/:id/agent-script-executions`，输入与 SSH 脚本相同，仅提交 `machine_ids/media_id/timeout_ms`；不提交正文或命令行。`GET /task-scripts?transport=agent` 返回本通道当前开关和分页批准介质，省略 transport 仍按 SSH。当前 Admin/DE/DL/SRE 才可创建；目标必须是本项目 provisioned、当前身份/资产版本匹配且具有本 worker 认证任务流的 Agent。资产页复用当前 Agent 列表和原执行中心，在线状态超时即取消候选，不另建任务队列。
+
+批准版本、精确对象版本、SHA/大小、独立批准身份及固定 shell/python 解释器均与 SSH 共用；1～8192 字节，不安装依赖，不开放自定义环境或参数。两侧开关缺一不可：API 与 worker 设置 `KEEL_AGENT_SCRIPTS_ENABLED=true`，API 还须原 `KEEL_AGENT_TASKS_ENABLED=true`；目标受保护 Agent JSON 设置 `tasks_enabled:true` 和 `scripts_enabled:true`。默认均关闭，实际运行配置未修改。
+
+目标运维须预先安装同版本、root 所有且不可组/其他写的普通可执行文件 `/usr/local/libexec/keel-ssh-runner`，不可用请求字段指定其他路径。Agent 钉住 helper fd 后启动独立进程，固定传入私有任务回执目录及脚本开关，不继承 Agent 环境；helper 和脚本仍以 Agent 的非 root 账号执行，不需要 SSH listener。子reaper、解释器和后代回收由该独立进程承担，常驻 Agent 不设 subreaper，不跨任务收割进程。退出发送 TERM 并保留 helper 清理时间；没有完整停止回执仍为 unknown。
+
+脚本同时持有设备及 Agent exclusive 租约，与 SSH/PXE 使用相同设备 ID。原 attempt 派发前持久记录唯一命令/授权期限，实际传输再次核对原事件、当前批准及两项 exclusive claim。帧不超过 14336 字节，沿用 16KiB gRPC 上限。Agent 在落 fence 前校验原正文摘要，重复 run 只查原回执。续约/重连不更新脚本授权期限；缺失原派发事件不可补发。查询/取消不含正文，关闭脚本或介质退役后仍允许读取原命令回执；当前 mTLS 身份/项目/尝试约束继续生效。未知结果保持隔离，操作者凭真实终态回执显式对账。
+
+这仍是有界前台脚本子集，不等于 FR-5.7 G3+ 批量 Agent 安装/systemd、软件升级、通用文件分发或完整任务目录。相关 PostgreSQL 授权/排他/派发丢失与本地 opt-out/历史查询用例已写入既有 Agent 集中入口，尚未执行；目标 helper 运行语义由共享脚本用例覆盖，尚无 Agent 脚本端到端验收结论。
