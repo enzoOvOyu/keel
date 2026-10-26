@@ -45,3 +45,17 @@ v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud
 ## 下一个实施单元
 
 在隔离的受控网段提供 ProxyDHCP/iPXE/HTTP 引导与实际硬件预检；接同请求/项目/SN/MAC及当前 attempt/fence 的一次性回调，DHCP 指纹仅辅助；然后绑定新主机密钥并通过真实 SSH 首连/修复队列形成互信证明。网络侧既有 Kea/ZTP 不等于服务器 ProxyDHCP 已实现，两者网段和控制权必须明确隔离。安装脚本来自批准介质，任何模拟/准备证据均不得直接投影安装成功。
+
+## 引导传输适配层（新增源码，尚未接装机）
+
+`internal/provisionboot` 是受控网络边界，**没有接入 API/worker 启动路径，也没有可授权真实装机的生产 Authority**。其默认配置关闭；仅写出协议适配与待运行的软件用例，不表示 PXE、可启动镜像或安装成功。
+
+- Linux ProxyDHCP 使用内核 SO_BINDTODEVICE 绑定明确的已启用接口及本机地址/准确子网；接收再核验接口索引与目的地址。仅处理直连 Ethernet Discover 与发给本代理4011的PXE请求；拒绝relay、重载、重复/截断选项、普通DHCP Request、跨网段及未授权机器。yiaddr不分配地址，也不提供租期、路由、DNS或掩码。禁止与配置中Kea范围重叠；后续生产Authority仍须从当前管理网计划核验清单完整性，不能只信任文件参数。
+- 区分HTTPClient(arch16/19)、已有iPXE(option77)及Legacy/UEFI PXE。已加载iPXE返回脚本URL，避免循环发回固件；UEFI HTTP返回固件HTTP URL。EBC架构9不冒充x64；按当前IANA登记使用7=x64 UEFI、11=ARM64 UEFI。boot filename过长拒绝，不截断为另一资源。每秒/每MAC限制授权查询，状态表有界。
+- Grant必须绑定项目/网络scope、请求、机器、MAC、架构、attempt/command/fence、摘要与到期时间，并由调用方实时核验独占机器租约和审批。**当前prepared请求不足以签发引导Grant**，不能把MAC或DHCP指纹作为回调/注册/互信授权。
+- HTTP只接受精确origin、直接管理网peer与固定资源名，生产需TLS，不信任转发头、不跟随任意URI。完整验证固定对象版本的SHA256/大小后才处理Range/HEAD/条件请求；容量有界，流式传输检查到期与持续授权，避免撤销后继续完整分发。实际审批/完整闭包/租约的Authority接线尚未完成。
+- Legacy TFTP只传至多16MiB的已批准iPXE启动固件，不提供OS、cloud-init或任意文件路径。采用RFC1350 512字节octet块、精确ACK/超时重发与终止空块，重复ACK不触发DATA重发以避免重传放大；RFC2347可选参数不协商时按标准退回DATA/512。Linux daemon 已提供独立transfer socket、4次超时上限/自适应退避/2分钟总时限、同RRQ去重及最多64路并发；默认关闭且尚未接装机Authority或启动路径，没有运行中的生产TFTP服务。
+
+后续还须完成：真实装机Execution/持久网络Grant、当前网络计划与批准启动固件/安装recipe、受批准initrd中的硬件预检、可信文件Authority和一次性回调、启动路径接线、软件协议/实际可启动镜像验收；再按独立PoC窗口验证真实固件。此次没有新生产网络监听、Kea变更或数据库迁移。
+
+协议依据：[RFC1350](https://www.rfc-editor.org/rfc/rfc1350.html)、[RFC2347](https://www.rfc-editor.org/rfc/rfc2347.html)、[RFC1123](https://www.rfc-editor.org/rfc/rfc1123.html)、[RFC2131](https://www.rfc-editor.org/rfc/rfc2131.html)、[RFC4578](https://www.rfc-editor.org/rfc/rfc4578.html)、[IANA处理器架构登记](https://www.iana.org/assignments/dhcpv6-parameters/dhcpv6-parameters.xhtml#processor-architecture)、[iPXE UEFI HTTP](https://ipxe.org/appnote/uefihttp)、[iPXE user-class](https://ipxe.org/appnote/userclass)、[iPXE PXE discovery定义](https://dox.ipxe.org/group__dhcpopts.html)。仅据官方协议实现传输，没有把这些资料视作Keel已验证证据。

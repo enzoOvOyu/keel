@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～79。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～80。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本次两小时开发窗口）
 
 用户于2026-10-26 00:11:10 UTC授权继续两小时开发，当前窗口至02:11:10 UTC。保持单Agent，不启动子代理；P1实现完成后集中联调/全量测试/浏览器验证/镜像发布，开发只做必要编译与静态检查。此前收工/暂停记录是历史快照。
 
-- **本窗口源码尚未发布（§75～79）**：单Agent完成同密钥续签/状态、OS引导介质/BOM配置预览、owner主密钥重包裹、独立审计留证、默认关闭的执行Webhook及其owner查询入口，以及持久装机准备/独立审批/共享独占Execution和页面；新增用例和集中验证入口已写入，除§75早期续签安全检查外均未运行。必要Go/TS编译与静态检查已完成，不等于功能/SQL迁移通过。源迁移50、运行46；3000仍§74。原草稿保留。
+- **本窗口源码尚未发布（§75～80）**：单Agent完成同密钥续签/状态、OS引导介质/BOM配置预览、owner主密钥重包裹、独立审计留证、默认关闭的执行Webhook及其owner查询入口，以及持久装机准备/独立审批/共享独占Execution和页面；新增用例和集中验证入口已写入，除§75早期续签安全检查外均未运行。必要Go/TS编译与静态检查已完成，不等于功能/SQL迁移通过。源迁移50、运行46；3000仍§74。原草稿保留。
 
 - **Agent网页只读链路已发布（§74）**：既有mTLS任务通过认证API/资产页启动并进入原执行五Tab，unknown由当前操作员凭worker查询的真实回执显式对账；实际HTTP/Agent/浏览器和完整CI通过。生产HTTP任务准入、listener及worker继续关闭。
 
@@ -1101,3 +1101,14 @@ API集合、创建/详情/审批/取消/准备执行及候选公共密钥契约�
 实际完成仅编译：带既有overlay及GOMEMLIMIT=768MiB/GOMAXPROCS=2的go test -p=1 [platform/execution/httpapi/keel-api/keel-worker] -run '^$'通过（/tmp/keel-provision-source-compile.log）；execution/httpapi go vet通过（-vet.log）；生成后tsc --noEmit通过（-types/-tsc.log）；UI边界与版本控件静态检查通过（-ui-boundaries/-version-inputs.log），docker compose config --quiet及check-design通过（-design.log），Python AST/JS syntax通过。没有执行新增用例、SQL迁移或浏览器，不视为功能验收。
 
 已写待运行：平台申请/幂等/独立审批/不可变快照/重装确认/DE与Viewer权限、execution真实PG共享Agent设备锁/单次消费/排队取消/错绑回执/unknown占用；既有--provision-only集中入口追加独立随机Agent测试库与实际API/对象存储/浏览器申请→审批→准备链。修正旧预览fixture第二用户错误重复init-admin；仍待集中运行。下一主链是受控ProxyDHCP/iPXE/HTTP、硬件预检、同请求一次性回调，再真实SSH首连/修复与七阶段/规模/PoC；WP-1.7/P1保持partial。
+
+
+## 80. 受控服务器引导协议适配（2026-10-26，源码待集中验证）
+
+接续本地111364a，新增internal/provisionboot；没有重建镜像/运行网络daemon、启用生产配置、创建授权装机Grant或改变Kea。仍在00:11:10～02:11:10 UTC窗口中，后续继续开发。
+
+传输层含直连Ethernet DHCP/PXE严格解析、scope/架构与MAC边界、UEFI HTTP/iPXE防循环/Legacy文件选择、零地址分配ProxyDHCP响应；Linux通过SO_BINDTODEVICE与接口/目的地址二次核验提供关闭默认的67/4011入口，现有服务端口冲突即失败，不停止他人服务。独立HTTP handler校验直接peer、origin/TLS、固定资源、完整对象SHA/大小后提供Range/HEAD/条件请求；有界并发及到期/撤销检查。Legacy只读TFTP限16MiB启动固件，512字节块、独立TID/套接字、精确ACK、重复ACK忽略（避免Sorcerer放大）、超时自适应重发/4次上限/2分钟总时限、并发上限和重复RRQ去重。不支持任意路径或写入。正式参考链接及全部边界见PROVISIONING。
+
+Authority是明确的待接业务边界：每次必须证明当前审批、scope/请求/机器/MAC/架构、attempt/command/fence、快照及真实独占lease。**尚无生产Authority/装机Execution接线，prepared不足以签发引导许可**；无API/worker自动启动。当前传输源码不是完整可运行装机系统，未证明真实固件/镜像、硬件预检、回调或首连。网络scope当前文件清单不能独立证明现有Kea范围完整，后续须从当前网络计划逐次核验。
+
+仅实际执行Go编译（go test -p=1 ./internal/provisionboot -run '^$'，/tmp/keel-boot-transport-compile.log）和定向go vet（-vet.log），带既有overlay/内存限制；均退出0。新协议/权限/Range/损坏拒绝/TFTP去重与终止/fuzz用例只写入未运行。没有新SQL迁移，source50/runtime46及3000不变。后续先形成批准的启动固件/安装recipe与硬件预检输入，再接真实lease Authority、一次性回调及首连；不能假设现有任意rootfs已具有可启动安装参数或预检helper。
