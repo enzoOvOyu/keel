@@ -73,3 +73,14 @@ v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud
 - 文件/目录/JSON有界，采集最多90秒、每盘8秒、报告输入2MiB上限；陈旧/不完整来源不得算零硬件。控制面 `EvaluateReport` 比对整个冻结 Spec，并根据事实重算结论/逐项检查，拒绝改期望、改 fence、伪造 PASS/WAIVED。这个函数不提供认证：真正消费前必须核验一次性回调凭据、当前审批/独占 lease、同一安装 attempt/command/fence/申请/项目；报告不能独立授权擦盘或安装。
 
 本批仅编译/静态检查，新增采集/判定/SMART/规格错绑用例待 P1 集中执行；没有在开发宿主机执行任何采集/SMART/装机操作。后续仍缺批准的引导固件与安装 recipe、把 helper 打入实际可启动介质、装机执行器及网络 Authority、一次性回调、SSH 首连和真实/规模验收。WP-1.7/P1 保持 partial。
+
+
+## 批准启动配方与确定性引导文件（源码增量）
+
+`os_boot.recipe` 为可选 `keel.boot-recipe/v1`；已有四角色介质仍可用于准备预览，但 `mediaboot.Plan.ValidateInstallable` / `RenderBootBundle` 会拒绝没有配方的实际引导输入。当前唯一协议是显式的 **自定义 `keel-initrd/v1` + squashfs 安装环境**，不是 Ubuntu ISO/Subiquity 等通用镜像兼容声明。后续需按此协议构建并验证安装 initrd，不能因为有 cloud-init 配置就假定会安装 OS。
+
+配方固定同架构 UEFI iPXE 固件、预检 helper、SSH helper（amd64可另加Legacy固件）的直接介质依赖与helper SHA256；与kernel/initrd/template/rootfs互不混用，不允许传递依赖或latest替代。登记、生命周期、下载及签名清单共用角色/架构/摘要约束，旧清单省略recipe的序列化保持兼容。解析结果无配方4角色，有配方7～8角色；UI用固定依赖版本下拉，并从已选helper版本自动保存摘要。元数据声明不证明initrd已包含驱动/smartctl或遵守写盘顺序，必须另有实际镜像验收。
+
+`RenderBootBundle` 绑定同scope/申请/项目/机器/attempt/command/fence/期限、冻结快照、唯一BOM引导MAC、完整批准介质与NoCloud instance-id；生成公开的 `boot.ipxe`、`manifest.json`、`preflight.json`，清单固定所有原始字节摘要及helper版本。iPXE脚本只在匹配BOM MAC的net0～net255上DHCP，固定kernel/initrd参数，失败退出，无任意脚本/内核参数、安装口令、回调凭据或成功投影。HTTPS origin须适合脚本字面值，不把元数据插入脚本表达式；内核的 `keel.manifest_sha256` 固定控制面清单。启动下载依据 [iPXE kernel](https://ipxe.org/cmd/kernel)、[initrd/imgfetch](https://ipxe.org/cmd/imgfetch) 与 [ifconf](https://ipxe.org/cmd/ifconf) 官方协议，使用 `initrd=initrd.magic`。
+
+批准initrd未来应实现：验证清单及固定对象字节/架构→下载或验证固定helper→运行预检→提交同attempt/fence的一次性可信回调→仅当前安装许可允许写盘→安装cloud-init/受限SSH helper→回传新主机密钥→由控制面实际SSH首连确认。**当前尚未实现这条initrd执行协议、一次性回调许可或生产Authority；脚本只描述受控入口，不能启动任何任意rootfs后称为装机完成。** 受控传输与实际装机Execution接线须等这些先决条件完成，无真实监听/安装已启用。

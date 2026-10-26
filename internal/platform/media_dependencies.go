@@ -189,7 +189,7 @@ func validateMediaBootRoles(root *MediaItemSummary, refs []MediaArtifactDependen
 	direct := make(map[string]mediaboot.Node, len(refs))
 	for _, ref := range refs {
 		child := records[ref.MediaID]
-		direct[child.ID] = mediaboot.Node{ID: child.ID, Type: child.Type, Arch: child.Arch}
+		direct[child.ID] = mediaboot.Node{ID: child.ID, Type: child.Type, Arch: child.Arch, SHA256: child.Sha256}
 	}
 	if err := document.OSBoot.ValidateRoles(mediaboot.Node{ID: root.ID, Type: root.Type, Arch: root.Arch}, direct); err != nil {
 		return apiError(422, "MEDIA_BOOT_INVALID", err.Error())

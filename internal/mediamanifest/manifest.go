@@ -180,7 +180,7 @@ func validate(payload Payload) error {
 		direct := make(map[string]mediaboot.Node, len(node.Dependencies))
 		for _, edge := range node.Dependencies {
 			child := nodes[edge.MediaID]
-			direct[child.MediaID] = mediaboot.Node{ID: child.MediaID, Type: child.Type, Arch: child.Arch}
+			direct[child.MediaID] = mediaboot.Node{ID: child.MediaID, Type: child.Type, Arch: child.Arch, SHA256: child.SHA256}
 		}
 		if err := node.OSBoot.ValidateRoles(mediaboot.Node{ID: node.MediaID, Type: node.Type, Arch: node.Arch}, direct); err != nil {
 			return err
@@ -215,11 +215,12 @@ func identityError(id string) error {
 // Exact schema field names avoid encoding/json's case-insensitive struct aliases.
 // Arbitrary compatibility metadata keys remain case-sensitive and signed as given.
 var manifestJSONFields = map[string]map[string]string{
-	"envelope":   {"algorithm": "", "payload": "payload", "signature": ""},
-	"payload":    {"schema": "", "key_id": "", "root_id": "", "exported_at": "", "artifacts": "artifact"},
-	"artifact":   {"media_id": "", "scope_key": "", "uri": "", "type": "", "name": "", "version": "", "arch": "", "sha256": "", "size": "", "object_version": "", "approved_by": "", "approved_at": "", "dependencies": "dependency", "compatibility": "", "os_boot": "os_boot"},
-	"os_boot":    {"schema": "", "installer": "", "kernel_media_id": "", "initrd_media_id": "", "template_media_id": ""},
-	"dependency": {"media_id": "", "sha256": ""},
+	"envelope":    {"algorithm": "", "payload": "payload", "signature": ""},
+	"payload":     {"schema": "", "key_id": "", "root_id": "", "exported_at": "", "artifacts": "artifact"},
+	"artifact":    {"media_id": "", "scope_key": "", "uri": "", "type": "", "name": "", "version": "", "arch": "", "sha256": "", "size": "", "object_version": "", "approved_by": "", "approved_at": "", "dependencies": "dependency", "compatibility": "", "os_boot": "os_boot"},
+	"os_boot":     {"schema": "", "installer": "", "kernel_media_id": "", "initrd_media_id": "", "template_media_id": "", "recipe": "boot_recipe"},
+	"boot_recipe": {"schema": "", "protocol": "", "rootfs_format": "", "uefi_media_id": "", "legacy_media_id": "", "preflight_sha256": "", "ssh_helper_sha256": "", "preflight_media_id": "", "ssh_helper_media_id": ""},
+	"dependency":  {"media_id": "", "sha256": ""},
 }
 
 // Reject duplicate or aliased schema keys before typed decoding. Every verifier

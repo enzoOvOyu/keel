@@ -8,22 +8,8 @@ import (
 	"github.com/enzoOvOyu/keel/internal/mediaboot"
 )
 
-type MediaBootArtifact struct {
-	Role          string `json:"role"`
-	MediaID       string `json:"media_id"`
-	ScopeKey      string `json:"scope_key"`
-	Name          string `json:"name"`
-	Version       string `json:"version"`
-	SHA256        string `json:"sha256"`
-	Size          int64  `json:"size"`
-	Arch          string `json:"arch"`
-	ObjectVersion string `json:"object_version"`
-}
-type MediaBootPlan struct {
-	RootID    string              `json:"root_id"`
-	Profile   mediaboot.Profile   `json:"profile"`
-	Artifacts []MediaBootArtifact `json:"artifacts"`
-}
+type MediaBootArtifact = mediaboot.Artifact
+type MediaBootPlan = mediaboot.Plan
 
 // ResolveMediaBootPlan resolves approved OS roles and verifies actual bytes of
 // the entire pinned closure. It grants no download capability and starts no
@@ -84,6 +70,12 @@ func (s *Store) resolveMediaBootPlanTx(ctx context.Context, tx *sql.Tx, project 
 	}
 	out := &MediaBootPlan{RootID: root.ID, Profile: *document.OSBoot, Artifacts: []MediaBootArtifact{}}
 	roles := []struct{ role, id string }{{"rootfs", root.ID}, {"kernel", document.OSBoot.KernelMediaID}, {"initrd", document.OSBoot.InitrdMediaID}, {"template", document.OSBoot.TemplateMediaID}}
+	if document.OSBoot.Recipe != nil {
+		roles = append(roles, struct{ role, id string }{"uefi", document.OSBoot.Recipe.UEFIMediaID}, struct{ role, id string }{"preflight", document.OSBoot.Recipe.PreflightMediaID}, struct{ role, id string }{"ssh-helper", document.OSBoot.Recipe.SSHHelperMediaID})
+		if document.OSBoot.Recipe.LegacyMediaID != "" {
+			roles = append(roles, struct{ role, id string }{"legacy", document.OSBoot.Recipe.LegacyMediaID})
+		}
+	}
 	for _, role := range roles {
 		record := byID[role.id]
 		var version string

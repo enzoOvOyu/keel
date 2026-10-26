@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/enzoOvOyu/keel/internal/mediaboot"
@@ -81,6 +82,11 @@ func TestOSBootMediaComposition(t *testing.T) {
 		t.Fatal("nonmember read OS composition")
 	}
 	for name, mutation := range map[string]func(*RegisterMediaInput){
+		"unbound-boot-recipe": func(in *RegisterMediaInput) {
+			p := profile
+			p.Recipe = &mediaboot.Recipe{Schema: mediaboot.RecipeSchema, Protocol: mediaboot.InitrdProtocol, RootFSFormat: "squashfs", UEFIMediaID: strings.Repeat("a", 32), PreflightMediaID: strings.Repeat("b", 32), SSHHelperMediaID: strings.Repeat("c", 32), PreflightSHA256: strings.Repeat("d", 64), SSHHelperSHA256: strings.Repeat("e", 64)}
+			in.Deps = deps(p, refs)
+		},
 		"wrong-root-kind":     func(in *RegisterMediaInput) { in.Type = "tool" },
 		"generic-root-arch":   func(in *RegisterMediaInput) { in.Arch = "noarch" },
 		"wrong-root-arch":     func(in *RegisterMediaInput) { in.Arch = "arm64" },

@@ -1,0 +1,110 @@
+package provisionboot
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/enzoOvOyu/keel/internal/mediaboot"
+	"github.com/enzoOvOyu/keel/internal/provisionpreflight"
+	"github.com/enzoOvOyu/keel/internal/provisionseed"
+	"gopkg.in/yaml.v3"
+)
+
+const BootManifestSchema = "keel.install-boot-manifest/v1"
+
+var scriptOrigin = regexp.MustCompile(`^https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?$`)
+
+type BootManifest struct {
+	Schema          string         `json:"schema"`
+	ScopeID         string         `json:"scope_id"`
+	GrantID         string         `json:"grant_id"`
+	ProjectID       string         `json:"project_id"`
+	RequestID       string         `json:"request_id"`
+	MachineID       string         `json:"machine_id"`
+	AttemptID       string         `json:"attempt_id"`
+	CommandID       string         `json:"command_id"`
+	FencingToken    int64          `json:"fencing_token"`
+	SnapshotSHA256  string         `json:"snapshot_sha256"`
+	ExpiresAt       time.Time      `json:"expires_at"`
+	MAC             string         `json:"boot_mac"`
+	Arch            string         `json:"arch"`
+	Media           mediaboot.Plan `json:"media"`
+	PreflightSHA256 string         `json:"preflight_spec_sha256"`
+	UserDataSHA256  string         `json:"user_data_sha256"`
+	MetaDataSHA256  string         `json:"meta_data_sha256"`
+}
+type BootBundle struct {
+	IPXE      []byte
+	Manifest  []byte
+	Preflight []byte
+}
+
+func bytesDigest(raw []byte) string { sum := sha256.Sum256(raw); return hex.EncodeToString(sum[:]) }
+
+// RenderBootBundle renders public files only. It neither grants installation
+// authority nor makes an unverified generic initrd implement keel-initrd/v1.
+// Its caller must hold/recheck the actual running installation's exclusive lease
+// and verify the pinned media/seed and image acceptance before serving any file.
+func RenderBootBundle(scope Scope, grant Grant, plan mediaboot.Plan, spec provisionpreflight.Spec, seed provisionseed.Seed, now time.Time) (*BootBundle, error) {
+	if scope.Validate() != nil || grant.Validate(scope, now) != nil || !scriptOrigin.MatchString(scope.Origin) || plan.ValidateInstallable() != nil || spec.Validate(now) != nil {
+		return nil, ErrDenied
+	}
+	if spec.ProjectID != grant.ProjectID || spec.RequestID != grant.RequestID || spec.MachineID != grant.MachineID || spec.AttemptID != grant.AttemptID || spec.CommandID != grant.CommandID || spec.FencingToken != grant.FencingToken || spec.SnapshotSHA256 != grant.SnapshotSHA256 || !spec.ExpiresAt.Equal(grant.ExpiresAt) || spec.Expected.Arch != grant.Arch || spec.Expected.BootMAC != grant.MAC {
+		return nil, ErrDenied
+	}
+	for _, a := range plan.Artifacts {
+		if (a.ScopeKey != "global" && a.ScopeKey != "project:"+grant.ProjectID) || (a.Role == "rootfs" && a.Arch != grant.Arch) {
+			return nil, ErrDenied
+		}
+	}
+	if len(seed.UserData) < 1 || len(seed.UserData) > 512<<10 || len(seed.MetaData) < 1 || len(seed.MetaData) > 64<<10 || !strings.HasPrefix(seed.UserData, "#cloud-config\n") {
+		return nil, ErrDenied
+	}
+	var metadata struct {
+		InstanceID string `yaml:"instance-id"`
+		Hostname   string `yaml:"local-hostname"`
+	}
+	decoder := yaml.NewDecoder(strings.NewReader(seed.MetaData))
+	decoder.KnownFields(true)
+	if decoder.Decode(&metadata) != nil || decoder.Decode(new(any)) != io.EOF || metadata.InstanceID != "keel-"+grant.RequestID || !provisionseed.ValidHostname(metadata.Hostname) {
+		return nil, ErrDenied
+	}
+	rawSpec, err := json.Marshal(spec)
+	if err != nil || len(rawSpec) > 64<<10 {
+		return nil, ErrDenied
+	}
+	manifest := BootManifest{Schema: BootManifestSchema, ScopeID: scope.ID, GrantID: grant.ID, ProjectID: grant.ProjectID, RequestID: grant.RequestID, MachineID: grant.MachineID, AttemptID: grant.AttemptID, CommandID: grant.CommandID, FencingToken: grant.FencingToken, SnapshotSHA256: grant.SnapshotSHA256, ExpiresAt: grant.ExpiresAt.UTC(), MAC: grant.MAC, Arch: grant.Arch, Media: plan, PreflightSHA256: bytesDigest(rawSpec), UserDataSHA256: bytesDigest([]byte(seed.UserData)), MetaDataSHA256: bytesDigest([]byte(seed.MetaData))}
+	rawManifest, err := json.Marshal(manifest)
+	if err != nil || len(rawManifest) > 4<<20 {
+		return nil, ErrDenied
+	}
+	prefix := scope.Origin + "/boot/" + grant.ID + "/"
+	// Fixed protocol arguments only. The approved initrd must fetch/check the
+	// manifest and preflight spec, run the pinned helper before ANY disk write,
+	// authenticate its callback and await a live matching installation permit.
+	command := fmt.Sprintf("kernel --name keel-kernel --timeout 30000 %skernel initrd=initrd.magic ip=dhcp BOOTIF=01-%s keel.protocol=%s keel.manifest=%smanifest.json keel.manifest_sha256=%s", prefix, strings.ReplaceAll(grant.MAC, ":", "-"), mediaboot.InitrdProtocol, prefix, bytesDigest(rawManifest))
+	if len(command) > 2048 {
+		return nil, ErrDenied
+	}
+	var script strings.Builder
+	script.WriteString("#!ipxe\n# Generated by Keel; iPXE project: https://ipxe.org\nimgfree\nifclose\ngoto probe-0\n")
+	// iPXE names physical interfaces net0...; never assume net0 is the BOM port
+	// and never request DHCP on every NIC. Unknown/excess interfaces fail closed.
+	for i := 0; i < 256; i++ {
+		fmt.Fprintf(&script, ":probe-%d\niseq ${net%d/mac} %s && goto use-%d || goto probe-%d\n:use-%d\nifconf --configurator dhcp --timeout 15000 net%d || goto failed\ngoto ready\n", i, i, grant.MAC, i, i+1, i, i)
+	}
+	script.WriteString(":probe-256\ngoto failed\n:ready\n")
+	script.WriteString(command + " || goto failed\n")
+	fmt.Fprintf(&script, "initrd --name keel-initrd --timeout 30000 %sinitrd || goto failed\n", prefix)
+	script.WriteString("boot keel-kernel || goto failed\ngoto failed\n:failed\nimgfree\necho Keel boot unavailable; installation was not authorized by this script\nexit 1\n")
+	if script.Len() > 512<<10 {
+		return nil, ErrDenied
+	}
+	return &BootBundle{IPXE: []byte(script.String()), Manifest: rawManifest, Preflight: rawSpec}, nil
+}

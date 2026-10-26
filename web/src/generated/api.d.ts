@@ -2695,10 +2695,26 @@ export interface components {
             kernel_media_id: string;
             initrd_media_id: string;
             template_media_id: string;
+            recipe?: components["schemas"]["MediaBootRecipe"];
+        };
+        /** @description Reviewed custom initrd contract; metadata is not proof of a bootable or preflight-before-write accepted image. Required for actual installation, optional for legacy preparation preview. */
+        MediaBootRecipe: {
+            /** @constant */
+            schema: "keel.boot-recipe/v1";
+            /** @constant */
+            protocol: "keel-initrd/v1";
+            /** @constant */
+            rootfs_format: "squashfs";
+            uefi_media_id: string;
+            legacy_media_id?: string;
+            preflight_media_id: string;
+            ssh_helper_media_id: string;
+            preflight_sha256: string;
+            ssh_helper_sha256: string;
         };
         MediaBootArtifact: {
             /** @enum {string} */
-            role: "rootfs" | "kernel" | "initrd" | "template";
+            role: "rootfs" | "kernel" | "initrd" | "template" | "uefi" | "legacy" | "preflight" | "ssh-helper";
             media_id: string;
             scope_key: string;
             name: string;

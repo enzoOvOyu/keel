@@ -47,10 +47,14 @@ func resourceLimit(resource string) int64 {
 	switch resource {
 	case "boot.ipxe", "user-data", "meta-data":
 		return 512 << 10
+	case "preflight.json":
+		return 64 << 10
 	case "manifest.json":
 		return 4 << 20
 	case "ipxe.efi", "undionly.kpxe":
 		return 16 << 20
+	case "preflight", "ssh-helper":
+		return 64 << 20
 	case "kernel", "initrd":
 		return 1 << 30
 	case "rootfs":
@@ -156,7 +160,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if resource == "boot.ipxe" || resource == "user-data" || resource == "meta-data" {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	}
-	if resource == "manifest.json" {
+	if resource == "manifest.json" || resource == "preflight.json" {
 		w.Header().Set("Content-Type", "application/json")
 	}
 	// ServeContent implements conditional/Range/HEAD over the verified exact
