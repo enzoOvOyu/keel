@@ -15,7 +15,7 @@ import {createHostFlowExecution} from '../../lib/flow-workbench'
 
 export function HostFlowLaunchDialog({flow,onClose,onDone}:{flow:FlowVersion;onClose:()=>void;onDone:(id:string)=>void}){
  const {t}=useTranslation(),session=useSession(),action=useAction()
- const [transport,setTransport]=useState<'ssh'|'agent'>('ssh'),[page,setPage]=useState(1),[ids,setIds]=useState<string[]>([]),[concurrency,setConcurrency]=useState(4),[breaker,setBreaker]=useState(100),[confirmed,setConfirmed]=useState(false)
+ const [transport,setTransport]=useState<'ssh'|'agent'>('ssh'),[page,setPage]=useState(1),[ids,setIds]=useState<string[]>([]),[concurrency,setConcurrency]=useState(4),[breaker,setBreaker]=useState(''),[confirmed,setConfirmed]=useState(false)
  const submission=useRef({body:'',key:''}),alive=useRef(true)
  useEffect(()=>{alive.current=true;return()=>{alive.current=false}},[])
  const targets=useQuery({queryKey:['private',session.user.id,'project',flow.project_id,'host-flow-targets',transport,page],queryFn:async({signal})=>{
@@ -25,9 +25,9 @@ export function HostFlowLaunchDialog({flow,onClose,onDone}:{flow:FlowVersion;onC
  useExpireOnUnauthorized(targets.error??action.error)
  useEffect(()=>{setConfirmed(false)},[transport,page,ids,concurrency,breaker])
  const retrieval=flow.definition.tasks.some(task=>task.type==='media.fetch')
- const ready=!targets.isFetching&&!targets.isError&&ids.length>0&&ids.length<=(retrieval?1:32)&&ids.every(id=>targets.data?.items.some(v=>v.id===id))&&Number.isSafeInteger(concurrency)&&concurrency>=1&&concurrency<=32&&Number.isSafeInteger(breaker)&&breaker>=1&&breaker<=100
+ const ready=!targets.isFetching&&!targets.isError&&ids.length>0&&ids.length<=(retrieval?1:32)&&ids.every(id=>targets.data?.items.some(v=>v.id===id))&&Number.isSafeInteger(concurrency)&&concurrency>=1&&concurrency<=32&&(breaker===''||Number.isSafeInteger(Number(breaker))&&Number(breaker)>=1&&Number(breaker)<=100)
  async function submit(event:FormEvent){event.preventDefault();if(!ready||!confirmed)return
-  const body={flow_version_id:flow.id,transport,machine_ids:[...ids].sort(),concurrency,circuit_breaker_percent:breaker},serialized=JSON.stringify(body)
+  const body={flow_version_id:flow.id,transport,machine_ids:[...ids].sort(),concurrency,circuit_breaker_percent:Number(breaker)},serialized=JSON.stringify(body)
   if(submission.current.body!==serialized)submission.current={body:serialized,key:crypto.randomUUID()}
   const result=await action.run(()=>createHostFlowExecution(flow.project_id,body,session.csrf_token,submission.current.key));if(result.ok&&alive.current)onDone(result.value.id)
  }
@@ -37,7 +37,8 @@ export function HostFlowLaunchDialog({flow,onClose,onDone}:{flow:FlowVersion;onC
   <p>{t('flowExplicitTargets',{count:ids.length})}</p><div className="flow-target-list">{targets.data?.items.map(target=><Button key={target.id} type="button" variant={ids.includes(target.id)?'default':'outline'} disabled={action.busy||targets.isFetching||!ids.includes(target.id)&&ids.length>=(retrieval?1:32)} aria-pressed={ids.includes(target.id)} onClick={()=>setIds(current=>current.includes(target.id)?current.filter(id=>id!==target.id):[...current,target.id])}>{target.name} · {target.serial}</Button>)}</div>
   {targets.data?.items.length===0&&<p>{t('flowHostNoTargets')}</p>}{targets.data&&<Pagination offset={(page-1)*20} limit={20} total={targets.data.total} busy={action.busy||targets.isFetching} onChange={offset=>{setIds([]);setPage(offset/20+1)}}/>}
   <Label htmlFor="host-flow-concurrency">{t('concurrency')}</Label><Input id="host-flow-concurrency" type="number" min={1} max={32} required disabled={action.busy} value={concurrency} onChange={event=>setConcurrency(Number(event.target.value))}/>
-  <Label htmlFor="host-flow-breaker">{t('circuitBreaker')}</Label><Input id="host-flow-breaker" type="number" min={1} max={100} required disabled={action.busy} value={breaker} onChange={event=>setBreaker(Number(event.target.value))}/>
+  <Label htmlFor="host-flow-breaker">{t('circuitBreaker')}</Label><Input id="host-flow-breaker" type="number" min={1} max={100} disabled={action.busy} value={breaker} aria-describedby="host-flow-breaker-help" onChange={event=>setBreaker(event.target.value)}/>
+  <p id="host-flow-breaker-help">{t('flowBreakerDefault')}</p>
   <Label><NativeCheckbox checked={confirmed} disabled={action.busy||!ready} onChange={event=>setConfirmed(event.target.checked)}/>{t('flowHostConfirm',{count:ids.length,transport})}</Label>
  </ActionDialog>
 }

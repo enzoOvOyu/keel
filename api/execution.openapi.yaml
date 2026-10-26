@@ -3833,9 +3833,9 @@
           },
           "circuit_breaker_percent": {
             "type": "integer",
-            "minimum": 1,
+            "minimum": 0,
             "maximum": 100,
-            "default": 5
+            "description": "Omit or use 0 to resolve the current project/global exec.circuit_breaker_threshold catalog default; unconfigured default is 5 percent. Retired or invalid policy blocks admission. Explicit values 1..100 override the default. The resolved policy is frozen in the execution snapshot."
           },
           "mode": {
             "type": "string",
@@ -3919,6 +3919,9 @@
             "type": "string",
             "pattern": "^[a-f0-9]{64}$",
             "description": "Original published definition digest before server-owned media approval snapshots are added. flow.content_hash binds the frozen execution definition."
+          },
+          "circuit_breaker_policy": {
+            "$ref": "#/components/schemas/ExecutionCircuitBreakerPolicy"
           }
         },
         "required": [
@@ -6784,15 +6787,45 @@
           },
           "circuit_breaker_percent": {
             "type": "integer",
-            "minimum": 1,
+            "minimum": 0,
             "maximum": 100,
-            "default": 100
+            "description": "Omit or use 0 to resolve the current project/global exec.circuit_breaker_threshold catalog default; unconfigured default is 5 percent. Retired or invalid policy blocks admission. Explicit values 1..100 override the default. The resolved policy is frozen in the execution snapshot."
           }
         },
         "required": [
           "flow_version_id",
           "transport",
           "machine_ids"
+        ]
+      },
+      "ExecutionCircuitBreakerPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "default_percent": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "built_in",
+              "global",
+              "project"
+            ]
+          },
+          "param_key_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "default_percent",
+          "source"
         ]
       }
     }

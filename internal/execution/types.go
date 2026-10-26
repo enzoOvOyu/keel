@@ -137,16 +137,17 @@ type RerunSource struct {
 	ChangeReason  string `json:"change_reason"`
 }
 type Snapshot struct {
-	SourceFlowContentHash string                      `json:"source_flow_content_hash,omitempty"`
-	Catalog               []platform.CatalogSelection `json:"catalog,omitempty"`
-	RerunSource           *RerunSource                `json:"rerun_source,omitempty"`
-	Mode                  string                      `json:"mode"`
-	Flow                  FlowVersion                 `json:"flow"`
-	Targets               []SimTarget                 `json:"targets"`
-	Parameters            map[string]any              `json:"parameters"`
-	TargetSetHash         string                      `json:"target_set_hash"`
-	Admission             string                      `json:"admission"`
-	FrozenAt              time.Time                   `json:"frozen_at"`
+	CircuitBreakerPolicy  *platform.ExecutionCircuitBreakerPolicy `json:"circuit_breaker_policy,omitempty"`
+	SourceFlowContentHash string                                  `json:"source_flow_content_hash,omitempty"`
+	Catalog               []platform.CatalogSelection             `json:"catalog,omitempty"`
+	RerunSource           *RerunSource                            `json:"rerun_source,omitempty"`
+	Mode                  string                                  `json:"mode"`
+	Flow                  FlowVersion                             `json:"flow"`
+	Targets               []SimTarget                             `json:"targets"`
+	Parameters            map[string]any                          `json:"parameters"`
+	TargetSetHash         string                                  `json:"target_set_hash"`
+	Admission             string                                  `json:"admission"`
+	FrozenAt              time.Time                               `json:"frozen_at"`
 }
 type Execution struct {
 	ID                    string         `json:"id"`

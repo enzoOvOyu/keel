@@ -90,7 +90,7 @@ jobs:
           go build -o "$KEEL_TEST_AGENT_ADMIN_BIN" ./cmd/keel-admin
           go build -o "$KEEL_TEST_AGENT_AGENT_BIN" ./cmd/keel-agent
           go build -o "$KEEL_TEST_AGENT_WORKER_BIN" ./cmd/keel-worker
-          go test -p=1 -race -count=1 -v ./internal/agentidentity ./internal/platform ./internal/execution -run '^(TestAgent|TestProvisionExecutionKernelPostgres$)'
+          go test -p=1 -race -count=1 -v ./internal/agentidentity ./internal/platform ./internal/execution -run '^(TestAgent|TestHostFlow|TestHostMedia|TestProvisionExecutionKernelPostgres$)'
       - name: PostgreSQL authentication, authorization, and browser integration
         env:
           KEEL_ADMIN_BINARY: /tmp/keel-ci-admin

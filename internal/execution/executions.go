@@ -70,8 +70,12 @@ func (s *Service) create(ctx context.Context, a *Actor, projectID string, in Cre
 	if in.Concurrency == 0 {
 		in.Concurrency = 16
 	}
+	policy, e := platform.ResolveExecutionCircuitBreakerTx(ctx, tx, projectID)
+	if e != nil {
+		return nil, e
+	}
 	if in.CircuitBreakerPercent == 0 {
-		in.CircuitBreakerPercent = 5
+		in.CircuitBreakerPercent = policy.DefaultPercent
 	}
 	if in.Concurrency < 1 || in.Concurrency > 256 || in.CircuitBreakerPercent < 1 || in.CircuitBreakerPercent > 100 {
 		return nil, invalid("invalid concurrency or circuit breaker percentage")
@@ -131,7 +135,7 @@ func (s *Service) create(ctx context.Context, a *Actor, projectID string, in Cre
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	x := &Execution{ID: platform.RandomID(), ProjectID: projectID, FlowVersionID: flow.ID, Mode: "sim", State: "created", StateVersion: 1, DesiredState: "running", Parameters: params, TargetSetHash: hash(jsonBytes(ids)), Concurrency: in.Concurrency, CircuitBreakerPercent: in.CircuitBreakerPercent, CreatedBy: a.User.ID, CreatedAt: now}
-	x.Snapshot = Snapshot{Catalog: catalog.Selections, Mode: "sim", Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "simulation only; not hardware gate evidence", FrozenAt: now}
+	x.Snapshot = Snapshot{CircuitBreakerPolicy: policy, Catalog: catalog.Selections, Mode: "sim", Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "simulation only; not hardware gate evidence", FrozenAt: now}
 	if origin != nil {
 		// Preserve source target identities/revisions rather than silently changing the rerun.
 		source, err := scanExecution(tx.QueryRowContext(ctx, "SELECT "+executionColumns+" FROM exec_executions WHERE id=$1 AND project_id=$2", origin.SourceID, projectID))

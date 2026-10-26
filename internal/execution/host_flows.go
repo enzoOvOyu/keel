@@ -37,10 +37,7 @@ func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, 
 	if in.Concurrency == 0 {
 		in.Concurrency = 4
 	}
-	if in.CircuitBreakerPercent == 0 {
-		in.CircuitBreakerPercent = 100
-	}
-	if in.Concurrency < 1 || in.Concurrency > 32 || in.CircuitBreakerPercent < 1 || in.CircuitBreakerPercent > 100 {
+	if in.Concurrency < 1 || in.Concurrency > 32 || in.CircuitBreakerPercent < 0 || in.CircuitBreakerPercent > 100 {
 		return nil, invalid("host concurrency must be1..32 and circuit breaker1..100")
 	}
 	tx, err := s.DB.BeginTx(ctx, nil)
@@ -56,13 +53,21 @@ func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, 
 	if err = authorize(ctx, tx, a, project, "Admin", "DE", "DL", "SRE"); err != nil {
 		return nil, err
 	}
-	idem, prior, err := idempotency(ctx, tx, a, "host.flow.create:"+project, key, in)
+	request := in
+	idem, prior, err := idempotency(ctx, tx, a, "host.flow.create:"+project, key, request)
 	if err != nil {
 		return nil, err
 	}
 	if prior != nil {
 		x, e := decode[Execution](prior)
 		return &x, e
+	}
+	policy, err := platform.ResolveExecutionCircuitBreakerTx(ctx, tx, project)
+	if err != nil {
+		return nil, err
+	}
+	if in.CircuitBreakerPercent == 0 {
+		in.CircuitBreakerPercent = policy.DefaultPercent
 	}
 	if in.Transport == "agent" && s.AgentRunner == nil && !s.AgentAdmissionOnly {
 		return nil, failure(503, "AGENT_DISABLED", "Agent task admission is not configured")
@@ -139,7 +144,7 @@ func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, 
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	params := map[string]any{}
 	x := &Execution{ID: platform.RandomID(), ProjectID: project, FlowVersionID: flow.ID, Mode: in.Transport, State: "created", StateVersion: 1, DesiredState: "running", Parameters: params, TargetSetHash: hash(jsonBytes(targetIDs)), Concurrency: in.Concurrency, CircuitBreakerPercent: in.CircuitBreakerPercent, CreatedBy: a.User.ID, CreatedAt: now}
-	x.Snapshot = Snapshot{SourceFlowContentHash: sourceHash, Mode: in.Transport, Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "Published bounded host DAG; exact current project machine/channel identities; frozen independent media approvals; shared or exclusive device and exclusive transport leases; no automatic replay or hardware acceptance", FrozenAt: now}
+	x.Snapshot = Snapshot{CircuitBreakerPolicy: policy, SourceFlowContentHash: sourceHash, Mode: in.Transport, Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "Published bounded host DAG; exact current project machine/channel identities; frozen independent media approvals; shared or exclusive device and exclusive transport leases; no automatic replay or hardware acceptance", FrozenAt: now}
 	_, err = tx.ExecContext(ctx, `INSERT INTO exec_executions(id,project_id,flow_version_id,mode,parameters,snapshot,target_set_hash,concurrency,circuit_breaker_percent,created_by,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, x.ID, project, flow.ID, x.Mode, jsonBytes(params), jsonBytes(x.Snapshot), x.TargetSetHash, x.Concurrency, x.CircuitBreakerPercent, a.User.ID, now)
 	if err != nil {
 		return nil, err
@@ -161,7 +166,7 @@ func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, 
 	if err = audit(ctx, tx, a.User.ID, project, "execution.host.flow.create", x.ID, trace, details); err != nil {
 		return nil, err
 	}
-	if err = remember(ctx, tx, idem, in, x); err != nil {
+	if err = remember(ctx, tx, idem, request, x); err != nil {
 		return nil, err
 	}
 	return x, tx.Commit()

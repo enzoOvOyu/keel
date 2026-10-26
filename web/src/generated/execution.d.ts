@@ -794,8 +794,8 @@ export interface components {
             };
             /** @default 16 */
             concurrency: number;
-            /** @default 5 */
-            circuit_breaker_percent: number;
+            /** @description Omit or use 0 to resolve the current project/global exec.circuit_breaker_threshold catalog default; unconfigured default is 5 percent. Retired or invalid policy blocks admission. Explicit values 1..100 override the default. The resolved policy is frozen in the execution snapshot. */
+            circuit_breaker_percent?: number;
             /** @enum {string} */
             mode: "sim";
         };
@@ -817,6 +817,7 @@ export interface components {
             catalog?: components["schemas"]["CatalogSelection"][];
             /** @description Original published definition digest before server-owned media approval snapshots are added. flow.content_hash binds the frozen execution definition. */
             source_flow_content_hash?: string;
+            circuit_breaker_policy?: components["schemas"]["ExecutionCircuitBreakerPolicy"];
         };
         Execution: {
             id: string;
@@ -1528,8 +1529,16 @@ export interface components {
             machine_ids: string[];
             /** @default 4 */
             concurrency: number;
-            /** @default 100 */
-            circuit_breaker_percent: number;
+            /** @description Omit or use 0 to resolve the current project/global exec.circuit_breaker_threshold catalog default; unconfigured default is 5 percent. Retired or invalid policy blocks admission. Explicit values 1..100 override the default. The resolved policy is frozen in the execution snapshot. */
+            circuit_breaker_percent?: number;
+        };
+        ExecutionCircuitBreakerPolicy: {
+            default_percent: number;
+            /** @enum {string} */
+            source: "built_in" | "global" | "project";
+            param_key_id?: string;
+            /** Format: date-time */
+            updated_at?: string;
         };
     };
     responses: {

@@ -12,7 +12,7 @@ import uuid
 os.umask(0o077)
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--browser', action='store_true', help='Also exercise built web UI with the actual Agent transport')
-parser.add_argument('--run', default='TestAgent|TestProtected|TestWriteNew|TestAuthority|TestIssued|TestCSR', help='Go test name filter for a targeted rerun')
+parser.add_argument('--run', default='TestAgent|TestProtected|TestWriteNew|TestAuthority|TestIssued|TestCSR|TestHostFlow|TestHostMedia|TestArtifact|TestFlowYAML|TestWorkflowYAML', help='Go test name filter for a targeted rerun')
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 os.chdir(root)
@@ -43,7 +43,7 @@ try:
             binary = binary_dir / ('keel-' + name)
             subprocess.run(['go', 'build', '-o', str(binary), './cmd/keel-' + name], env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
             env['KEEL_TEST_AGENT_' + name.upper() + '_BIN'] = str(binary)
-        result = subprocess.run(['go', 'test', '-p=1', '-race', '-count=1', '-v', './internal/agentpki', './internal/agentinventory', './internal/agentidentity', './internal/agentclient', './internal/platform', './internal/execution', './internal/taskrunner', '-run', args.run], env=env, stdout=log, stderr=subprocess.STDOUT)
+        result = subprocess.run(['go', 'test', '-p=1', '-race', '-count=1', '-v', './internal/agentpki', './internal/agentinventory', './internal/agentidentity', './internal/agentclient', './internal/platform', './internal/execution', './internal/taskrunner', './internal/httpapi', '-run', args.run], env=env, stdout=log, stderr=subprocess.STDOUT)
     (work / 'result.json').write_text(json.dumps({'exit_code': result.returncode, 'test_filter': args.run, 'real_postgresql': True, 'verified_loopback_tls_grpc': True, 'browser_requested': args.browser, 'physical_device_acceptance': False}))
     print('Agent evidence:', work, 'exit:', result.returncode)
     raise SystemExit(result.returncode)

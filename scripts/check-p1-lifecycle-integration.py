@@ -18,7 +18,7 @@ import uuid
 
 os.umask(0o077)
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--run', default='TestOSBootMediaComposition|TestProvisionPreviewUsesCurrentBOMAndApprovedOS|TestProvisionRequest|TestCredentialMasterAtomicRewrapAndRecovery|TestAuditEvidence|TestCloudInit|TestMasterRewrap|TestSignedOSBootRoles|TestSSHCredentialCLI|TestWebhook', help='Narrow only after a diagnosed failure; default covers this lifecycle batch')
+parser.add_argument('--run', default='TestOSBootMediaComposition|TestProvisionPreviewUsesCurrentBOMAndApprovedOS|TestProvisionRequest|TestCredentialMasterAtomicRewrapAndRecovery|TestAuditEvidence|TestCloudInit|TestMasterRewrap|TestSignedOSBootRoles|TestSSHCredentialCLI|TestWebhook|TestZTP|TestExecutionCircuitBreaker|TestDHCP6|TestMerge136|TestMock136|TestKeaDHCP6', help='Narrow only after a diagnosed failure; default covers this lifecycle batch')
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 os.chdir(root)
@@ -45,7 +45,7 @@ try:
     env['KEEL_TEST_P1_ADMIN_BIN'] = str(binary_dir / 'keel-admin')
     with (work / 'integration.log').open('x') as log:
         subprocess.run(['go', 'build', '-o', env['KEEL_TEST_P1_ADMIN_BIN'], './cmd/keel-admin'], env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
-        result = subprocess.run(['go', 'test', '-p=1', '-race', '-count=1', '-v', './internal/auditevidence', './internal/webhook', './internal/mediasource', './internal/credentialvault', './internal/mediamanifest', './internal/provisionseed', './internal/platform', './cmd/keel-admin', '-run', args.run], env=env, stdout=log, stderr=subprocess.STDOUT)
+        result = subprocess.run(['go', 'test', '-p=1', '-race', '-count=1', '-v', './internal/auditevidence', './internal/webhook', './internal/mediasource', './internal/credentialvault', './internal/mediamanifest', './internal/provisionseed', './internal/fabricboot', './internal/platform', './cmd/keel-admin', '-run', args.run], env=env, stdout=log, stderr=subprocess.STDOUT)
     transcript = (work / 'integration.log').read_text()
     passed = re.findall(r'^--- PASS: (\S+)', transcript, re.MULTILINE)
     owner_cli_verified = all(marker in transcript for marker in ['P1_LIFECYCLE_MASTER_CLI_OK', 'P1_LIFECYCLE_AUDIT_CLI_OK', 'P1_LIFECYCLE_WEBHOOK_CLI_OK']) and all(name in passed for name in ['TestCredentialMasterAtomicRewrapAndRecovery', 'TestAuditEvidenceDetectsOwnerChangesWithoutExportingMetadata', 'TestWebhookDurableOutboxDeliveryAndIsolation'])
