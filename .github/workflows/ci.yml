@@ -76,7 +76,7 @@ jobs:
           export KEEL_TEST_PROVISION_PREFLIGHT_BIN="$keel_provision_cli_dir/keel-preflight"
           export KEEL_TEST_PROVISION_SSH_HELPER_BIN="$keel_provision_cli_dir/keel-ssh-runner"
           go test -p=1 -count=1 -v ./internal/mediamanifest -run '^TestInstallerOverlayRealHelperCLI$'
-      - name: Agent one-time enrollment, mTLS, CLI and restricted-role integration
+      - name: Agent integration and approved provisioning execution
         env:
           KEEL_TEST_AGENT_DATABASE_URL: postgresql://keel_test:isolated-ci-only@127.0.0.1:15433/keel_test_agent_ci?sslmode=disable
         run: |
@@ -90,7 +90,7 @@ jobs:
           go build -o "$KEEL_TEST_AGENT_ADMIN_BIN" ./cmd/keel-admin
           go build -o "$KEEL_TEST_AGENT_AGENT_BIN" ./cmd/keel-agent
           go build -o "$KEEL_TEST_AGENT_WORKER_BIN" ./cmd/keel-worker
-          go test -p=1 -race -count=1 -v ./internal/agentidentity ./internal/platform ./internal/execution -run '^TestAgent'
+          go test -p=1 -race -count=1 -v ./internal/agentidentity ./internal/platform ./internal/execution -run '^(TestAgent|TestProvisionExecutionKernelPostgres$)'
       - name: PostgreSQL authentication, authorization, and browser integration
         env:
           KEEL_ADMIN_BINARY: /tmp/keel-ci-admin

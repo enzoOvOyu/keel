@@ -128,3 +128,6 @@ v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud
 ### NVMe 只读健康输出对应关系
 
 采集命令保持`smartctl --json=c --health`。NVMe的该选项输出`smart_status.nvme.value`；`nvme_smart_health_information_log.critical_warning`属于完整属性日志，不能假定每次`--health`都有。解析器以实际健康字段为主，并接受完整日志作为补充；两处同时出现必须数值一致，均限8位。原生NVMe命名、显式NVMe协议或任一NVMe块表明设备类型时，缺少告警值保持unknown；告警非零判当前故障，不被`passed=true`覆盖。ATA/SCSI既有健康判据保留。依据 [smartmontools nvmeprint.cpp](https://github.com/smartmontools/smartmontools/blob/master/smartmontools/nvmeprint.cpp) 中`print_critical_warning`及`smart_check_status`/`smart_vendor_attrib`分支；只核对官方源码，未运行smartctl或访问宿主磁盘。
+
+
+CI中的既有Agent专用PostgreSQL集成步亦显式包含`TestProvisionExecutionKernelPostgres`，因为该用例复用Agent隔离fixture、普通`make check`没有该DSN时会skip；只扩展已有筛选，不额外重复构建/启动测试环境。当前仅更新CI源码，尚未运行。

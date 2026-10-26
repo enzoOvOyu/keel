@@ -1174,3 +1174,8 @@ Make新增build-installer-helpers跨架构生产两份实际helper；CLI不接DB
 接续1fc17fe，核对smartmontools官方nvmeprint.cpp发现--health输出smart_status.nvme.value，完整nvme_smart_health_information_log只在属性选项打印，原解析只考虑后者不完整。已支持实际health字段及可选完整日志，双来源须一致且8位；原生NVMe路径/显式协议/已出现NVMe块缺告警值保持unknown，非零当前故障不被passed=true覆盖。没有额外smartctl选项、SMART自检或宿主设备访问。新增健康单块/缺值/经桥接设备/完整日志/矛盾/越界用例只写入未运行。
 
 实际仅执行带原overlay和内存限制的provisionpreflight/keel-preflight编译与定向vet，退出0（/tmp/keel-preflight-nvme-{compile,vet}.log）；设计检查见本次提交。关闭默认接线、集中测试策略、数据库和3000均不变。另对最终provisionboot/provisionpreflight/keel-preflight执行linux/arm64、CGO_ENABLED=0交叉编译，不执行二进制，结果见本次窗口收工记录。
+
+
+## 89. CI覆盖独立准备与共享设备锁集成入口（2026-10-26，仅源码接线）
+
+接续ec562d6，复查发现make check没有提供Agent专用DSN时会跳过复用agentKernel的TestProvisionExecutionKernelPostgres，而后续专用Agent CI步只筛选TestAgent。已把既有该步的筛选扩为Agent及装机准备共享执行器用例，复用同一隔离CI数据库和已编译二进制，避免新增重复构建/环境或遗漏测试；平台准备用例仍由原make check覆盖。当前只校验CI YAML/嵌入shell语法，不推送、不触发或执行CI，测试依然待集中验证。
