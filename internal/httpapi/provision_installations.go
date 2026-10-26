@@ -37,7 +37,20 @@ func (a *authAPI) registerProvisionInstallations(r *gin.Engine) {
 		if !ok {
 			return
 		}
-		out, err := a.store.ListProvisionInstallations(c.Request.Context(), actor, c.Param("id"), p)
+		// Reject ambiguous/repeated values instead of silently broadening a queue.
+		repairOnly := false
+		if values, exists := c.Request.URL.Query()["repair_only"]; exists {
+			if len(values) != 1 || (values[0] != "true" && values[0] != "false") {
+				failure(c, 400, "VALIDATION_ERROR", "repair_only must be true or false")
+				return
+			}
+			repairOnly = values[0] == "true"
+		}
+		list := a.store.ListProvisionInstallations
+		if repairOnly {
+			list = a.store.ListProvisionInstallationRepairs
+		}
+		out, err := list(c.Request.Context(), actor, c.Param("id"), p)
 		if err != nil {
 			a.respondError(c, err)
 			return

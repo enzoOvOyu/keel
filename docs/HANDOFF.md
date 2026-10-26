@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～113。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～114。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
 用户最新安排（2026-10-26）：合并本轮四Agent工作后恢复单Agent开发，不再启动或续派子代理；此前四Agent并行安排已被本指令替代。直接在当前本地环境`/opt/keel`开发，不使用tmux或SSH绕转。硬件/网络参数保持配置输入，PoC由用户提供。保留P1实现后集中功能/数据库/浏览器/镜像验证策略，目前仅必要编译和静态检查。
 
-源码接续39c353f，本轮统一集成见§108：机柜显式批量准备、七阶段事实投影/恢复页面、SSH已查询终态失败后的独立只读probe，以及重启失败不释放真实磁盘claim。前序目标UKI/写盘/首启链见§105～107。WP-1.7/P1仍partial，不把源码合并或编译通过记为装机/SSH/PoC验收。单Agent已补首装SSH allowlist无旧host pin的显式配置源码（§109）；已接`boot.file_served`真实完整HTTP响应事件生产者（§110）；下一步复核装机/首启运行依赖与剩余修复闭环，再按实施计划集中验收。3000健康检查仍返回6668a72c，源52迁移（不含026草稿）、运行46；未应用SQL、构建/部署镜像或推送。两份原fabric草稿保留且不纳入本次提交。
+源码接续39c353f，本轮统一集成见§108：机柜显式批量准备、七阶段事实投影/恢复页面、SSH已查询终态失败后的独立只读probe，以及重启失败不释放真实磁盘claim。前序目标UKI/写盘/首启链见§105～107。WP-1.7/P1仍partial，不把源码合并或编译通过记为装机/SSH/PoC验收。单Agent已补首装SSH allowlist无旧host pin的显式配置源码（§109）；已接`boot.file_served`真实完整HTTP响应事件生产者（§110）；已补注册后崩溃显式对账、无写许可隔离任务收尾与孤立SSH派发修复项（§111～113），并增加装机互信待修复筛选（§114）。下一步复核剩余分发/修复闭环，再按实施计划集中验收。3000健康检查仍返回6668a72c，源52迁移（不含026草稿）、运行46；未应用SQL、构建/部署镜像或推送。两份原fabric草稿保留且不纳入本次提交。
 
 - **累计未发布源码（§75～92）**：此前的续签/主密钥重包裹/审计/Webhook等增量继续保留；本次从e0a9467接续，单Agent完成持久装机准备/独立审批/共享独占Execution与页面、隔离ProxyDHCP/HTTP/TFTP传输、Linux只读硬件预检与双架构helper、固定固件/helper启动配方与iPXE/清单生成和消费校验，以及无最终镜像前置循环的离线helper overlay生产/反向校验。修正Linux槽位ABI、NVMe实际health输出、传输中失效和准备完成时的当前准入边界。新增用例与集中/CI入口已写入但未运行。必要Go/TS编译、静态检查和指定双架构构建通过，不等于功能/SQL/镜像/硬件验证。源迁移50、运行46；3000仍§74。原草稿保留。
 
@@ -1378,3 +1378,12 @@ initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新�
 ## 113. 孤立首次SSH派发补显式修复项（2026-10-26）
 
 接续2b7ec12。首次SSH派发已持久化，但传输/修复事件写入异常时，后续轮询原来只看见已消费dispatch并返回nil，可能永久不展示query入口。现仅对已认证firstboot、最新dispatch尚无repair且无新授权工作时，补一条verification_unknown修复项；沿原attempt/command/fence，无网络IO、重发run、成功回执或新attempt。事件去重后后续轮询停止重复处理，用户可显式query原receipt。新增DB边界fixture仅模拟已提交dispatch而未做SSH，不冒充真实传输；覆盖两轮只补一次repair、无新receipt或状态成功、无knownfailed新probe授权。源码已接集中regex。必要execution仅编译/vet退出0，日志/tmp/keel-first-ssh-orphan-{compile,vet}.log，未运行用例；P1 partial、3000未更新。
+
+
+## 114. 装机互信待修复列表（2026-10-26）
+
+接续23cb4a0，单Agent在原装机列表接入严格可选repair_only=true/false，拒绝空值、重复值和其他布尔别名。项目/当前会话权限与分页复用原路径；同一SQL谓词用于总数与页面，仅awaiting_first_boot/unknown且已存在ssh_repair_required持久事件进入队列，不按租约截止时间隐藏未知节点；registered/failed/canceled退出。列表继续省略完整预检报告，不逐行额外查进度或创建队列任务。
+
+双语共享Button筛选、独立查询缓存、切换回第一页、空队列提示与OpenAPI/生成TS同步；逐行展开沿用原进度、显式query/经证明失败后的只读核验授权，不提供批量推送或自动重装。过期任务的现有资源隔离和权限不因可见性而放宽。
+
+新增数据库回归源码覆盖仅首启报告不入队、持久修复入队、精确分页/总数、摘要不加载报告、reaper后unknown保留、跨项目/匿名/坏分页拒绝与终态退出；终态种子仅用于过滤断言，不作为真实硬件结果证明。已接集中入口，按用户安排未运行功能用例。三包仅编译、vet、API生成、TypeScript与UI边界检查退出0，日志/tmp/keel-repair-list-{compile,vet,api,tsc,ui}.log；设计及diff检查另见同前缀design日志。3000、SQL、镜像和生产开关未变，无push；WP-1.7/P1 partial。

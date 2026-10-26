@@ -113,7 +113,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Admin/DE/DL/SRE project-scoped installation summaries; preflight omitted to bound polling. Use the scoped detail endpoint for report review. Historical facts do not prove current disk identity or authorize writes. */
+        /** @description Admin/DE/DL/SRE project-scoped installation summaries; preflight omitted to bound polling. Use the scoped detail endpoint for report review. Historical facts do not prove current disk identity or authorize writes. Optional repair_only filters awaiting_first_boot/unknown installations with persisted SSH repair evidence; expired leases remain visible. Count and pagination use the same filter. */
         get: operations["listProvisionInstallations"];
         put?: never;
         post?: never;
@@ -5712,6 +5712,8 @@ export interface operations {
             query?: {
                 page?: number;
                 page_size?: number;
+                /** @description Strict true/false; true selects unresolved persisted first-SSH repairs, including expired unknown installations. Does not authorize retry. */
+                repair_only?: boolean;
             };
             header?: never;
             path: {

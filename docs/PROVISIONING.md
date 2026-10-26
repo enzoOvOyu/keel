@@ -299,3 +299,8 @@ SSH未知结果仅显式query原helper回执；只有当前fresh pinned query证
 ### 写盘前隔离任务的显式收尾（当前源码）
 
 对于reaper隔离但从未签发写盘许可的安装，当前Admin/DL/SRE可提交准确版本/原因/幂等键至`prewrite-reconcile`。服务器锁住原执行、attempt和installation，再证明permit字段和事件均不存在、原机器独占claim仍reconciling，才同事务记失败/回执/审计并释放原资源。原资产与互信不变；不启动设备、不续租或重试。任何发过许可的unknown不允许此操作，必须继续隔离核实真实结果。页面按钮依赖当前事实，服务端始终复核；功能/数据库/浏览器用例未运行，见HANDOFF 112。
+
+
+### 装机互信待修复列表
+
+原安装列表GET支持可选`repair_only=true`（仅接受单个`true`或`false`）。该视图从同项目未完成安装的持久`first_boot.ssh_repair_required`事件派生，保留租约已过期的`unknown`，与分页总数共用过滤条件。它是当前修复证据的查看入口，不授予新attempt、重装、续租、解除隔离或批量推送权限；逐机进度及显式查询/只读核验仍由原服务端准入决定。`registered/failed/canceled`不列入，摘要仍不返回完整预检报告。源码回归与集中验证状态见HANDOFF §114。

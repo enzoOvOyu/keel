@@ -232,6 +232,16 @@ func (s *Store) ReadProvisionInstallation(ctx context.Context, a *AuthSession, p
 	return x, tx.Commit()
 }
 func (s *Store) ListProvisionInstallations(ctx context.Context, a *AuthSession, project string, p Pagination) (Page[ProvisionInstallation], error) {
+	return s.listProvisionInstallations(ctx, a, project, p, false)
+}
+
+// ListProvisionInstallationRepairs retains unresolved SSH repair facts even after
+// lease expiry. Listing never grants permission to retry or changes quarantine.
+func (s *Store) ListProvisionInstallationRepairs(ctx context.Context, a *AuthSession, project string, p Pagination) (Page[ProvisionInstallation], error) {
+	return s.listProvisionInstallations(ctx, a, project, p, true)
+}
+
+func (s *Store) listProvisionInstallations(ctx context.Context, a *AuthSession, project string, p Pagination, repairOnly bool) (Page[ProvisionInstallation], error) {
 	out := NewPage[ProvisionInstallation](p)
 	if err := p.Validate(); err != nil {
 		return out, err
@@ -244,13 +254,18 @@ func (s *Store) ListProvisionInstallations(ctx context.Context, a *AuthSession, 
 	if err = requireProvisionReadAuthority(ctx, tx, a, project, false); err != nil {
 		return out, err
 	}
-	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM provision_installations WHERE project_id=$1", project).Scan(&out.Total); err != nil {
+	const predicate = ` WHERE project_id=$1 AND (NOT $2::boolean OR (
+		state IN ('awaiting_first_boot','unknown') AND EXISTS (
+			SELECT 1 FROM provision_installation_events ev
+			WHERE ev.installation_id=provision_installations.id
+			AND ev.event_type='first_boot.ssh_repair_required')))`
+	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM provision_installations"+predicate, project, repairOnly).Scan(&out.Total); err != nil {
 		return out, err
 	}
 	// Polling the board must not repeatedly load multi-MiB hardware reports.
 	// The scoped detail endpoint supplies the exact evidence for an explicit review.
 	columns := strings.Replace(provisionInstallationColumns, "latest_report,", "NULL::bytea AS latest_report,", 1)
-	rows, err := tx.QueryContext(ctx, "SELECT "+columns+" FROM provision_installations WHERE project_id=$1 ORDER BY created_at DESC,id LIMIT $2 OFFSET $3", project, p.PageSize, p.Offset())
+	rows, err := tx.QueryContext(ctx, "SELECT "+columns+" FROM provision_installations"+predicate+" ORDER BY created_at DESC,id LIMIT $3 OFFSET $4", project, repairOnly, p.PageSize, p.Offset())
 	if err != nil {
 		return out, err
 	}
