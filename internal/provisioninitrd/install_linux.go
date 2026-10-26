@@ -24,7 +24,8 @@ func (a liveWriterAuthority) CheckWrite(ctx context.Context, stage string) (*pro
 
 // RunInstallation follows authenticated approval in the same bounded network
 // lease. All content and first-boot credentials are ready before the last fresh
-// report and one-time permit. It does not reboot or declare first-boot/SSH trust.
+// report and one-time permit. Only an acknowledged verified write and a fresh
+// reboot grant can restart the installer; first-boot/SSH trust remains separate.
 func (s *BootSession) RunInstallation(ctx context.Context, input Input, files *Files, preparation *Preparation, source *HTTPFiles) (*Preparation, error) {
 	if RequireInitramfs() != nil || preparation == nil || preparation.BootReview == nil || preparation.BootReview.State != "storage_approved" || source == nil || ctx.Err() != nil {
 		return preparation, ErrUnavailable

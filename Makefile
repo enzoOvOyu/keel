@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 APP_VERSION ?= development
-.PHONY: check build build-agent build-preflight build-installer-helpers build-initrd generate-agent-proto integration dev-api dev-web dev-worker up logs
+.PHONY: check build build-agent build-preflight build-firstboot build-installer-helpers build-initrd generate-agent-proto integration dev-api dev-web dev-worker up logs
 check:
 	python3 scripts/check-design.py
 	python3 -m unittest discover -s poc/h1 -p 'test_*.py'
@@ -28,7 +28,14 @@ build-preflight:
 	mkdir -p bin/linux-amd64 bin/linux-arm64
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o bin/linux-amd64/keel-preflight ./cmd/keel-preflight
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o bin/linux-arm64/keel-preflight ./cmd/keel-preflight
-build-installer-helpers: build-preflight
+# First-boot helper is an input to the separately approved target rootfs.
+# Build binaries before approving that rootfs/UKI, then approve the installer
+# runtime. These targets do not create an OS image, rootfs archive or initramfs.
+build-firstboot:
+	mkdir -p bin/linux-amd64 bin/linux-arm64
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o bin/linux-amd64/keel-firstboot ./cmd/keel-firstboot
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o bin/linux-arm64/keel-firstboot ./cmd/keel-firstboot
+build-installer-helpers: build-preflight build-firstboot
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o bin/linux-amd64/keel-ssh-runner ./cmd/keel-ssh-runner
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o bin/linux-arm64/keel-ssh-runner ./cmd/keel-ssh-runner
 build-initrd: build-installer-helpers

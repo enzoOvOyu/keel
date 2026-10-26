@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～106。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～107。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
@@ -1317,3 +1317,12 @@ initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新�
 接续0a11d74，4Agent按用户最新安排并行且完成后接后续任务。已接当前write-permit/只读nonce check/一次receipt、运行输入的当前独立审批、完整批准Plan及runtime SHA只读交付、asset同事务provisioning版本切换及自有active校验。受控介质全hash+SquashFS/关键内容+sealed工具，Linux writer8阶段/私有工具jail/O_EXCL整盘与精确loop/回读同步/unknown强持引用已落源码。root将审批等待→staging→独立firstboot key→fresh report→permit→writer→receipt ACK串在同一网络会话，main最早dispatch受保护工具子进程并移除“错误必然未安装”的日志断言。真实首启helper/独立公钥绑定及服务端HTTP+DHCP辅助身份登记已落源码，但仍不建立SSH信任。详情与严格证据边界见PROVISIONING末节。
 
 新增pure protocol/PE/SquashFS/HTTP/工作流/宿主拒绝与真实DB composition软件fixture用例，仅写入未执行；firstboot/write-permit DB组已接集中入口regex。实际只Go test -run '^$'编译/vet：/tmp/keel-rootfs-stage-{final-compile,vet}.log、/tmp/keel-firstboot-source-final-{compile,vet}.log、/tmp/keel-write-permit-{final-compile,vet}.log、/tmp/keel-first-boot-server-{final-compile,vet}.log、/tmp/keel-writer-exec-final-{compile,vet}.log及root全链/tmp/keel-install-chain-compile.log均退出0。没有执行上述功能用例/CLI/实际工具/磁盘/网络/首启/SSH、应用SQL或重建发布镜像。3000仍6668a72c；P1仍partial。下一并行单元为受控重启、真实SSH首连/修复队列及七阶段真实事件投影，不能按这批源码或纯格式fixture判闭环。
+
+
+## 107. 首次真实SSH验证与显式query恢复源码（2026-10-26）
+
+接续66079ac。独立临时SSH endpoint使用已认证首启报告的新host pin及同peer/批准网段，域私钥只经当前受控vault，复用既有host.identity/helper和fresh pinned握手，不使用旧configured pin或跳过host key校验。存储层签发一次started能力并以opaque transport proof核对同native attempt/command/fence/独占lease；成功时asset变provisioned/version+1、machine记录真正hostpin+当前domain binding/trust established、installation registered与native成功receipt在同事务落库，然后Complete。崩溃跨lease过期仍需显式对账，不宣称reaper会自动完成或解锁。
+
+失败进入明确repair事件；Admin/DL/SRE显式请求仅fresh握手query原不可变receipt，不重发run/重装/续租，同repair并发去重。请求人与原审批/域凭据权限在消费及最终注册再次核对。native command/fence保持原值；unknown/missing始终持资源。已证明terminal failed后的新一次显式只读probe是后续单元，不能靠重复query假造旧失败回执成功。静态协议/loopback/DB角色/过期/stale事件用例均只写入未运行。必要定向编译/vet日志/tmp/keel-first-ssh-query-{final-compile,vet}.log退出0，source/no-network。3000/SQL/镜像未改，P1仍partial。
+
+同批writer交界复查修复受控reboot早退未quarantine，Makefile增加独立build-firstboot并接installer-helpers；仅静态编译amd64/arm64的initrd/firstboot四binary，读ELF头确认静态，/tmp/keel-writer-cross-v0pvsppw，无任何CLI/归档/镜像/设备执行。written回执ACK的最长2秒当前lease重启许可已接入root运行链；失ACK、unknown、过期或重启失败不重试。

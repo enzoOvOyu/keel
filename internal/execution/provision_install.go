@@ -183,6 +183,11 @@ func (s *Service) runProvisionInstallationClaim(ctx context.Context, c *Claim) e
 				if e == nil {
 					var installation *platform.ProvisionInstallation
 					installation, e = platform.LoadProvisionInstallationBindingTx(check, tx, c.Target.ProjectID, c.Target.ProvisionInstallationID)
+					if e == nil && installation.State == "registered" {
+						tx.Rollback()
+						done()
+						return s.Complete(work, c)
+					}
 					if e == nil && installation.State != "failed" && installation.State != "canceled" {
 						_, _, _, e = platform.ValidateProvisionInstallationTx(check, tx, installation, time.Now())
 					}
@@ -192,15 +197,24 @@ func (s *Service) runProvisionInstallationClaim(ctx context.Context, c *Claim) e
 					tx.Rollback()
 				}
 				done()
+				if e == nil {
+					finished, sshErr := s.runProvisionFirstSSH(work, c)
+					if finished {
+						return sshErr
+					}
+					if sshErr != nil {
+						e = sshErr
+					}
+				}
 				if e != nil {
 					err = e
 				}
 			}
 		}
 	}
-	// This implementation can only prove a pre-write failure/cancellation. A
-	// future permit ever issued makes absence of a terminal proof unknown; do
-	// not fabricate success/failure or release the machine in that branch.
+	// Without the genuine first-SSH terminal proof, only a pre-write stop is
+	// safely classified. Any issued permit retains the resource as unknown;
+	// never turn a timeout into an invented installation failure or success.
 	finish, done := context.WithTimeout(context.Background(), 5*time.Second)
 	defer done()
 	reason := "boot_prewrite_stopped"
@@ -226,6 +240,9 @@ func installationReceiptTarget(ctx context.Context, tx *sql.Tx, target *Target, 
 	x, err := platform.LoadProvisionInstallationTx(ctx, tx, target.ProjectID, target.ProvisionInstallationID)
 	if err != nil {
 		return err
+	}
+	if x.State == "registered" {
+		return registeredInstallationReceiptTarget(ctx, tx, target, a, r, x)
 	}
 	if x.ExecutionID != a.ExecutionID || x.RequestID != target.ProvisionRequestID || x.SnapshotSHA256 != target.ProvisionSnapshotSHA256 || x.PermitIssuedAt != nil || (x.State != "failed" && x.State != "canceled") || r.Output["schema"] != "keel.provision-installation-proof/v1" || r.Output["installation_id"] != x.ID || r.Output["request_id"] != x.RequestID || r.Output["snapshot_sha256"] != x.SnapshotSHA256 || r.Output["installation_performed"] != false || r.Result == "success" || (r.Result == "cancelled") != (x.State == "canceled") {
 		return conflict("Known pre-write stop proof does not match installation evidence")

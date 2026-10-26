@@ -20,17 +20,23 @@ func validRebootAcknowledgment(ack *provisionboot.BootAcknowledgment, permit *pr
 // mappings and again immediately before the syscall. Missing/old ACKs only
 // leave the machine waiting; a failed attempt is never retried automatically.
 func (w *Linux) Reboot(ctx context.Context, ack *provisionboot.BootAcknowledgment) error {
-	if w == nil || requireInitramfs() != nil || ctx.Err() != nil {
+	if w == nil || requireInitramfs() != nil {
+		return ErrDenied
+	}
+	if ctx.Err() != nil {
+		w.Quarantine()
 		return ErrDenied
 	}
 	w.mu.Lock()
 	if !w.completed || w.quarantined || w.rebootAttempted || w.disk == nil || w.nextStage != len(stages) || w.readback == nil || !validRebootAcknowledgment(ack, w.permit, w.plan.Spec.ExpiresAt, time.Now()) {
 		w.mu.Unlock()
+		w.Quarantine()
 		return ErrDenied
 	}
 	for _, mounted := range w.mounted {
 		if mounted {
 			w.mu.Unlock()
+			w.Quarantine()
 			return ErrDenied
 		}
 	}
