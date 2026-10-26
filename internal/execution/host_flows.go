@@ -17,9 +17,10 @@ type HostFlowCreateInput struct {
 	CircuitBreakerPercent int      `json:"circuit_breaker_percent,omitempty"`
 }
 
-// Only immutable, published read-only host workflows enter this endpoint.
-// Domain-owned write/script/install workflows retain their original admission.
-func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, in HostFlowCreateInput, key, trace string) (*Execution, error) {
+// Only immutable, published bounded host workflows enter this endpoint.
+// Media steps resolve their original independent approvals before freezing.
+// Other domain-owned install/configuration workflows retain their admission.
+func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, in HostFlowCreateInput, key, trace string) (_ *Execution, resultErr error) {
 	if !opaqueID.MatchString(in.FlowVersionID) || (in.Transport != "ssh" && in.Transport != "agent") || len(in.MachineIDs) < 1 || len(in.MachineIDs) > 32 {
 		return nil, invalid("host flow revision, explicit ssh/agent transport and1..32 machines are required")
 	}
@@ -46,7 +47,12 @@ func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, 
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() {
+		tx.Rollback()
+		if resultErr != nil && s.MediaStore != nil && a != nil {
+			resultErr = s.MediaStore.RecordMediaIntegrityFailure(ctx, resultErr, a.User.ID, trace)
+		}
+	}()
 	if err = authorize(ctx, tx, a, project, "Admin", "DE", "DL", "SRE"); err != nil {
 		return nil, err
 	}
@@ -77,6 +83,40 @@ func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, 
 	if err = flow.Definition.Validate(); err != nil {
 		return nil, err
 	}
+	sourceHash := flow.ContentHash
+	frozen, err := decode[Definition](jsonBytes(flow.Definition))
+	if err != nil {
+		return nil, err
+	}
+	hasMedia := false
+	for i := range frozen.Tasks {
+		task := &frozen.Tasks[i]
+		switch task.Type {
+		case "script.run":
+			if s.MediaStore == nil || in.Transport == "ssh" && !s.MediaStore.SSHScriptsEnabled || in.Transport == "agent" && !s.MediaStore.AgentScriptsEnabled {
+				return nil, failure(409, "TASK_SCRIPT_DISABLED", "Approved script transport is disabled")
+			}
+			task.Script, _, err = s.MediaStore.ResolveTaskScriptTx(ctx, tx, project, task.MediaID, nil, true)
+			if err != nil {
+				return nil, err
+			}
+			hasMedia = true
+		case "media.stage", "media.fetch":
+			if s.MediaStore == nil || !s.MediaStore.ArtifactTransfersEnabled {
+				return nil, failure(409, "ARTIFACT_TRANSFERS_DISABLED", "Artifact transfer is disabled")
+			}
+			if task.Type == "media.fetch" && len(ids) != 1 {
+				return nil, invalid("host workflows with artifact retrieval require exactly one target")
+			}
+			task.Artifact, err = s.MediaStore.ResolveTaskArtifactTx(ctx, tx, project, task.MediaID, nil)
+			if err != nil {
+				return nil, err
+			}
+			hasMedia = true
+		}
+	}
+	flow.Definition = frozen
+	flow.ContentHash = hash(jsonBytes(frozen))
 	targets := make([]Target, 0, len(ids))
 	targetIDs := make([]string, 0, len(ids))
 	for _, machine := range ids {
@@ -99,7 +139,7 @@ func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, 
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	params := map[string]any{}
 	x := &Execution{ID: platform.RandomID(), ProjectID: project, FlowVersionID: flow.ID, Mode: in.Transport, State: "created", StateVersion: 1, DesiredState: "running", Parameters: params, TargetSetHash: hash(jsonBytes(targetIDs)), Concurrency: in.Concurrency, CircuitBreakerPercent: in.CircuitBreakerPercent, CreatedBy: a.User.ID, CreatedAt: now}
-	x.Snapshot = Snapshot{Mode: in.Transport, Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "Published bounded read-only host DAG; exact current project machine/channel identities; shared device and exclusive transport leases; no automatic replay or hardware acceptance", FrozenAt: now}
+	x.Snapshot = Snapshot{SourceFlowContentHash: sourceHash, Mode: in.Transport, Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "Published bounded host DAG; exact current project machine/channel identities; frozen independent media approvals; shared or exclusive device and exclusive transport leases; no automatic replay or hardware acceptance", FrozenAt: now}
 	_, err = tx.ExecContext(ctx, `INSERT INTO exec_executions(id,project_id,flow_version_id,mode,parameters,snapshot,target_set_hash,concurrency,circuit_breaker_percent,created_by,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, x.ID, project, flow.ID, x.Mode, jsonBytes(params), jsonBytes(x.Snapshot), x.TargetSetHash, x.Concurrency, x.CircuitBreakerPercent, a.User.ID, now)
 	if err != nil {
 		return nil, err
@@ -114,7 +154,7 @@ func (s *Service) CreateHostFlow(ctx context.Context, a *Actor, project string, 
 			}
 		}
 	}
-	details := map[string]any{"mode": x.Mode, "flow_version_id": flow.ID, "flow_content_hash": flow.ContentHash, "target_count": len(targets), "task_count": len(flow.Definition.Tasks), "target_hash": x.TargetSetHash}
+	details := map[string]any{"source_flow_content_hash": sourceHash, "has_media_steps": hasMedia, "mode": x.Mode, "flow_version_id": flow.ID, "flow_content_hash": flow.ContentHash, "target_count": len(targets), "task_count": len(flow.Definition.Tasks), "target_hash": x.TargetSetHash}
 	if err = event(ctx, tx, x.ID, "execution.created", details); err != nil {
 		return nil, err
 	}

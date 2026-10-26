@@ -13,7 +13,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Run an immutable published keel.host/v1 read-only DAG on explicitly selected current project SSH or Agent machines. Original scheduler, dependency barriers, durable receipts, pause/kill/unknown quarantine and resource leases apply. No scripts, media or arbitrary commands. */
+        /** @description Run a published bounded keel.host/v1 DAG through existing SSH or Agent execution. Identity/wait are read-only; media steps reference an independently approved media ID and freeze exact object/version/SHA/size at admission. Device/channel leases, original dispatch authority and unknown quarantine apply; no arbitrary commands, paths or install gates. */
         post: operations["createHostFlowExecution"];
         delete?: never;
         options?: never;
@@ -5741,11 +5741,11 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
-        /** @description Acyclic dependencies. Every task includes machine resource; sim.read shared, sim.write exclusive. Retry>0 requires idempotent=true and an explicit failed receipt; never retries unknown. keel.host/v1 publishes only host.identity/host.wait, zero inputs/sim options/retries, idempotent=true and device resource. Admission adds the chosen transport lease. */
+        /** @description Acyclic dependency graph. keel.sim/v1 retains simulation-only machine resources and retry rules. keel.host/v1 allows identity/wait or approved media script/stage/fetch; no inputs, retries or embedded frozen artifacts. Device and selected transport leases apply. Media side effects are non-idempotent; fetch requires one target. */
         FlowTask: {
             id: string;
             /** @enum {string} */
-            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare" | "script.run";
+            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare" | "script.run" | "media.stage" | "media.fetch";
             depends_on?: string[];
             retry: number;
             idempotent: boolean;
@@ -5763,6 +5763,8 @@ export interface components {
             artifact?: components["schemas"]["TaskArtifact"];
             /** @description Frozen per-task wait for keel.host/v1. Other public workflow adapters reject it. */
             wait_ms?: number;
+            /** @description Public reference for approved script.run/media.stage/media.fetch in keel.host/v1. Runtime approval, object version, size and SHA are independently resolved and frozen at admission. */
+            media_id?: string;
         };
         FlowDefinition: {
             /** @enum {string} */
@@ -5865,6 +5867,8 @@ export interface components {
             frozen_at: string;
             rerun_source?: components["schemas"]["RerunSource"];
             catalog?: components["schemas"]["schemas-CatalogSelection"][];
+            /** @description Original published definition digest before server-owned media approval snapshots are added. flow.content_hash binds the frozen execution definition. */
+            source_flow_content_hash?: string;
         };
         Execution: {
             id: string;
@@ -6215,7 +6219,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Created immutable native host workflow execution */
+            /** @description Created immutable native host workflow execution with frozen approved media when referenced */
             201: {
                 headers: {
                     [name: string]: unknown;

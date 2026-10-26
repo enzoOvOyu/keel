@@ -247,3 +247,11 @@ worker仅保存目标终态证明，**不执行Reconcile、不释放unknown资�
 `POST /api/v1/projects/{id}/host-flow-executions`输入flow_version_id、transport=ssh|agent、明确machine_ids（1..32）、concurrency（默认4，最大32）及circuit_breaker_percent（默认100）。读取原发布版本及摘要，冻结当前项目目标/通道身份、所有原任务/依赖和独立command。SSH沿用provisioned/真实互信/pinned绑定，Agent沿用有效身份/在线连接准入；不自动切换通道。每步共享device、独占所选transport，复用既有调度/outbox/回执/停止/unknown隔离/显式对账，没有新队列。Agent broker按原task_id核对冻结wait_ms，不能借全局参数修改后续步骤。模拟创建入口仍拒绝host版本，域流程仍保留专属批准入口。
 
 作业流页面有主机只读模板，运行时明确选SSH或Agent及本页合格目标，换通道/页重置选择，修改范围重置确认；后台仍重查权限/身份。旧通用仿真和独立脚本/制品入口保留。新增DAG顺序、失败阻断、暂停/恢复、过期租约未知隔离与人工对账、旧版本冻结及篡改wait拒绝的用例源码未执行。只有API生成/gofmt，无编译、测试、DB、部署或硬件验收。
+
+### 主机Flow内的批准介质步骤（2026-10-26，源码未验证）
+
+keel.host/v1进一步允许script.run/media.stage/media.fetch。发布源码只保存media_id引用，仍禁止客户路径、嵌入Script/Artifact审批对象、重试和idempotent=true；脚本可选script_result_format=json及script_prefer_cache。创建时按所选通道检查原开关、当前项目介质授权/独立审批/完整性与固定对象版本，重新冻结每步Script/Artifact。含fetch的DAG仅允许一台目标。原脚本进程隔离/停止证明、制品检查点、原期限/一次派发与捕获下载逻辑原样复用，后续依赖只消费真实成功终态。
+
+发布版本本身保持不变；snapshot.source_flow_content_hash绑定发布定义，snapshot.flow.content_hash绑定加入批准事实后的执行定义。两者不能混用为同一摘要；历史报告/回执仍是执行事实，不冒称硬件Gate。页面列出任务和介质引用，并明确批准脚本可能改设备、未知状态保持隔离；修改范围须重新确认。
+
+新增批准前拒绝/关闭拒绝/独立批准后冻结、原版本不被改写、完整取回捕获后才放行依赖、脚本失联不重放/不放行依赖和资源锁用例源码，未执行。仅gofmt/API类型生成，仍无数据库或部署。

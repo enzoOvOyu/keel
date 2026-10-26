@@ -57,6 +57,7 @@ type SimSpec struct {
 	Uncancellable bool   `json:"uncancellable,omitempty" yaml:"uncancellable,omitempty"`
 }
 type Task struct {
+	MediaID            string                       `json:"media_id,omitempty" yaml:"media_id,omitempty"`
 	WaitMS             int                          `json:"wait_ms,omitempty" yaml:"wait_ms,omitempty"`
 	Artifact           *platform.TaskArtifact       `json:"artifact,omitempty" yaml:"artifact,omitempty"`
 	ScriptPreferCache  bool                         `json:"script_prefer_cache,omitempty" yaml:"script_prefer_cache,omitempty"`
@@ -135,15 +136,16 @@ type RerunSource struct {
 	ChangeReason  string `json:"change_reason"`
 }
 type Snapshot struct {
-	Catalog       []platform.CatalogSelection `json:"catalog,omitempty"`
-	RerunSource   *RerunSource                `json:"rerun_source,omitempty"`
-	Mode          string                      `json:"mode"`
-	Flow          FlowVersion                 `json:"flow"`
-	Targets       []SimTarget                 `json:"targets"`
-	Parameters    map[string]any              `json:"parameters"`
-	TargetSetHash string                      `json:"target_set_hash"`
-	Admission     string                      `json:"admission"`
-	FrozenAt      time.Time                   `json:"frozen_at"`
+	SourceFlowContentHash string                      `json:"source_flow_content_hash,omitempty"`
+	Catalog               []platform.CatalogSelection `json:"catalog,omitempty"`
+	RerunSource           *RerunSource                `json:"rerun_source,omitempty"`
+	Mode                  string                      `json:"mode"`
+	Flow                  FlowVersion                 `json:"flow"`
+	Targets               []SimTarget                 `json:"targets"`
+	Parameters            map[string]any              `json:"parameters"`
+	TargetSetHash         string                      `json:"target_set_hash"`
+	Admission             string                      `json:"admission"`
+	FrozenAt              time.Time                   `json:"frozen_at"`
 }
 type Execution struct {
 	ID                    string         `json:"id"`
@@ -314,7 +316,7 @@ func (d Definition) Validate() error {
 	}
 	ids := map[string]Task{}
 	for _, t := range d.Tasks {
-		if t.Artifact != nil || t.Script != nil || t.ScriptResultFormat != "" || t.ScriptPreferCache {
+		if t.Artifact != nil || t.Script != nil || !native && (t.MediaID != "" || t.ScriptResultFormat != "" || t.ScriptPreferCache) {
 			return invalid("general flows cannot embed native script or artifact snapshots")
 		}
 		if !identifier.MatchString(t.ID) {
@@ -325,13 +327,33 @@ func (d Definition) Validate() error {
 		}
 		ids[t.ID] = t
 		if native {
-			if (t.Type != "host.identity" && t.Type != "host.wait") || t.Sim != (SimSpec{}) || !t.Idempotent || t.Retry != 0 || len(t.Resources) != 1 || t.Resources[0] != "device" {
-				return invalid("host workflows require allowlisted read-only host tasks, retry=0, idempotent=true and only the device resource")
+			if t.Sim != (SimSpec{}) || t.Retry != 0 || len(t.Resources) != 1 || t.Resources[0] != "device" {
+				return invalid("host tasks require no simulation options/retries and exactly the device resource")
 			}
-			c := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: strings.Repeat("0", 32), MachineID: strings.Repeat("0", 32), CommandID: strings.Repeat("0", 32), AttemptID: strings.Repeat("0", 32), FencingToken: 1, Operation: t.Type, TimeoutMS: t.TimeoutMS, WaitMS: t.WaitMS}
-			if c.Validate() != nil {
-				return invalid("host task timeout or wait is outside runner bounds")
+			switch t.Type {
+			case "host.identity", "host.wait":
+				if !t.Idempotent || t.MediaID != "" || t.ScriptResultFormat != "" || t.ScriptPreferCache {
+					return invalid("read-only host tasks must be idempotent and cannot reference media or script options")
+				}
+				c := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: strings.Repeat("0", 32), MachineID: strings.Repeat("0", 32), CommandID: strings.Repeat("0", 32), AttemptID: strings.Repeat("0", 32), FencingToken: 1, Operation: t.Type, TimeoutMS: t.TimeoutMS, WaitMS: t.WaitMS}
+				if c.Validate() != nil {
+					return invalid("host task timeout or wait is outside runner bounds")
+				}
+			case "script.run", "media.stage", "media.fetch":
+				if t.Idempotent || !opaqueID.MatchString(t.MediaID) || t.WaitMS != 0 || t.TimeoutMS < 100 || t.TimeoutMS > 30000 {
+					return invalid("bounded media steps require an approved media ID, retry=0, idempotent=false and timeout100..30000")
+				}
+				if t.Type == "script.run" {
+					if t.ScriptResultFormat != "" && t.ScriptResultFormat != "json" {
+						return invalid("unsupported script result format")
+					}
+				} else if t.ScriptResultFormat != "" || t.ScriptPreferCache {
+					return invalid("artifact tasks cannot include script options")
+				}
+			default:
+				return invalid("unsupported native host task; use the domain admission endpoint")
 			}
+
 		} else {
 			if t.WaitMS != 0 {
 				return invalid("simulation tasks cannot include host wait settings")

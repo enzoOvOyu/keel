@@ -34,7 +34,7 @@ func TestHostFlowPublicBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(validation.TaskOrder) != 2 || validation.TaskOrder[0] != "identify" || validation.TaskOrder[1] != "wait" || validation.Warnings[0] != "bounded_readonly_host_flow_requires_explicit_native_admission" {
+	if len(validation.TaskOrder) != 2 || validation.TaskOrder[0] != "identify" || validation.TaskOrder[1] != "wait" || validation.Warnings[0] != "bounded_host_flow_requires_explicit_native_admission" {
 		t.Fatal("wrong plan or evidence boundary", validation)
 	}
 	for _, source := range []string{strings.Replace(hostFlowSample, "type: host.identity", "type: script.run", 1), strings.Replace(hostFlowSample, "retry: 0", "retry: 1", 1), strings.Replace(hostFlowSample, "idempotent: true", "idempotent: false", 1), strings.Replace(hostFlowSample, "resources: [device]", "resources: [machine]", 1), strings.Replace(hostFlowSample, "wait_ms: 321", "wait_ms: 31000", 1), strings.Replace(hostFlowSample, "inputs: {}", "inputs: {token: {type: string}}", 1), strings.Replace(hostFlowSample, "id: identify", "id: identify\n    depends_on: [wait]", 1), strings.Replace(hostFlowSample, "type: host.identity", "type: host.identity\n    sim: {outcome: success}", 1)} {

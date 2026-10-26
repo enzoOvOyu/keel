@@ -3142,7 +3142,7 @@
         ],
         "responses": {
           "201": {
-            "description": "Created immutable native host workflow execution",
+            "description": "Created immutable native host workflow execution with frozen approved media when referenced",
             "content": {
               "application/json": {
                 "schema": {
@@ -3176,7 +3176,7 @@
             "$ref": "#/components/responses/Unavailable"
           }
         },
-        "description": "Run an immutable published keel.host/v1 read-only DAG on explicitly selected current project SSH or Agent machines. Original scheduler, dependency barriers, durable receipts, pause/kill/unknown quarantine and resource leases apply. No scripts, media or arbitrary commands.",
+        "description": "Run a published bounded keel.host/v1 DAG through existing SSH or Agent execution. Identity/wait are read-only; media steps reference an independently approved media ID and freeze exact object/version/SHA/size at admission. Device/channel leases, original dispatch authority and unknown quarantine apply; no arbitrary commands, paths or install gates.",
         "requestBody": {
           "required": true,
           "content": {
@@ -3461,7 +3461,9 @@
               "host.wait",
               "trust.verify",
               "provision.prepare",
-              "script.run"
+              "script.run",
+              "media.stage",
+              "media.fetch"
             ]
           },
           "depends_on": {
@@ -3527,6 +3529,11 @@
             "minimum": 0,
             "maximum": 30000,
             "description": "Frozen per-task wait for keel.host/v1. Other public workflow adapters reject it."
+          },
+          "media_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$",
+            "description": "Public reference for approved script.run/media.stage/media.fetch in keel.host/v1. Runtime approval, object version, size and SHA are independently resolved and frozen at admission."
           }
         },
         "required": [
@@ -3538,7 +3545,7 @@
           "resources",
           "sim"
         ],
-        "description": "Acyclic dependencies. Every task includes machine resource; sim.read shared, sim.write exclusive. Retry>0 requires idempotent=true and an explicit failed receipt; never retries unknown. keel.host/v1 publishes only host.identity/host.wait, zero inputs/sim options/retries, idempotent=true and device resource. Admission adds the chosen transport lease."
+        "description": "Acyclic dependency graph. keel.sim/v1 retains simulation-only machine resources and retry rules. keel.host/v1 allows identity/wait or approved media script/stage/fetch; no inputs, retries or embedded frozen artifacts. Device and selected transport leases apply. Media side effects are non-idempotent; fetch requires one target."
       },
       "FlowDefinition": {
         "type": "object",
@@ -3907,6 +3914,11 @@
             "items": {
               "$ref": "#/components/schemas/CatalogSelection"
             }
+          },
+          "source_flow_content_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "Original published definition digest before server-owned media approval snapshots are added. flow.content_hash binds the frozen execution definition."
           }
         },
         "required": [
@@ -5347,6 +5359,11 @@
             "items": {
               "type": "string"
             }
+          },
+          "source_flow_content_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "Original published definition digest before server-owned media approval snapshots are added. flow.content_hash binds the frozen execution definition."
           }
         },
         "required": [
