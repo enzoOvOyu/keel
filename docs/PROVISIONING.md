@@ -14,7 +14,7 @@
 
 ## cloud-init 模板工程决策
 
-v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud-config`。无字符串替换、Go 模板或顶层任意 shell 插值；拒绝多文档、重复/非字符串键、YAML aliases/anchors/merge、自定义 scalar tag和过深/过多节点。仅接收 locale/timezone/keyboard/packages/package_update/package_upgrade/apt/yum_repos/ca_certs/ntp/growpart/resize_rootfs/disk_setup/fs_setup/mounts 这些已审批的声明式 OS 设置；身份、用户、SSH、网络、回调、脚本及文件写入由平台所有，不从模板导入。fs_setup 按实际 array-of-mapping 接收并排除 cmd/extra_opts；apt 拒绝 conf、源路径穿越和 filename 覆盖，ntp 只接收 enabled/servers/pools/ntp_client。OS 本身及包/仓库设置仍须独立审批；本限制不是完整 cloud-init 语义沙箱或厂商可信来源签名，批准软件包本身也会执行安装逻辑。
+v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud-config`。无字符串替换、Go 模板或顶层任意 shell 插值；拒绝多文档、重复/非字符串键、YAML aliases/anchors/merge、自定义 scalar tag和过深/过多节点。仅接收 locale/timezone/keyboard/packages/package_update/package_upgrade/apt/yum_repos/ca_certs/ntp 这些已审批的声明式 OS 设置；身份、用户、SSH、网络、回调、脚本及文件写入由平台所有，不从模板导入。disk_setup/fs_setup/mounts/growpart/resize_rootfs均由明确的安装存储契约管理，拒绝通过首启模板绕过目标盘选择；apt 拒绝 conf、源路径穿越和 filename 覆盖，ntp 只接收 enabled/servers/pools/ntp_client。OS 本身及包/仓库设置仍须独立审批；本限制不是完整 cloud-init 语义沙箱或厂商可信来源签名，批准软件包本身也会执行安装逻辑。
 
 渲染固定 BOM hostname、禁密码 SSH/根账号入口、禁数据源公钥导入、重生成 Ed25519 主机密钥。仅创建 keel-ctrl，锁定密码、无 sudo 规则，域公钥附 `restrict,command="/usr/local/libexec/keel-ssh-runner"`；rootfs 必须预装受审批 helper。固定 argv 只检查 helper 和创建 keel-ctrl 拥有的0700回执目录 `/var/lib/keel-ssh/receipts`，没有用户可控命令。配置预览不是已验证的 OS 安装、账号权限或主机互信证明；具体镜像/cloud-init版本的实际启动仍须集成验收。
 
@@ -141,3 +141,16 @@ CI中的既有Agent专用PostgreSQL集成步亦显式包含`TestProvisionExecuti
 WP-1.7仍为partial；从已完成的helper-set/overlay和文件校验继续，不重做准备申请或传输模块。下一完整单元是受控安装环境：先补明确的存储安装契约（独立批准的目标磁盘选择/布局和身份，缺失或歧义阻断；MinimumDisks仅健康库存下限，不能选盘授权），再实现实际initrd入口、驱动/smartctl输入、固定对象字节校验和写盘前预检。现有受限cloud-init模板用于首启账户/域公钥配置，不承担磁盘安装/任意脚本授权；不得假定普通rootfs或helper overlay可自行安装。此处是下一单元的输入要求，当前没有新增选盘字段、许可或写盘实现。
 
 initrd入口先交付无写盘准备与默认拒绝的许可接口，不依赖尚不存在的在线服务才能构建，也不能在许可缺失时开放安装。此后接真实安装Execution/独占lease与当前网络所有权Authority、只经可信启动环境交付的一次性回调凭据、预检结果/当前许可、首启新host-key绑定、真实SSH首连及修复队列，最后将已有真实事件投影为七阶段页面。回调项目/申请/SN/MAC/attempt/command/fence必须一致；Grant公共ID、DHCP fingerprint、prepared和自报PASS均不能替代一次性认证及当前许可。各单元按设计可独立开发，P1实现闭环后集中执行已接线的软件/PG/HTTP/CLI/浏览器检查，真实可启动镜像与硬件验收另列证据。
+
+
+## 显式单盘布局与只读存储事实（源码，尚无安装许可）
+
+WP-1.7的首次实现支持固定`uefi-gpt-ext4/v1`布局：512字节或4Kn扇区、1MiB边界、512MiB EFI分区、余量ext4根分区（至少16GiB），末尾保留1MiB GPT空间，容量上限1PiB。BIOS安装/RAID/LVM/加密/任意脚本/自动选择第一块盘不在此实现范围；旧Legacy引导可用于独立只读准备，不把它当该布局可安装。
+
+`provisionstorage.Intent`明确WWID、磁盘序列号、精确容量/逻辑扇区及擦除所选盘意图。`Build`消费独立冻结Spec及由`EvaluateReport`复算的当前PASS报告，必须观察UEFI、唯一所选WWID、健康且非只读/非可移除/未占用设备，输出带完整Spec、原报告摘要、设备号/当前diskseq、分区布局与全计划SHA256的规范Plan。`VerifyCurrent`要求新的可信报告保持相同身份、节点、设备号、diskseq、容量、扇区、健康和占用状态；重挂接/重编号需要新计划，不自动重定向。Plan/自报PASS/摘要都不是审批、一次性认证或当前写盘许可。
+
+采集增加sysfs WWID/serial/size/logical_block_size/dev/diskseq/ro/removable和实际UEFI事实；`size`按512字节单位换算，与4Kn逻辑扇区分开。SMART命令增加只读`--info`取得序列号，现为`smartctl --json=c --info --health`，不启动自检/启用SMART。SMART与sysfs序列矛盾保持unknown；采集结束再读diskseq/设备号/几何，跨读取替换或变更使存储事实不可用。身份缺失不改写原健康结果，但不能生成存储计划。
+
+整盘及分区holders、当前mountinfo和swaps表必须齐备才能声明未占用；存在任何活动swap时保守阻断全部候选。实际initrd须使用宿主挂载命名空间，容器隐藏挂载不算可信事实。缺失/畸形字段保持unknown；不打开或写入块设备。未来真正写盘前仍须持有独占块设备fd并立即核验fstat/磁盘ioctl、当前lease和一次性许可，本单元未实现该动作。
+
+实施顺序为只读引导→可信预检/磁盘事实→明确选择/独立布局审批→同attempt/fence当前许可→受控安装；不会以“已完成安装”或“已审批最终镜像”作为生产helper/只读预检的前提。当前纯数据规划和只读采集源码完成，持久存储审批/API/页面与真正initrd/许可仍需后续接入；新增用例仅写入。事实来源参考 [Linux NVMe sysfs ABI](https://github.com/torvalds/linux/blob/master/Documentation/ABI/stable/sysfs-nvme)、[block queue ABI](https://github.com/torvalds/linux/blob/master/Documentation/ABI/stable/sysfs-block) 与 [diskseq实现](https://github.com/torvalds/linux/blob/master/block/genhd.c)。

@@ -46,6 +46,12 @@ func (c *Collector) Collect(parent context.Context) Observation {
 		}
 	}
 	source := c.source
+	if efi, err := source.exists("/sys/firmware/efi"); err == nil {
+		out.Firmware = "bios"
+		if efi {
+			out.Firmware = "uefi"
+		}
+	}
 	serial, err := source.read("/sys/class/dmi/id/product_serial", 256)
 	if err != nil || serial == "" {
 		serial, err = source.read("/sys/firmware/devicetree/base/serial-number", 256)
@@ -152,7 +158,9 @@ func (c *Collector) Collect(parent context.Context) Observation {
 			missing("collection_deadline")
 			break
 		}
-		out.Disks = append(out.Disks, source.health(ctx, name))
+		disk := source.health(ctx, name)
+		collectDiskStorage(source, name, &disk)
+		out.Disks = append(out.Disks, disk)
 	}
 	if ctx.Err() != nil {
 		missing("collection_deadline")

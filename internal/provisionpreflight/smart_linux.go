@@ -32,7 +32,7 @@ func (linuxSource) health(parent context.Context, name string) Disk {
 	}
 	ctx, cancel := context.WithTimeout(parent, 8*time.Second)
 	defer cancel()
-	command := exec.CommandContext(ctx, binary, "--json=c", "--health", out.Device)
+	command := exec.CommandContext(ctx, binary, "--json=c", "--info", "--health", out.Device)
 	command.Env = []string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL=C"}
 	var output limitedOutput
 	command.Stdout = &output

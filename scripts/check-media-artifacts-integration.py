@@ -39,7 +39,7 @@ try:
   for target in ['preflight','ssh-runner']:
    executable=evidence/('keel-'+target);checked(['go','build','-o',str(executable),'./cmd/keel-'+target],helper_env)
   env.update(KEEL_TEST_PROVISION_ADMIN_BIN=str(work/'keel-admin'),KEEL_TEST_PROVISION_PREFLIGHT_BIN=str(evidence/'keel-preflight'),KEEL_TEST_PROVISION_SSH_HELPER_BIN=str(evidence/'keel-ssh-runner'))
-  result=checked(['go','test','-p=1','-race','-count=1','-v','./internal/mediaboot','./internal/provisionboot','./internal/provisionpreflight','./internal/provisionimage'],env)
+  result=checked(['go','test','-p=1','-race','-count=1','-v','./internal/mediaboot','./internal/provisionboot','./internal/provisionpreflight','./internal/provisionimage','./internal/provisionstorage'],env)
   (work/'go-provision-foundation.log').write_text(result)
  checked([str(work/'keel-admin'),'media-init'],env)
  if args.source_only or full_browser:

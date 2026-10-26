@@ -93,8 +93,19 @@ type Disk struct {
 	Healthy   *bool  `json:"healthy"`
 	Reason    string `json:"reason"`
 	SmartExit int    `json:"smart_exit"`
+	// Storage facts are independent of health. Missing values may still allow
+	// a health report, but never disk selection or installation authorization.
+	WWID              string `json:"wwid,omitempty"`
+	SizeBytes         int64  `json:"size_bytes,omitempty"`
+	LogicalBlockBytes int    `json:"logical_block_bytes,omitempty"`
+	DeviceNumber      string `json:"device_number,omitempty"`
+	DiskSequence      uint64 `json:"disk_sequence,omitempty"`
+	ReadOnly          *bool  `json:"read_only,omitempty"`
+	Removable         *bool  `json:"removable,omitempty"`
+	InUse             *bool  `json:"in_use,omitempty"`
 }
 type Observation struct {
+	Firmware   string    `json:"firmware,omitempty"`
 	Source     string    `json:"source"`
 	StartedAt  time.Time `json:"started_at"`
 	FinishedAt time.Time `json:"finished_at"`

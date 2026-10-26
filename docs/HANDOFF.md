@@ -2,9 +2,9 @@
 
 更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～92。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
-## 当前恢复入口（2026-10-26，两小时开发窗口已结束）
+## 当前恢复入口（2026-10-26，三小时开发窗口进行中）
 
-用户于2026-10-26 00:11:10 UTC授权继续两小时开发，窗口于02:11:10 UTC结束，本轮已收尾提交，详见§92。保持单Agent，不启动子代理；P1实现完成后集中联调/全量测试/浏览器验证/镜像发布，开发只做必要编译与静态检查。此前收工/暂停记录是历史快照。
+接续c0eb0c0，用户于2026-10-26 02:12:04 UTC授权继续三小时，窗口至05:12:04 UTC。单Agent，保持P1实现闭环后集中测试/浏览器/镜像策略；当前只执行必要编译和静态检查。本轮WP-1.7/FR-2.2～2.4先交付只读磁盘稳定身份与明确布局契约，再接受控安装环境、当前许可/一次性回调。输入为既有冻结申请、批准helper/配方和预检报告；磁盘计划绑定实际只读事实及独立选择，不自动选盘。输出为有界规范契约、采集和拒绝边界；后续API/持久审批/页面与真实执行分别落地，不把pure plan当授权。当前源码/服务与原草稿保护沿用§92。
 
 - **累计未发布源码（§75～92）**：此前的续签/主密钥重包裹/审计/Webhook等增量继续保留；本次从e0a9467接续，单Agent完成持久装机准备/独立审批/共享独占Execution与页面、隔离ProxyDHCP/HTTP/TFTP传输、Linux只读硬件预检与双架构helper、固定固件/helper启动配方与iPXE/清单生成和消费校验，以及无最终镜像前置循环的离线helper overlay生产/反向校验。修正Linux槽位ABI、NVMe实际health输出、传输中失效和准备完成时的当前准入边界。新增用例与集中/CI入口已写入但未运行。必要Go/TS编译、静态检查和指定双架构构建通过，不等于功能/SQL/镜像/硬件验证。源迁移50、运行46；3000仍§74。原草稿保留。
 
@@ -1206,3 +1206,10 @@ Make新增build-installer-helpers跨架构生产两份实际helper；CLI不接DB
 下一步直接沿PROVISIONING最后一节推进：先明确独立批准目标磁盘/布局的安装契约，完成受控initrd的无写盘准备及默认拒绝许可接口；不把MinimumDisks、现有cloud-init或overlay当可安装证明。随后接真实装机Execution/当前网络与独占lease Authority、一次性认证回调/当前写盘许可、首启host-key和真实SSH首连/修复、七阶段事件投影。不要重做已完成准备/传输，也不借FR-0扩展P2～P4依赖。集中验证入口已接线，待P1实现闭环后使用。
 
 继续保护原未跟踪internal/platform/fabric_precheck.go与internal/platform/migrations/026_fabric_precheck.sql，不编译/提交/迁移/删除；Host Go包括gofmt继续使用GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json、GOMEMLIMIT=768MiB、GOMAXPROCS=2。保留所有数据卷、原服务、回滚镜像和受保护证据。本轮无新增开发子代理或后台装机任务。
+
+
+## 93. 显式存储布局契约与只读磁盘身份（2026-10-26，三小时窗口源码增量）
+
+接续c0eb0c0，新增internal/provisionstorage：独立磁盘WWID/serial/精确几何/擦除意图，固定UEFI GPT/FAT32+ext4布局与有界规范Plan，完整绑定冻结Spec/原报告摘要/设备号/diskseq；复算预检要求PASS，拒绝歧义、占用/未知、只读/可移除、换盘/重编号/失效及自报摘要掩盖布局篡改。不是实际审批或写盘许可。预检扩展只读存储/UEFI事实、整盘/分区holder与mount/swap占用，采集末尾复核diskseq/几何；SMART新增只读--info。内核来源与具体限制见PROVISIONING末节，未运行宿主采集或SMART。
+
+关闭cloud-init模板的disk_setup/fs_setup/mounts/growpart/resize_rootfs，避免绕过明确选盘/布局，原首启身份/域公钥注入保持。新增512/4Kn布局、唯一选择、未知/忙/换盘/篡改/过期、sysfs/挂载/swap/更换期间采集和模板拒绝用例只写入；集中provision-only基础组加入provisionstorage。当前仅执行定向编译与vet（/tmp/keel-storage-contract-{compile,vet}.log）、seed/platform编译（/tmp/keel-storage-seed-compile.log），结果见本次提交/后续记录；没有执行新用例、PG迁移、浏览器、CLI或镜像/设备写入。P1保持partial，正在继续受控安装环境开发，窗口至05:12:04 UTC。

@@ -118,9 +118,16 @@ func TestCloudInitRejectsUntrustedSubstitutions(t *testing.T) {
 	}
 }
 
-func TestCloudInitAcceptsDeclarativeFilesystemArray(t *testing.T) {
-	seed, err := Render([]byte("fs_setup:\n  - device: /dev/sda1\n    filesystem: ext4\n    label: rootfs\n    overwrite: false\n"), testIdentity(t))
-	if err != nil || !strings.Contains(seed.UserData, "fs_setup:") {
-		t.Fatal("valid filesystem array rejected", err)
+func TestCloudInitRejectsStorageOutsideExplicitInstallerPlan(t *testing.T) {
+	for _, template := range []string{
+		"fs_setup: [{device: /dev/sda1, filesystem: ext4, overwrite: false}]\n",
+		"disk_setup: {/dev/sdb: {table_type: gpt, layout: true, overwrite: true}}\n",
+		"mounts: [[/dev/sdb1, /data, ext4, defaults, 0, 2]]\n",
+		"growpart: {mode: auto, devices: [/]}\n",
+		"resize_rootfs: true\n",
+	} {
+		if _, err := Render([]byte(template), testIdentity(t)); err == nil {
+			t.Fatal("template bypassed independent disk/layout intent")
+		}
 	}
 }

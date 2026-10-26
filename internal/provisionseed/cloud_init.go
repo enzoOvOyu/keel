@@ -32,8 +32,7 @@ var hostnamePattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$
 var templateFields = map[string]bool{
 	"locale": true, "timezone": true, "keyboard": true, "packages": true,
 	"package_update": true, "package_upgrade": true, "apt": true, "yum_repos": true,
-	"ca_certs": true, "ntp": true, "growpart": true, "resize_rootfs": true,
-	"disk_setup": true, "fs_setup": true, "mounts": true,
+	"ca_certs": true, "ntp": true,
 }
 
 func ValidHostname(value string) bool { return hostnamePattern.MatchString(value) }
@@ -102,13 +101,9 @@ func Render(template []byte, identity Identity) (*Seed, error) {
 			if value.Kind != yaml.ScalarNode || value.Tag != "!!bool" {
 				return nil, errors.New("cloud-init package flags require booleans")
 			}
-		case "packages", "mounts", "fs_setup":
+		case "packages":
 			if value.Kind != yaml.SequenceNode {
-				return nil, errors.New("cloud-init packages/mounts/fs_setup require arrays")
-			}
-		case "resize_rootfs":
-			if value.Kind != yaml.ScalarNode || (value.Tag != "!!bool" && !(value.Tag == "!!str" && value.Value == "noblock")) {
-				return nil, errors.New("invalid cloud-init resize_rootfs")
+				return nil, errors.New("cloud-init packages require an array")
 			}
 		default:
 			if templateFields[field] && value.Kind != yaml.MappingNode {
@@ -165,15 +160,6 @@ func validateModuleFields(field string, value *yaml.Node) error {
 		return nil
 	}
 	switch field {
-	case "fs_setup":
-		if value.Kind != yaml.SequenceNode {
-			return errors.New("cloud-init fs_setup requires an array")
-		}
-		for _, entry := range value.Content {
-			if err := allowedFields(entry, "label filesystem device partition overwrite replace_fs"); err != nil {
-				return err
-			}
-		}
 	case "ntp":
 		return allowedFields(value, "enabled servers pools ntp_client")
 	case "apt":
