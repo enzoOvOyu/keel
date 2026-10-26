@@ -57,6 +57,7 @@ type SimSpec struct {
 	Uncancellable bool   `json:"uncancellable,omitempty" yaml:"uncancellable,omitempty"`
 }
 type Task struct {
+	WaitMS             int                          `json:"wait_ms,omitempty" yaml:"wait_ms,omitempty"`
 	Artifact           *platform.TaskArtifact       `json:"artifact,omitempty" yaml:"artifact,omitempty"`
 	ScriptPreferCache  bool                         `json:"script_prefer_cache,omitempty" yaml:"script_prefer_cache,omitempty"`
 	ScriptResultFormat string                       `json:"script_result_format,omitempty" yaml:"script_result_format,omitempty"`
@@ -285,8 +286,12 @@ func (in PublishInput) Parse() (Definition, error) {
 	return d, d.Validate()
 }
 func (d Definition) Validate() error {
-	if d.APIVersion != "keel.sim/v1" {
-		return invalid("only keel.sim/v1 workflows are supported")
+	native := d.APIVersion == "keel.host/v1"
+	if d.APIVersion != "keel.sim/v1" && !native {
+		return invalid("only keel.sim/v1 and bounded keel.host/v1 workflows are supported")
+	}
+	if native && len(d.Inputs) != 0 {
+		return invalid("host workflows use frozen task settings and do not accept parameter inputs")
 	}
 	if len(d.Tasks) < 1 || len(d.Tasks) > 32 || len(d.Inputs) > 32 {
 		return invalid("require 1..32 tasks and at most 32 inputs")
@@ -310,7 +315,7 @@ func (d Definition) Validate() error {
 	ids := map[string]Task{}
 	for _, t := range d.Tasks {
 		if t.Artifact != nil || t.Script != nil || t.ScriptResultFormat != "" || t.ScriptPreferCache {
-			return invalid("simulation flows cannot embed real script artifacts")
+			return invalid("general flows cannot embed native script or artifact snapshots")
 		}
 		if !identifier.MatchString(t.ID) {
 			return invalid("invalid task identifier")
@@ -319,33 +324,47 @@ func (d Definition) Validate() error {
 			return invalid("duplicate task identifier")
 		}
 		ids[t.ID] = t
-		if t.Type != "sim.read" && t.Type != "sim.write" {
-			return invalid("only safe sim.read and sim.write task adapters are enabled")
-		}
-		if t.Retry < 0 || t.Retry > 3 || (t.Retry > 0 && !t.Idempotent) {
-			return invalid("retry must be 0..3 and requires idempotent=true")
-		}
-		if t.TimeoutMS < 50 || t.TimeoutMS > 60000 || t.Sim.DurationMS < 0 || t.Sim.DurationMS > 60000 {
-			return invalid("task duration/timeout outside simulation bounds")
-		}
-		if t.Sim.Outcome != "success" && t.Sim.Outcome != "failed" && t.Sim.Outcome != "drop_receipt" {
-			return invalid("unsupported simulated outcome")
-		}
-		if t.Sim.FailFirst < 0 || t.Sim.FailFirst > 4 {
-			return invalid("fail_first must be 0..4")
-		}
-		seen := map[string]bool{}
-		if len(t.Resources) == 0 || len(t.Resources) > 3 {
-			return invalid("task must declare machine/gpu/nic resources")
-		}
-		for _, r := range t.Resources {
-			if r != "machine" && r != "gpu" && r != "nic" || seen[r] {
-				return invalid("invalid or duplicate resource")
+		if native {
+			if (t.Type != "host.identity" && t.Type != "host.wait") || t.Sim != (SimSpec{}) || !t.Idempotent || t.Retry != 0 || len(t.Resources) != 1 || t.Resources[0] != "device" {
+				return invalid("host workflows require allowlisted read-only host tasks, retry=0, idempotent=true and only the device resource")
 			}
-			seen[r] = true
-		}
-		if !seen["machine"] {
-			return invalid("all tasks must lock the simulated machine resource")
+			c := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: strings.Repeat("0", 32), MachineID: strings.Repeat("0", 32), CommandID: strings.Repeat("0", 32), AttemptID: strings.Repeat("0", 32), FencingToken: 1, Operation: t.Type, TimeoutMS: t.TimeoutMS, WaitMS: t.WaitMS}
+			if c.Validate() != nil {
+				return invalid("host task timeout or wait is outside runner bounds")
+			}
+		} else {
+			if t.WaitMS != 0 {
+				return invalid("simulation tasks cannot include host wait settings")
+			}
+
+			if t.Type != "sim.read" && t.Type != "sim.write" {
+				return invalid("only safe sim.read and sim.write task adapters are enabled")
+			}
+			if t.Retry < 0 || t.Retry > 3 || (t.Retry > 0 && !t.Idempotent) {
+				return invalid("retry must be 0..3 and requires idempotent=true")
+			}
+			if t.TimeoutMS < 50 || t.TimeoutMS > 60000 || t.Sim.DurationMS < 0 || t.Sim.DurationMS > 60000 {
+				return invalid("task duration/timeout outside simulation bounds")
+			}
+			if t.Sim.Outcome != "success" && t.Sim.Outcome != "failed" && t.Sim.Outcome != "drop_receipt" {
+				return invalid("unsupported simulated outcome")
+			}
+			if t.Sim.FailFirst < 0 || t.Sim.FailFirst > 4 {
+				return invalid("fail_first must be 0..4")
+			}
+			seen := map[string]bool{}
+			if len(t.Resources) == 0 || len(t.Resources) > 3 {
+				return invalid("task must declare machine/gpu/nic resources")
+			}
+			for _, r := range t.Resources {
+				if r != "machine" && r != "gpu" && r != "nic" || seen[r] {
+					return invalid("invalid or duplicate resource")
+				}
+				seen[r] = true
+			}
+			if !seen["machine"] {
+				return invalid("all tasks must lock the simulated machine resource")
+			}
 		}
 	}
 	visiting := map[string]bool{}

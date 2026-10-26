@@ -298,6 +298,9 @@ func sshCommand(c *Claim) taskrunner.TaskCommand {
 	case int:
 		wait = v
 	}
+	if c.Task.WaitMS != 0 {
+		wait = c.Task.WaitMS
+	}
 	command := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: c.Target.ProjectID, MachineID: c.Target.ResourceKey, CommandID: c.Attempt.CommandID, AttemptID: c.Attempt.ID, FencingToken: c.Attempt.FencingToken, Operation: c.Task.Type, TimeoutMS: c.Task.TimeoutMS, WaitMS: wait}
 	command.CacheCursor, _ = c.Parameters["cache_cursor"].(string)
 	command.CacheManifestSHA256, _ = c.Parameters["cache_manifest_sha256"].(string)

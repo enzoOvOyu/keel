@@ -16,3 +16,5 @@ export function flowSearch(value:Record<string,unknown>):FlowSearch{
  const page=(v:unknown)=>Number.isSafeInteger(Number(v))&&Number(v)>0&&Number(v)<=1000000?Number(v):undefined
  return{flow:id(value.flow),tab:['overview','source','revisions'].includes(String(value.tab))?value.tab as FlowSearch['tab']:'overview',page:page(value.page),versionPage:page(value.versionPage),left:id(value.left),right:id(value.right)}
 }
+
+export const createHostFlowExecution=(project:string,body:components['schemas']['HostFlowCreateInput'],csrf:string,key:string)=>write<components['schemas']['Execution']>(`/projects/${encodeURIComponent(project)}/host-flow-executions`,body,csrf,key)

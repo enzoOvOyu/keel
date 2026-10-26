@@ -3106,6 +3106,88 @@
         },
         "summary": "Request original expired artifact dispatch non-start proof"
       }
+    },
+    "/api/v1/projects/{id}/host-flow-executions": {
+      "post": {
+        "operationId": "createHostFlowExecution",
+        "tags": [
+          "Execution"
+        ],
+        "x-permission": "execution:create",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created immutable native host workflow execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Execution"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Run an immutable published keel.host/v1 read-only DAG on explicitly selected current project SSH or Agent machines. Original scheduler, dependency barriers, durable receipts, pause/kill/unknown quarantine and resource leases apply. No scripts, media or arbitrary commands.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HostFlowCreateInput"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3439,6 +3521,12 @@
           },
           "artifact": {
             "$ref": "#/components/schemas/TaskArtifact"
+          },
+          "wait_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30000,
+            "description": "Frozen per-task wait for keel.host/v1. Other public workflow adapters reject it."
           }
         },
         "required": [
@@ -3450,7 +3538,7 @@
           "resources",
           "sim"
         ],
-        "description": "Acyclic dependencies. Every task includes machine resource; sim.read shared, sim.write exclusive. Retry>0 requires idempotent=true and an explicit failed receipt; never retries unknown."
+        "description": "Acyclic dependencies. Every task includes machine resource; sim.read shared, sim.write exclusive. Retry>0 requires idempotent=true and an explicit failed receipt; never retries unknown. keel.host/v1 publishes only host.identity/host.wait, zero inputs/sim options/retries, idempotent=true and device resource. Admission adds the chosen transport lease."
       },
       "FlowDefinition": {
         "type": "object",
@@ -3464,7 +3552,8 @@
               "keel.fabric/v1",
               "keel.ssh/v1",
               "keel.agent/v1",
-              "keel.provision-preparation/v1"
+              "keel.provision-preparation/v1",
+              "keel.host/v1"
             ]
           },
           "inputs": {
@@ -6643,6 +6732,50 @@
             "format": "date-time"
           }
         }
+      },
+      "HostFlowCreateInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "flow_version_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "transport": {
+            "type": "string",
+            "enum": [
+              "ssh",
+              "agent"
+            ]
+          },
+          "machine_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          "concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32,
+            "default": 4
+          },
+          "circuit_breaker_percent": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 100
+          }
+        },
+        "required": [
+          "flow_version_id",
+          "transport",
+          "machine_ids"
+        ]
       }
     }
   }

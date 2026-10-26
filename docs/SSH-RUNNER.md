@@ -239,3 +239,11 @@ worker仅保存目标终态证明，**不执行Reconcile、不释放unknown资�
 ### 制品未启动证明（源码未验证）
 
 `media.stage`/`media.fetch`原派发过期且attempt未知时，当前Admin/DL/SRE通过独立artifact-nonstart-proof入口明确授权五分钟恢复查询。Worker和Agent broker绑定原命令、unknown版本及当前请求者权限。目标settle持原run锁，仅对没有任何接受回执的原命令写artifact_authorization_expired_before_start、nonstart_proof和对应停止证明；已有/损坏/忙锁不证明未启动，不访问缓存或推进fence。开关关闭允许历史恢复；请求本身不释放设备，取得终态后仍须显式对账。
+
+### 版本化主机只读Flow（2026-10-26，源码未验证）
+
+通用Flow目录增加keel.host/v1，只发布host.identity/host.wait，零参数输入、零重试、idempotent=true、每步resources=[device]，wait_ms按任务冻结。原YAML依赖校验/不可变版本/回滚保留；拒绝脚本/制品冻结对象、模拟选项、任意命令或业务专有任务。纯只读无需介质。
+
+`POST /api/v1/projects/{id}/host-flow-executions`输入flow_version_id、transport=ssh|agent、明确machine_ids（1..32）、concurrency（默认4，最大32）及circuit_breaker_percent（默认100）。读取原发布版本及摘要，冻结当前项目目标/通道身份、所有原任务/依赖和独立command。SSH沿用provisioned/真实互信/pinned绑定，Agent沿用有效身份/在线连接准入；不自动切换通道。每步共享device、独占所选transport，复用既有调度/outbox/回执/停止/unknown隔离/显式对账，没有新队列。Agent broker按原task_id核对冻结wait_ms，不能借全局参数修改后续步骤。模拟创建入口仍拒绝host版本，域流程仍保留专属批准入口。
+
+作业流页面有主机只读模板，运行时明确选SSH或Agent及本页合格目标，换通道/页重置选择，修改范围重置确认；后台仍重查权限/身份。旧通用仿真和独立脚本/制品入口保留。新增DAG顺序、失败阻断、暂停/恢复、过期租约未知隔离与人工对账、旧版本冻结及篡改wait拒绝的用例源码未执行。只有API生成/gofmt，无编译、测试、DB、部署或硬件验收。
