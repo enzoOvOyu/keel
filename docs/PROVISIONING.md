@@ -113,3 +113,10 @@ v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud
 `scripts/check-media-artifacts-integration.py --provision-only`在既有disposable PostgreSQL/MinIO保护下使用随机测试库，先运行mediaboot/provisionboot/provisionpreflight/provisionimage的完整软件用例，再验证签名配方/overlay/seed与平台独立申请审批、共享Execution/unknown/设备锁及实际浏览器路径。入口为归档测试编译静态预检/SSH helper；`TestInstallerOverlayRealHelperCLI`仅在三个显式测试二进制路径齐备时运行真实admin创建→反向核验→拒绝覆盖→错误独立公钥的离线链。它不会运行硬件helper，也不会引导或安装OS；未传路径时会明确skip，不冒充CLI证明。
 
 普通完整media入口也补齐新的基础和准备域用例，`--browser-only`保持跳过Go检查。CI源码增加实际静态helper/真实admin离线CLI步骤，原make check仍覆盖软件用例；当前没有推送/触发CI或运行这些入口。P1实现闭环后的集中测试仍须单独记录真实PG/HTTP/浏览器、归档CLI、可启动镜像/协议与真机/规模的各自证据，不能混写。
+
+
+## 引导文件消费端校验（源码增量）
+
+`provisionboot.VerifyBootFiles`供未来受控安装环境复用：调用方从独立可信启动链取得清单摘要（受控脚本/内核参数），校验原始清单、规范JSON、完整可安装介质配方、同项目角色与架构、预检规格和cloud-init原始字节摘要，并逐一比较申请/机器/attempt/command/fence/快照/MAC/架构/有效期和NoCloud instance-id。未知、重复或大小写别名字段及尾随文档拒绝。对象版本长度与登记层保持4096字节上限，空版本及字面值`null`拒绝。
+
+该函数仅处理有界数据，不下载、不执行helper、不授权写盘；清单中的自报摘要不能充当独立信任根，受控启动链本身和实际镜像仍须验收。当前审批/网络归属/独占lease与一次性许可仍须由后续服务器Authority核验。新用例只写入，待P1集中验证。

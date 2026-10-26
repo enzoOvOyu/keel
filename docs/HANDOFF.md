@@ -1153,3 +1153,10 @@ Make新增build-installer-helpers跨架构生产两份实际helper；CLI不接DB
 接续a7a8e81，既有--provision-only集中入口加入完整mediaboot/provisionboot/provisionpreflight/provisionimage软件组，签名配方/overlay/seed及平台模型/申请/共享Execution组；为离线CLI预编译CGO_DISABLED静态native预检/SSH helper，显式路径传给TestInstallerOverlayRealHelperCLI。后者实际运行admin create/verify/禁止覆盖/错误独立公钥，但不执行helper、不接DB/网络或硬件；未显式提供三条二进制路径则skip。普通完整media入口补齐基础/准备域；browser-only不新增Go运行。CI源码增加实际helper/admin离线CLI专步，尚未推送触发。
 
 本批仅实际编译mediamanifest新增用例（go test -p=1 -run '^$'）和定向go vet、Python AST/CI YAML语法检查；编译/vet退出0，日志/tmp/keel-provision-milestone-{compile,vet}.log。没有运行集成脚本、新用例、CLI、浏览器或镜像，遵守用户P1完成再集中测试。仍无生产监听/SQL迁移/发布，P1/WP-1.7保持partial。
+
+
+## 86. 引导文件消费端完整性与冻结身份校验（2026-10-26，源码待集中验证）
+
+接续6d075f3，新增provisionboot.VerifyBootFiles：独立可信控制脚本/内核参数的SHA256先核原始规范清单，再核固定可安装配方、项目/架构角色、预检原始字节和user/meta-data摘要，关联全套申请/机器/attempt/command/fence/快照/期限/MAC/架构与NoCloud instance-id。拒绝自报信任根、未知/重复/大小写别名JSON及尾随、错绑/过期/字节变化。RenderBootBundle复用原有相同NoCloud metadata规则；HTTP实际固定对象版本上限对齐登记层4096，并拒绝MinIO字面值null版本。
+
+函数只校验数据，不下载/执行/写盘或签发许可；尚未接入实际受控initrd/当前lease Authority/一次性回调。新增往返/内部错绑/篡改/解析歧义及版本边界用例未运行。实际仅执行带原overlay/内存限制的provisionboot编译（go test -p=1 -run '^$'，/tmp/keel-boot-files-compile.log）和定向go vet（/tmp/keel-boot-files-vet.log），退出0；设计静态检查见本次提交。无SQL/镜像/生产或3000变更，P1保持partial。

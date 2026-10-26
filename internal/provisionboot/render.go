@@ -66,13 +66,7 @@ func RenderBootBundle(scope Scope, grant Grant, plan mediaboot.Plan, spec provis
 	if len(seed.UserData) < 1 || len(seed.UserData) > 512<<10 || len(seed.MetaData) < 1 || len(seed.MetaData) > 64<<10 || !strings.HasPrefix(seed.UserData, "#cloud-config\n") {
 		return nil, ErrDenied
 	}
-	var metadata struct {
-		InstanceID string `yaml:"instance-id"`
-		Hostname   string `yaml:"local-hostname"`
-	}
-	decoder := yaml.NewDecoder(strings.NewReader(seed.MetaData))
-	decoder.KnownFields(true)
-	if decoder.Decode(&metadata) != nil || decoder.Decode(new(any)) != io.EOF || metadata.InstanceID != "keel-"+grant.RequestID || !provisionseed.ValidHostname(metadata.Hostname) {
+	if !validSeedMetadata(seed.MetaData, grant.RequestID) {
 		return nil, ErrDenied
 	}
 	rawSpec, err := json.Marshal(spec)
@@ -107,4 +101,14 @@ func RenderBootBundle(scope Scope, grant Grant, plan mediaboot.Plan, spec provis
 		return nil, ErrDenied
 	}
 	return &BootBundle{IPXE: []byte(script.String()), Manifest: rawManifest, Preflight: rawSpec}, nil
+}
+
+func validSeedMetadata(raw, requestID string) bool {
+	var metadata struct {
+		InstanceID string `yaml:"instance-id"`
+		Hostname   string `yaml:"local-hostname"`
+	}
+	decoder := yaml.NewDecoder(strings.NewReader(raw))
+	decoder.KnownFields(true)
+	return decoder.Decode(&metadata) == nil && decoder.Decode(new(any)) == io.EOF && metadata.InstanceID == "keel-"+requestID && provisionseed.ValidHostname(metadata.Hostname)
 }

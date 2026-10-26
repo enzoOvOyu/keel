@@ -168,7 +168,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r.WithContext(ctx), resource, time.Time{}, contextSeeker{ctx: ctx, reader: artifact.File, guard: &fileGuard{ctx: ctx, scope: g.Scope, authority: g.Authority, grant: grant, peer: peer, resource: resource}})
 }
 func verifyArtifact(ctx context.Context, a Artifact, resource string) error {
-	if a.File == nil || !sha256ID.MatchString(a.SHA256) || a.Size < 1 || a.Size > resourceLimit(resource) || resourceLimit(resource) == 0 || len(a.ObjectVersion) < 1 || len(a.ObjectVersion) > 256 {
+	if a.File == nil || !sha256ID.MatchString(a.SHA256) || a.Size < 1 || a.Size > resourceLimit(resource) || resourceLimit(resource) == 0 || len(a.ObjectVersion) < 1 || len(a.ObjectVersion) > 4096 || a.ObjectVersion == "null" {
 		return ErrDenied
 	}
 	if _, err := a.File.Seek(0, io.SeekStart); err != nil {

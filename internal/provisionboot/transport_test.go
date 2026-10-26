@@ -313,3 +313,18 @@ func TestTFTPOptionFallbackUsesFixedBlockSize(t *testing.T) {
 		t.Fatal("option fallback did not use base DATA/512", err)
 	}
 }
+
+func TestBootArtifactPinnedVersionBoundaries(t *testing.T) {
+	raw := []byte("approved immutable boot bytes")
+	sum := sha256.Sum256(raw)
+	for _, tc := range []struct {
+		version string
+		valid   bool
+	}{{"real-version", true}, {strings.Repeat("v", 4096), true}, {"", false}, {"null", false}, {strings.Repeat("v", 4097), false}} {
+		artifact := Artifact{File: memoryFile{bytes.NewReader(raw)}, Size: int64(len(raw)), SHA256: hex.EncodeToString(sum[:]), ObjectVersion: tc.version}
+		err := verifyArtifact(context.Background(), artifact, "kernel")
+		if (err == nil) != tc.valid {
+			t.Fatalf("version length %d valid=%v error=%v", len(tc.version), tc.valid, err)
+		}
+	}
+}
