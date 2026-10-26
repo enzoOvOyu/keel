@@ -102,6 +102,9 @@ func (s *SSH) provisionEndpoint(ctx context.Context, command TaskCommand, p Prov
 	ep.config.CredentialVersion = p.Credential.Version
 	ep.config.CredentialExpiresAt = &p.Credential.ExpiresAt
 	ep.config.HostKey = p.HostKey
+	// Resolve only the approved first-boot credential on this private copy;
+	// the coordinates-only operator entry is never promoted into normal use.
+	ep.config.ProvisionOnly = false
 	signer, err := s.resolveSigner(ctx, ep.config)
 	if err != nil || ssh.FingerprintSHA256(signer.PublicKey()) != ssh.FingerprintSHA256(public) {
 		return endpoint{}, "", ErrRejected

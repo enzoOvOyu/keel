@@ -22,6 +22,7 @@ import (
 )
 
 type TargetConfig struct {
+	ProvisionOnly       bool       `json:"provision_only,omitempty"`
 	ProjectID           string     `json:"project_id"`
 	MachineID           string     `json:"machine_id"`
 	Address             string     `json:"address"`
@@ -215,7 +216,24 @@ func LoadWithCredentials(path string, credentials CredentialProvider) (*SSH, err
 		ip, port, e := net.SplitHostPort(t.Address)
 		n, pe := strconv.Atoi(port)
 		// Explicit IPs prevent DNS changes silently retargeting a queued command.
-		if !idPattern.MatchString(t.ProjectID) || !idPattern.MatchString(t.MachineID) || e != nil || pe != nil || n < 1 || n > 65535 || net.ParseIP(ip) == nil || net.ParseIP(ip).IsUnspecified() || net.ParseIP(ip).IsMulticast() || t.User != "keel-ctrl" || len(t.CredentialRef) < 1 || len(t.CredentialRef) > 64 || strings.TrimSpace(t.CredentialRef) != t.CredentialRef || !IsValidHostKey(t.HostKey) {
+		if !idPattern.MatchString(t.ProjectID) || !idPattern.MatchString(t.MachineID) || e != nil || pe != nil || n < 1 || n > 65535 || net.ParseIP(ip) == nil || net.ParseIP(ip).IsUnspecified() || net.ParseIP(ip).IsMulticast() || t.User != "keel-ctrl" {
+			return nil, ErrRejected
+		}
+		id := t.ProjectID + ":" + t.MachineID
+		if _, ok := s.targets[id]; ok {
+			return nil, ErrRejected
+		}
+		if t.ProvisionOnly {
+			// A newly installed host has no previous pin or access credential.
+			// This entry allowlists coordinates only. The authenticated first-
+			// boot plan supplies the exact new pin and approved vault identity.
+			if credentials == nil || t.HostKey != "" || t.CredentialProvider != "" || t.CredentialRef != "" || t.CredentialVersion != "" || t.CredentialExpiresAt != nil || t.PrivateKeyFile != "" {
+				return nil, ErrRejected
+			}
+			s.targets[id] = endpoint{config: t}
+			continue
+		}
+		if len(t.CredentialRef) < 1 || len(t.CredentialRef) > 64 || strings.TrimSpace(t.CredentialRef) != t.CredentialRef || !IsValidHostKey(t.HostKey) {
 			return nil, ErrRejected
 		}
 		if (t.CredentialVersion != "" && !credentialVersionPattern.MatchString(t.CredentialVersion)) || (t.CredentialExpiresAt != nil && (t.CredentialExpiresAt.IsZero() || !t.CredentialExpiresAt.After(time.Now()) || t.CredentialVersion == "")) {
@@ -234,10 +252,6 @@ func LoadWithCredentials(path string, credentials CredentialProvider) (*SSH, err
 		raw, _ := json.Marshal(identity)
 		hash := sha256.Sum256(raw)
 		ep := endpoint{t, signer, Binding{t.HostKey, hex.EncodeToString(hash[:])}}
-		id := t.ProjectID + ":" + t.MachineID
-		if _, ok := s.targets[id]; ok {
-			return nil, ErrRejected
-		}
 		s.targets[id] = ep
 	}
 	return s, nil
@@ -311,7 +325,7 @@ func (s *SSH) currentEndpoint(ctx context.Context, id string) (endpoint, error) 
 		return endpoint{}, ErrRejected
 	}
 	ep, ok := s.targets[id]
-	if !ok {
+	if !ok || ep.config.ProvisionOnly {
 		return endpoint{}, ErrRejected
 	}
 	// Recheck provider authority before using even an existing SSH connection.

@@ -33,6 +33,10 @@ func (v *provisionVaultFixture) Resolve(_ context.Context, project, ref, version
 
 // These are localhost protocol fixtures, never evidence of a real device boot.
 func provisionSSHFixture(t *testing.T) (*sshFixture, *taskrunner.SSH, *provisionVaultFixture, taskrunner.ProvisionSSHPlan) {
+	return provisionSSHFixtureWithTarget(t, false)
+}
+
+func provisionSSHFixtureWithTarget(t *testing.T, provisionOnly bool) (*sshFixture, *taskrunner.SSH, *provisionVaultFixture, taskrunner.ProvisionSSHPlan) {
 	t.Helper()
 	_, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -59,6 +63,11 @@ func provisionSSHFixture(t *testing.T) (*sshFixture, *taskrunner.SSH, *provision
 	_, oldPrivate, _ := ed25519.GenerateKey(rand.Reader)
 	oldSigner, _ := ssh.NewSignerFromKey(oldPrivate)
 	cfg.Targets[0].HostKey = ssh.FingerprintSHA256(oldSigner.PublicKey())
+	if provisionOnly {
+		// A genuine initial allowlist has neither a previous pin nor a key file.
+		original := cfg.Targets[0]
+		cfg.Targets[0] = taskrunner.TargetConfig{ProvisionOnly: true, ProjectID: original.ProjectID, MachineID: original.MachineID, Address: original.Address, User: original.User}
+	}
 	raw, _ = json.Marshal(cfg)
 	if err = os.WriteFile(f.configFile, raw, 0600); err != nil {
 		t.Fatal(err)

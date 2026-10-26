@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～108。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～109。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
 用户最新安排（2026-10-26）：合并本轮四Agent工作后恢复单Agent开发，不再启动或续派子代理；此前四Agent并行安排已被本指令替代。直接在当前本地环境`/opt/keel`开发，不使用tmux或SSH绕转。硬件/网络参数保持配置输入，PoC由用户提供。保留P1实现后集中功能/数据库/浏览器/镜像验证策略，目前仅必要编译和静态检查。
 
-源码接续39c353f，本轮统一集成见§108：机柜显式批量准备、七阶段事实投影/恢复页面、SSH已查询终态失败后的独立只读probe，以及重启失败不释放真实磁盘claim。前序目标UKI/写盘/首启链见§105～107。WP-1.7/P1仍partial，不把源码合并或编译通过记为装机/SSH/PoC验收。下一步由单Agent补齐首装SSH allowlist无旧host pin的显式配置边界，以及`boot.file_served`真实传输事件生产者（投影已预留，但生产者尚未实现）；再按实施计划补剩余闭环和集中验收。3000健康检查仍返回6668a72c，源52迁移（不含026草稿）、运行46；未应用SQL、构建/部署镜像或推送。两份原fabric草稿保留且不纳入本次提交。
+源码接续39c353f，本轮统一集成见§108：机柜显式批量准备、七阶段事实投影/恢复页面、SSH已查询终态失败后的独立只读probe，以及重启失败不释放真实磁盘claim。前序目标UKI/写盘/首启链见§105～107。WP-1.7/P1仍partial，不把源码合并或编译通过记为装机/SSH/PoC验收。单Agent已补首装SSH allowlist无旧host pin的显式配置源码（§109）；下一步`boot.file_served`真实传输事件生产者（投影已预留，但生产者尚未实现）；再按实施计划补剩余闭环和集中验收。3000健康检查仍返回6668a72c，源52迁移（不含026草稿）、运行46；未应用SQL、构建/部署镜像或推送。两份原fabric草稿保留且不纳入本次提交。
 
 - **累计未发布源码（§75～92）**：此前的续签/主密钥重包裹/审计/Webhook等增量继续保留；本次从e0a9467接续，单Agent完成持久装机准备/独立审批/共享独占Execution与页面、隔离ProxyDHCP/HTTP/TFTP传输、Linux只读硬件预检与双架构helper、固定固件/helper启动配方与iPXE/清单生成和消费校验，以及无最终镜像前置循环的离线helper overlay生产/反向校验。修正Linux槽位ABI、NVMe实际health输出、传输中失效和准备完成时的当前准入边界。新增用例与集中/CI入口已写入但未运行。必要Go/TS编译、静态检查和指定双架构构建通过，不等于功能/SQL/镜像/硬件验证。源迁移50、运行46；3000仍§74。原草稿保留。
 
@@ -1339,3 +1339,12 @@ initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新�
 集中入口补入known-failed SSH、机柜与进度用例组，以及writer/firstboot基础包。上述pure/loopback/PG回归用例源码已写入，按用户要求未运行功能测试/真实SSH/磁盘/重启/浏览器。统一编译使用GOFLAGS=-overlay=/tmp/keel-delivery-check/overlay.json、GOMEMLIMIT=768MiB、GOMAXPROCS=2；统一7个相关包/命令的go test -p=1 -run '^$'编译退出0、6个相关包go vet退出0；TypeScript tsc --noEmit、UI边界、设计检查退出0，git diff --check与集成脚本AST解析通过。日志为/tmp/keel-agent-merge-{compile,vet,tsc,ui,design}.log；编译输出[no tests to run]不记作功能测试通过。没有SQL迁移、镜像构建/发布或push；3000进程健康检查返回6668a72c，数据服务及其他项目保留。P1仍partial。
 
 剩余明确边界：首装临时SSH endpoint虽使用已认证新host pin，operator allowlist加载仍依赖旧pin/旧signer，需独立实现显式provision-only配置，不能要求伪造旧pin。进度投影接受`boot.file_served`白名单结构，但实际完整响应事件生产者尚未落盘，分发阶段缺证据保持pending。受保护bootstrap凭据交付/实际启动环境、完整软件联调及硬件PoC继续按原计划保留，不能因本次合并标闭环。
+
+
+## 109. 单Agent三小时接续与首装专用SSH allowlist（2026-10-26）
+
+用户于07:13:32 UTC要求继续三小时，当前窗口至10:13:32 UTC。从d118562继续，保持单Agent、直接本地/no tmux/SSH、仅必要编译静态检查及P1后集中验证。生产服务、数据、两份草稿保留，无镜像发布/迁移/push。
+
+首装新增显式provision_only target：只预留当前项目/机器及固定IP端口/非root账号，不要求旧pin/旧signer；拒绝混入旧pin、文件密钥、credential引用/版本/有效期/provider选择，且必须已装vault provider。加载不取钥。普通endpoint路径在任何取钥或连接前直接拒绝，HasTarget保持true防mock回退。仅认证firstboot核验路径在私有copy中绑定新pin+当前批准vault身份，每次fresh握手，不晋升普通连接/配置。旧配置false字段省略，摘要序列化兼容。新增用例源覆盖无旧凭据配置、歧义/重复/无vault拒绝、ordinary能力隔离、真正新pin握手/原回执query/no replay、撤销/错误peer/关闭；尚未执行功能用例。
+
+必要检查：/tmp/keel-provision-only-compile.log（三包仅编译）、/tmp/keel-provision-only-vet.log（taskrunner），均退出0，git diff --check通过；没有执行测试。首装allowlist缺口已接源码；下一步完整文件传输事件生产者，其他联调/PoC边界仍保留，P1 partial。

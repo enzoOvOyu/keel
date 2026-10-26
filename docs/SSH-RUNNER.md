@@ -6,7 +6,7 @@
 
 默认不配置 `KEEL_SSH_RUNNER_FILE`，SSH 关闭。只读查询无需介质；目标已有非root临时登录和helper时，可经独立批准追加受限公钥并证明新钥。脚本执行、root首登、完整bootstrap/repair、完整双钥轮换/删除、Agent 和目标缓存尚未交付，不借查询例外放行它们。原有 mock 互信动作不证明真实首连。
 
-配置 JSON 的 `targets` 是最多128个显式项目/机器绑定，每项为：
+配置 JSON 的 `targets` 是最多128个显式项目/机器绑定，普通目标每项为（首装专用目标见下节）：
 
 | 字段 | 约束 |
 |---|---|
@@ -22,6 +22,14 @@
 配置与私钥必须为当前服务用户拥有、组及其他用户无权限的普通文件（推荐600/400）；拒绝最终符号链接、FIFO、目录和过大文件。配置文件≤128KiB，私钥≤64KiB。配置错误使启动失败，不静默退回 sim。API 与 worker 使用同一配置；API需要凭据查询失联任务的真实回执。
 
 Compose 将仓库外 `KEEL_SSH_RUNNER_DIRECTORY` 只读挂载到 `/run/keel/ssh`，默认只挂载无密钥的禁用目录。启用时使用API/worker实际UID65532拥有的700私有目录，设置容器内 `KEEL_SSH_RUNNER_FILE=/run/keel/ssh/targets.json`，其中私钥路径也指向该只读目录。不要将真实配置、密钥或IP清单放入Git。worker profile仍须操作员显式启用；本次发布不启用生产worker或SSH目标。
+
+## 首装专用allowlist（当前源码）
+
+尚无旧主机指纹或旧登录凭据的目标可显式配置`provision_only: true`，仅允许`project_id`、`machine_id`、明确`address`和固定非root `user: keel-ctrl`。`host_key`、所有credential字段及`private_key_file`必须省略或为空（expiry必须省略/null），且必须已配置vault提供者；加载不解析/解密任何尚未选定的密钥，不需要伪造旧pin或占位私钥。已有普通配置省略此字段，仍沿用原严格pin/credential验证和配置摘要。
+
+此入口只预留网络坐标。装机当前批准请求与认证首启报告绑定的新host pin、同peer/批准网段、精确项目域公钥/版本/到期时间仍必须由控制面核验；每次握手从vault重新取当前凭据，错误pin/peer、过期、撤销和关闭runner均拒绝。普通Binding、CredentialMetadata、run/query/cancel、旧凭据安装/普通域凭据检查一律拒绝此目标；HasTarget仍为true，不能借mock回退。
+
+首次核验和显式原回执query使用私有临时endpoint，不修改operator配置，也不把连接提升为普通任务池。验证成功后若需普通SSH任务，操作员须独立核对并更新为有实际新host pin和已证明vault身份的普通配置。这里只是允许无旧pin的首装前置，不能代替首启认证、真正SSH回执或P1验收；新增配置/回环用例仅源码，尚未执行。
 
 ## 目标 helper 与回执
 
