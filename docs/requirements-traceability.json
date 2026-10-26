@@ -2715,9 +2715,9 @@
     }
   ],
   "implementation_checkpoint": {
-    "stage": "Current development is in ready P1/A3 execution and P1/A4 media/catalog/model increments. Logical fan-out, pinned dependencies, platform-signed manifests, independent-trust offline artifact bundles, bounded retries/quarantine, controlled source fetching, matrix review and scoped filters have bounded software evidence (HANDOFF sections48-58). A real 500,000,000-byte artifact path is recorded separately from target scale. Incomplete general server SSH tasks/Agent/PXE, vendor source signatures, apt/yum repositories, target cache/distribution and real hardware acceptance keep P1 work packages partial. Historical p1-complete did not close the v3.0.3 scope.",
-    "scope": "Development is active only in the remote /opt/keel Git workspace. FR-0 remains partial; health and physical-diagnostic evidence and remaining scope are recorded in docs/HANDOFF.md.",
-    "runtime": "Current source contains Agent renewal, OS boot/BOM configuration preparation, owner master rewrap, independent audit evidence and default-off execution Webhooks. Source has 49 migrations; runtime stays 6668a72/schema46. New source is local-only pending consolidated P1 validation; compile/static success is not feature/SQL/runtime acceptance."
+    "stage": "P1 remains partial. Dual-channel bounded approved scripts, owned cache inventories, approved artifact staging/checkpoint resume, target artifact retrieval and explicit non-start recovery are implemented as source (HANDOFF sections125-140). Remaining P1 protocol/orchestration gaps and consolidated 200-target acceptance must be tracked against actual WP exits; later G3+ dependencies are not P1 prerequisites.",
+    "scope": "Single-agent development only in local /opt/keel. FR-0 spans P1-P4; do not claim full network health, later gates or real hardware acceptance from P1 source.",
+    "runtime": "Source57 migrations excluding original026 draft; runtime remains last recorded 6668a72/schema46. Current additions including059/060 are unapplied. No new tests/build/static/database/browser/container validation or deployment; formatting and API generation are source artifacts only."
   },
   "execution_guide": "docs/DEVELOPMENT.md"
 }

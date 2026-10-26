@@ -125,7 +125,7 @@ func (r Request) Validate() error {
 	if len(r.Chunk) != 0 || r.ChunkOffset != 0 || r.ChunkSHA256 != "" || r.Action == "commit" && r.Command.Operation != "media.stage" && r.Command.Operation != "media.fetch" {
 		return ErrRejected
 	}
-	if r.Action == "settle" && r.Command.Operation != "script.run" {
+	if r.Action == "settle" && r.Command.Operation != "script.run" && r.Command.Operation != "media.stage" && r.Command.Operation != "media.fetch" {
 		return ErrRejected
 	}
 	if r.Action == "cache" {

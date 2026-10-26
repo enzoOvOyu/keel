@@ -158,6 +158,9 @@ func verifyArtifactFile(ctx context.Context, f *os.File, c TaskCommand) error {
 }
 
 func handleArtifactTransfer(ctx context.Context, state, cache string, r Request, enabled bool) (Observation, error) {
+	if r.Action == "settle" {
+		return settleArtifactNonstart(ctx, state, r)
+	}
 	var zero Observation
 	if os.Geteuid() == 0 || r.Validate() != nil || r.Command.Operation != "media.stage" || (r.Action != "run" && r.Action != "query" && r.Action != "cancel" && r.Action != "append" && r.Action != "commit") {
 		return zero, ErrRejected

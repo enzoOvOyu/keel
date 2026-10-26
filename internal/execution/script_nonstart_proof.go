@@ -26,6 +26,16 @@ type ScriptNonstartProofRequest struct {
 // Request only journals explicit human authority. The owning worker obtains
 // target proof; a separate existing Reconcile still owns resource release.
 func (s *Service) RequestScriptNonstartProof(ctx context.Context, a *Actor, project, id, attemptID string, in ScriptNonstartProofInput, key, trace string) (*ScriptNonstartProofRequest, error) {
+	return s.requestBoundedNonstartProof(ctx, a, project, id, attemptID, in, key, trace, false)
+}
+func (s *Service) RequestArtifactNonstartProof(ctx context.Context, a *Actor, project, id, attemptID string, in ScriptNonstartProofInput, key, trace string) (*ScriptNonstartProofRequest, error) {
+	return s.requestBoundedNonstartProof(ctx, a, project, id, attemptID, in, key, trace, true)
+}
+func (s *Service) requestBoundedNonstartProof(ctx context.Context, a *Actor, project, id, attemptID string, in ScriptNonstartProofInput, key, trace string, artifact bool) (*ScriptNonstartProofRequest, error) {
+	kind := "script"
+	if artifact {
+		kind = "artifact"
+	}
 	if !in.Confirmed || in.ExpectedVersion < 1 {
 		return nil, invalid("Explicit confirmation and positive expected_version are required")
 	}
@@ -37,7 +47,7 @@ func (s *Service) RequestScriptNonstartProof(ctx context.Context, a *Actor, proj
 	if err = authorize(ctx, tx, a, project, "Admin", "DL", "SRE"); err != nil {
 		return nil, err
 	}
-	idem, prior, err := idempotency(ctx, tx, a, "script.nonstart:"+project+":"+id+":"+attemptID, key, in)
+	idem, prior, err := idempotency(ctx, tx, a, kind+".nonstart:"+project+":"+id+":"+attemptID, key, in)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +63,7 @@ func (s *Service) RequestScriptNonstartProof(ctx context.Context, a *Actor, proj
 		return nil, err
 	}
 	if x.Mode != "ssh" && x.Mode != "agent" {
-		return nil, conflict("Only native script executions support non-start proof")
+		return nil, conflict("Only bounded native executions support non-start proof")
 	}
 	attempt, err := scanAttempt(tx.QueryRowContext(ctx, "SELECT "+attemptColumns+" FROM exec_task_attempts WHERE execution_id=$1 AND id=$2 FOR UPDATE", id, attemptID))
 	if errors.Is(err, sql.ErrNoRows) {
@@ -69,8 +79,8 @@ func (s *Service) RequestScriptNonstartProof(ctx context.Context, a *Actor, proj
 	if err != nil {
 		return nil, err
 	}
-	if task.Script == nil || task.Type != "script.run" {
-		return nil, conflict("Original approved script dispatch is required")
+	if !artifact && (task.Script == nil || task.Type != "script.run") || artifact && (task.Artifact == nil || task.Type != "media.stage" && task.Type != "media.fetch") {
+		return nil, conflict("Original approved bounded dispatch is required")
 	}
 	var target Target
 	for _, candidate := range x.Snapshot.Targets {
@@ -78,8 +88,11 @@ func (s *Service) RequestScriptNonstartProof(ctx context.Context, a *Actor, proj
 			target = candidate
 		}
 	}
-	command, err := originalScriptCommandTx(ctx, tx, &Claim{Attempt: attempt, Target: target, Task: task, Parameters: x.Parameters})
+	command, err := originalDispatchCommandTx(ctx, tx, &Claim{Attempt: attempt, Target: target, Task: task, Parameters: x.Parameters}, kind+".dispatch_committed")
 	if err != nil {
+		if artifact {
+			return nil, failure(409, "ARTIFACT_DISPATCH_EVIDENCE_REQUIRED", "Original artifact dispatch evidence is required; resources remain quarantined")
+		}
 		return nil, failure(409, "SCRIPT_DISPATCH_EVIDENCE_REQUIRED", "Original script dispatch evidence is required; resources remain quarantined")
 	}
 	var now time.Time
@@ -87,14 +100,14 @@ func (s *Service) RequestScriptNonstartProof(ctx context.Context, a *Actor, proj
 		return nil, err
 	}
 	if time.UnixMicro(command.AuthorizationExpiresAt).After(now) {
-		return nil, conflict("Original script authorization has not expired")
+		return nil, conflict("Original dispatch authorization has not expired")
 	}
 	out := &ScriptNonstartProofRequest{ExecutionID: id, AttemptID: attemptID, State: "requested", RequestedAt: now, ExpiresAt: now.Add(5 * time.Minute)}
 	payload := map[string]any{"attempt_id": attemptID, "attempt_version": attempt.StateVersion, "command": command, "requested_by": a.User.ID, "expires_at": out.ExpiresAt}
-	if err = event(ctx, tx, id, "script.nonstart_requested", payload); err != nil {
+	if err = event(ctx, tx, id, kind+".nonstart_requested", payload); err != nil {
 		return nil, err
 	}
-	if err = audit(ctx, tx, a.User.ID, project, "script.nonstart_requested", attemptID, trace, payload); err != nil {
+	if err = audit(ctx, tx, a.User.ID, project, kind+".nonstart_requested", attemptID, trace, payload); err != nil {
 		return nil, err
 	}
 	if err = remember(ctx, tx, idem, in, out); err != nil {
@@ -120,7 +133,7 @@ func (s *Service) RefreshScriptNonstartProofs(ctx context.Context, limit int) (i
 	}
 	var candidates []candidate
 	for scan := 0; scan < 2; scan++ {
-		rows, err := s.DB.QueryContext(ctx, `SELECT o.sequence,o.execution_id,a.id FROM exec_outbox o JOIN exec_task_attempts a ON a.execution_id=o.execution_id AND a.id=o.payload->>'attempt_id' JOIN exec_executions x ON x.id=a.execution_id WHERE o.event_type='script.nonstart_requested' AND o.created_at>clock_timestamp()-interval '5 minutes' AND o.sequence>$1 AND a.state='unknown' AND x.mode IN('ssh','agent') AND NOT EXISTS(SELECT 1 FROM exec_runner_receipts r WHERE r.command_id=a.command_id) ORDER BY o.sequence LIMIT $2`, s.scriptProofCursor, limit)
+		rows, err := s.DB.QueryContext(ctx, `SELECT o.sequence,o.execution_id,a.id FROM exec_outbox o JOIN exec_task_attempts a ON a.execution_id=o.execution_id AND a.id=o.payload->>'attempt_id' JOIN exec_executions x ON x.id=a.execution_id WHERE o.event_type IN('script.nonstart_requested','artifact.nonstart_requested') AND o.created_at>clock_timestamp()-interval '5 minutes' AND o.sequence>$1 AND a.state='unknown' AND x.mode IN('ssh','agent') AND NOT EXISTS(SELECT 1 FROM exec_runner_receipts r WHERE r.command_id=a.command_id) ORDER BY o.sequence LIMIT $2`, s.scriptProofCursor, limit)
 		if err != nil {
 			return 0, err
 		}
@@ -173,7 +186,7 @@ func (s *Service) refreshScriptNonstartProof(ctx context.Context, id, attemptID 
 	if err != nil {
 		return err
 	}
-	if task.Script == nil {
+	if task.Script == nil && task.Artifact == nil {
 		return taskrunner.ErrRejected
 	}
 	var target Target
@@ -198,11 +211,15 @@ func (s *Service) refreshScriptNonstartProof(ctx context.Context, id, attemptID 
 	if runner == nil {
 		return taskrunner.ErrUnknown
 	}
-	command, err := originalScriptCommandTx(ctx, tx, &Claim{Attempt: attempt, Target: target, Task: task, Parameters: x.Parameters})
+	kind := "script.dispatch_committed"
+	if task.Artifact != nil {
+		kind = "artifact.dispatch_committed"
+	}
+	command, err := originalDispatchCommandTx(ctx, tx, &Claim{Attempt: attempt, Target: target, Task: task, Parameters: x.Parameters}, kind)
 	if err != nil {
 		return err
 	}
-	allowed, err := platform.ScriptNonstartProofAllowedTx(ctx, tx, command)
+	allowed, err := platform.BoundedNonstartProofAllowedTx(ctx, tx, command)
 	if err != nil {
 		return err
 	}

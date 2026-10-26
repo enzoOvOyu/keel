@@ -1,5 +1,10 @@
 export const artifactTranslations = {
  zh: {
+  artifactNonstartBoundary:'只对原授权已过期且仍为未知的制品任务申请未启动证明。请求本身不释放设备锁；目标须持原run锁且从未持久接收过该命令。已接收/运行中或状态不明时仍保留隔离。',
+  artifactNonstartConfirm:'确认申请核对原制品派发是否从未开始；不重新传输文件或延长授权。',
+  artifactNonstartRequest:'申请原制品任务未启动证明',
+  artifactNonstartVerified:'原授权已过期，目标证明从未接收该命令；仍须按原回执显式对账。',
+
   artifactTransferDirection:'传输方向',
   artifactDirectionSend:'控制面 → 目标缓存',
   artifactDirectionRetrieve:'目标缓存 → 执行输出',
@@ -52,6 +57,11 @@ export const artifactTranslations = {
   artifactReceiptOther:'参见原始回执',
  },
  en: {
+  artifactNonstartBoundary:'Request non-start proof only for an unchanged unknown artifact task after original authority expires. The request does not release devices. The target must hold the original run lock and prove no durable acceptance. Accepted/running or ambiguous state remains quarantined.',
+  artifactNonstartConfirm:'Confirm checking whether the original artifact dispatch never started. No retransmission or authority extension.',
+  artifactNonstartRequest:'Request original artifact non-start proof',
+  artifactNonstartVerified:'Original authority expired; the target proved this command was never accepted. Explicit receipt reconciliation is still required.',
+
   artifactTransferDirection:'Transfer direction',
   artifactDirectionSend:'Control plane → target cache',
   artifactDirectionRetrieve:'Target cache → execution output',

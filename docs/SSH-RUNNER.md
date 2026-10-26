@@ -235,3 +235,7 @@ worker仅保存目标终态证明，**不执行Reconcile、不释放unknown资�
 `GET .../executions/{executionId}/outputs/{attemptId}/content` 只下载已捕获结果，不连接目标；当前会话/项目成员权限在对象读取前后重查，重新完整核对固定版本大小/SHA，审计后按application/octet-stream附件返回。HTTP Range/If-Range由同一验证后的私有文件响应；原JSON回执下载不变。输出对象损坏不能隔离独立的介质源。关闭分发开关不阻断既有输出下载。
 
 当前双向子集均限1GiB/原有界窗口；向目标发送支持显式检查点续传，反向取回在失败窗口不保留部分临时文件，新任务从头读取。它不是任意路径下载、长期后台传输、跨窗口反向续传或目标程序新产物采集，也无性能通过声明。新增私有文件夹/帧边界/源变化/未读完拒commit与PG完整捕获/丢终态不下载/跨项目/历史关闭/输出篡改源码用例未执行。060未应用，原服务未更新。
+
+### 制品未启动证明（源码未验证）
+
+`media.stage`/`media.fetch`原派发过期且attempt未知时，当前Admin/DL/SRE通过独立artifact-nonstart-proof入口明确授权五分钟恢复查询。Worker和Agent broker绑定原命令、unknown版本及当前请求者权限。目标settle持原run锁，仅对没有任何接受回执的原命令写artifact_authorization_expired_before_start、nonstart_proof和对应停止证明；已有/损坏/忙锁不证明未启动，不访问缓存或推进fence。开关关闭允许历史恢复；请求本身不释放设备，取得终态后仍须显式对账。

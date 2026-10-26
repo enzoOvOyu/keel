@@ -70,6 +70,9 @@ func openFetchContent(root int, c TaskCommand) (*os.File, error) {
 	return f, nil
 }
 func handleArtifactFetch(ctx context.Context, state, cache string, r Request, enabled bool) (Observation, error) {
+	if r.Action == "settle" {
+		return settleArtifactNonstart(ctx, state, r)
+	}
 	var zero Observation
 	if os.Geteuid() == 0 || r.Validate() != nil || r.Command.Operation != "media.fetch" || r.Action != "run" && r.Action != "read" && r.Action != "commit" && r.Action != "query" && r.Action != "cancel" {
 		return zero, ErrRejected

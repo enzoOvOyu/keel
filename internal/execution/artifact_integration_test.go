@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/enzoOvOyu/keel/internal/platform"
 	"github.com/enzoOvOyu/keel/internal/taskrunner"
@@ -85,4 +86,42 @@ func TestAgentArtifactApprovalFrozenDispatchAndUnknown(t *testing.T) {
 	if err = f.store.AgentRequestAllowed(ctx, query, f.credential); err == nil {
 		t.Fatal("renewed original authority accepted")
 	}
+	settle := taskrunner.Request{Action: "settle", Command: runner.request.Command}
+	if remaining := time.Until(time.UnixMicro(settle.Command.AuthorizationExpiresAt)); remaining > 0 {
+		time.Sleep(remaining + 10*time.Millisecond)
+	}
+	if err = f.store.AgentRequestAllowed(ctx, settle, f.credential); err == nil {
+		t.Fatal("artifact non-start proof lacked human request")
+	}
+	current, err := scanAttempt(f.store.DB.QueryRowContext(ctx, "SELECT "+attemptColumns+" FROM exec_task_attempts WHERE id=$1", claim.Attempt.ID))
+	mustAgent(t, err)
+	input := ScriptNonstartProofInput{ExpectedVersion: current.StateVersion, Confirmed: true}
+	proofKey := platform.RandomID()
+	if _, err = f.service.RequestScriptNonstartProof(ctx, f.actor, f.project, x.ID, current.ID, input, platform.RandomID(), "test"); err == nil {
+		t.Fatal("script-only proof endpoint accepted artifact")
+	}
+	requested, err := f.service.RequestArtifactNonstartProof(ctx, f.actor, f.project, x.ID, current.ID, input, proofKey, "test")
+	mustAgent(t, err)
+	replayed, err := f.service.RequestArtifactNonstartProof(ctx, f.actor, f.project, x.ID, current.ID, input, proofKey, "test")
+	mustAgent(t, err)
+	if !requested.ExpiresAt.Equal(replayed.ExpiresAt) {
+		t.Fatal("artifact proof idempotency lost")
+	}
+	mustAgent(t, f.store.AgentRequestAllowed(ctx, settle, f.credential))
+	refreshed, err := f.service.RefreshScriptNonstartProofs(ctx, 4)
+	mustAgent(t, err)
+	if refreshed != 0 || runner.runs != 1 {
+		t.Fatal("request fabricated proof or restarted transfer")
+	}
+	var retained int
+	mustAgent(t, f.store.DB.QueryRowContext(ctx, `SELECT count(*) FROM exec_resource_leases WHERE attempt_id=$1 AND state='reconciling'`, current.ID).Scan(&retained))
+	if retained != 2 {
+		t.Fatal("request without proof released device")
+	}
+	_, err = f.store.DB.ExecContext(ctx, `UPDATE users SET enabled=false WHERE id=$1`, f.actor.User.ID)
+	mustAgent(t, err)
+	if err = f.store.AgentRequestAllowed(ctx, settle, f.credential); err == nil {
+		t.Fatal("revoked requester retained artifact recovery authority")
+	}
+
 }

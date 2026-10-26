@@ -58,6 +58,19 @@ func (s *Store) agentArtifactRequestTx(ctx context.Context, tx *sql.Tx, r taskru
 	if count != 1 || original.Command != c || !expiry.After(original.AuthorizedAt) || expiry.After(original.AuthorizedAt.Add(time.Duration(c.TimeoutMS)*time.Millisecond)) || expiry.After(original.LeaseUntil.Add(-100*time.Millisecond)) {
 		return taskrunner.ErrRejected
 	}
+	if r.Action == "settle" {
+		if expiry.After(now) {
+			return taskrunner.ErrRejected
+		}
+		allowed, err := BoundedNonstartProofAllowedTx(ctx, tx, c)
+		if err != nil {
+			return err
+		}
+		if !allowed {
+			return taskrunner.ErrRejected
+		}
+		return nil
+	}
 	if r.Action == "query" || r.Action == "cancel" {
 		return nil
 	}

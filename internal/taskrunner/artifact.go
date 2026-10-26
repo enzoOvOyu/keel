@@ -53,6 +53,12 @@ func validateArtifactObservation(o Observation) error {
 	if verified {
 		return ErrRejected
 	}
+	if reason == "artifact_authorization_expired_before_start" {
+		if offset != 0 || o.Output["nonstart_proof"] != true {
+			return ErrRejected
+		}
+		return nil
+	}
 	if o.Command.Operation == "media.fetch" {
 		switch reason {
 		case "artifact_read_stopped", "artifact_source_changed", "artifact_source_unavailable", "artifact_digest_mismatch":

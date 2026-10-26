@@ -3005,6 +3005,107 @@
         },
         "description": "Current project member download of immutable, fully SHA/size-verified captured target bytes, bound to the exact original successful task receipt. Historical download never contacts a target or authorizes new work. Missing/partial/unknown output is rejected. Rechecks current session/membership after storage verification. Supports HTTP Range against the same version; each request fully verifies stored content first."
       }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/attempts/{attemptId}/artifact-nonstart-proof": {
+      "post": {
+        "operationId": "requestArtifactNonstartProof",
+        "tags": [
+          "SSH execution"
+        ],
+        "x-permission": "execution:reconcile",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "attemptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "202": {
+            "description": "Proof request journaled; terminal proof and explicit reconciliation remain required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactNonstartProofRequest"
+                }
+              }
+            }
+          }
+        },
+        "description": "Explicit Admin/DL/SRE recovery for an unchanged unknown media.stage/media.fetch attempt. Journals a five-minute human request; worker may only obtain proof under the expired original command and same target run lock. Accepted/running, busy locks or corrupt receipts cannot prove non-start. No transfer, approval renewal, resource release or automatic retry.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArtifactNonstartProofInput"
+              }
+            }
+          }
+        },
+        "summary": "Request original expired artifact dispatch non-start proof"
+      }
     }
   },
   "components": {
@@ -6489,6 +6590,57 @@
             "type": "integer",
             "minimum": 100,
             "maximum": 30000
+          }
+        }
+      },
+      "ArtifactNonstartProofInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expected_version",
+          "confirmed"
+        ],
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "confirmed": {
+            "type": "boolean",
+            "const": true
+          }
+        }
+      },
+      "ArtifactNonstartProofRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "execution_id",
+          "attempt_id",
+          "state",
+          "requested_at",
+          "expires_at"
+        ],
+        "properties": {
+          "execution_id": {
+            "type": "string"
+          },
+          "attempt_id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "requested"
+            ]
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }

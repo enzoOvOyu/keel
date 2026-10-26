@@ -29,6 +29,8 @@ tags:
 - name: Audit
 - name: BOM
 paths:
+  /api/v1/projects/{id}/executions/{executionId}/attempts/{attemptId}/artifact-nonstart-proof:
+    $ref: './execution.openapi.yaml#/paths/~1api~1v1~1projects~1{id}~1executions~1{executionId}~1attempts~1{attemptId}~1artifact-nonstart-proof'
   /api/v1/projects/{id}/artifact-retrievals:
     $ref: './execution.openapi.yaml#/paths/~1api~1v1~1projects~1{id}~1artifact-retrievals'
   /api/v1/projects/{id}/executions/{executionId}/outputs/{attemptId}/content:

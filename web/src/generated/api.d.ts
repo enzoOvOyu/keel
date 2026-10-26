@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{id}/executions/{executionId}/attempts/{attemptId}/artifact-nonstart-proof": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request original expired artifact dispatch non-start proof
+         * @description Explicit Admin/DL/SRE recovery for an unchanged unknown media.stage/media.fetch attempt. Journals a five-minute human request; worker may only obtain proof under the expired original command and same target run lock. Accepted/running, busy locks or corrupt receipts cannot prove non-start. No transfer, approval renewal, resource release or automatic retry.
+         */
+        post: operations["requestArtifactNonstartProof"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/artifact-retrievals": {
         parameters: {
             query?: never;
@@ -5651,6 +5671,21 @@ export interface components {
             kind: "draft" | "delivery";
             expected_preflight_hash: string;
         };
+        ArtifactNonstartProofInput: {
+            expected_version: number;
+            /** @constant */
+            confirmed: true;
+        };
+        ArtifactNonstartProofRequest: {
+            execution_id: string;
+            attempt_id: string;
+            /** @enum {string} */
+            state: "requested";
+            /** Format: date-time */
+            requested_at: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
         ArtifactRetrieveInput: {
             machine_ids: string[];
             media_id: string;
@@ -6129,6 +6164,49 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    requestArtifactNonstartProof: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+                executionId: string;
+                attemptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArtifactNonstartProofInput"];
+            };
+        };
+        responses: {
+            /** @description Proof request journaled; terminal proof and explicit reconciliation remain required */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactNonstartProofRequest"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
     createArtifactRetrieval: {
         parameters: {
             query?: never;
