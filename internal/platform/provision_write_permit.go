@@ -146,6 +146,10 @@ func (a *ProvisionBootAuthority) IssueWritePermit(ctx context.Context, scope pro
 	if err != nil {
 		return nil, err
 	}
+	if err = ValidateProvisionRolloutTx(ctx, tx, x, request); err != nil {
+		return nil, err
+	}
+
 	if checkProvisionCallbackPeer(&provisionCallbackPeer{scope: scope, peer: peer}, current) != nil || x.GrantID != grant || x.BootID == nil || x.State != "storage_approved" || x.PermitIssuedAt != nil || x.StoragePlan == nil || x.StoragePlanSHA256 == nil || x.StoragePlan.SHA256 != *x.StoragePlanSHA256 || in.Preparation.StoragePlanSHA256 != *x.StoragePlanSHA256 || request.Snapshot.Media.ValidateWritable() != nil {
 		return nil, ErrProvisionBootDenied
 	}

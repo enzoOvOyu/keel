@@ -16,7 +16,7 @@ import { useSession, useExpireOnUnauthorized } from '../../lib/session'
 import { useAction } from '../../lib/management'
 import {
  approveProvisionStorage, getProvisionInstallation, listProvisionBootScopes, listProvisionInstallations,
- selectProvisionStorage, startProvisionInstallation, requestProvisionPreflightRefresh, type ProvisionDisk, type ProvisionInstallation, type ProvisionRequest,
+ selectProvisionStorage, startProvisionInstallation, previewProvisionRollout, requestProvisionPreflightRefresh, type ProvisionDisk, type ProvisionInstallation, type ProvisionRequest,
 } from '../../lib/provision'
 
 export function StartInstallation({ item, onClose, onDone }: { item: ProvisionRequest; onClose: () => void; onDone: () => Promise<void> }) {
@@ -24,16 +24,25 @@ export function StartInstallation({ item, onClose, onDone }: { item: ProvisionRe
  const [page, setPage] = useState(1), [scope, setScope] = useState(''), [reason, setReason] = useState(''), [confirmed, setConfirmed] = useState(false)
  const domains = useQuery({ queryKey: ['private', session.user.id, 'project', item.project_id, 'provision-boot-scopes', page], queryFn: ({ signal }) => listProvisionBootScopes(item.project_id, page, signal), retry: false })
  useExpireOnUnauthorized(domains.error)
+ const rollout = useQuery({ queryKey: ['private', session.user.id, 'project', item.project_id, 'provision-rollout', item.id], queryFn: ({ signal }) => previewProvisionRollout(item, signal), retry: false })
+ const [rolloutMode, setRolloutMode] = useState<''|'canary'|'validated'>('')
+ useExpireOnUnauthorized(rollout.error)
+ useEffect(() => { setConfirmed(false); key.current = crypto.randomUUID() }, [rollout.data])
+ const rolloutAllowed = rolloutMode === 'canary' ? !!rollout.data?.canary_selection_available : rolloutMode === 'validated' && !!rollout.data?.release_ready
+ const canaries = rolloutMode === 'validated' ? rollout.data?.canaries.map(value => value.installation_id) ?? [] : []
  const approved = domains.data?.items.filter(value => value.state === 'approved') ?? []
- return <ActionDialog title={t('installStart')} description={`${item.snapshot.target.hostname} · ${item.snapshot.target.serial_number}`} busy={action.busy} confirm={t('installStart')} submitDisabled={!confirmed || !reason.trim() || !approved.some(value => value.id === scope) || !!domains.error || domains.isFetching || Date.parse(item.expires_at) <= Date.now()} onClose={onClose} onSubmit={event => {
+ return <ActionDialog title={t('installStart')} description={`${item.snapshot.target.hostname} · ${item.snapshot.target.serial_number}`} busy={action.busy} confirm={t('installStart')} submitDisabled={!confirmed || !reason.trim() || !approved.some(value => value.id === scope) || !!domains.error || domains.isFetching || !!rollout.error || rollout.isFetching || !rolloutAllowed || Date.parse(item.expires_at) <= Date.now()} onClose={onClose} onSubmit={event => {
   event.preventDefault()
-  if (!confirmed || !approved.some(value => value.id === scope)) return
-  void action.run(() => startProvisionInstallation(item, scope, reason.trim(), session.csrf_token, key.current)).then(async result => { if (result.ok) await onDone() })
+  if (!confirmed || !approved.some(value => value.id === scope) || !rolloutAllowed || !rolloutMode) return
+  void action.run(() => startProvisionInstallation(item, scope, reason.trim(), session.csrf_token, key.current, rolloutMode, canaries)).then(async result => { if (result.ok) await onDone() })
  }}>
-  <p className="impact-notice">{t('installStartImpact')}</p><ActionError error={domains.error || action.error} />
+  <p className="impact-notice">{t('installStartImpact')}</p><ActionError error={domains.error || rollout.error || action.error} />
   <div className="field"><Label htmlFor="install-boot-scope">{t('bootScopeDomain')}</Label><Select value={scope} disabled={action.busy || domains.isFetching || !!domains.error} onValueChange={value => { setScope(value); setConfirmed(false); key.current = crypto.randomUUID() }}><SelectTrigger id="install-boot-scope" className="ui:w-full"><SelectValue placeholder={t('installChooseScope')} /></SelectTrigger><SelectContent>{approved.map(value => <SelectItem key={value.id} value={value.id}>{value.scope.clients} · {value.scope.interface} · {value.source_ref}</SelectItem>)}</SelectContent></Select></div>
   {domains.isPending && <p role="status">{t('loadingRecords')}</p>}
   {domains.data && !domains.error && <>{!approved.length && <p>{t('installNoScopes')}</p>}<Pagination offset={(page - 1) * domains.data.page_size} limit={domains.data.page_size} total={domains.data.total} busy={domains.isFetching || action.busy} onChange={offset => { setPage(offset / domains.data!.page_size + 1); setScope(''); setConfirmed(false); key.current = crypto.randomUUID() }} /></>}
+  <div className="field"><Label htmlFor="install-rollout-mode">{t('installRolloutMode')}</Label><Select value={rolloutMode} disabled={action.busy || rollout.isFetching || !!rollout.error} onValueChange={value => { if (value === 'canary' || value === 'validated') { setRolloutMode(value); setConfirmed(false); key.current = crypto.randomUUID() } }}><SelectTrigger id="install-rollout-mode" className="ui:w-full"><SelectValue placeholder={t('installRolloutChoose')} /></SelectTrigger><SelectContent><SelectItem value="canary" disabled={!rollout.data?.canary_selection_available}>{t('installRolloutCanary')}</SelectItem><SelectItem value="validated" disabled={!rollout.data?.release_ready}>{t('installRolloutValidated')}</SelectItem></SelectContent></Select></div>
+  {rollout.isPending && <p role="status">{t('loadingRecords')}</p>}
+  {rollout.data && !rollout.error && <div><p>{t('installRolloutHint')}</p><p role="status">{t(rollout.data.release_ready ? 'installRolloutReady' : 'installRolloutBlocked')}</p>{rollout.data.canaries.length > 0 && <ul>{rollout.data.canaries.map(value => <li key={value.installation_id}>{value.hostname} · {value.serial_number} · {t(value.verified ? 'installRolloutProofVerified' : `installState_${value.state}`)}</li>)}</ul>}</div>}
   <div className="field"><Label htmlFor="install-start-reason">{t('installReason')}</Label><Input id="install-start-reason" value={reason} maxLength={500} required disabled={action.busy} onChange={event => { setReason(event.target.value); key.current = crypto.randomUUID() }} /></div>
   <div className="checkbox-field"><NativeCheckbox id="install-start-confirm" checked={confirmed} disabled={action.busy} onChange={event => setConfirmed(event.target.checked)} /><Label htmlFor="install-start-confirm">{t('installStartConfirm')}</Label></div>
  </ActionDialog>

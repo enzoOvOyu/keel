@@ -314,3 +314,10 @@ SSH未知结果仅显式query原helper回执；只有当前fresh pinned query证
 ### 批量只读核验
 
 修复列表逐机展开已存在的终态失败查询证据后，可显式加入最多32个节点的核验选择，统一确认原因。`POST /api/v1/projects/{id}/provision/installations/ssh-verifications`要求CSRF、当前Admin/DL/SRE和完整Idempotency-Key，每项绑定installation_id/expected_version/repair_event_id/failed_event_id。沿用原单机准入和新只读probe机制，整批原子授权，任一过期/变化/未知成员令整批回滚。任务派发及成功互信仍独立重查当前权限和真实回执；批量接受不等于完成修复，不能推送凭据、重装、续租或解除unknown隔离。相同幂等请求返回原授权，不能利用新key重复消费失败。源码及尚未执行的数据库边界用例见HANDOFF §117。
+
+
+### OS/model金丝雀放量（未验证源码）
+
+发起安装必须明确`rollout_mode=canary|validated`。同项目、同不可变型号与完整OS角色配方（包含对象版本/摘要）的首次发布只允许显式选择最多两台金丝雀机器；同机器重做只能在原已知终态/资源处理后以新准备/审批进行，unknown仍隔离。每台只取最新canary会话，全部1～2台均有已提交SSH转录承诺、原native成功执行及原claim已释放，才允许validated引用完整集合。禁止略过失败节点、借旧成功或其他OS/model/project放量。首次validated准入后冻结金丝雀集合；新的OS/model身份重新做金丝雀。
+
+策略和证据ID保存在056不可变表和原执行快照/审计/安装事件。创建、派发和写盘许可前重核；实际目标、介质、域钥、scope及独立磁盘审批仍分别授权。原请求的`/rollout`只读接口用于表单展示，不能授权安装或证明硬件通过。既有会话无自动“已金丝雀”回填。历史成功证明不因当前节点后续普通操作改写；镜像撤销/隔离仍由既有当前来源门禁阻断。类型生成已接，验证按用户要求延后，见HANDOFF §118。

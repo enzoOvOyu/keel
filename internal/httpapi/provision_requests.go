@@ -6,6 +6,20 @@ import (
 )
 
 func (a *authAPI) registerProvisionRequests(r *gin.Engine) {
+	r.GET("/api/v1/projects/:id/provision/requests/:requestId/rollout", func(c *gin.Context) {
+		actor, _, ok := a.executionProject(c, false)
+		if !ok {
+			return
+		}
+		out, err := a.store.PreviewProvisionRollout(c.Request.Context(), actor, c.Param("id"), c.Param("requestId"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.Header("Cache-Control", "private, no-store")
+		c.JSON(200, out)
+	})
+
 	const base = "/api/v1/projects/:id/provision/requests"
 	r.GET("/api/v1/projects/:id/provision/public-keys", func(c *gin.Context) {
 		actor, _, ok := a.executionProject(c, false)

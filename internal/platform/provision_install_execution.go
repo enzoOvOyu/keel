@@ -35,6 +35,9 @@ func (s *Store) ValidateProvisionInstallationQueuedTx(ctx context.Context, tx *s
 	if err = ValidateProvisionRequestMetadataTx(ctx, tx, request, time.Now()); err != nil {
 		return nil, err
 	}
+	if err = ValidateProvisionRolloutTx(ctx, tx, x, request); err != nil {
+		return nil, err
+	}
 	scope, err := LoadApprovedProvisionScopeTx(ctx, tx, project, x.ScopeID)
 	if err != nil {
 		return nil, err

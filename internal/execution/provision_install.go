@@ -12,9 +12,11 @@ import (
 )
 
 type CreateProvisionInstallationInput struct {
-	ExpectedVersion int64  `json:"expected_version"`
-	ScopeID         string `json:"scope_id"`
-	Reason          string `json:"reason"`
+	RolloutMode           string   `json:"rollout_mode"`
+	CanaryInstallationIDs []string `json:"canary_installation_ids"`
+	ExpectedVersion       int64    `json:"expected_version"`
+	ScopeID               string   `json:"scope_id"`
+	Reason                string   `json:"reason"`
 }
 
 // CreateProvisionInstallation starts a distinct no-retry native execution.
@@ -27,6 +29,11 @@ func (s *Service) CreateProvisionInstallation(ctx context.Context, a *Actor, pro
 	if !opaqueID.MatchString(requestID) || !opaqueID.MatchString(in.ScopeID) || in.ExpectedVersion < 1 || strings.TrimSpace(in.Reason) == "" || len(in.Reason) > 500 || strings.ContainsAny(in.Reason, "\x00\r\n") {
 		return nil, invalid("Exact prepared request version, approved boot scope and reason required")
 	}
+	canaries, err := platform.CanonicalProvisionRollout(in.RolloutMode, in.CanaryInstallationIDs)
+	if err != nil {
+		return nil, err
+	}
+	in.CanaryInstallationIDs = canaries
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -99,7 +106,7 @@ func (s *Service) CreateProvisionInstallation(ctx context.Context, a *Actor, pro
 	flow := FlowVersion{ID: platform.RandomID(), FlowID: platform.RandomID(), ProjectID: project, Name: "Provision installation " + installationID[:8], Version: 1, Definition: definition, ContentHash: hash(jsonBytes(definition)), CreatedAt: now}
 	x.FlowVersionID = flow.ID
 	x.TargetSetHash = hash(jsonBytes([]string{target.ID}))
-	x.Parameters = map[string]any{"provision_installation_id": installationID, "provision_request_id": requestID, "provision_snapshot_sha256": request.SnapshotSHA256}
+	x.Parameters = map[string]any{"provision_installation_id": installationID, "provision_request_id": requestID, "provision_snapshot_sha256": request.SnapshotSHA256, "provision_rollout_mode": in.RolloutMode, "provision_canary_installation_ids": in.CanaryInstallationIDs}
 	x.Snapshot = Snapshot{Mode: "provision", Flow: flow, Targets: []Target{target}, Parameters: x.Parameters, TargetSetHash: x.TargetSetHash, FrozenAt: now, Admission: "Independent prepared source, approved current boot domain and fresh exclusive machine lease. Authenticated read-only boot precedes independent disk-plan approval. No automatic write permission or host trust."}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO exec_flows(id,project_id,name,created_by,created_at,updated_at)VALUES($1,$2,$3,$4,$5,$5)", flow.FlowID, project, flow.Name, a.User.ID, now); err != nil {
 		return nil, err
@@ -119,10 +126,13 @@ func (s *Service) CreateProvisionInstallation(ctx context.Context, a *Actor, pro
 	if _, err = tx.ExecContext(ctx, `INSERT INTO provision_installations(id,project_id,request_id,machine_id,execution_id,scope_id,scope_sha256,snapshot_sha256,grant_id,created_by,reason,created_at,expires_at,updated_at)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$12)`, installationID, project, requestID, request.MachineID, x.ID, scope.ID, scope.ScopeSHA256, request.SnapshotSHA256, platform.RandomID(), a.User.ID, in.Reason, now, until); err != nil {
 		return nil, err
 	}
+	if err = platform.RecordProvisionRolloutTx(ctx, tx, installationID, request, in.RolloutMode, in.CanaryInstallationIDs); err != nil {
+		return nil, err
+	}
 	if err = event(ctx, tx, x.ID, "execution.created", map[string]any{"mode": "provision", "installation_id": installationID, "installation_performed": false}); err != nil {
 		return nil, err
 	}
-	if err = audit(ctx, tx, a.User.ID, project, "provision.installation.created", installationID, trace, map[string]any{"execution_id": x.ID, "request_id": requestID, "scope_id": scope.ID, "snapshot_sha256": request.SnapshotSHA256}); err != nil {
+	if err = audit(ctx, tx, a.User.ID, project, "provision.installation.created", installationID, trace, map[string]any{"execution_id": x.ID, "request_id": requestID, "scope_id": scope.ID, "snapshot_sha256": request.SnapshotSHA256, "rollout_mode": in.RolloutMode, "canary_installation_ids": in.CanaryInstallationIDs}); err != nil {
 		return nil, err
 	}
 	if err = remember(ctx, tx, idem, in, x); err != nil {

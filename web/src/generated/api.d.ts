@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{id}/provision/requests/{requestId}/rollout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Read-only exact OS/model canary selection and proof preview. No canary is inferred for historical sessions; current target/media/actor/write authorization remains separate. */
+        get: operations["previewProvisionRollout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/provision/requests/{requestId}/install": {
         parameters: {
             query?: never;
@@ -13,7 +30,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Default off. Admin/DE/DL/SRE consumes an exact prepared installable source once into a separate no-retry execution with a fresh exclusive machine lease. Read-only boot and authenticated preflight precede disk selection and independent approval. A separate explicitly enabled isolated service can serve approved boot files and signed read-only preflight. Controlled writes require a v2 approved target/runtime, independent disk review and a current one-time write permit. Completion requires authenticated first boot and fresh pinned SSH proof; feature enablement or a write report cannot claim success. */
+        /** @description Default off. Admin/DE/DL/SRE consumes an exact prepared installable source once into a separate no-retry execution with a fresh exclusive machine lease. Read-only boot and authenticated preflight precede disk selection and independent approval. A separate explicitly enabled isolated service can serve approved boot files and signed read-only preflight. Controlled writes require a v2 approved target/runtime, independent disk review and a current one-time write permit. Completion requires authenticated first boot and fresh pinned SSH proof; feature enablement or a write report cannot claim success. Explicit rollout mode is mandatory. Canary admission selects at most two distinct machines for the exact project/model/full OS closure. Validated admission requires all latest selected canaries to have committed first-SSH proof and settled native success. Failed/unknown or omitted canaries block release, and the set freezes after first validated admission. Dispatch and write-permit issuance recheck the immutable selection; this never grants disk authority. */
         post: operations["createProvisionInstallation"];
         delete?: never;
         options?: never;
@@ -2897,6 +2914,7 @@ export interface components {
              * @enum {string}
              */
             ssh_configuration?: "matched" | "configuration_required" | "identity_changed" | "credential_unavailable";
+            rollout?: components["schemas"]["ProvisionRollout"];
         };
         ProvisionRackRequestItem: {
             asset_id: string;
@@ -2964,10 +2982,39 @@ export interface components {
             page: number;
             page_size: number;
         };
+        ProvisionRollout: {
+            /** @enum {string} */
+            mode: "canary" | "validated";
+            identity_sha256: string;
+            canary_ids: string[];
+        };
+        ProvisionCanary: {
+            installation_id: string;
+            machine_id: string;
+            hostname: string;
+            serial_number: string;
+            state: string;
+            /** @description Immutable SSH transcript and original settled native success proof verified; not hardware acceptance. */
+            verified: boolean;
+        };
+        ProvisionRolloutPreview: {
+            identity_sha256: string;
+            canary_selection_available: boolean;
+            /** @description All latest selected canaries have settled proof; target-specific current authority is checked at installation admission. */
+            release_ready: boolean;
+            canaries: components["schemas"]["ProvisionCanary"][];
+        };
         CreateProvisionInstallation: {
             expected_version: number;
             scope_id: string;
             reason: string;
+            /**
+             * @description Explicit canary selection (max two distinct machines per exact OS/model recipe), or release using all latest successful canaries.
+             * @enum {string}
+             */
+            rollout_mode: "canary" | "validated";
+            /** @description Must be empty in canary mode. Validated mode requires the exact complete set of 1-2 latest settled successful canaries. */
+            canary_installation_ids?: string[];
         };
         SelectProvisionStorage: {
             expected_version: number;
@@ -5489,6 +5536,33 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    previewProvisionRollout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current canary facts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionRolloutPreview"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     createProvisionInstallation: {
         parameters: {
             query?: never;

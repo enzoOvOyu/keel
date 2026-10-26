@@ -46,6 +46,7 @@ DO $keel$ BEGIN
   IF to_regclass('public.schema_migrations') IS NOT NULL THEN REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON schema_migrations FROM keel_app; END IF;
   IF to_regclass('public.notification_webhook_policies') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON notification_webhook_policies FROM keel_app; REVOKE DELETE,TRUNCATE ON notification_webhook_deliveries FROM keel_app; END IF;
   IF to_regclass('public.credential_master_state') IS NOT NULL THEN REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON credential_master_state,credential_master_rewraps,credential_master_rewrap_entries FROM keel_app; END IF;
+  IF to_regclass('public.provision_installation_rollouts') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON provision_installation_rollouts FROM keel_app; END IF;
   IF to_regclass('public.ssh_domain_keys') IS NOT NULL THEN REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON ssh_domain_keys FROM keel_app; END IF;
   IF to_regclass('public.agent_enrollments') IS NOT NULL THEN
     REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON agent_enrollments FROM keel_app;

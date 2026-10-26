@@ -136,7 +136,7 @@ func liveProvisionBoot(t *testing.T, writer ...bool) *liveProvisionBootFixture {
 	t.Helper()
 	ctx := context.Background()
 	f, request, scope := installationKernelSource(t, true, true, writer...)
-	x, err := f.service.CreateProvisionInstallation(ctx, f.actor, f.project, request.ID, CreateProvisionInstallationInput{ExpectedVersion: request.StateVersion, ScopeID: scope.ID, Reason: "isolated signed boot authority software check"}, platform.RandomID(), "test")
+	x, err := f.service.CreateProvisionInstallation(ctx, f.actor, f.project, request.ID, CreateProvisionInstallationInput{RolloutMode: "canary", ExpectedVersion: request.StateVersion, ScopeID: scope.ID, Reason: "isolated signed boot authority software check"}, platform.RandomID(), "test")
 	mustAgent(t, err)
 	_, err = f.service.PumpOutbox(ctx, "boot-source-test", 1000)
 	mustAgent(t, err)

@@ -32,6 +32,7 @@ type ProvisionProgressResource struct {
 	ReconciliationRequired bool       `json:"reconciliation_required"`
 }
 type ProvisionInstallationProgress struct {
+	Rollout          *ProvisionRollout         `json:"rollout,omitempty"`
 	InstallationID   string                    `json:"installation_id"`
 	State            string                    `json:"state"`
 	StateVersion     int64                     `json:"state_version"`
@@ -185,6 +186,15 @@ func (s *Store) ReadProvisionInstallationProgress(ctx context.Context, a *AuthSe
 		return nil, err
 	}
 	out := projectProvisionProgress(x, facts, resource, now)
+	out.Rollout, err = readProvisionRolloutTx(ctx, tx, x.ID)
+	if errors.Is(err, ErrProvisionCanaryRequired) {
+		out.Rollout = nil
+		err = nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
 	out.SSHRepair, err = readProvisionSSHRepairTx(ctx, tx, x)
 	if err != nil {
 		return nil, err

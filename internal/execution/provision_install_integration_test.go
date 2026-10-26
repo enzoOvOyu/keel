@@ -65,7 +65,7 @@ func TestProvisionInstallationKernelPostgres(t *testing.T) {
 	ctx := context.Background()
 	t.Run("disabled_and_missing_recipe", func(t *testing.T) {
 		f, request, scope := installationKernel(t, false)
-		in := CreateProvisionInstallationInput{ExpectedVersion: request.StateVersion, ScopeID: scope.ID, Reason: "isolated native installation admission"}
+		in := CreateProvisionInstallationInput{RolloutMode: "canary", ExpectedVersion: request.StateVersion, ScopeID: scope.ID, Reason: "isolated native installation admission"}
 		if _, err := f.service.CreateProvisionInstallation(ctx, f.actor, f.project, request.ID, in, platform.RandomID(), "test"); err == nil {
 			t.Fatal("generic initrd without recipe admitted")
 		}
@@ -76,7 +76,7 @@ func TestProvisionInstallationKernelPostgres(t *testing.T) {
 	})
 	t.Run("exclusive_lock_then_invalid_archive_stops_before_boot", func(t *testing.T) {
 		f, request, scope := installationKernel(t, true)
-		in := CreateProvisionInstallationInput{ExpectedVersion: request.StateVersion, ScopeID: scope.ID, Reason: "isolated pre-write failure evidence"}
+		in := CreateProvisionInstallationInput{RolloutMode: "canary", ExpectedVersion: request.StateVersion, ScopeID: scope.ID, Reason: "isolated pre-write failure evidence"}
 		key := platform.RandomID()
 		x, err := f.service.CreateProvisionInstallation(ctx, f.actor, f.project, request.ID, in, key, "test")
 		mustAgent(t, err)
@@ -124,7 +124,7 @@ func TestProvisionInstallationKernelPostgres(t *testing.T) {
 	})
 	t.Run("unstarted_cancel_and_scope_revocation", func(t *testing.T) {
 		f, request, scope := installationKernel(t, true)
-		in := CreateProvisionInstallationInput{ExpectedVersion: request.StateVersion, ScopeID: scope.ID, Reason: "isolated cancellation"}
+		in := CreateProvisionInstallationInput{RolloutMode: "canary", ExpectedVersion: request.StateVersion, ScopeID: scope.ID, Reason: "isolated cancellation"}
 		x, err := f.service.CreateProvisionInstallation(ctx, f.actor, f.project, request.ID, in, platform.RandomID(), "test")
 		mustAgent(t, err)
 		id := x.Snapshot.Targets[0].ProvisionInstallationID
@@ -149,7 +149,7 @@ func TestProvisionInstallationKernelPostgres(t *testing.T) {
 	})
 	t.Run("expired_unactivated_attempt_keeps_resource_reconciling", func(t *testing.T) {
 		f, request, scope := installationKernel(t, true)
-		x, err := f.service.CreateProvisionInstallation(ctx, f.actor, f.project, request.ID, CreateProvisionInstallationInput{ExpectedVersion: request.StateVersion, ScopeID: scope.ID, Reason: "isolated lease-expiry boundary"}, platform.RandomID(), "test")
+		x, err := f.service.CreateProvisionInstallation(ctx, f.actor, f.project, request.ID, CreateProvisionInstallationInput{RolloutMode: "canary", ExpectedVersion: request.StateVersion, ScopeID: scope.ID, Reason: "isolated lease-expiry boundary"}, platform.RandomID(), "test")
 		mustAgent(t, err)
 		claim := f.claim(t, x.ID)
 		if claim == nil {
