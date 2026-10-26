@@ -3104,7 +3104,7 @@ export interface components {
             /** Format: date-time */
             expires_at: string;
             /** @enum {string} */
-            state: "pending" | "approved" | "consumed" | "unknown" | "succeeded" | "revoked";
+            state: "pending" | "approved" | "consumed" | "unknown" | "succeeded" | "failed" | "revoked";
             /** Format: int64 */
             state_version: number;
         };

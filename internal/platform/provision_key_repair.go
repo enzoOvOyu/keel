@@ -480,17 +480,27 @@ func (s *Store) FinishProvisionKeyRepair(ctx context.Context, project, id string
 			return e
 		}
 		current.Plan.ExpiresAt = work.Plan.ExpiresAt
-		if string(provisionFirstSSHJSON(current.Plan)) != string(provisionFirstSSHJSON(work.Plan)) || !until.After(time.Now()) || proof.Validate(work.Command, work.Plan, time.Now()) != nil {
+		if string(provisionFirstSSHJSON(current.Plan)) != string(provisionFirstSSHJSON(work.Plan)) || !until.After(time.Now()) {
 			return ErrProvisionBootDenied
 		}
-		state = "succeeded"
-		if err = appendProvisionEventTx(ctx, tx, x, "first_boot.key_repair_verified", map[string]any{"repair_id": r.ID, "command": work.Command, "observation": proof.Observation(), "binding_sha256": work.Plan.BindingSHA256, "verified_credential_id": work.Plan.Credential.ID, "new_key_handshake": true}); err != nil {
-			return err
-		}
-		// A separate explicitly approved read-only identity probe must still prove
-		// hostname/OS/arch through the existing first-SSH finalization path.
-		if err = appendProvisionEventTx(ctx, tx, x, "first_boot.ssh_verification_requested", map[string]any{"verification_id": r.ID, "key_repair_id": r.ID, "repair_event_id": r.Snapshot.RepairEventID, "native_command_id": *x.CommandID, "attempt_id": *x.AttemptID, "fencing_token": *x.FencingToken, "requested_by": r.CreatedBy, "mode": "run"}); err != nil {
-			return err
+		if proof.Validate(work.Command, work.Plan, time.Now()) != nil {
+			if proof.ValidateQueriedFailure(work.Command, work.Plan, work.Bootstrap, time.Now()) != nil {
+				return ErrProvisionBootDenied
+			}
+			state = "failed"
+			if err = appendProvisionEventTx(ctx, tx, x, "first_boot.key_repair_terminal_failed", map[string]any{"repair_id": r.ID, "command": work.Command, "observation": proof.Observation(), "binding_sha256": work.Plan.BindingSHA256, "queried": true, "resource_retained": true}); err != nil {
+				return err
+			}
+		} else {
+			state = "succeeded"
+			if err = appendProvisionEventTx(ctx, tx, x, "first_boot.key_repair_verified", map[string]any{"repair_id": r.ID, "command": work.Command, "observation": proof.Observation(), "binding_sha256": work.Plan.BindingSHA256, "verified_credential_id": work.Plan.Credential.ID, "new_key_handshake": true}); err != nil {
+				return err
+			}
+			// A separate explicitly approved read-only identity probe must still prove
+			// hostname/OS/arch through the existing first-SSH finalization path.
+			if err = appendProvisionEventTx(ctx, tx, x, "first_boot.ssh_verification_requested", map[string]any{"verification_id": r.ID, "key_repair_id": r.ID, "repair_event_id": r.Snapshot.RepairEventID, "native_command_id": *x.CommandID, "attempt_id": *x.AttemptID, "fencing_token": *x.FencingToken, "requested_by": r.CreatedBy, "mode": "run"}); err != nil {
+				return err
+			}
 		}
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE provision_key_repairs SET state=$2,state_version=state_version+1 WHERE id=$1`, r.ID, state); err != nil {

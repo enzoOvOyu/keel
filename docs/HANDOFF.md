@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～122。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～123。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
@@ -1455,3 +1455,12 @@ initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新�
 接续08de4c1，FR-2.5新增项目作用域只读OS依赖API，复用已批准介质DAG/架构/摘要/隔离态约束，返回精确驱动版本及原登记兼容矩阵来源/版本/report_ref。metadata读取不流式校验镜像或驱动对象，不引入大文件重复读取；原准备/执行全量完整性门禁保留。跨项目/非成员、非OS/未批准/隔离、失效依赖均拒绝。空依赖或缺矩阵显示未知，不把依赖关系、CPU架构匹配当兼容结论，也不推定驱动已经预装或现场已安装。
 
 单机装机准备表单与机柜逐机准备复用同一按用户/项目/介质分key的只读展示组件，OS选择后联动驱动精确版本/摘要/架构与矩阵出处；完整组合逐行展示，禁止跨行混搭。实际预装信息仍来自§119首启观测。既有OS composition用例新增metadata无对象提供者可读、精确driver/matrix、空列表、跨项目及retired依赖拒绝的源码，未运行；仅格式化/API生成（/tmp/keel-os-dependency-api-generation.log），没有编译/静态/功能/DB/浏览器/镜像验证。源54/运行46、3000旧版，无迁移/部署/push，P1仍partial。
+
+
+## 123. 凭据恢复区分已查询终态失败与unknown（2026-10-26，未验证源码）
+
+接续e01bb81，修复只读回原trust.install回执时，以原批准bootstrap binding全新固定pin连接查询确认终态failed，生成独立不透明失败proof；该proof绑定原命令/attempt/fence、首启plan、精确bootstrap公开身份和新鲜查询，不从认证失败、丢包或回执缺失推断终态。真实success仍必须新域钥全新握手查询原回执，不能用bootstrap成功回读替代。
+
+单机/批量/worker共用的恢复结果增加failed终态：只在真实查询失败proof有效时落库，保留原机器资源和unverified，不排队身份成功核验；允许重新申请独立审批来恢复同一冻结域钥，不自动重放且不推断先前零副作用。unknown/孤立派发仍禁止新申请或撤销绕过，只能查询原命令；helper客户条目保留与ownership拒绝边界保持。057尚未应用，直接补该未执行schema的failed状态/合法转换/审批约束。
+
+localhost用例源码增加ownership缺失拒绝后的终态查询、失败proof不可作成功、跨bootstrap拒绝及失败回执query不重放断言，未运行。仅格式化/API生成（/tmp/keel-key-repair-outcomes-api-generation.log），无编译/静态/功能/DB/浏览器/镜像验证；源54/运行46、3000旧版，无迁移/部署/push，P1仍partial。

@@ -15,7 +15,7 @@ export function KeyRepair({item,progress,refresh,onSelectBatch,selectedBatchMode
  const {t}=useTranslation(),session=useSession(),project=useProject(),[choice,setChoice]=useState<Choice>()
  const allowed=(session.user.is_admin || ['Admin','DL','SRE'].includes(project.role)) && !['archived','delivered'].includes(project.state)
  const repair=progress.key_repair, held=progress.state==='awaiting_first_boot' && progress.resource.lease_state==='held' && !progress.resource.lease_expired
- const active=repair && !['revoked','succeeded'].includes(repair.state)
+ const active=repair && !['revoked','succeeded','failed'].includes(repair.state)
  const live=!!repair && new Date(repair.expires_at).getTime()>Date.now()
  const approval=allowed && (session.user.is_admin || ['Admin','DL'].includes(project.role)) && repair?.created_by!==session.user.id
  const current=held && !!choice && progress.state_version===choice.version && (choice.mode==='create' ? !active && progress.ssh_repair?.status==='available' : !!repair && repair.id===choice.repair?.id && repair.state_version===choice.repair?.state_version)

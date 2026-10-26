@@ -9,10 +9,10 @@ CREATE TABLE provision_key_repairs (
  approved_by varchar(32) REFERENCES users(id),
  created_at timestamptz NOT NULL,
  expires_at timestamptz NOT NULL CHECK(expires_at>created_at),
- state varchar NOT NULL CHECK(state IN('pending','approved','consumed','unknown','succeeded','revoked')),
+ state varchar NOT NULL CHECK(state IN('pending','approved','consumed','unknown','succeeded','failed','revoked')),
  state_version bigint NOT NULL DEFAULT 1 CHECK(state_version>0),
  CHECK(approved_by IS NULL OR approved_by<>created_by),
- CHECK(state NOT IN('approved','consumed','unknown','succeeded') OR approved_by IS NOT NULL)
+ CHECK(state NOT IN('approved','consumed','unknown','succeeded','failed') OR approved_by IS NOT NULL)
 );
 CREATE UNIQUE INDEX provision_key_repair_one_active ON provision_key_repairs(installation_id) WHERE state IN('pending','approved','consumed','unknown');
 CREATE INDEX provision_key_repairs_project ON provision_key_repairs(project_id,installation_id,created_at DESC,id);
@@ -25,7 +25,7 @@ BEGIN
  OR (OLD.approved_by IS NOT NULL AND NEW.approved_by IS DISTINCT FROM OLD.approved_by)
  OR NOT ((OLD.state='pending' AND NEW.state IN('approved','revoked'))
  OR (OLD.state='approved' AND NEW.state IN('consumed','revoked'))
- OR (OLD.state='consumed' AND NEW.state IN('unknown','succeeded'))
+ OR (OLD.state='consumed' AND NEW.state IN('unknown','succeeded','failed'))
  OR (OLD.state='unknown' AND NEW.state='consumed')) THEN
   RAISE EXCEPTION 'provision repair snapshot or transition is immutable';
  END IF;

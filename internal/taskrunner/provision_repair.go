@@ -2,6 +2,9 @@ package taskrunner
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"net"
 	"net/netip"
 	"time"
@@ -39,10 +42,13 @@ func (s *SSH) ProvisionRepairBootstrap(project, machine string, p ProvisionSSHPl
 }
 
 type ProvisionKeyRepairProof struct {
-	command     TaskCommand
-	planSHA256  string
-	observation Observation
-	verifiedAt  time.Time
+	bootstrapSHA256 string
+	newKeyHandshake bool
+	queried         bool
+	command         TaskCommand
+	planSHA256      string
+	observation     Observation
+	verifiedAt      time.Time
 }
 
 func (p ProvisionKeyRepairProof) Observation() Observation {
@@ -50,10 +56,24 @@ func (p ProvisionKeyRepairProof) Observation() Observation {
 }
 func (p ProvisionKeyRepairProof) Validate(c TaskCommand, plan ProvisionSSHPlan, now time.Time) error {
 	public, err := installPublicIdentity(plan.Credential.PublicKey, c.ProjectID)
-	if err != nil || p.command != c || c.Operation != "trust.install" || c.PublicKey != plan.Credential.PublicKey || !plan.ExpiresAt.After(now) || c.AuthorizationExpiresAt <= now.UnixMicro() || p.planSHA256 != plan.digest() || p.verifiedAt.IsZero() || p.verifiedAt.After(now.Add(time.Second)) || now.Sub(p.verifiedAt) > time.Minute || p.observation.Validate(c) != nil || p.observation.State != "success" || p.observation.FinishedAt.After(p.verifiedAt.Add(time.Second)) || p.observation.Output["key_installed"] != true || p.observation.Output["public_key_fingerprint"] != ssh.FingerprintSHA256(public) {
+	if err != nil || !p.newKeyHandshake || p.command != c || c.Operation != "trust.install" || c.PublicKey != plan.Credential.PublicKey || !plan.ExpiresAt.After(now) || c.AuthorizationExpiresAt <= now.UnixMicro() || p.planSHA256 != plan.digest() || p.verifiedAt.IsZero() || p.verifiedAt.After(now.Add(time.Second)) || now.Sub(p.verifiedAt) > time.Minute || p.observation.Validate(c) != nil || p.observation.State != "success" || p.observation.FinishedAt.After(p.verifiedAt.Add(time.Second)) || p.observation.Output["key_installed"] != true || p.observation.Output["public_key_fingerprint"] != ssh.FingerprintSHA256(public) {
 		return ErrRejected
 	}
 	return nil
+}
+
+// ValidateQueriedFailure accepts only a terminal receipt read over the frozen
+// bootstrap binding. It never treats authentication failure as an install result.
+func (p ProvisionKeyRepairProof) ValidateQueriedFailure(c TaskCommand, plan ProvisionSSHPlan, bootstrap ProvisionBootstrap, now time.Time) error {
+	if !p.queried || p.newKeyHandshake || p.bootstrapSHA256 != provisionBootstrapSHA256(bootstrap) || p.command != c || c.Validate() != nil || c.Operation != "trust.install" || c.PublicKey != plan.Credential.PublicKey || !plan.ExpiresAt.After(now) || c.AuthorizationExpiresAt <= now.UnixMicro() || p.planSHA256 != plan.digest() || p.verifiedAt.IsZero() || p.verifiedAt.After(now.Add(time.Second)) || now.Sub(p.verifiedAt) > time.Minute || p.observation.Validate(c) != nil || p.observation.State != "failed" || p.observation.FinishedAt.After(p.verifiedAt.Add(time.Second)) {
+		return ErrRejected
+	}
+	return nil
+}
+func provisionBootstrapSHA256(b ProvisionBootstrap) string {
+	raw, _ := json.Marshal(b)
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:])
 }
 
 // RepairProvisionKey issues trust.install at most once when explicitly told to
@@ -73,21 +93,29 @@ func (s *SSH) RepairProvisionKey(ctx context.Context, c TaskCommand, p Provision
 		}
 		s.mu.Unlock()
 	}
-	if mode == "run" {
-		current, err := s.ProvisionRepairBootstrap(c.ProjectID, c.MachineID, p)
-		if err != nil || !sameProvisionBootstrap(current, bootstrap) {
-			return ProvisionKeyRepairProof{}, ErrRejected
-		}
+	current, bootstrapErr := s.ProvisionRepairBootstrap(c.ProjectID, c.MachineID, p)
+	if bootstrapErr == nil && sameProvisionBootstrap(current, bootstrap) {
 		ep, err := s.currentEndpoint(work, c.ProjectID+":"+c.MachineID)
-		if err != nil || ep.binding != bootstrap.Binding {
+		if err == nil && ep.binding == bootstrap.Binding {
+			id := c.ProjectID + ":" + c.MachineID + ":provision-repair-bootstrap:" + c.CommandID
+			closeSession(id)
+			defer closeSession(id)
+			if mode == "run" {
+				_, _ = s.doEndpoint(work, Request{Action: "run", Command: c}, id, ep)
+			}
+			closeSession(id) // Receipt classification requires a fresh pinned query.
+			o, e := s.doEndpoint(work, Request{Action: "query", Command: c}, id, ep)
+			if e == nil {
+				failed := ProvisionKeyRepairProof{command: c, planSHA256: p.digest(), bootstrapSHA256: provisionBootstrapSHA256(bootstrap), observation: o, verifiedAt: time.Now().UTC(), queried: true}
+				if failed.ValidateQueriedFailure(c, p, bootstrap, time.Now()) == nil {
+					return failed, nil
+				}
+			}
+		} else if mode == "run" {
 			return ProvisionKeyRepairProof{}, ErrRejected
 		}
-		id := c.ProjectID + ":" + c.MachineID + ":provision-repair-bootstrap:" + c.CommandID
-		closeSession(id)
-		defer closeSession(id)
-		// Even an ambiguous response falls through only to the immutable query
-		// under the new key. There is no second run call.
-		_, _ = s.doEndpoint(work, Request{Action: "run", Command: c}, id, ep)
+	} else if mode == "run" {
+		return ProvisionKeyRepairProof{}, ErrRejected
 	}
 	probe := c
 	probe.Operation = "host.identity"
@@ -104,7 +132,7 @@ func (s *SSH) RepairProvisionKey(ctx context.Context, c TaskCommand, p Provision
 	if err != nil {
 		return ProvisionKeyRepairProof{}, err
 	}
-	proof := ProvisionKeyRepairProof{command: c, planSHA256: p.digest(), observation: o, verifiedAt: time.Now().UTC()}
+	proof := ProvisionKeyRepairProof{newKeyHandshake: true, queried: true, command: c, planSHA256: p.digest(), observation: o, verifiedAt: time.Now().UTC()}
 	if proof.Validate(c, p, time.Now()) != nil {
 		return ProvisionKeyRepairProof{}, ErrUnknown
 	}

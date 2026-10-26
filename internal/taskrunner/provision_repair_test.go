@@ -94,6 +94,27 @@ func TestProvisionKeyRepairFreshDomainHandshake(t *testing.T) {
 	if proof.Validate(c, wrong, time.Now()) == nil {
 		t.Fatal("changed credential accepted")
 	}
+	// An ownership-loss injection makes the helper reject customer adoption.
+	// Only a fresh query of that exact terminal receipt may classify failure.
+	if err = os.WriteFile(filepath.Join(keysDir, ".keel-key-ownership.json"), []byte("{}"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	failedCommand := c
+	failedCommand.CommandID = strings.Repeat("f", 32)
+	failed, err := runner.RepairProvisionKey(context.Background(), failedCommand, plan, bootstrap, "run")
+	if err != nil || failed.ValidateQueriedFailure(failedCommand, plan, bootstrap, time.Now()) != nil || failed.Validate(failedCommand, plan, time.Now()) == nil {
+		t.Fatal("terminal failure conflated with success/unknown", err)
+	}
+	changedBootstrap := bootstrap
+	changedBootstrap.Binding.ConfigHash = strings.Repeat("0", 64)
+	if failed.ValidateQueriedFailure(failedCommand, plan, changedBootstrap, time.Now()) == nil {
+		t.Fatal("failed proof crossed bootstrap binding")
+	}
+	before = f.runs.Load()
+	queriedFailure, err := runner.RepairProvisionKey(context.Background(), failedCommand, plan, bootstrap, "query")
+	if err != nil || queriedFailure.ValidateQueriedFailure(failedCommand, plan, bootstrap, time.Now()) != nil || f.runs.Load() != before {
+		t.Fatal("failed receipt query replayed install", err)
+	}
 }
 
 func TestProvisionKeyRepairRejectsImplicitBootstrap(t *testing.T) {
