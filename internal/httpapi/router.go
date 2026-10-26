@@ -90,6 +90,7 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 		auth.registerBomImport(r)
 		auth.registerProvisionPreview(r)
 		auth.registerProvisionRequests(r)
+		auth.registerProvisionScopes(r)
 		auth.registerBOMMappingProfiles(r)
 		auth.registerBOMPackages(r)
 		auth.registerNetworkBaselines(r)

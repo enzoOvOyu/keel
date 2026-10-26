@@ -2,6 +2,11 @@ import { request } from './api'
 import type { components } from '../generated/api'
 import type { components as execution } from '../generated/execution'
 export type ProvisionRequest = components['schemas']['ProvisionRequest']
+export type ProvisionBootScope = components['schemas']['ProvisionBootScope']
+export type CreateProvisionBootScope = components['schemas']['CreateProvisionBootScope']
+export const listProvisionBootScopes = (project:string,page:number,signal:AbortSignal) => request<components['schemas']['ProvisionBootScopePage']>(`${provisionBase(project)}/boot-scopes?page=${page}&page_size=20`,{signal})
+export const createProvisionBootScope = (project:string,input:CreateProvisionBootScope,csrf:string) => request<ProvisionBootScope>(`${provisionBase(project)}/boot-scopes`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify(input)})
+export const actProvisionBootScope = (item:ProvisionBootScope,kind:'approve'|'revoke',input:components['schemas']['ApproveProvisionBootScope']|components['schemas']['RevokeProvisionBootScope'],csrf:string) => request<ProvisionBootScope>(`${provisionBase(item.project_id)}/boot-scopes/${encodeURIComponent(item.id)}/${kind}`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify(input)})
 export const provisionBase = (project: string) => `/projects/${encodeURIComponent(project)}/provision`
 export const listProvisionRequests = (project: string,page: number,signal: AbortSignal) => request<components['schemas']['ProvisionRequestPage']>(`${provisionBase(project)}/requests?page=${page}&page_size=20`,{signal})
 export const provisionPublicKeys = (project: string,page: number,signal: AbortSignal) => request<components['schemas']['SSHDomainKeyPage']>(`${provisionBase(project)}/public-keys?page=${page}&page_size=20`,{signal})

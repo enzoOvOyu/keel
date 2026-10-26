@@ -1232,3 +1232,11 @@ Makefile新增双架构build-initrd，CI已有ARM编译列表加入新命令，�
 接续68ec35e，新增mediaboot.RuntimeSet，先批准init/preflight/ssh_helper/smartctl/public-CA五个无子依赖输入及独立config，再生产initrd，最后另批产物并纳入OS recipe；不依赖未来成品。provisionimage完整固定gzip/newc写入/反向检查复用原CPIO/ELF实现，CA解析移到共享字节层；mediamanifest提供独立验签、全五项hash/arch/size校验、受保护目录0600原子非覆盖发布和校验。keel-admin新增provision-initrd-create/verify早期离线分支，源码不依赖DB/网络、不执行组件。ForPlan入口核对归档实际摘要及内含helper与最终Plan一致，但尚未生产Authority调用。
 
 新runtime JSON/归档/签名/发布/错绑用例仅写入；provision-only和全media入口regex加入TestInstallerInitrd。未执行CLI/功能用例/镜像构建/硬件启动。仅定向编译/vet（/tmp/keel-runtime-image-{compile,vet}.log）及文档/脚本静态检查。完整归档源码不等于已验收可启动镜像，更不等于写盘许可；内建驱动/内核能力与真实smartctl仍需独立输入及PoC。P1 partial，下一步实际安装Execution/lease、一次性凭据/回调与持久存储审批。
+
+## 97. 服务器引导域独立审批与双向网络冲突边界（2026-10-26，源码待集中验证）
+
+接续178119d，新增054_provision_boot_scopes、平台/HTTP/OpenAPI/生成TS和装机页网络域面板，复用既有shadcn/ui和字体。当前Admin/NDE固定接口/HTTPS源/CIDR/外部管理网段显式清单和方案来源，独立另一人持客户/网络批准引用审批；不可变DB证据、版本并发、跨项目隔离、只读成员与闭项仍可撤销。LoadApproved入口校验当前审批角色/项目及平台已批准管理网段；network baseline批准反向拒绝服务器域重叠，两侧使用统一变更锁序，普通live读取不持全局变更锁。尚无生产监听/安装Authority调用。
+
+新增独立审批、声明清单、scope/baseline双向冲突、并发只准一个、撤销、当前NDE失权、DE/Viewer及跨项目用例只写入。provision-only regex补入TestProvisionBootScope。实际定向编译/vet与OpenAPI类型生成、npm run check（含UI边界检查），日志/tmp/keel-provision-scopes-{compile,vet,api,tsc}.log；没有应用054/其他SQL、跑集成或浏览器、构建发布镜像。P1 partial；下一步绑定实际安装Execution/独占lease、一次性启动凭据及存储审批。
+
+§97检查补充：最终直接tsc --noEmit -p web/tsconfig.json及定向编译退出0。npm run check自身含6条版本输入静态检查器自检并已通过（不是新增产品用例/浏览器验收）；额外误调用不存在的scripts/check-ui-boundaries.py退出2，未重跑同类检查，正确web/scripts/check-ui-boundaries.mjs已由npm run check通过。后续仅用直接tsc与必要静态入口，避免重复生成/检查。

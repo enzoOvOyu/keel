@@ -4,6 +4,75 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{id}/provision/boot-scopes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Current project member; registry data only, no installation/network capability. */
+        get: operations["listProvisionBootScopes"];
+        put?: never;
+        /** @description Admin/NDE only in an open project. Immutable intent and exact state version; approval requires another authorized reviewer plus customer/network references. Current platform Kea pools and approved server domains must not overlap. External pool inventory is explicit and independently reviewed. No DHCP/PXE activation. */
+        post: operations["createProvisionBootScope"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/boot-scopes/{scopeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Current project member; registry data only, no installation/network capability. */
+        get: operations["readProvisionBootScope"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/boot-scopes/{scopeId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Admin/NDE only in an open project. Immutable intent and exact state version; approval requires another authorized reviewer plus customer/network references. Current platform Kea pools and approved server domains must not overlap. External pool inventory is explicit and independently reviewed. No DHCP/PXE activation. */
+        post: operations["approveProvisionBootScope"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/boot-scopes/{scopeId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Current Admin/NDE may revoke an exact version, including in a closed project. New boot/write authorization is denied immediately on the next live check; unknown writes retain their device lock. No service is started or stopped. */
+        post: operations["revokeProvisionBootScope"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/provision/requests": {
         parameters: {
             query?: never;
@@ -2386,6 +2455,64 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ProvisionBootScopeConfig: {
+            id: string;
+            project_id: string;
+            interface: string;
+            /** Format: ipv4 */
+            server: string;
+            clients: string;
+            origin: string;
+            kea_networks: string[];
+            /** @constant */
+            development: false;
+        };
+        CreateProvisionBootScope: {
+            interface: string;
+            /** Format: ipv4 */
+            server_ipv4: string;
+            client_cidr: string;
+            origin: string;
+            kea_networks: string[];
+            source_ref: string;
+        };
+        ApproveProvisionBootScope: {
+            expected_version: number;
+            customer_approval_ref: string;
+            network_approval_ref: string;
+        };
+        RevokeProvisionBootScope: {
+            expected_version: number;
+            reason: string;
+        };
+        ProvisionBootScope: {
+            id: string;
+            project_id: string;
+            scope: components["schemas"]["ProvisionBootScopeConfig"];
+            scope_sha256: string;
+            source_ref: string;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            state: "requested" | "approved" | "revoked";
+            state_version: number;
+            approved_by?: string;
+            /** Format: date-time */
+            approved_at?: string;
+            customer_approval_ref?: string;
+            network_approval_ref?: string;
+            revoked_by?: string;
+            /** Format: date-time */
+            revoked_at?: string;
+            revocation_reason?: string;
+        };
+        ProvisionBootScopePage: {
+            items: components["schemas"]["ProvisionBootScope"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
         SSHInstallCredential: {
             id: string;
             credential_ref: string;
@@ -4825,6 +4952,165 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listProvisionBootScopes: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current scoped registry record; no listener is started */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionBootScopePage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    createProvisionBootScope: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProvisionBootScope"];
+            };
+        };
+        responses: {
+            /** @description Current scoped registry record; no listener is started */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionBootScope"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    readProvisionBootScope: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                scopeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current scoped registry record; no listener is started */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionBootScope"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    approveProvisionBootScope: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: string;
+                scopeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveProvisionBootScope"];
+            };
+        };
+        responses: {
+            /** @description Current scoped registry record; no listener is started */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionBootScope"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    revokeProvisionBootScope: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: string;
+                scopeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeProvisionBootScope"];
+            };
+        };
+        responses: {
+            /** @description Current scoped registry record; no listener is started */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionBootScope"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     listProvisionRequests: {
         parameters: {
             query?: {

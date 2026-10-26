@@ -15,7 +15,7 @@ export function ActionError({ error }: { error: unknown }) {
   const { t } = useTranslation()
   if (!error) return null
   const known: Record<string, string> = {
-    VERSION_CONFLICT: 'versionConflict', CURRENT_PASSWORD_INVALID: 'currentPasswordInvalid', LAST_PLATFORM_ADMIN: 'lastAdminProtected', LAST_PROJECT_ADMIN: 'lastProjectAdminProtected', MEMBER_EXISTS: 'memberExists', USER_NOT_FOUND: 'userNotFound', CONFLICT: 'versionConflict', USERNAME_EXISTS: 'usernameExists',
+    PROVISION_NETWORK_CONFLICT: 'provisionNetworkConflict', PROVISION_INDEPENDENT_APPROVAL_REQUIRED: 'provisionIndependentReview', VERSION_CONFLICT: 'versionConflict', CURRENT_PASSWORD_INVALID: 'currentPasswordInvalid', LAST_PLATFORM_ADMIN: 'lastAdminProtected', LAST_PROJECT_ADMIN: 'lastProjectAdminProtected', MEMBER_EXISTS: 'memberExists', USER_NOT_FOUND: 'userNotFound', CONFLICT: 'versionConflict', USERNAME_EXISTS: 'usernameExists',
     USER_EXISTS: 'usernameExists', LAST_ADMIN: 'lastAdminProtected', LAST_ADMIN_REQUIRED: 'lastAdminProtected',
     INVALID_CREDENTIALS: 'currentPasswordInvalid', VALIDATION_ERROR: 'invalidFields',
     CSRF_INVALID: 'loginContextExpired', ORIGIN_FORBIDDEN: 'loginContextExpired',

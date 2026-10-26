@@ -140,6 +140,10 @@ func (s *Store) ApproveNetworkBaseline(ctx context.Context, a *AuthSession, proj
 	if err = requireProjectAdmin(ctx, tx, a, project.ID); err != nil {
 		return nil, err
 	}
+	// Same lock order as server-domain approval: ownership before baseline row.
+	if err = lockKey(ctx, tx, "provision.network-ownership"); err != nil {
+		return nil, err
+	}
 	out := &NetworkBaselineVersion{EngineeringLimits: NetworkEngineeringLimits{}}
 	var raw []byte
 	err = tx.QueryRowContext(ctx, `SELECT id,state,source_ref,engineering_limits,created_at FROM network_baseline_versions WHERE project_id=$1 AND version_ref=$2 FOR UPDATE`, project.ID, versionRef).Scan(&out.ID, &out.State, &out.SourceRef, &raw, &out.CreatedAt)
@@ -154,6 +158,11 @@ func (s *Store) ApproveNetworkBaseline(ctx context.Context, a *AuthSession, proj
 	}
 	if err = json.Unmarshal(raw, &out.EngineeringLimits); err != nil {
 		return nil, err
+	}
+	if out.EngineeringLimits.Management != nil {
+		if err = rejectProvisionScopeOverlapTx(ctx, tx, out.EngineeringLimits.Management.CIDR); err != nil {
+			return nil, err
+		}
 	}
 	out.ProjectID = project.ID
 	out.VersionRef = versionRef
