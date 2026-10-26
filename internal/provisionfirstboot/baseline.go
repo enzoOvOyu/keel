@@ -47,7 +47,7 @@ func (b *SoftwareBaseline) Validate() error {
 	if b == nil {
 		return nil
 	} // Older v1 helpers did not send this optional observation.
-	if !baselineValue(b.OSID, 128) || !baselineValue(b.OSVersion, 128) || !baselineValue(b.KernelRelease, 256) || b.PackageSource != "dpkg-status/driver-packages-v1" || (b.PackageStatus != "observed" && b.PackageStatus != "unknown") || b.DriverPackages == nil || len(b.DriverPackages) > 64 || (b.PackageStatus == "unknown" && len(b.DriverPackages) != 0) {
+	if !baselineValue(b.OSID, 128) || !baselineValue(b.OSVersion, 128) || !baselineValue(b.KernelRelease, 256) || b.PackageSource != "dpkg-status/driver-packages-v1" || (b.PackageStatus != "observed" && b.PackageStatus != "unknown") || b.DriverPackages == nil || len(b.DriverPackages) > 32 || (b.PackageStatus == "unknown" && len(b.DriverPackages) != 0) {
 		return ErrDenied
 	}
 	previous := ""
@@ -89,7 +89,7 @@ func parseDriverPackages(raw []byte) ([]DriverPackage, error) {
 		}
 		p := DriverPackage{Name: name, Version: fields["Version"], Arch: fields["Architecture"]}
 		key := p.Name + ":" + p.Arch
-		if !packageName.MatchString(p.Name) || !packageArch.MatchString(p.Arch) || !packageVersion.MatchString(p.Version) || seen[key] || len(out) >= 64 {
+		if !packageName.MatchString(p.Name) || !packageArch.MatchString(p.Arch) || !packageVersion.MatchString(p.Version) || seen[key] || len(out) >= 32 {
 			return ErrDenied
 		}
 		seen[key] = true

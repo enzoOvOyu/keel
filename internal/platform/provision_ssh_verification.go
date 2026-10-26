@@ -132,7 +132,7 @@ func requestProvisionSSHVerificationTx(ctx context.Context, tx *sql.Tx, a *AuthS
 
 func provisionPendingFirstSSHWorkTx(ctx context.Context, tx *sql.Tx, id string) (bool, error) {
 	var pending bool
-	err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM provision_installation_events r WHERE r.installation_id=$1 AND ((r.event_type='first_boot.ssh_retry_requested' AND NOT EXISTS(SELECT 1 FROM provision_installation_events c WHERE c.installation_id=r.installation_id AND c.event_type='first_boot.ssh_retry_consumed' AND c.payload->>'retry_id'=r.payload->>'retry_id')) OR (r.event_type='first_boot.ssh_verification_requested' AND NOT EXISTS(SELECT 1 FROM provision_installation_events c WHERE c.installation_id=r.installation_id AND c.event_type='first_boot.ssh_verification_consumed' AND c.payload->>'verification_id'=r.payload->>'verification_id'))))`, id).Scan(&pending)
+	err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM provision_key_repairs k WHERE k.installation_id=$1 AND k.state IN('pending','approved','consumed','unknown')) OR EXISTS(SELECT 1 FROM provision_installation_events r WHERE r.installation_id=$1 AND ((r.event_type='first_boot.ssh_retry_requested' AND NOT EXISTS(SELECT 1 FROM provision_installation_events c WHERE c.installation_id=r.installation_id AND c.event_type='first_boot.ssh_retry_consumed' AND c.payload->>'retry_id'=r.payload->>'retry_id')) OR (r.event_type='first_boot.ssh_verification_requested' AND NOT EXISTS(SELECT 1 FROM provision_installation_events c WHERE c.installation_id=r.installation_id AND c.event_type='first_boot.ssh_verification_consumed' AND c.payload->>'verification_id'=r.payload->>'verification_id'))))`, id).Scan(&pending)
 	return pending, err
 }
 
@@ -195,6 +195,21 @@ func provisionCurrentFirstSSHWorkTx(ctx context.Context, tx *sql.Tx, x *Provisio
 		if !modelIDPattern.MatchString(auth.ID) {
 			return nil, ErrProvisionBootDenied
 		}
+		if auth.Kind == "first_boot.ssh_verification_requested" {
+			var repairID string
+			if err = tx.QueryRowContext(ctx, `SELECT COALESCE(payload->>'key_repair_id','') FROM provision_installation_events WHERE installation_id=$1 AND event_type=$2 AND payload->>$3=$4 ORDER BY id DESC LIMIT 1`, x.ID, auth.Kind, auth.Field, auth.ID).Scan(&repairID); err != nil {
+				return nil, err
+			}
+			if repairID != "" {
+				if repairID != auth.ID {
+					return nil, ErrProvisionBootDenied
+				}
+				r, repairErr := validateProvisionRepairedProofTx(ctx, tx, x, repairID)
+				if repairErr != nil || r.Snapshot.Credential != current.Plan.Credential || r.Snapshot.BindingSHA256 != current.Plan.BindingSHA256 || r.Snapshot.ReportSHA256 != current.ReportSHA256 {
+					return nil, ErrProvisionBootDenied
+				}
+			}
+		}
 		var actor string
 		if err = tx.QueryRowContext(ctx, `SELECT payload->>'requested_by' FROM provision_installation_events WHERE installation_id=$1 AND event_type=$2 AND payload->>$3=$4 ORDER BY id DESC LIMIT 1`, x.ID, auth.Kind, auth.Field, auth.ID).Scan(&actor); err != nil {
 			return nil, err
@@ -238,7 +253,7 @@ func (s *Store) RecordProvisionFirstSSHFailure(ctx context.Context, project, id 
 	return tx.Commit()
 }
 
-func prepareProvisionFirstSSHVerificationTx(ctx context.Context, tx *sql.Tx, x *ProvisionInstallation, request *ProvisionRequest, scope *ProvisionBootScope, until time.Time) (*ProvisionFirstSSHWork, error) {
+func (s *Store) prepareProvisionFirstSSHVerificationTx(ctx context.Context, tx *sql.Tx, x *ProvisionInstallation, request *ProvisionRequest, scope *ProvisionBootScope, until time.Time) (*ProvisionFirstSSHWork, error) {
 	var raw []byte
 	err := tx.QueryRowContext(ctx, `SELECT r.payload FROM provision_installation_events r WHERE r.installation_id=$1 AND r.event_type='first_boot.ssh_verification_requested' AND NOT EXISTS(SELECT 1 FROM provision_installation_events c WHERE c.installation_id=r.installation_id AND c.event_type='first_boot.ssh_verification_consumed' AND c.payload->>'verification_id'=r.payload->>'verification_id') ORDER BY r.id LIMIT 1`, x.ID).Scan(&raw)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -248,6 +263,7 @@ func prepareProvisionFirstSSHVerificationTx(ctx context.Context, tx *sql.Tx, x *
 		return nil, err
 	}
 	var in struct {
+		KeyRepairID       string `json:"key_repair_id"`
 		ID                string `json:"verification_id"`
 		RepairEventID     int64  `json:"repair_event_id"`
 		FailedEventID     int64  `json:"failed_event_id"`
@@ -260,6 +276,12 @@ func prepareProvisionFirstSSHVerificationTx(ctx context.Context, tx *sql.Tx, x *
 	}
 	if json.Unmarshal(raw, &in) != nil || !modelIDPattern.MatchString(in.ID) || in.Mode != "run" || in.NativeCommandID != *x.CommandID || in.AttemptID != *x.AttemptID || in.FencingToken != *x.FencingToken {
 		return nil, ErrProvisionBootDenied
+	}
+	if in.KeyRepairID != "" {
+		if in.KeyRepairID != in.ID {
+			return nil, ErrProvisionBootDenied
+		}
+		return s.prepareProvisionRepairedIdentityTx(ctx, tx, x, request, scope, until, in.ID)
 	}
 	if err = validateProvisionSSHRetryActorTx(ctx, tx, x.ProjectID, in.RequestedBy); err != nil {
 		return nil, err

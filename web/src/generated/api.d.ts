@@ -4,6 +4,74 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{id}/provision/installations/{installationId}/key-repairs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Restore only the frozen installation domain public key using an explicitly configured temporary credential pinned to the authenticated first-boot host. Independent Admin/DL approval required. Original attempt/fence/exclusive reservation remain; no reinstall or lease renewal. Uncertain mutations are explicit-query-only and must prove a fresh new-key handshake before separate identity verification. */
+        post: operations["requestProvisionKeyRepair"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/installations/{installationId}/key-repairs/{repairId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Restore only the frozen installation domain public key using an explicitly configured temporary credential pinned to the authenticated first-boot host. Independent Admin/DL approval required. Original attempt/fence/exclusive reservation remain; no reinstall or lease renewal. Uncertain mutations are explicit-query-only and must prove a fresh new-key handshake before separate identity verification. */
+        post: operations["actProvisionKeyRepairApprove"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/installations/{installationId}/key-repairs/{repairId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Restore only the frozen installation domain public key using an explicitly configured temporary credential pinned to the authenticated first-boot host. Independent Admin/DL approval required. Original attempt/fence/exclusive reservation remain; no reinstall or lease renewal. Uncertain mutations are explicit-query-only and must prove a fresh new-key handshake before separate identity verification. */
+        post: operations["actProvisionKeyRepairRevoke"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/provision/installations/{installationId}/key-repairs/{repairId}/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Restore only the frozen installation domain public key using an explicitly configured temporary credential pinned to the authenticated first-boot host. Independent Admin/DL approval required. Original attempt/fence/exclusive reservation remain; no reinstall or lease renewal. Uncertain mutations are explicit-query-only and must prove a fresh new-key handshake before separate identity verification. */
+        post: operations["actProvisionKeyRepairQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/provision/requests/{requestId}/rollout": {
         parameters: {
             query?: never;
@@ -2929,6 +2997,64 @@ export interface components {
             media: components["schemas"]["MediaBootArtifact"][];
             observation?: components["schemas"]["ProvisionBaselineObservation"];
         };
+        ProvisionKeyRepairInput: {
+            /** Format: int64 */
+            expected_version: number;
+            /** Format: int64 */
+            repair_event_id: number;
+            confirm_serial: string;
+            reason: string;
+        };
+        ProvisionKeyRepairActionInput: {
+            /** Format: int64 */
+            expected_version: number;
+            reason: string;
+        };
+        ProvisionRepairBootstrap: {
+            binding: {
+                host_key: string;
+                config_hash: string;
+            };
+            credential: {
+                credential_ref: string;
+                credential_version: string;
+                /** Format: date-time */
+                credential_expires_at: string;
+            };
+        };
+        ProvisionKeyRepairSnapshot: {
+            /** Format: int64 */
+            installation_version: number;
+            /** Format: int64 */
+            repair_event_id: number;
+            native_command_id: string;
+            attempt_id: string;
+            /** Format: int64 */
+            fencing_token: number;
+            report_sha256: string;
+            binding_sha256: string;
+            host_key: string;
+            serial_number: string;
+            credential: components["schemas"]["SSHInstallCredential"];
+            bootstrap: components["schemas"]["ProvisionRepairBootstrap"];
+            reason: string;
+        };
+        ProvisionKeyRepair: {
+            id: string;
+            installation_id: string;
+            project_id: string;
+            snapshot: components["schemas"]["ProvisionKeyRepairSnapshot"];
+            created_by: string;
+            approved_by?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @enum {string} */
+            state: "pending" | "approved" | "consumed" | "unknown" | "succeeded" | "revoked";
+            /** Format: int64 */
+            state_version: number;
+        };
         ProvisionInstallationProgress: {
             installation_id: string;
             state: string;
@@ -2947,6 +3073,7 @@ export interface components {
             ssh_configuration?: "matched" | "configuration_required" | "identity_changed" | "credential_unavailable";
             rollout?: components["schemas"]["ProvisionRollout"];
             installed_baseline?: components["schemas"]["ProvisionInstalledBaseline"];
+            key_repair?: components["schemas"]["ProvisionKeyRepair"];
         };
         ProvisionRackRequestItem: {
             asset_id: string;
@@ -5568,6 +5695,189 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    requestProvisionKeyRepair: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                installationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionKeyRepairInput"];
+            };
+        };
+        responses: {
+            /** @description Durable authorization state; no implicit trust establishment */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionKeyRepair"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Installation or SSH unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    actProvisionKeyRepairApprove: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                installationId: string;
+                repairId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionKeyRepairActionInput"];
+            };
+        };
+        responses: {
+            /** @description Durable authorization state; no implicit trust establishment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionKeyRepair"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Installation or SSH unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    actProvisionKeyRepairRevoke: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                installationId: string;
+                repairId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionKeyRepairActionInput"];
+            };
+        };
+        responses: {
+            /** @description Durable authorization state; no implicit trust establishment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionKeyRepair"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Installation or SSH unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    actProvisionKeyRepairQuery: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                installationId: string;
+                repairId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionKeyRepairActionInput"];
+            };
+        };
+        responses: {
+            /** @description Durable authorization state; no implicit trust establishment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionKeyRepair"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Installation or SSH unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     previewProvisionRollout: {
         parameters: {
             query?: never;

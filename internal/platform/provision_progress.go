@@ -32,6 +32,7 @@ type ProvisionProgressResource struct {
 	ReconciliationRequired bool       `json:"reconciliation_required"`
 }
 type ProvisionInstallationProgress struct {
+	KeyRepair         *ProvisionKeyRepair         `json:"key_repair,omitempty"`
 	InstalledBaseline *ProvisionInstalledBaseline `json:"installed_baseline,omitempty"`
 	Rollout           *ProvisionRollout           `json:"rollout,omitempty"`
 	InstallationID    string                      `json:"installation_id"`
@@ -200,6 +201,10 @@ func (s *Store) ReadProvisionInstallationProgress(ctx context.Context, a *AuthSe
 		return nil, err
 	}
 
+	out.KeyRepair, err = readProvisionKeyRepairTx(ctx, tx, x)
+	if err != nil {
+		return nil, err
+	}
 	out.SSHRepair, err = readProvisionSSHRepairTx(ctx, tx, x)
 	if err != nil {
 		return nil, err

@@ -123,7 +123,7 @@ func (s *Store) PrepareProvisionFirstSSH(ctx context.Context, project, id, execu
 		return nil, err
 	}
 	if already {
-		work, verificationErr := prepareProvisionFirstSSHVerificationTx(ctx, tx, x, request, scope, until)
+		work, verificationErr := s.prepareProvisionFirstSSHVerificationTx(ctx, tx, x, request, scope, until)
 		if verificationErr != nil || work != nil {
 			return work, verificationErr
 		}

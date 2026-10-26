@@ -58,6 +58,7 @@ DO $keel$ BEGIN
   END IF;
   IF to_regclass('public.agent_connections') IS NOT NULL THEN REVOKE DELETE,TRUNCATE ON agent_connections FROM keel_app; END IF;
   IF to_regclass('public.agent_certificate_renewals') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON agent_certificate_renewals FROM keel_app; END IF;
+  IF to_regclass('public.provision_key_repairs') IS NOT NULL THEN REVOKE DELETE,TRUNCATE ON provision_key_repairs FROM keel_app; END IF;
   IF to_regclass('public.ssh_trust_requests') IS NOT NULL THEN REVOKE DELETE,TRUNCATE ON ssh_trust_requests FROM keel_app; END IF;
 END $keel$;''')
 origins=','.join('http://'+host+':'+port for port in ('3000','3001','5173') for host in ('localhost','127.0.0.1'))

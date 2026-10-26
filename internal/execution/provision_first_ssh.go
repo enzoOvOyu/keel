@@ -12,6 +12,9 @@ import (
 )
 
 func (s *Service) runProvisionFirstSSH(ctx context.Context, c *Claim) (bool, error) {
+	if active, err := s.runProvisionKeyRepair(ctx, c); active || err != nil {
+		return false, err
+	}
 	// Ordinary boot/preflight polling does not load the multi-MiB report or open
 	// any SSH connection. Only an installed-system identity enters this branch.
 	var state string

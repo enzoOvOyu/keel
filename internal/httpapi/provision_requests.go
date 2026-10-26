@@ -6,6 +6,7 @@ import (
 )
 
 func (a *authAPI) registerProvisionRequests(r *gin.Engine) {
+	a.registerProvisionKeyRepairs(r)
 	r.GET("/api/v1/projects/:id/provision/requests/:requestId/rollout", func(c *gin.Context) {
 		actor, _, ok := a.executionProject(c, false)
 		if !ok {
