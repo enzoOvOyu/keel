@@ -1,3 +1,4 @@
+import type { KeyRepairBatchMode } from './KeyRepairBatch'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -10,7 +11,7 @@ import { useSession } from '../../lib/session'
 import { actProvisionKeyRepair, requestProvisionKeyRepair, type ProvisionInstallation, type ProvisionInstallationProgress, type ProvisionKeyRepair } from '../../lib/provision'
 
 type Choice = { mode:'create'|'approve'|'revoke'|'query'; version:number; repair?:ProvisionKeyRepair }
-export function KeyRepair({item,progress,refresh}:{item:ProvisionInstallation;progress:ProvisionInstallationProgress;refresh:()=>Promise<void>}) {
+export function KeyRepair({item,progress,refresh,onSelectBatch,selectedBatchMode,canSelectBatch}:{item:ProvisionInstallation;progress:ProvisionInstallationProgress;refresh:()=>Promise<void>;onSelectBatch?:(mode:KeyRepairBatchMode)=>void;selectedBatchMode?:KeyRepairBatchMode;canSelectBatch?:(mode:KeyRepairBatchMode)=>boolean}) {
  const {t}=useTranslation(),session=useSession(),project=useProject(),[choice,setChoice]=useState<Choice>()
  const allowed=(session.user.is_admin || ['Admin','DL','SRE'].includes(project.role)) && !['archived','delivered'].includes(project.state)
  const repair=progress.key_repair, held=progress.state==='awaiting_first_boot' && progress.resource.lease_state==='held' && !progress.resource.lease_expired
@@ -21,6 +22,7 @@ export function KeyRepair({item,progress,refresh}:{item:ProvisionInstallation;pr
  return <div className="ui:space-y-2"><h4>{t('keyRepairTitle')}</h4><p className="cell-subtitle">{t('keyRepairHint')}</p>{repair && <><p>{t(`keyRepairState_${repair.state}`)} · v{repair.state_version}</p><p className="mono-value ui:break-all">{repair.snapshot.host_key}</p><p>{t('keyRepairFrozenKey')}: {repair.snapshot.credential.id} · {repair.snapshot.credential.credential_version}</p><p>{t('keyRepairRequester')}: {repair.created_by}{repair.approved_by && <> · {t('keyRepairApprover')}: {repair.approved_by}</>}</p><p>{t('provisionExpiry')}: {new Date(repair.expires_at).toLocaleString()}</p></>}
  {allowed && held && !active && progress.ssh_repair?.status==='available' && <Button variant="outline" size="sm" onClick={()=>setChoice({mode:'create',version:progress.state_version})}>{t('keyRepairCreate')}</Button>}
  {allowed && held && repair && <div className="ui:flex ui:flex-wrap ui:gap-2">{approval && live && repair.state==='pending' && <Button variant="outline" size="sm" onClick={()=>setChoice({mode:'approve',version:progress.state_version,repair})}>{t('keyRepairApprove')}</Button>}{['pending','approved'].includes(repair.state) && <Button variant="outline" size="sm" onClick={()=>setChoice({mode:'revoke',version:progress.state_version,repair})}>{t('keyRepairRevoke')}</Button>}{live && ['consumed','unknown'].includes(repair.state) && <Button variant="outline" size="sm" onClick={()=>setChoice({mode:'query',version:progress.state_version,repair})}>{t('keyRepairQuery')}</Button>}</div>}
+ {allowed && held && onSelectBatch && <div className="ui:flex ui:flex-wrap ui:gap-2">{(['create','approve','revoke','query'] as const).filter(mode=>mode==='create' ? !active && progress.ssh_repair?.status==='available' : !!repair && (mode==='approve' ? approval && live && repair.state==='pending' : mode==='revoke' ? ['pending','approved'].includes(repair.state) : live && ['consumed','unknown'].includes(repair.state))).map(mode=><Button key={mode} size="sm" variant={selectedBatchMode===mode?'default':'outline'} aria-pressed={selectedBatchMode===mode} disabled={selectedBatchMode!==mode && !!canSelectBatch && !canSelectBatch(mode)} onClick={()=>onSelectBatch(mode)}>{t(selectedBatchMode===mode?'keyRepairBatchRemove':`keyRepairBatchSelect_${mode}`)}</Button>)}</div>}
  {choice && <RepairDialog key={`${choice.mode}:${choice.repair?.id ?? progress.ssh_repair?.event_id}`} choice={choice} item={item} progress={progress} current={current} close={()=>setChoice(undefined)} done={async()=>{setChoice(undefined);await refresh()}}/>}
  </div>
 }

@@ -149,6 +149,17 @@ func (s *Store) RequestProvisionKeyRepair(ctx context.Context, a *AuthSession, p
 	if prior != nil {
 		return prior, tx.Commit()
 	}
+	r, err := s.requestProvisionKeyRepairTx(ctx, tx, a, project, id, in, trace)
+	if err != nil {
+		return nil, err
+	}
+	if err = saveProvisionKeyRepairIdempotency(ctx, tx, a, idem, hash, r); err != nil {
+		return nil, err
+	}
+	return r, tx.Commit()
+}
+
+func (s *Store) requestProvisionKeyRepairTx(ctx context.Context, tx *sql.Tx, a *AuthSession, project, id string, in ProvisionKeyRepairInput, trace string) (*ProvisionKeyRepair, error) {
 	x, request, scope, until, err := installationMutationTx(ctx, tx, project, id)
 	if err != nil {
 		return nil, err
@@ -208,10 +219,7 @@ func (s *Store) RequestProvisionKeyRepair(ctx context.Context, a *AuthSession, p
 	if err = appendAudit(ctx, tx, a.User.ID, project, "provision.key_repair.requested", r.ID, trace, map[string]any{"installation_id": id, "snapshot": r.Snapshot, "expires_at": expiry}); err != nil {
 		return nil, err
 	}
-	if err = saveProvisionKeyRepairIdempotency(ctx, tx, a, idem, hash, r); err != nil {
-		return nil, err
-	}
-	return r, tx.Commit()
+	return r, nil
 }
 
 func provisionKeyRepairIdempotency(ctx context.Context, tx *sql.Tx, a *AuthSession, scope, key string, input any) (string, string, *ProvisionKeyRepair, error) {
@@ -273,6 +281,17 @@ func (s *Store) ActProvisionKeyRepair(ctx context.Context, a *AuthSession, proje
 	if prior != nil {
 		return prior, tx.Commit()
 	}
+	r, err := s.actProvisionKeyRepairTx(ctx, tx, a, project, installation, id, action, in, trace)
+	if err != nil {
+		return nil, err
+	}
+	if err = saveProvisionKeyRepairIdempotency(ctx, tx, a, idem, hash, r); err != nil {
+		return nil, err
+	}
+	return r, tx.Commit()
+}
+
+func (s *Store) actProvisionKeyRepairTx(ctx context.Context, tx *sql.Tx, a *AuthSession, project, installation, id, action string, in ProvisionKeyRepairActionInput, trace string) (*ProvisionKeyRepair, error) {
 	// Keep original installation mutation/claim lock ordering before request locks.
 	x, request, scope, until, err := installationMutationTx(ctx, tx, project, installation)
 	if err != nil {
@@ -344,10 +363,7 @@ func (s *Store) ActProvisionKeyRepair(ctx context.Context, a *AuthSession, proje
 	if err = appendAudit(ctx, tx, a.User.ID, project, "provision.key_repair."+action, r.ID, trace, map[string]any{"installation_id": installation, "reason": in.Reason, "state": r.State, "version": r.StateVersion}); err != nil {
 		return nil, err
 	}
-	if err = saveProvisionKeyRepairIdempotency(ctx, tx, a, idem, hash, r); err != nil {
-		return nil, err
-	}
-	return r, tx.Commit()
+	return r, nil
 }
 
 type ProvisionKeyRepairWork struct {

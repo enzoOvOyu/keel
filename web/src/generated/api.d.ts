@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{id}/provision/installations/key-repairs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Explicit atomic batch of 1-32 installations. Shares all single-target approval/credential/claim invariants. Canonical actor/project idempotency binds the whole selection. No automatic approval, device selection or mutation retry. Workers consume individual original tasks only after independent approval. */
+        post: operations["requestProvisionKeyRepairBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/provision/installations/{installationId}/key-repairs": {
         parameters: {
             query?: never;
@@ -3039,6 +3056,25 @@ export interface components {
             bootstrap: components["schemas"]["ProvisionRepairBootstrap"];
             reason: string;
         };
+        ProvisionKeyRepairBatchItem: {
+            installation_id: string;
+            /** Format: int64 */
+            expected_version: number;
+            /** Format: int64 */
+            repair_event_id?: number;
+            confirm_serial?: string;
+            repair_id?: string;
+        };
+        /** @description Creation requires installation version, repair_event_id and explicit confirm_serial without repair_id. Other actions require repair_id and repair version without creation fields. Unique installation IDs; all-or-none authorization under each original claim. */
+        ProvisionKeyRepairBatchInput: {
+            /** @enum {string} */
+            action: "create" | "approve" | "revoke" | "query";
+            items: components["schemas"]["ProvisionKeyRepairBatchItem"][];
+            reason: string;
+        };
+        ProvisionKeyRepairBatch: {
+            requests: components["schemas"]["ProvisionKeyRepair"][];
+        };
         ProvisionKeyRepair: {
             id: string;
             installation_id: string;
@@ -5695,6 +5731,50 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    requestProvisionKeyRepairBatch: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionKeyRepairBatchInput"];
+            };
+        };
+        responses: {
+            /** @description All selected authorizations committed */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionKeyRepairBatch"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Installation/SSH disabled */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     requestProvisionKeyRepair: {
         parameters: {
             query?: never;

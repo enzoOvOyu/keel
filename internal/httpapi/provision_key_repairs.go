@@ -6,6 +6,23 @@ import (
 )
 
 func (a *authAPI) registerProvisionKeyRepairs(r *gin.Engine) {
+	r.POST("/api/v1/projects/:id/provision/installations/key-repairs", func(c *gin.Context) {
+		actor, _, ok := a.executionProject(c, true)
+		if !ok {
+			return
+		}
+		var in platform.ProvisionKeyRepairBatchInput
+		if !decodeExecutionBody(c, &in) {
+			return
+		}
+		out, err := a.store.RequestProvisionKeyRepairBatch(c.Request.Context(), actor, c.Param("id"), in, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.Header("Cache-Control", "private, no-store")
+		c.JSON(201, out)
+	})
 	base := "/api/v1/projects/:id/provision/installations/:installationId/key-repairs"
 	r.POST(base, func(c *gin.Context) {
 		actor, _, ok := a.executionProject(c, true)

@@ -62,8 +62,29 @@ func TestProvisionInstallationKeyRepairPostgres(t *testing.T) {
 	if _, err = f.store.ActProvisionKeyRepair(ctx, f.actor, f.project, f.installation.ID, r.ID, "approve", action, platform.RandomID(), "test"); err == nil {
 		t.Fatal("self approval accepted")
 	}
-	r, err = f.store.ActProvisionKeyRepair(ctx, f.reviewer, f.project, f.installation.ID, r.ID, "approve", action, platform.RandomID(), "test")
+	batch := platform.ProvisionKeyRepairBatchInput{Action: "approve", Items: []platform.ProvisionKeyRepairBatchItem{{InstallationID: f.installation.ID, RepairID: r.ID, ExpectedVersion: r.StateVersion}, {InstallationID: "ffffffffffffffffffffffffffffffff", RepairID: platform.RandomID(), ExpectedVersion: 1}}, Reason: "all-or-none independent repair approval"}
+	if _, err = f.store.RequestProvisionKeyRepairBatch(ctx, f.reviewer, f.project, batch, platform.RandomID(), "test"); err == nil {
+		t.Fatal("missing batch member accepted")
+	}
+	afterRollback, err := f.store.ReadProvisionInstallationProgress(ctx, f.actor, f.project, f.installation.ID)
 	mustAgent(t, err)
+	if afterRollback.KeyRepair == nil || afterRollback.KeyRepair.State != "pending" || afterRollback.KeyRepair.StateVersion != r.StateVersion {
+		t.Fatal("partial batch approval leaked")
+	}
+	batch.Items = batch.Items[:1]
+	batchKey := platform.RandomID()
+	approved, err := f.store.RequestProvisionKeyRepairBatch(ctx, f.reviewer, f.project, batch, batchKey, "test")
+	mustAgent(t, err)
+	if len(approved.Requests) != 1 || approved.Requests[0].ID != r.ID || approved.Requests[0].State != "approved" {
+		t.Fatal("batch approval identity changed")
+	}
+	r = &approved.Requests[0]
+	replay, err := f.store.RequestProvisionKeyRepairBatch(ctx, f.reviewer, f.project, batch, batchKey, "test")
+	mustAgent(t, err)
+	if replay.Requests[0].StateVersion != r.StateVersion {
+		t.Fatal("idempotent batch advanced state")
+	}
+
 	work, err := f.store.PrepareProvisionKeyRepair(ctx, f.project, f.installation.ID, c.Attempt.ID, c.Attempt.CommandID, c.Attempt.FencingToken)
 	mustAgent(t, err)
 	if work == nil || work.Mode != "run" || work.Command.CommandID == c.Attempt.CommandID || work.Command.AttemptID != c.Attempt.ID || work.Command.FencingToken != c.Attempt.FencingToken || work.Command.PublicKey != f.request.Snapshot.DomainKey.PublicKey {

@@ -1,5 +1,18 @@
 export const provisionTranslations = {
  zh: {
+"keyRepairBatch_create": "批量申请恢复域公钥",
+"keyRepairBatch_approve": "批量独立审批修复",
+"keyRepairBatch_revoke": "批量撤销未执行修复",
+"keyRepairBatch_query": "批量查询原安装回执",
+"keyRepairBatchSelect_create": "加入批量申请",
+"keyRepairBatchSelect_approve": "加入批量审批",
+"keyRepairBatchSelect_revoke": "加入批量撤销",
+"keyRepairBatchSelect_query": "加入批量回执查询",
+"keyRepairBatchRemove": "移出本批修复",
+"keyRepairBatchDetail": "同项目逐项明确选择，最多32台；一次只处理同一种操作。",
+"keyRepairBatchImpact": "逐台核对序列号、原申请及冻结身份后勾选确认。全部授权成功或全部回滚；不自动审批、不全选设备、不新增执行或租约。审批后的实际操作仍由各自原任务消费。",
+"keyRepairBatchConfirm": "我已核对本节点及本次操作",
+
 "keyRepairTitle": "恢复安装域公钥",
 "keyRepairHint": "独立审批后恢复原安装冻结的域公钥；原任务、围栏和机器资源保留。",
 "keyRepairCreate": "申请恢复域公钥",
@@ -212,6 +225,19 @@ export const provisionTranslations = {
   provisionTitle:'服务器装机准备', provisionDetail:'从 BOM 冻结装机配置，经独立审批后核验介质与公钥。',provisionPreparationOnly:'准备完成仅代表配置与介质校验完成；后续网络引导、安装和 SSH 首连仍需执行。',provisionFromBOM:'从 BOM 创建申请',provisionCreateRequest:'提交装机准备申请',provisionReason:'申请理由',provisionReinstall:'重新安装已有系统',provisionSerialConfirmation:'输入完整序列号以确认重装',provisionRequested:'申请已提交，请由另一位管理员或 DL 审批。',provisionReview:'审批准备申请',provisionCancel:'取消申请',provisionPrepare:'执行准备校验',provisionActionReason:'审批或取消理由',provisionExpiry:'有效期',provisionIdentity:'目标与冻结配置',provisionProof:'准备证据',provisionNoRequests:'暂无装机准备申请，请从 BOM 选择服务器创建。',provisionNoSelfApprove:'申请人不能审批自己的申请。',provisionExpired:'已过期，请重新申请',provisionPendingWorker:'准备校验依赖显式启用的工作节点。',provisionState_requested:'待审批',provisionState_approved:'已批准',provisionState_preparing:'准备中',provisionState_prepared:'准备完成',provisionState_failed:'准备失败',provisionState_canceled:'已取消',provisionState_expired:'已过期',
  },
  en: {
+"keyRepairBatch_create": "Request domain-key restores in batch",
+"keyRepairBatch_approve": "Approve repairs independently in batch",
+"keyRepairBatch_revoke": "Revoke unused repairs in batch",
+"keyRepairBatch_query": "Query original install receipts in batch",
+"keyRepairBatchSelect_create": "Add to restore requests",
+"keyRepairBatchSelect_approve": "Add to approval batch",
+"keyRepairBatchSelect_revoke": "Add to revocation batch",
+"keyRepairBatchSelect_query": "Add to receipt-query batch",
+"keyRepairBatchRemove": "Remove from repair batch",
+"keyRepairBatchDetail": "Explicit same-project selection of up to 32 devices, one action per batch.",
+"keyRepairBatchImpact": "Review and confirm each serial, original request and frozen identity individually. Authorizations commit together or all roll back. No automatic approval, device selection, extra execution or lease. Original tasks consume approved actions individually.",
+"keyRepairBatchConfirm": "I reviewed this device and action",
+
 "keyRepairTitle": "Restore installation domain key",
 "keyRepairHint": "Independent approval restores only the frozen installation key, retaining the original attempt, fence and device reservation.",
 "keyRepairCreate": "Request domain-key restore",
