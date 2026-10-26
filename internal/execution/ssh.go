@@ -14,10 +14,11 @@ import (
 )
 
 type SSHCreateInput struct {
-	MachineIDs []string `json:"machine_ids"`
-	Operation  string   `json:"operation"`
-	TimeoutMS  int      `json:"timeout_ms"`
-	WaitMS     int      `json:"wait_ms"`
+	ScriptMediaID string   `json:"script_media_id,omitempty"`
+	MachineIDs    []string `json:"machine_ids"`
+	Operation     string   `json:"operation"`
+	TimeoutMS     int      `json:"timeout_ms"`
+	WaitMS        int      `json:"wait_ms"`
 }
 
 func (s *Service) sshTargetTx(ctx context.Context, tx *sql.Tx, project, machine string) (Target, error) {
@@ -61,7 +62,7 @@ func (s *Service) sshFrozenTx(ctx context.Context, tx *sql.Tx, t Target) error {
 }
 
 func (s *Service) CreateSSH(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (*Execution, error) {
-	if in.Operation != "host.identity" && in.Operation != "host.wait" {
+	if in.ScriptMediaID != "" || in.Operation != "host.identity" && in.Operation != "host.wait" {
 		return nil, invalid("Only host.identity and host.wait are admitted by this endpoint")
 	}
 	return s.createSSH(ctx, a, project, in, "", 0, key, trace)
@@ -74,19 +75,24 @@ func (s *Service) CreateSSHTrustVerification(ctx context.Context, a *Actor, proj
 	return s.createSSH(ctx, a, project, SSHCreateInput{Operation: "trust.verify", TimeoutMS: 5000}, requestID, version, key, trace)
 }
 
-func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SSHCreateInput, requestID string, version int64, key, trace string) (*Execution, error) {
+func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SSHCreateInput, requestID string, version int64, key, trace string) (_ *Execution, resultErr error) {
 	if in.TimeoutMS == 0 {
 		in.TimeoutMS = 5000
 	}
 	check := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: project, MachineID: "00000000000000000000000000000000", CommandID: "00000000000000000000000000000000", AttemptID: "00000000000000000000000000000000", FencingToken: 1, Operation: in.Operation, TimeoutMS: in.TimeoutMS, WaitMS: in.WaitMS}
-	if check.Validate() != nil || (requestID == "" && len(in.MachineIDs) == 0) || len(in.MachineIDs) > 32 {
+	if (in.Operation != "script.run" && check.Validate() != nil) || (in.Operation == "script.run" && (in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0 || requestID != "" || !opaqueID.MatchString(in.ScriptMediaID))) || (requestID == "" && len(in.MachineIDs) == 0) || len(in.MachineIDs) > 32 {
 		return nil, invalid("1..32 machine IDs and a bounded host.identity or host.wait operation are required")
 	}
 	tx, e := s.DB.BeginTx(ctx, nil)
 	if e != nil {
 		return nil, e
 	}
-	defer tx.Rollback()
+	defer func() {
+		tx.Rollback()
+		if resultErr != nil && s.MediaStore != nil && a != nil {
+			resultErr = s.MediaStore.RecordMediaIntegrityFailure(ctx, resultErr, a.User.ID, trace)
+		}
+	}()
 	roles := []string{"Admin", "DE", "DL", "SRE"}
 	if requestID != "" {
 		roles = []string{"Admin", "DL", "SRE"}
@@ -113,6 +119,16 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 	if prior != nil {
 		x, e := decode[Execution](prior)
 		return &x, e
+	}
+	var script *platform.TaskScriptArtifact
+	if in.Operation == "script.run" {
+		if s.MediaStore == nil {
+			return nil, failure(409, "SSH_SCRIPTS_DISABLED", "Approved script media service is not configured")
+		}
+		script, _, e = s.MediaStore.ResolveTaskScriptTx(ctx, tx, project, in.ScriptMediaID, nil, true)
+		if e != nil {
+			return nil, e
+		}
 	}
 	if requestID != "" {
 		var machine string
@@ -170,7 +186,11 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 	if requestID != "" && targets[0].SSHInstallKey != nil {
 		in.Operation = "trust.install"
 	}
-	task := Task{ID: "ssh-query", Type: in.Operation, Idempotent: true, Retry: 0, TimeoutMS: in.TimeoutMS, Resources: []string{"device", "ssh"}}
+	task := Task{Script: script, ID: "ssh-query", Type: in.Operation, Idempotent: true, Retry: 0, TimeoutMS: in.TimeoutMS, Resources: []string{"device", "ssh"}}
+	if script != nil {
+		task.ID = "ssh-script"
+		task.Idempotent = false
+	}
 	def := Definition{APIVersion: "keel.ssh/v1", Inputs: map[string]Input{}, Tasks: []Task{task}}
 	flow := FlowVersion{ID: platform.RandomID(), FlowID: platform.RandomID(), ProjectID: project, Name: "SSH " + in.Operation, Version: 1, Definition: def, ContentHash: hash(jsonBytes(def)), CreatedAt: now}
 	flow.Name += " " + flow.FlowID[:8]
@@ -183,6 +203,9 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 	params := map[string]any{"ssh_wait_ms": in.WaitMS}
 	x := &Execution{ID: platform.RandomID(), ProjectID: project, FlowVersionID: flow.ID, Mode: "ssh", State: "created", StateVersion: 1, DesiredState: "running", Parameters: params, Concurrency: 1, CircuitBreakerPercent: 100, CreatedBy: a.User.ID, CreatedAt: now, TargetSetHash: hash(jsonBytes(targetIDs))}
 	x.Snapshot = Snapshot{Mode: "ssh", Flow: flow, Targets: targets, Parameters: params, TargetSetHash: x.TargetSetHash, Admission: "Read-only allowlisted operation, provisioned project asset, exact operator binding and established pinned host key; not hardware acceptance", FrozenAt: now}
+	if script != nil {
+		x.Snapshot.Admission = "Independently approved immutable Linux script artifact; fixed non-root interpreter; bounded execution and complete process-tree stop proof required; no automatic replay or rollback claim"
+	}
 	if requestID != "" {
 		x.Snapshot.Admission = "Independently approved, time-limited pinned first-connection verification of an already installed platform key/helper; no key installation, password change or arbitrary repair"
 		if targets[0].SSHInstallKey != nil {
@@ -235,6 +258,9 @@ func sshCommand(c *Claim) taskrunner.TaskCommand {
 		if c.Target.SSHTrustExpiresAt != nil {
 			command.AuthorizationExpiresAt = c.Target.SSHTrustExpiresAt.UnixMicro()
 		}
+	}
+	if c.Task.Script != nil {
+		command = c.Task.Script.Command(command)
 	}
 	return command
 }
@@ -301,6 +327,8 @@ func (s *Service) runHostClaim(ctx context.Context, c *Claim, mode string) error
 	if e != nil {
 		return e
 	}
+	command := sshCommand(c)
+	var scriptBody []byte
 	var creator string
 	e = tx.QueryRowContext(ctx, `SELECT created_by FROM exec_executions WHERE id=$1`, c.Attempt.ExecutionID).Scan(&creator)
 	if e == nil {
@@ -310,6 +338,13 @@ func (s *Service) runHostClaim(ctx context.Context, c *Claim, mode string) error
 			e = s.sshFrozenTx(ctx, tx, c.Target)
 		}
 	}
+	if e == nil && c.Task.Script != nil {
+		if mode != "ssh" || s.MediaStore == nil {
+			e = taskrunner.ErrRejected
+		} else {
+			_, scriptBody, e = s.MediaStore.ResolveTaskScriptTx(ctx, tx, c.Target.ProjectID, c.Task.Script.MediaID, c.Task.Script, true)
+		}
+	}
 	if e == nil {
 		var ok bool
 		e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM exec_task_attempts a JOIN exec_executions x ON x.id=a.execution_id JOIN users u ON u.id=x.created_by JOIN projects p ON p.id=x.project_id WHERE a.id=$1 AND a.fencing_token=$2 AND a.lease_owner=$3 AND a.state='running' AND a.lease_until>now() AND x.desired_state='running' AND u.enabled AND p.state NOT IN('archived','delivered') AND (u.is_admin OR EXISTS(SELECT 1 FROM memberships m WHERE m.project_id=x.project_id AND m.user_id=u.id AND m.role IN('Admin','DE','DL','SRE'))))`, c.Attempt.ID, c.Attempt.FencingToken, c.Attempt.LeaseOwner).Scan(&ok)
@@ -317,8 +352,17 @@ func (s *Service) runHostClaim(ctx context.Context, c *Claim, mode string) error
 			e = taskrunner.ErrRejected
 		}
 	}
+	if e == nil && c.Task.Script != nil {
+		command, e = s.commitScriptDispatchTx(ctx, tx, c)
+		if e == nil {
+			e = tx.Commit()
+		}
+	}
 	tx.Rollback()
 	if e != nil {
+		if s.MediaStore != nil {
+			e = s.MediaStore.RecordMediaIntegrityFailure(ctx, e, creator, "")
+		}
 		return e
 	} // No remote work, no fabricated stop proof.
 	work, cancel := context.WithCancel(ctx)
@@ -351,8 +395,7 @@ func (s *Service) runHostClaim(ctx context.Context, c *Claim, mode string) error
 		}
 	}()
 	defer func() { close(stop); wg.Wait() }()
-	command := sshCommand(c)
-	o, e := runner.Do(work, taskrunner.Request{Action: "run", Command: command})
+	o, e := runner.Do(work, taskrunner.Request{Action: "run", Command: command, Script: scriptBody})
 	if e != nil || !o.Terminal() {
 		// One bounded status/cancel query, never a second run. Terminal proof can
 		// arrive after the worker's cancellation but before lease reconciliation.
@@ -450,15 +493,22 @@ func (s *Service) FetchSSHReceipt(ctx context.Context, a *Actor, project, id, at
 	if e = s.sshFrozenTx(ctx, tx, target); e != nil {
 		return nil, e
 	}
-	tx.Rollback()
 	task, e := taskByID(x.Snapshot.Flow.Definition, attempt.TaskID)
 	if e != nil {
 		return nil, e
 	}
 	c := &Claim{Attempt: attempt, Target: target, Task: task, Parameters: x.Parameters}
+	command := sshCommand(c)
+	if task.Script != nil {
+		command, e = originalScriptCommandTx(ctx, tx, c)
+		if e != nil {
+			return nil, failure(409, "SSH_RECEIPT_PENDING", "Original script dispatch evidence is required; resource remains quarantined")
+		}
+	}
+	tx.Rollback()
 	query, done := context.WithTimeout(ctx, 5*time.Second)
 	defer done()
-	o, e := s.SSHRunner.Do(query, taskrunner.Request{Action: "query", Command: sshCommand(c)})
+	o, e := s.SSHRunner.Do(query, taskrunner.Request{Action: "query", Command: command})
 	if e != nil || !o.Terminal() {
 		return nil, failure(409, "SSH_RECEIPT_PENDING", "No terminal SSH receipt; resource remains quarantined")
 	}

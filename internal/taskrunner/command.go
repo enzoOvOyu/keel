@@ -1,5 +1,6 @@
 // Package taskrunner defines the transport-independent, bounded task protocol.
-// Operations are an allowlist; a request never contains a shell command.
+// Operations are an allowlist; script bodies are digest-bound media artifacts,
+// never request-supplied command lines, interpreter paths or arguments.
 package taskrunner
 
 import (
@@ -19,6 +20,11 @@ var idPattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
 const APIVersion = "keel.task/v1"
 
 type TaskCommand struct {
+	ScriptMediaID          string `json:"script_media_id,omitempty"`
+	ScriptObjectVersion    string `json:"script_object_version,omitempty"`
+	ScriptSHA256           string `json:"script_sha256,omitempty"`
+	ScriptSize             int64  `json:"script_size,omitempty"`
+	ScriptInterpreter      string `json:"script_interpreter,omitempty"`
 	APIVersion             string `json:"api_version"`
 	ProjectID              string `json:"project_id"`
 	MachineID              string `json:"machine_id"`
@@ -36,14 +42,21 @@ func (c TaskCommand) Validate() error {
 	if c.APIVersion != APIVersion || !idPattern.MatchString(c.ProjectID) || !idPattern.MatchString(c.MachineID) || !idPattern.MatchString(c.CommandID) || !idPattern.MatchString(c.AttemptID) || c.FencingToken < 1 || c.TimeoutMS < 100 || c.TimeoutMS > 30000 {
 		return ErrRejected
 	}
-	if c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "trust.verify" && c.Operation != "trust.install" {
+	if c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "trust.verify" && c.Operation != "trust.install" && c.Operation != "script.run" {
+		return ErrRejected
+	}
+	if c.Operation == "script.run" {
+		if !idPattern.MatchString(c.ScriptMediaID) || !scriptDigestPattern.MatchString(c.ScriptSHA256) || c.ScriptSize < 1 || c.ScriptSize > MaxScriptBytes || c.AuthorizationExpiresAt < 1 || !validScriptVersion(c.ScriptObjectVersion) || (c.ScriptInterpreter != "shell" && c.ScriptInterpreter != "python") {
+			return ErrRejected
+		}
+	} else if c.ScriptMediaID != "" || c.ScriptObjectVersion != "" || c.ScriptSHA256 != "" || c.ScriptSize != 0 || c.ScriptInterpreter != "" {
 		return ErrRejected
 	}
 	if c.Operation == "trust.install" {
 		if _, err := installPublicIdentity(c.PublicKey, c.ProjectID); err != nil || c.AuthorizationExpiresAt < 1 {
 			return ErrRejected
 		}
-	} else if c.PublicKey != "" || c.AuthorizationExpiresAt != 0 {
+	} else if c.PublicKey != "" || c.Operation != "script.run" && c.AuthorizationExpiresAt != 0 {
 		return ErrRejected
 	}
 	if (c.Operation != "host.wait" && c.WaitMS != 0) || c.WaitMS < 0 || c.WaitMS > 30000 {
@@ -61,6 +74,7 @@ func (c TaskCommand) Digest() string {
 type Request struct {
 	Action  string      `json:"action"`
 	Command TaskCommand `json:"command"`
+	Script  []byte      `json:"script,omitempty"`
 }
 
 type Observation struct {
@@ -77,6 +91,9 @@ func (o Observation) Terminal() bool {
 
 func (o Observation) Validate(c TaskCommand) error {
 	if o.Command != c || (o.State != "accepted" && o.State != "running" && !o.Terminal()) {
+		return ErrRejected
+	}
+	if c.Operation == "script.run" && o.Terminal() && validateScriptObservation(o) != nil {
 		return ErrRejected
 	}
 	if o.Terminal() && (o.StartedAt.IsZero() || o.FinishedAt.Before(o.StartedAt)) {

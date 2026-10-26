@@ -52,3 +52,8 @@ export function executionSearch(search: Record<string, unknown>): { page?: numbe
   const execution = typeof search.execution === 'string' && /^[a-f0-9]{32}$/.test(search.execution) ? search.execution : undefined
   return { ...executionViewSearch(search), ...(Number.isSafeInteger(page) && page > 0 && page <= 1_000_000 ? { page } : {}), ...(execution ? { execution } : {}) }
 }
+
+export type TaskScriptArtifact = components['schemas']['TaskScriptArtifact']
+export type SSHScriptCreateInput = components['schemas']['SSHScriptCreateInput']
+export const listTaskScripts = (projectId:string,page:number,signal:AbortSignal) => request<components['schemas']['TaskScriptCatalog']>(`/projects/${encodeURIComponent(projectId)}/task-scripts?page=${page}&page_size=20`,{signal})
+export const createSSHScriptExecution = (projectId:string,body:SSHScriptCreateInput,csrf:string,key:string) => request<components['schemas']['Execution']>(`/projects/${encodeURIComponent(projectId)}/ssh-script-executions`,{method:'POST',headers:{'X-CSRF-Token':csrf,'Idempotency-Key':key},body:JSON.stringify(body)})

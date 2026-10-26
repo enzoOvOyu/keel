@@ -42,6 +42,7 @@ func main() {
 		fail("worker database unavailable")
 	}
 	defer store.Close()
+	store.SSHScriptsEnabled = os.Getenv("KEEL_SSH_SCRIPTS_ENABLED") == "true"
 	e = store.ConfigureSSHRunner(os.Getenv("KEEL_SSH_RUNNER_FILE"), os.Getenv("KEEL_CREDENTIAL_MASTER_KEY_FILE"))
 	if e != nil {
 		slog.Error("SSH runner configuration rejected")
@@ -55,13 +56,14 @@ func main() {
 	if e = store.ConfigureProvisionInstall(os.Getenv("KEEL_PROVISION_INSTALL_ENABLED") == "true", os.Getenv("KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE")); e != nil {
 		fail("provision installer public trust configuration rejected")
 	}
-	if store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled {
+	if store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled || store.SSHScriptsEnabled {
 		store.MediaObjects, e = mediaartifact.Load()
 		if e != nil || store.MediaObjects == nil {
 			fail("Provision preparation requires configured media storage")
 		}
 	}
 	service := execution.New(store.DB)
+	service.MediaStore = store
 	if store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled {
 		service.ProvisionStore = store
 	}

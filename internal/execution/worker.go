@@ -264,6 +264,22 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 					return nil, tx.Commit()
 				}
 			}
+			if err := s.scriptFrozenTx(ctx, tx, x.ProjectID, x.Mode, task); err != nil {
+				var blocked *platform.Error
+				if !errors.As(err, &blocked) {
+					return nil, err
+				}
+				if _, e = tx.ExecContext(ctx, "UPDATE exec_executions SET desired_state='paused',state_version=state_version+1 WHERE id=$1", id); e != nil {
+					return nil, e
+				}
+				if e = settle(ctx, tx, id); e != nil {
+					return nil, e
+				}
+				if e = event(ctx, tx, id, "execution.authorization_blocked", map[string]string{"reason": "approved_script_changed_or_disabled"}); e != nil {
+					return nil, e
+				}
+				return nil, tx.Commit()
+			}
 			if x.Mode == "ssh" {
 				if e = s.sshFrozenTx(ctx, tx, target); e != nil {
 					var blocked *platform.Error
@@ -330,7 +346,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 			}
 			sort.Strings(resources)
 			mode := "exclusive"
-			if task.Type == "sim.read" || x.Mode == "ssh" || x.Mode == "agent" {
+			if task.Type == "sim.read" || x.Mode == "ssh" && task.Script == nil || x.Mode == "agent" {
 				mode = "shared"
 			}
 			if _, e = tx.ExecContext(ctx, "SAVEPOINT resource_candidate"); e != nil {
@@ -425,7 +441,7 @@ func (s *Service) Heartbeat(ctx context.Context, c *Claim) (bool, error) {
 	if e = tx.QueryRowContext(ctx, "SELECT desired_state FROM exec_executions WHERE id=$1", c.Attempt.ExecutionID).Scan(&desired); e != nil {
 		return false, e
 	}
-	return desired == "killed", tx.Commit()
+	return desired == "killed" || s.scriptHeartbeatTx(ctx, tx, c), tx.Commit()
 }
 func (s *Service) RecordReceipt(ctx context.Context, r Receipt) error {
 	if r.Result != "success" && r.Result != "failed" && r.Result != "cancelled" {

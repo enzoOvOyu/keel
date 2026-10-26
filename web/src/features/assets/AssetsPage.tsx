@@ -9,6 +9,7 @@ import { AssetModelDialog } from './AssetModelDialog'
 import { SSHTrustRequests } from './SSHTrustRequests'
 import { SSHDomainKeys } from './SSHDomainKeys'
 import { SSHExecutions } from './SSHExecutions'
+import { SSHScripts } from './SSHScripts'
 import { AgentExecutions } from './AgentExecutions'
 import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -148,6 +149,7 @@ function AssetsContent() {
     </section>
     <SSHTrustRequests assets={assets.isError ? [] : assets.data?.items ?? []} />
     <SSHExecutions assets={assets.isError ? [] : assets.data?.items ?? []} />
+    <SSHScripts assets={assets.isError ? [] : assets.data?.items ?? []} />
     <AgentExecutions />
     <SSHDomainKeys />
     {provisionTarget && <ProvisionPreviewDialog key={`${project.id}:${provisionTarget.id}`} projectId={project.id} asset={provisionTarget} onClose={() => setProvisionTarget(null)} />}

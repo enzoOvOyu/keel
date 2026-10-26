@@ -1,10 +1,10 @@
 # 受限服务器 SSH 执行
 
-实施计划 A3 / WP-1.4→1.5、PRD FR-1.2/1.10/1.11、ARCHITECTURE ADR-01/03/06/13 的当前增量。复用 Execution、outbox、TaskAttempt、PostgreSQL 资源租约、fencing 和回执对账，不另建队列。普通查询支持 `host.identity`（主机名/OS/架构）和 `host.wait`（有界等待）；独立批准的连接验证发送只读 `trust.verify`，可选受控公钥安装发送 `trust.install` 并通过新钥全新握手查询原回执证明。helper须预先由运维部署，不执行用户 shell 或安装软件。
+实施计划 A3 / WP-1.4→1.5、PRD FR-1.2/1.10/1.11、ARCHITECTURE ADR-01/03/06/13 的当前增量。复用 Execution、outbox、TaskAttempt、PostgreSQL 资源租约、fencing 和回执对账，不另建队列。普通查询支持 `host.identity`（主机名/OS/架构）和 `host.wait`（有界等待）；独立批准的连接验证发送只读 `trust.verify`，可选受控公钥安装发送 `trust.install` 并通过新钥全新握手查询原回执证明。helper须预先由运维部署；批准小脚本的默认关闭源码增量见下节末尾，不接受API内联命令或以脚本绕过公钥安装审批。
 
 ## 操作员配置
 
-默认不配置 `KEEL_SSH_RUNNER_FILE`，SSH 关闭。只读查询无需介质；目标已有非root临时登录和helper时，可经独立批准追加受限公钥并证明新钥。脚本执行、root首登、完整bootstrap/repair、完整双钥轮换/删除、Agent 和目标缓存尚未交付，不借查询例外放行它们。原有 mock 互信动作不证明真实首连。
+默认不配置 `KEEL_SSH_RUNNER_FILE`，SSH 关闭。只读查询无需介质；目标已有非root临时登录和helper时，可经独立批准追加受限公钥并证明新钥。批准小脚本执行源码已接续；root首登、完整bootstrap/repair、完整双钥轮换/删除、完整Agent任务目录和通用目标缓存尚未交付，不借查询例外放行它们。原有 mock 互信动作不证明真实首连。
 
 配置 JSON 的 `targets` 是最多128个显式项目/机器绑定，普通目标每项为（首装专用目标见下节）：
 
@@ -123,3 +123,30 @@ keel-admin ssh-key-revoke --project PROJECT_ID --id KEY_ID --expected-version 1 
 只读启动浏览器验证 `scripts/check-ssh-launch-browser.mjs` 由真实PG/HTTP/回环SSH fixture驱动，先实际安装/证明新域钥并显式切换vault，再以项目DE登录提交identity和wait。第一次POST实际创建后明确注入丢响应，重试必须返回原执行；页面403是明确故障注入，Viewer隐藏来自真实权限。中英390宽及目标长标识换行纳入检查。CI使用单独keel_test_ssh_ui库运行同一用例；不启用生产SSH。
 
 已安装域钥只读repair的真实回归见 `internal/taskrunner/domain_repair_integration_test.go`：覆盖临时凭据标签伪装在创建/批准/执行阶段的拒绝、派发前配置变化零远端工作、精确vault修复与远端终态后撤销拒绝信任投影，所有路径保留原公开域身份。该证明不覆盖目标旧钥删除或完整轮换。
+
+
+## 批准的小脚本执行（2026-10-26，源码未验证）
+
+WP-1.5 / FR-1.2、FR-1.3、FR-1.8增加固定脚本子集，复用真实SSH域身份、共享Execution/attempt/fence/outbox和回执。API、worker及目标专用helper必须分别显式设置`KEEL_SSH_SCRIPTS_ENABLED=true`；默认false，未修改本地实际配置或运行服务。Compose仅透传默认关闭开关。目标helper需由运维在受控启动环境设置，不通过SSH请求或用户参数设置。
+
+### 介质和准入
+
+脚本以既有介质库的`tool`登记，`arch=noarch`、`os_scope=linux`、`hw_scope`为空；`manifest_ref`明确为`keel.task-script/shell/v1`或`keel.task-script/python/v1`，实际文件1～8192字节并经独立复核批准。当前子集不接依赖安装、兼容矩阵求值或OS boot角色，具有这些条件的介质拒绝执行。脚本解释器来自批准元数据，不能由HTTP指定路径/参数、提交正文或注入环境变量。版本/名称/精确对象版本/SHA256/大小/批准者/审批时间随任务冻结，正文只在批准存储中取用，不进入execution快照或审计。
+
+新增项目作用域`GET /task-scripts`分页列出符合该子集的项目/全局批准版本及开关状态；`POST /ssh-script-executions`只接`machine_ids`（显式1～32台）、`media_id`及100～30000ms超时。当前Admin/DE/DL/SRE、provisioned资产、真实established SSH与精确已证明域钥/host pin同时成立；普通只读`/ssh-executions`不接受脚本。创建按完整选择幂等，使用非幂等、retry=0任务；普通sim Flow不能嵌入此真实脚本，通用重跑仍仅sim。
+
+### 派发、停止与未知结果
+
+设备及SSH资源使用exclusive；不与Agent/SSH只读或装机的共享机器资源重叠。Claim时核对批准快照；派发前重新完整读取精确对象并核对摘要，再查当前角色、项目、真实租约和两项exclusive claim。原attempt事务内只消费一次`script.dispatch_committed`，持久记录完整公开命令、实际授权/租约时间；目标授权期限不超过该刻原租约（预留100ms）及本次任务超时。心跳续租不改写已发命令；旧命令不能在新的租约窗口偷偷启动，网络/commit响应不明只查询原事件里的命令。
+
+目标专用非root helper先启用Linux child subreaper及no-new-privileges，禁用dumpable。固定`/bin/sh -s`或`/usr/bin/python3 -I -`，解释器解析后打开、核对root所有且无组/其他写权限，并通过固定fd执行；批准正文经stdin，不从命令行拼接。环境只有固定PATH/locale及独立私有workspace的HOME，不继承平台秘密。每流最多观测1MiB，回执只存512字节base64前缀、观测字节数/摘要和完整性；溢出停止并失败，不把截断摘要冒充完整输出。
+
+超时、显式cancel、断连HUP/TERM或正文执行结束后清理剩余进程组/被subreaper接管的后代；`wait4`确认ECHILD且主进程已收割，才可产生终态。只凭主进程退出、SSH断开或kill返回不证明全部停止；2秒内未确认则保留running/unknown，不生成终态成功/停止回执。进程树停止不回滚外部副作用，也不证明经外部服务启动的作业已停止；该子集用于有界前台脚本，不承接服务安装/守护进程治理。目标时钟、/proc、固定解释器/权限及信号行为需软件集中验收/PoC。
+
+正文摘要在任何accepted状态持久化前校验。accepted/running持久后崩溃，即使本地进程看似消失，也不重放；原命令query/cancel无需重新分发正文。媒体撤销或提交人失权在脚本心跳触发停止请求；真实终态仍可作为历史停止事实落库，不凭撤销推断零副作用。资源未知保持隔离，既有`ssh-receipt`只加载原派发命令查询并走显式reconcile。未消费派发而本地失败的安全收尾仍需后续复用/扩展原核实路径，不直接填PASS。
+
+### 页面与源码用例
+
+资产页复用shadcn表单，显式选择当前页受信目标与分页批准版本，展示版本/摘要后勾选确认；输入变化更换幂等键，响应不明的相同输入保留原key。失权/项目变化或介质查询失败清空确认，不自动选脚本。接受后进入原执行中心，不在界面伪造脚本成功。
+
+新增目标专用子进程fixture源码覆盖成功、非零、超时、Python、输出上限、setsid后代收割、重复run只回原回执、query不执行、坏正文不产生accepted；另有真实PG介质/范围/冻结撤销，以及原真实SSH身份后的exclusive Claim/孤立派发一次消费/unknown阻断回归源码。子reaper只在独立fixture进程启用，不能在测试协调器中调用后代清理。按用户安排均未运行；仅格式化和API类型生成，不代表编译、软件协议或硬件验收通过。Agent脚本、参数化/结构化script.json、通用文件分发/缓存、长任务和其他首批任务继续按实施计划推进，WP-1.5/P1仍partial。

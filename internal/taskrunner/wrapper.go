@@ -19,6 +19,8 @@ import (
 type Wrapper struct {
 	StateDirectory     string
 	AuthorizedKeysFile string
+	// Set only by a dedicated helper process after PrepareScriptProcess.
+	ScriptProcessIsolation bool
 }
 
 func privateDirectory(path string) error {
@@ -101,6 +103,16 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 	if r.Command.Validate() != nil || (r.Action != "run" && r.Action != "query" && r.Action != "cancel") || privateDirectory(w.StateDirectory) != nil {
 		return zero, ErrRejected
 	}
+	if r.Command.Operation == "script.run" {
+		if r.Action == "run" && (!w.ScriptProcessIsolation || validateScriptBody(r.Command, r.Script) != nil) {
+			return zero, ErrRejected
+		}
+	} else if len(r.Script) > 0 {
+		return zero, ErrRejected
+	}
+	if r.Action != "run" && len(r.Script) > 0 {
+		return zero, ErrRejected
+	}
 	dir := filepath.Join(w.StateDirectory, r.Command.CommandID)
 	if r.Action == "run" {
 		if e := os.Mkdir(dir, 0700); e != nil && !errors.Is(e, os.ErrExist) {
@@ -178,7 +190,7 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 	}
 	work, cancel := context.WithTimeout(ctx, time.Duration(r.Command.TimeoutMS)*time.Millisecond)
 	defer cancel()
-	if r.Command.Operation == "trust.install" {
+	if r.Command.Operation == "trust.install" || r.Command.Operation == "script.run" {
 		var stop context.CancelFunc
 		work, stop = context.WithDeadline(work, time.UnixMicro(r.Command.AuthorizationExpiresAt))
 		defer stop()
@@ -203,6 +215,12 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 					break wait
 				}
 			}
+		}
+	} else if r.Command.Operation == "script.run" {
+		var scriptErr error
+		o.Output, result, reason, scriptErr = executeScriptProcess(work, dir, r.Command, r.Script)
+		if scriptErr != nil {
+			return zero, ErrUnknown
 		}
 	} else if r.Command.Operation == "trust.install" {
 		fingerprint, err := installDomainKey(work, w.AuthorizedKeysFile, r.Command)
@@ -232,8 +250,8 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 }
 
 func (w Wrapper) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
-	body, err := io.ReadAll(io.LimitReader(in, 4097))
-	if err != nil || len(body) > 4096 {
+	body, err := io.ReadAll(io.LimitReader(in, 16385))
+	if err != nil || len(body) > 16384 {
 		return ErrRejected
 	}
 	d := json.NewDecoder(bytes.NewReader(body))

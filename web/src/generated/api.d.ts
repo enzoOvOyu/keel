@@ -5536,17 +5536,32 @@ export interface components {
             /** @default false */
             uncancellable: boolean;
         };
+        /** @description Frozen independently approved Linux tool script. Immutable bytes come from media storage; no inline commands or secret parameters. */
+        TaskScriptArtifact: {
+            media_id: string;
+            name: string;
+            version: string;
+            sha256: string;
+            size: number;
+            object_version: string;
+            /** @enum {string} */
+            interpreter: "shell" | "python";
+            approved_by: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
         /** @description Acyclic dependencies. Every task includes machine resource; sim.read shared, sim.write exclusive. Retry>0 requires idempotent=true and an explicit failed receipt; never retries unknown. */
         FlowTask: {
             id: string;
             /** @enum {string} */
-            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare";
+            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare" | "script.run";
             depends_on?: string[];
             retry: number;
             idempotent: boolean;
             timeout_ms: number;
-            resources: ("machine" | "gpu" | "nic")[];
+            resources: ("machine" | "gpu" | "nic" | "device" | "ssh")[];
             sim: components["schemas"]["SimTaskOptions"];
+            script?: components["schemas"]["TaskScriptArtifact"];
         };
         FlowDefinition: {
             /** @enum {string} */

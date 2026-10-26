@@ -2,10 +2,30 @@ package httpapi
 
 import (
 	"github.com/enzoOvOyu/keel/internal/execution"
+	"github.com/enzoOvOyu/keel/internal/platform"
 	"github.com/gin-gonic/gin"
 )
 
 func (a *authAPI) registerSSHExecution(r *gin.Engine, base string) {
+	r.GET(base+"/task-scripts", func(c *gin.Context) {
+		actor, _, ok := a.executionProject(c, false)
+		if !ok {
+			return
+		}
+		page, ok := readPagination(c)
+		if !ok {
+			return
+		}
+		out, enabled, err := a.store.ListTaskScripts(c.Request.Context(), actor, &platform.ProjectSummary{ID: c.Param("id")}, page)
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.JSON(200, struct {
+			platform.Page[platform.TaskScriptArtifact]
+			Enabled bool `json:"enabled"`
+		}{out, enabled})
+	})
 	r.POST(base+"/ssh-trust-requests/:requestId/execute", func(c *gin.Context) {
 		actor, s, ok := a.executionProject(c, true)
 		if !ok {
@@ -20,6 +40,22 @@ func (a *authAPI) registerSSHExecution(r *gin.Engine, base string) {
 		x, e := s.CreateSSHTrustVerification(c.Request.Context(), actor, c.Param("id"), c.Param("requestId"), in.ExpectedVersion, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
 		if e != nil {
 			a.respondError(c, e)
+			return
+		}
+		c.JSON(201, x)
+	})
+	r.POST(base+"/ssh-script-executions", func(c *gin.Context) {
+		actor, s, ok := a.executionProject(c, true)
+		if !ok {
+			return
+		}
+		var in execution.SSHScriptCreateInput
+		if !decodeExecutionBody(c, &in) {
+			return
+		}
+		x, err := s.CreateSSHScript(c.Request.Context(), actor, c.Param("id"), in, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
 			return
 		}
 		c.JSON(201, x)
