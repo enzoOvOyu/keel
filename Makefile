@@ -4,6 +4,8 @@ APP_VERSION ?= development
 check:
 	python3 scripts/check-design.py
 	python3 -m unittest discover -s poc/h1 -p 'test_*.py'
+	python3 -m unittest discover -s poc/bom-h15 -p 'test_*.py'
+	python3 -m unittest discover -s poc/ztp-h16 -p 'test_*.py'
 	go vet ./...
 	go test -race ./...
 	npm run check

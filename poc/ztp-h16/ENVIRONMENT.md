@@ -15,6 +15,8 @@
 2. 对 239 通道验证六个 `CUMULUS-*` 头、精确 URL、脚本 SHA256、设备脚本成功日志；对 143 通道验证服务端 mTLS 证书链、IDevID SN、`get-bootstrapping-data`/`report-progress`、CMS 摘要。两通道分别检查 SN/MAC 与 BOM 一致。
 3. 验证未知身份只得到最小隔离/管理配置，冲突身份不收到业务配置；检查业务端口、管理口和设备运行配置。首次引导不得记为生产配置 IN_SYNC。
 4. 若 PushJob/Golden 比对尚未实现，H-16 标记 `BLOCKED`，不得用 ZTP 完成声明代替审批、下发和复采证据。
-5. 将每个案例的证据文件置于 `poc/ztp-h16/evidence/`，按 `evidence.template.json` 填写路径与 SHA256；运行 `python3 poc/ztp-h16/validate.py <manifest>`。脚本只验证证据齐备与摘要，输出 `READY_FOR_REVIEW`，人工复核及签署另行回填 ACCEPTANCE H-16。
+5. 覆盖matched-239、matched-143、matched-60-43、unknown-isolated、conflict-rejected五类案例；至少两个不同实物SN，允许同一台在独立批准的协议测试中复用。60/43必须记录实际厂商profile引用、精确option60和option43原始载荷SHA；不猜测厂商格式。将每个案例的证据文件置于 `poc/ztp-h16/evidence/`，按 `evidence.template.json` 填写路径与 SHA256；运行 `python3 poc/ztp-h16/validate.py <manifest>`。脚本只验证证据齐备与摘要，输出 `READY_FOR_REVIEW`，人工复核及签署另行回填 ACCEPTANCE H-16。
 
 验证器不会启动 DHCP、重置交换机、修改配置或把自填 JSON 解释为设备行为证明。
+
+当前P1的IPv6 136提供项目模拟与专用operator-canary协议工具，不作为H-16已有真实设备通过证据；真机136路由未开放时记录NOT_RUN。重装/RMA需先批准新旧SN/MAC/位置，再执行新设备开通并关联历史；模拟批准不能退役真实绑定。上述扩展不替代本包239/143/60-43原判据。

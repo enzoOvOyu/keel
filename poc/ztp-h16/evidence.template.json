@@ -5,12 +5,106 @@
   "kea_active_hash_before": "64-hex-sha256",
   "kea_active_hash_after_restart": "64-hex-sha256",
   "cases": [
-    {"name":"matched-239","serial":"DEVICE-SN-1","channel":"239","verdict":"matched","artifacts":[{"kind":"dhcp-pcap","path":"evidence/matched-239-dhcp.pcap","sha256":"64-hex-sha256"},{"kind":"device-log","path":"evidence/matched-239-device.log","sha256":"64-hex-sha256"},{"kind":"platform-observation","path":"evidence/matched-239-observation.json","sha256":"64-hex-sha256"}]},
-    {"name":"matched-143","serial":"DEVICE-SN-2","channel":"143","verdict":"matched","artifacts":[{"kind":"dhcp-pcap","path":"evidence/matched-143-dhcp.pcap","sha256":"64-hex-sha256"},{"kind":"device-log","path":"evidence/matched-143-device.log","sha256":"64-hex-sha256"},{"kind":"platform-observation","path":"evidence/matched-143-observation.json","sha256":"64-hex-sha256"}]},
-    {"name":"unknown-isolated","serial":"UNKNOWN-SN","channel":"239","verdict":"isolated","artifacts":[]},
-    {"name":"conflict-rejected","serial":"CONFLICT-SN","channel":"239","verdict":"conflict","artifacts":[]}
+    {
+      "name": "matched-239",
+      "serial": "DEVICE-SN-1",
+      "channel": "239",
+      "verdict": "matched",
+      "artifacts": [
+        {
+          "kind": "dhcp-pcap",
+          "path": "evidence/matched-239-dhcp.pcap",
+          "sha256": "64-hex-sha256"
+        },
+        {
+          "kind": "device-log",
+          "path": "evidence/matched-239-device.log",
+          "sha256": "64-hex-sha256"
+        },
+        {
+          "kind": "platform-observation",
+          "path": "evidence/matched-239-observation.json",
+          "sha256": "64-hex-sha256"
+        }
+      ]
+    },
+    {
+      "name": "matched-143",
+      "serial": "DEVICE-SN-2",
+      "channel": "143",
+      "verdict": "matched",
+      "artifacts": [
+        {
+          "kind": "dhcp-pcap",
+          "path": "evidence/matched-143-dhcp.pcap",
+          "sha256": "64-hex-sha256"
+        },
+        {
+          "kind": "device-log",
+          "path": "evidence/matched-143-device.log",
+          "sha256": "64-hex-sha256"
+        },
+        {
+          "kind": "platform-observation",
+          "path": "evidence/matched-143-observation.json",
+          "sha256": "64-hex-sha256"
+        }
+      ]
+    },
+    {
+      "name": "matched-60-43",
+      "serial": "DEVICE-SN-1",
+      "channel": "60-43",
+      "verdict": "matched",
+      "vendor_profile_ref": "operator-reviewed-vendor-profile",
+      "option60_value": "exact-observed-vendor-class",
+      "option43_sha256": "64-hex-sha256",
+      "artifacts": [
+        {
+          "kind": "dhcp-pcap",
+          "path": "evidence/matched-60-43-dhcp.pcap",
+          "sha256": "64-hex-sha256"
+        },
+        {
+          "kind": "device-log",
+          "path": "evidence/matched-60-43-device.log",
+          "sha256": "64-hex-sha256"
+        },
+        {
+          "kind": "platform-observation",
+          "path": "evidence/matched-60-43-observation.json",
+          "sha256": "64-hex-sha256"
+        }
+      ]
+    },
+    {
+      "name": "unknown-isolated",
+      "serial": "UNKNOWN-SN",
+      "channel": "239",
+      "verdict": "isolated",
+      "artifacts": []
+    },
+    {
+      "name": "conflict-rejected",
+      "serial": "CONFLICT-SN",
+      "channel": "239",
+      "verdict": "conflict",
+      "artifacts": []
+    }
   ],
-  "first_boot_minimal_config_artifact":{"kind":"device-config-diff","path":"evidence/first-boot-config-diff.txt","sha256":"64-hex-sha256"},
-  "pushjob_approval_artifact":{"kind":"pushjob-approval","path":"evidence/pushjob-approval.json","sha256":"64-hex-sha256"},
-  "golden_readback_artifact":{"kind":"golden-readback","path":"evidence/golden-readback.json","sha256":"64-hex-sha256"}
+  "first_boot_minimal_config_artifact": {
+    "kind": "device-config-diff",
+    "path": "evidence/first-boot-config-diff.txt",
+    "sha256": "64-hex-sha256"
+  },
+  "pushjob_approval_artifact": {
+    "kind": "pushjob-approval",
+    "path": "evidence/pushjob-approval.json",
+    "sha256": "64-hex-sha256"
+  },
+  "golden_readback_artifact": {
+    "kind": "golden-readback",
+    "path": "evidence/golden-readback.json",
+    "sha256": "64-hex-sha256"
+  }
 }

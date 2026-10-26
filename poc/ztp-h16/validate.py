@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 SHA = re.compile(r"[0-9a-f]{64}\Z")
-REQUIRED = {"matched-239", "matched-143", "unknown-isolated", "conflict-rejected"}
+REQUIRED = {"matched-239", "matched-143", "matched-60-43", "unknown-isolated", "conflict-rejected"}
 KINDS = {"dhcp-pcap", "device-log", "platform-observation"}
 
 
@@ -21,24 +21,29 @@ def check(manifest: Path) -> list[str]:
     if not isinstance(before, str) or not SHA.fullmatch(before) or before != after:
         errors.append("Kea active hash must be valid and stable after restart")
     cases = data.get("cases", [])
-    if not isinstance(cases, list) or {c.get("name") for c in cases if isinstance(c, dict)} != REQUIRED or len(cases) != 4:
-        errors.append("four unique H-16 cases are required")
+    if not isinstance(cases, list) or {c.get("name") for c in cases if isinstance(c, dict)} != REQUIRED or len(cases) != 5:
+        errors.append("five unique H-16 cases are required")
         cases = []
     serials = set()
     for case in cases:
         name = case["name"]
-        if not case.get("serial") or case["serial"] in serials:
-            errors.append(f"{name}: unique serial required")
-        serials.add(case.get("serial"))
-        channel, verdict = {"matched-239": ("239", "matched"), "matched-143": ("143", "matched"), "unknown-isolated": ("239", "isolated"), "conflict-rejected": ("239", "conflict")}[name]
+        if not isinstance(case.get("serial"), str) or not case["serial"].strip():
+            errors.append(f"{name}: serial required")
+        if name.startswith("matched-") and isinstance(case.get("serial"), str) and case["serial"].strip():
+            serials.add(case.get("serial"))
+        channel, verdict = {"matched-239": ("239", "matched"), "matched-143": ("143", "matched"), "matched-60-43": ("60-43", "matched"), "unknown-isolated": ("239", "isolated"), "conflict-rejected": ("239", "conflict")}[name]
         if case.get("channel") != channel or case.get("verdict") != verdict:
             errors.append(f"{name}: channel/verdict mismatch")
+        if name == "matched-60-43" and (not case.get("vendor_profile_ref") or not case.get("option60_value") or not isinstance(case.get("option43_sha256"), str) or not SHA.fullmatch(case["option43_sha256"])):
+            errors.append("matched-60-43: explicit vendor profile, option60 and option43 payload digest required")
         artifacts = case.get("artifacts", [])
         if not isinstance(artifacts, list) or {a.get("kind") for a in artifacts if isinstance(a, dict)} != KINDS:
             errors.append(f"{name}: DHCP, device and platform artifacts required")
             continue
         for artifact in artifacts:
             verify_artifact(root, artifact, errors)
+    if len(serials) < 2:
+        errors.append("at least two matched physical switch serials required")
     for field in ("first_boot_minimal_config_artifact", "pushjob_approval_artifact", "golden_readback_artifact"):
         value = data.get(field)
         if not isinstance(value, dict):
@@ -58,7 +63,11 @@ def verify_artifact(root: Path, item: dict, errors: list[str]) -> None:
     if candidate.is_symlink() or not file.is_relative_to(root) or not file.is_file():
         errors.append(f"artifact missing or outside package: {name}")
         return
-    if hashlib.sha256(file.read_bytes()).hexdigest() != expected:
+    digest = hashlib.sha256()
+    with file.open('rb') as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b''):
+            digest.update(chunk)
+    if digest.hexdigest() != expected:
         errors.append(f"artifact digest mismatch: {name}")
 
 

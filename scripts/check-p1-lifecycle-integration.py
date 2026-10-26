@@ -49,7 +49,10 @@ try:
     transcript = (work / 'integration.log').read_text()
     passed = re.findall(r'^--- PASS: (\S+)', transcript, re.MULTILINE)
     owner_cli_verified = all(marker in transcript for marker in ['P1_LIFECYCLE_MASTER_CLI_OK', 'P1_LIFECYCLE_AUDIT_CLI_OK', 'P1_LIFECYCLE_WEBHOOK_CLI_OK']) and all(name in passed for name in ['TestCredentialMasterAtomicRewrapAndRecovery', 'TestAuditEvidenceDetectsOwnerChangesWithoutExportingMetadata', 'TestWebhookDurableOutboxDeliveryAndIsolation'])
-    (work / 'result.json').write_text(json.dumps({'exit_code': result.returncode, 'test_filter': args.run, 'real_postgresql_configured': True, 'owner_cli_binary_built': True, 'owner_cli_lifecycle_verified': owner_cli_verified, 'passed_tests': passed, 'object_transport': 'in-memory fixture', 'browser_run': False, 'image_build': False, 'production_writes': False, 'full_p1_acceptance': False}))
+    ztp_batches = [json.loads(match.group(1)) for match in re.finditer(r'P1_ZTP_LOGICAL_BATCH (\{[^\n]+\})', transcript)]
+    ztp_200 = next((batch for batch in ztp_batches if batch.get('logical_targets') == 200), None)
+    ztp_200_verified = result.returncode == 0 and 'TestZTPP1LogicalBatch200Postgres' in passed and ztp_200 is not None and ztp_200.get('source') == 'sim' and ztp_200.get('managed_first_pass', 0) >= 198 and ztp_200.get('identity_matches') == 200 and ztp_200.get('protocol_label_violations') == 0 and ztp_200.get('device_observations') == 0
+    (work / 'result.json').write_text(json.dumps({'exit_code': result.returncode, 'test_filter': args.run, 'real_postgresql_configured': True, 'owner_cli_binary_built': True, 'owner_cli_lifecycle_verified': owner_cli_verified, 'passed_tests': passed, 'ztp_200_logical_verified': ztp_200_verified, 'ztp_logical_batches': ztp_batches, 'object_transport': 'in-memory fixture', 'browser_run': False, 'image_build': False, 'production_writes': False, 'full_p1_acceptance': False}))
     print('P1 lifecycle batch exit:', result.returncode, flush=True)
     raise SystemExit(result.returncode)
 finally:

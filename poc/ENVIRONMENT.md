@@ -45,3 +45,5 @@ sh poc/run-h1.sh /private/poc/h1/evidence.json > /private/poc/h1/validation.json
 READY_FOR_REVIEW仅表示10台记录内部一致、文件摘要匹配，**不是H-1 PASS**。所有者还须审阅原始日志、证明HTTP-first及互信100%确由自动流程完成、核验硬件身份/客户公钥保留/现网DHCP不受扰动，并填写 `poc/results/CHECKLIST.md` 的副本。该人工记录与原始证据、发布来源和校验结果一并评审后，才能另行签署H-1；软件不会自动更新ACCEPTANCE或trace状态。
 
 历史 `poc/results/p1-selfcheck.json` 保留为2026-10-13旧脚本快照；当时仅检测工具/公钥文件，缺PXE仍记NOTE，**不能作为当前平台就绪或H-1证据**。新自检不覆盖该历史文件，也不往Git写真机记录。
+
+P1其他执行材料分别见`poc/bom-h15/ENVIRONMENT.md`（真实BOM/映射/三级定位回传）与`poc/ztp-h16/ENVIRONMENT.md`（≥2交换机、239/143/60-43）。各包的合成自检、文件摘要完整性与真实硬件签署分开记录。

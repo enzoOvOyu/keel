@@ -1,0 +1,68 @@
+{
+  "item": "H-15",
+  "source": "physical-bom",
+  "environment": "",
+  "project_id": "32-hex-project-id",
+  "platform_commit": "40-hex-commit",
+  "original_bom_source_ref": "",
+  "mapping_profile_ref": "",
+  "design_team_feedback_ref": "",
+  "expected_identity_count": 0,
+  "matched_identity_count": 0,
+  "cases": [
+    "directory-package",
+    "wide-table-aliases",
+    "issue-localization",
+    "repeated-commit",
+    "stable-identity",
+    "cross-project-denial",
+    "model-constraints"
+  ],
+  "artifacts": [
+    {
+      "kind": "source-bom",
+      "path": "evidence/original-bom.zip",
+      "sha256": "64-hex-sha256"
+    },
+    {
+      "kind": "mapping-profile",
+      "path": "evidence/mapping-profile.json",
+      "sha256": "64-hex-sha256"
+    },
+    {
+      "kind": "preview",
+      "path": "evidence/preview.json",
+      "sha256": "64-hex-sha256"
+    },
+    {
+      "kind": "commit",
+      "path": "evidence/commit.json",
+      "sha256": "64-hex-sha256"
+    },
+    {
+      "kind": "repeat-commit",
+      "path": "evidence/repeat-commit.json",
+      "sha256": "64-hex-sha256"
+    },
+    {
+      "kind": "identity-comparison",
+      "path": "evidence/identity-comparison.json",
+      "sha256": "64-hex-sha256"
+    },
+    {
+      "kind": "issues-csv",
+      "path": "evidence/issues.csv",
+      "sha256": "64-hex-sha256"
+    },
+    {
+      "kind": "project-denial",
+      "path": "evidence/project-denial.json",
+      "sha256": "64-hex-sha256"
+    },
+    {
+      "kind": "model-proof",
+      "path": "evidence/model-proof.json",
+      "sha256": "64-hex-sha256"
+    }
+  ]
+}
