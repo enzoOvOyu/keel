@@ -3625,6 +3625,7 @@ components:
       additionalProperties: false
       required: [media_id, scope_key, uri, type, name, version, arch, sha256, size, object_version, approved_by, approved_at, dependencies]
       properties:
+        task_script: { $ref: '#/components/schemas/MediaTaskScriptProfile' }
         os_boot: { $ref: '#/components/schemas/MediaOSBootProfile' }
         media_id: { type: string, pattern: '^[a-f0-9]{32}$' }
         scope_key: { type: string, pattern: '^(global|project:[a-f0-9]{32})$' }
@@ -3675,6 +3676,14 @@ components:
     MediaTargetBoot: {"type": "object", "additionalProperties": false, "required": ["schema", "path", "sha256", "size", "kernel_release", "command_line"], "properties": {"schema": {"type": "string", "const": "keel.target-boot/v1"}, "path": {"type": "string", "const": "usr/lib/keel/target.efi"}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "size": {"type": "integer", "minimum": 1024, "maximum": 402653184}, "kernel_release": {"type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._+-]{0,127}$"}, "command_line": {"type": "string", "const": "root=PARTLABEL=keel-root rootfstype=ext4 rw rootwait"}}}
     MediaBootArtifact: {"type": "object", "additionalProperties": false, "required": ["role", "media_id", "scope_key", "name", "version", "sha256", "size", "arch", "object_version"], "properties": {"role": {"type": "string", "enum": ["rootfs", "kernel", "initrd", "template", "uefi", "legacy", "preflight", "ssh-helper"]}, "media_id": {"type": "string"}, "scope_key": {"type": "string"}, "name": {"type": "string"}, "version": {"type": "string"}, "sha256": {"type": "string"}, "arch": {"type": "string"}, "object_version": {"type": "string"}, "size": {"type": "integer", "minimum": 0}}}
     MediaBootPlan: {"type": "object", "additionalProperties": false, "required": ["root_id", "profile", "artifacts"], "properties": {"root_id": {"type": "string"}, "profile": {"$ref": "#/components/schemas/MediaOSBootProfile"}, "artifacts": {"type": "array", "minItems": 4, "maxItems": 8, "items": {"$ref": "#/components/schemas/MediaBootArtifact"}}}}
+    MediaTaskScriptProfile:
+      type: object
+      additionalProperties: false
+      required: [version, interpreter]
+      description: Independently reviewed runnable-tool metadata; separate from the immutable artifact manifest or external source URL. Restricted to 1..8192-byte noarch Linux tools with no hardware scope or dependencies.
+      properties:
+        version: { type: string, enum: [keel.task-script/v1] }
+        interpreter: { type: string, enum: [shell, python] }
     MediaDependencies:
       type: object
       additionalProperties: false

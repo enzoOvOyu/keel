@@ -3493,6 +3493,7 @@ export interface components {
             artifacts: components["schemas"]["MediaManifestArtifact"][];
         };
         MediaManifestArtifact: {
+            task_script?: components["schemas"]["MediaTaskScriptProfile"];
             os_boot?: components["schemas"]["MediaOSBootProfile"];
             media_id: string;
             scope_key: string;
@@ -3667,6 +3668,13 @@ export interface components {
             root_id: string;
             profile: components["schemas"]["MediaOSBootProfile"];
             artifacts: components["schemas"]["MediaBootArtifact"][];
+        };
+        /** @description Independently reviewed runnable-tool metadata; separate from the immutable artifact manifest or external source URL. Restricted to 1..8192-byte noarch Linux tools with no hardware scope or dependencies. */
+        MediaTaskScriptProfile: {
+            /** @enum {string} */
+            version: "keel.task-script/v1";
+            /** @enum {string} */
+            interpreter: "shell" | "python";
         };
         MediaDependencies: {
             os_boot?: components["schemas"]["MediaOSBootProfile"];

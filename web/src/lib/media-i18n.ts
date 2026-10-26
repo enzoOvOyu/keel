@@ -1,5 +1,13 @@
 export const mediaTranslations = {
   zh: {
+    mediaTaskScript: "批准脚本用途",
+    mediaTaskScriptNone: "普通工具（不作为脚本执行）",
+    mediaTaskScriptShell: "Shell 脚本",
+    mediaTaskScriptPython: "Python 脚本",
+    mediaTaskScriptHint: "脚本文件为 1～8192 字节，固定 noarch / Linux，无硬件范围、依赖或兼容矩阵；选择此用途会清空这些条件。仍需另一位操作员复核批准后才能执行。",
+    mediaTaskScriptInvalid: "脚本须为 1～8192 字节的 noarch Linux 工具，且无硬件范围、依赖或兼容矩阵。",
+    mediaTaskScriptApproval: "此介质声明可执行脚本（{{interpreter}}）。请核对完整脚本内容与来源；批准后才可用于执行任务。",
+
     provisionPreviewTitle: "装机配置预览",
     provisionPreviewGenerate: "生成配置预览",
     provisionPreviewNotice: "核对 BOM、OS 引导组合与项目公钥，生成受限 SSH 账号配置。此操作仅预览，装机与互信状态须以后续实际执行证明为准。",
@@ -167,6 +175,14 @@ export const mediaTranslations = {
     mediaExists: "同类型、名称与版本的介质已存在。",
   },
   en: {
+    mediaTaskScript: "Approved script purpose",
+    mediaTaskScriptNone: "Ordinary tool (not executable as a script)",
+    mediaTaskScriptShell: "Shell script",
+    mediaTaskScriptPython: "Python script",
+    mediaTaskScriptHint: "Scripts are 1–8192 bytes, fixed noarch / Linux, without hardware scope, dependencies or compatibility matrices. Selecting this purpose clears those conditions. Independent review and approval are still required.",
+    mediaTaskScriptInvalid: "Scripts require a 1–8192 byte noarch Linux tool without hardware scope, dependencies or compatibility matrices.",
+    mediaTaskScriptApproval: "This artifact declares an executable script ({{interpreter}}). Review its full content and source; approval is required before task execution.",
+
     provisionPreviewTitle: "Preview installation config",
     provisionPreviewGenerate: "Generate preview",
     provisionPreviewNotice: "Review BOM identity, OS boot composition and project public key to prepare restricted SSH configuration. This is a preview; installation and trust require subsequent execution proof.",

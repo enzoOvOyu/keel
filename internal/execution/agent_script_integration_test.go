@@ -60,7 +60,7 @@ func TestAgentApprovedScriptPostgresAdmissionAndUnknown(t *testing.T) {
 	f.store.AgentTasksEnabled = true
 	f.service.MediaStore = f.store
 	project := &platform.ProjectSummary{ID: f.project}
-	media, err := f.store.IngestMedia(ctx, f.actor, project, platform.RegisterMediaInput{Type: "tool", Name: "agent-bounded-script", Version: "v1", Arch: "noarch", OsScope: "linux", ManifestRef: "keel.task-script/shell/v1", Deps: map[string]any{}}, bytes.NewBufferString("printf software-only-fixture\n"), "agent-script-test")
+	media, err := f.store.IngestMedia(ctx, f.actor, project, platform.RegisterMediaInput{Type: "tool", Name: "agent-bounded-script", Version: "v1", Arch: "noarch", OsScope: "linux", Deps: map[string]any{"task_script": platform.MediaTaskScriptProfile{Version: "keel.task-script/v1", Interpreter: "shell"}}}, bytes.NewBufferString("printf software-only-fixture\n"), "agent-script-test")
 	mustAgent(t, err)
 	username, password := "script-reviewer-"+platform.RandomID()[:10], "isolated-script-reviewer-only-password"
 	_, err = f.store.CreateUser(ctx, username, username, password, true, false)

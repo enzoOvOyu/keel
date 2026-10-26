@@ -45,17 +45,12 @@ func (s *Store) ResolveTaskScriptTx(ctx context.Context, tx *sql.Tx, project, me
 	if m.State != "approved" || m.Type != "tool" || !m.ArtifactStored || m.ArtifactQuarantined || m.Arch != "noarch" || m.OsScope != "linux" || m.HwScope != "" || m.Size < 1 || m.Size > taskrunner.MaxScriptBytes || m.ApprovedBy == "" || m.UploadedBy == m.ApprovedBy {
 		return nil, nil, apiError(409, "TASK_SCRIPT_NOT_APPROVED", "An independently approved, stored noarch Linux tool script of 1..8192 bytes is required")
 	}
-	interpreter := ""
-	switch m.ManifestRef {
-	case "keel.task-script/shell/v1":
-		interpreter = "shell"
-	case "keel.task-script/python/v1":
-		interpreter = "python"
-	default:
-		return nil, nil, apiError(409, "TASK_SCRIPT_CONTRACT_REQUIRED", "Script media must declare its fixed shell or python task-script contract")
-	}
 	var metadata catalogDependencies
-	if json.Unmarshal(m.Deps, &metadata) != nil || metadata.Compatibility != nil || metadata.OSBoot != nil {
+	if json.Unmarshal(m.Deps, &metadata) != nil || metadata.TaskScript == nil || metadata.TaskScript.Validate() != nil {
+		return nil, nil, apiError(409, "TASK_SCRIPT_CONTRACT_REQUIRED", "Approved script media must declare a fixed shell or python task_script profile")
+	}
+	interpreter := metadata.TaskScript.Interpreter
+	if metadata.Compatibility != nil || metadata.OSBoot != nil {
 		return nil, nil, apiError(409, "TASK_SCRIPT_DEPENDENCIES_UNSUPPORTED", "This script profile does not evaluate compatibility matrices or OS boot dependencies")
 	}
 	deps, err := mediaArtifactDependencies(m.Deps)
@@ -127,13 +122,13 @@ func (s *Store) ListTaskScriptsForTransport(ctx context.Context, a *AuthSession,
 	if transport == "ssh" && !s.SSHScriptsEnabled || transport == "agent" && (!s.AgentScriptsEnabled || !s.AgentTasksEnabled) {
 		return out, false, tx.Commit()
 	}
-	filter := `(m.scope_key=$1 OR m.scope_key='global') AND m.state='approved' AND m.type='tool' AND m.arch='noarch' AND m.os_scope='linux' AND m.hw_scope='' AND m.size BETWEEN 1 AND 8192 AND m.approved_by IS NOT NULL AND m.approved_by<>m.uploaded_by AND m.manifest_ref IN('keel.task-script/shell/v1','keel.task-script/python/v1') AND (m.deps->'artifacts' IS NULL OR m.deps->'artifacts'='[]'::jsonb) AND (m.deps->'compatibility' IS NULL OR m.deps->'compatibility'='null'::jsonb) AND (m.deps->'os_boot' IS NULL OR m.deps->'os_boot'='null'::jsonb) AND a.sha256=m.sha256 AND a.size=m.size AND NOT EXISTS(SELECT 1 FROM media_artifact_integrity i WHERE i.media_id=m.id AND i.quarantined_at IS NOT NULL)`
+	filter := `(m.scope_key=$1 OR m.scope_key='global') AND m.state='approved' AND m.type='tool' AND m.arch='noarch' AND m.os_scope='linux' AND m.hw_scope='' AND m.size BETWEEN 1 AND 8192 AND m.approved_by IS NOT NULL AND m.approved_by<>m.uploaded_by AND m.deps->'task_script'->>'version'='keel.task-script/v1' AND m.deps->'task_script'->>'interpreter' IN('shell','python') AND (m.deps->'artifacts' IS NULL OR m.deps->'artifacts'='[]'::jsonb) AND (m.deps->'compatibility' IS NULL OR m.deps->'compatibility'='null'::jsonb) AND (m.deps->'os_boot' IS NULL OR m.deps->'os_boot'='null'::jsonb) AND a.sha256=m.sha256 AND a.size=m.size AND NOT EXISTS(SELECT 1 FROM media_artifact_integrity i WHERE i.media_id=m.id AND i.quarantined_at IS NOT NULL)`
 	from := ` FROM media_items m JOIN media_artifacts a ON a.media_id=m.id WHERE ` + filter
 	scope := s.scopeKeyFor(project)
 	if err = tx.QueryRowContext(ctx, `SELECT count(*)`+from, scope).Scan(&out.Total); err != nil {
 		return out, true, err
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT m.id,m.name,m.version,m.sha256,m.size,a.object_version,CASE WHEN m.manifest_ref='keel.task-script/shell/v1' THEN 'shell' ELSE 'python' END,m.approved_by,m.updated_at`+from+` ORDER BY m.name,m.version DESC,m.id LIMIT $2 OFFSET $3`, scope, page.PageSize, page.Offset())
+	rows, err := tx.QueryContext(ctx, `SELECT m.id,m.name,m.version,m.sha256,m.size,a.object_version,m.deps->'task_script'->>'interpreter',m.approved_by,m.updated_at`+from+` ORDER BY m.name,m.version DESC,m.id LIMIT $2 OFFSET $3`, scope, page.PageSize, page.Offset())
 	if err != nil {
 		return out, true, err
 	}

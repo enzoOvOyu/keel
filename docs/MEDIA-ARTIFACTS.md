@@ -165,3 +165,10 @@ OS的`os_boot.recipe`现在可固定`keel-initrd/v1`/squashfs协议，以及直�
 ### 独立 helper-set 与离线 installer overlay
 
 安装helper先独立登记/批准，再由同架构config介质（`keel.installer-helper-set/v1` JSON）显式绑定恰好两份直接依赖及其ID/摘要；该config不引用最终initrd/OS，避免镜像输入与最终配方循环。导出其签名清单和原字节后，`keel-admin provision-overlay-create`生成可审核gzip/newc只读helper包，`provision-overlay-verify`独立信任公钥并反向核验完整归档/配置/ELF/实际摘要，无宿主解包或二进制执行。生产镜像之后才把最终initrd及helper版本固定到OS配方。完整步骤见PROVISIONING；离线历史审批与包校验不代表当前线上批准或可启动镜像验收。
+
+
+## 批准任务脚本用途（2026-10-26，源码未验证）
+
+工具登记/上传表单可显式选择 Shell/Python 脚本用途，保存于 `deps.task_script={"version":"keel.task-script/v1","interpreter":"shell"}`（或 python）。该声明属于独立审批的不可变元数据，不能复用 `manifest_ref`：上传仍由服务端写入 `artifact:sha256:<实际摘要>`，外链仍保留来源URL。只有用途、noarch/Linux、1～8192字节、无硬件范围/依赖/兼容矩阵/OS boot的工具才能用于本有界脚本执行。未知用途字段、任意解释器路径、空profile及超限拒绝登记，普通工具不因文件扩展名或manifest文本自动变成可执行脚本。
+
+选择脚本用途会清空并固定不支持的范围/依赖条件；审批对话框展示执行用途，仍禁止上传者自行批准。SSH/Agent候选目录及实际派发以独立profile筛选/校验，冻结的版本/实际对象/摘要/大小/批准身份不变。已有普通上传/外链获取逻辑保持，未新增迁移。此链路及新增登记边界/实际上传摘要与用途并存用例尚未集中验证。

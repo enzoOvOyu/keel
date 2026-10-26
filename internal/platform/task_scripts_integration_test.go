@@ -29,9 +29,20 @@ func TestApprovedTaskScriptArtifactsPostgres(t *testing.T) {
 	}
 	upload := func(scope *ProjectSummary, name, arch, osScope, manifest string, approve bool) *MediaItemSummary {
 		t.Helper()
-		item, err := s.IngestMedia(ctx, owner, scope, RegisterMediaInput{Type: "tool", Name: name, Version: "v1", Arch: arch, OsScope: osScope, ManifestRef: manifest, Deps: map[string]any{}}, bytes.NewBufferString("printf fixture\n"), "test")
+		deps := map[string]any{}
+		if arch == "noarch" && osScope == "linux" && (manifest == "keel.task-script/shell/v1" || manifest == "keel.task-script/python/v1") {
+			interpreter := "shell"
+			if manifest == "keel.task-script/python/v1" {
+				interpreter = "python"
+			}
+			deps["task_script"] = MediaTaskScriptProfile{Version: "keel.task-script/v1", Interpreter: interpreter}
+		}
+		item, err := s.IngestMedia(ctx, owner, scope, RegisterMediaInput{Type: "tool", Name: name, Version: "v1", Arch: arch, OsScope: osScope, ManifestRef: manifest, Deps: deps}, bytes.NewBufferString("printf fixture\n"), "test")
 		if err != nil {
 			t.Fatal(err)
+		}
+		if len(deps) > 0 && item.ManifestRef != "artifact:sha256:"+item.Sha256 {
+			t.Fatal("script profile replaced upload provenance")
 		}
 		if approve {
 			for _, state := range []string{"verified", "approved"} {

@@ -131,7 +131,7 @@ WP-1.5 / FR-1.2、FR-1.3、FR-1.8增加固定脚本子集，复用真实SSH域�
 
 ### 介质和准入
 
-脚本以既有介质库的`tool`登记，`arch=noarch`、`os_scope=linux`、`hw_scope`为空；`manifest_ref`明确为`keel.task-script/shell/v1`或`keel.task-script/python/v1`，实际文件1～8192字节并经独立复核批准。当前子集不接依赖安装、兼容矩阵求值或OS boot角色，具有这些条件的介质拒绝执行。脚本解释器来自批准元数据，不能由HTTP指定路径/参数、提交正文或注入环境变量。版本/名称/精确对象版本/SHA256/大小/批准者/审批时间随任务冻结，正文只在批准存储中取用，不进入execution快照或审计。
+脚本以既有介质库的`tool`登记，`arch=noarch`、`os_scope=linux`、`hw_scope`为空；`deps.task_script`明确声明`version=keel.task-script/v1`及`interpreter=shell|python`，独立于上传摘要或来源URL的`manifest_ref`，实际文件1～8192字节并经独立复核批准。当前子集不接依赖安装、兼容矩阵求值或OS boot角色，具有这些条件的介质拒绝执行。脚本解释器来自批准元数据，不能由HTTP指定路径/参数、提交正文或注入环境变量。版本/名称/精确对象版本/SHA256/大小/批准者/审批时间随任务冻结，正文只在批准存储中取用，不进入execution快照或审计。
 
 新增项目作用域`GET /task-scripts`分页列出符合该子集的项目/全局批准版本及开关状态；`POST /ssh-script-executions`只接`machine_ids`（显式1～32台）、`media_id`及100～30000ms超时。当前Admin/DE/DL/SRE、provisioned资产、真实established SSH与精确已证明域钥/host pin同时成立；普通只读`/ssh-executions`不接受脚本。创建按完整选择幂等，使用非幂等、retry=0任务；普通sim Flow不能嵌入此真实脚本，通用重跑仍仅sim。
 

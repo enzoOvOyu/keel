@@ -25,6 +25,7 @@ type Compatibility struct {
 	Combinations []map[string]string `json:"combinations,omitempty"`
 }
 type catalogDependencies struct {
+	TaskScript    *MediaTaskScriptProfile   `json:"task_script,omitempty"`
 	OSBoot        *mediaboot.Profile        `json:"os_boot,omitempty"`
 	Compatibility *Compatibility            `json:"compatibility,omitempty"`
 	Artifacts     []MediaArtifactDependency `json:"artifacts,omitempty"`
@@ -41,12 +42,15 @@ func decodeCompatibility(raw json.RawMessage) (*Compatibility, error) {
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	if e := d.Decode(&deps); e != nil {
-		return nil, errors.New("deps must contain only documented compatibility, pinned artifacts or OS boot roles")
+		return nil, errors.New("deps must contain only documented compatibility, pinned artifacts, OS boot roles or task script profile")
 	}
 	if e := d.Decode(new(any)); e != io.EOF {
 		return nil, errors.New("invalid dependency document")
 	}
 	if _, e := mediaArtifactDependencies(raw); e != nil {
+		return nil, e
+	}
+	if e := deps.TaskScript.Validate(); e != nil {
 		return nil, e
 	}
 	if e := deps.OSBoot.Validate(); e != nil {

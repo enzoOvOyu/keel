@@ -77,7 +77,7 @@ func TestApprovedSSHScriptAdmissionAndQuarantine(t *testing.T) {
 	f.service.SSHRunner = f.ssh.runner
 	f.store.MediaObjects = &scriptAdmissionObjects{}
 	f.service.MediaStore = f.store
-	media, err := f.store.IngestMedia(f.ctx, f.creator, f.project, platform.RegisterMediaInput{Type: "tool", Name: "fixture-approved-script", Version: "v1", Arch: "noarch", OsScope: "linux", ManifestRef: "keel.task-script/shell/v1", Deps: map[string]any{}}, bytes.NewBufferString("printf protocol-fixture-only\n"), "test")
+	media, err := f.store.IngestMedia(f.ctx, f.creator, f.project, platform.RegisterMediaInput{Type: "tool", Name: "fixture-approved-script", Version: "v1", Arch: "noarch", OsScope: "linux", Deps: map[string]any{"task_script": platform.MediaTaskScriptProfile{Version: "keel.task-script/v1", Interpreter: "shell"}}}, bytes.NewBufferString("printf protocol-fixture-only\n"), "test")
 	if err != nil {
 		t.Fatal(err)
 	}

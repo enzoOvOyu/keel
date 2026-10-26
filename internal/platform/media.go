@@ -90,6 +90,9 @@ func validateMediaInput(input RegisterMediaInput) error {
 	if (strings.HasPrefix(strings.ToLower(input.ManifestRef), "http://") || strings.HasPrefix(strings.ToLower(input.ManifestRef), "https://")) && mediasource.ValidateReference(input.ManifestRef) != nil {
 		return apiError(400, "VALIDATION_ERROR", "Source URLs must not contain credentials, query strings or fragments")
 	}
+	if e := validateTaskScriptMediaInput(input); e != nil {
+		return e
+	}
 	if e := validateCompatibility(input.Deps); e != nil {
 		return e
 	}

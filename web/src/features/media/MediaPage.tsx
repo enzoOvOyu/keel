@@ -83,6 +83,7 @@ function RegisterMediaDialog({
   const [matrixBlocked, setMatrixBlocked] = useState(false);
   const [dependencies, setDependencies] = useState<MediaDependencyChoice[]>([]);
   const [bootProfile, setBootProfile] = useState<MediaOSBootProfile>();
+  const [scriptInterpreter, setScriptInterpreter] = useState<'' | 'shell' | 'python'>('');
   const [type, setType] = useState<(typeof types)[number]>("driver"),
     [name, setName] = useState(""),
     [version, setVersion] = useState("");
@@ -93,6 +94,7 @@ function RegisterMediaDialog({
     [hwScope, setHwScope] = useState(""),
     [manifest, setManifest] = useState(""),
     [validation, setValidation] = useState("");
+  useEffect(() => { if (type !== 'tool') setScriptInterpreter('') }, [type]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (matrixBlocked) return;
@@ -125,6 +127,8 @@ function RegisterMediaDialog({
       const entries = [bootProfile.kernel_media_id, bootProfile.initrd_media_id, bootProfile.template_media_id];
       if (arch === 'noarch' || new Set(entries).size !== 3 || entries.some(id => !id || !dependencies.some(item => item.id === id))) { setValidation(t('mediaBootInvalid')); return; }
     }
+    const script = type === 'tool' ? scriptInterpreter : '';
+    if (script && (arch !== 'noarch' || osScope.trim() !== 'linux' || hwScope.trim() || dependencies.length || compatibility || (upload ? !file || file.size < 1 || file.size > 8192 : bytes < 1 || bytes > 8192))) { setValidation(t('mediaTaskScriptInvalid')); return; }
     setValidation("");
     const body = {
       type,
@@ -136,7 +140,7 @@ function RegisterMediaDialog({
       os_scope: osScope.trim(),
       hw_scope: hwScope.trim(),
       manifest_ref: manifest.trim(),
-      deps: dependencies.length || compatibility || (type === "os" && bootProfile) ? { ...(type === "os" && bootProfile ? { os_boot: bootProfile } : {}), ...(dependencies.length ? { artifacts: dependencies.map(item => ({ media_id: item.id, sha256: item.sha256 })) } : {}), ...(compatibility ? { compatibility } : {}) } : undefined,
+      deps: script || dependencies.length || compatibility || (type === "os" && bootProfile) ? { ...(script ? { task_script: { version: 'keel.task-script/v1' as const, interpreter: script } } : {}), ...(type === "os" && bootProfile ? { os_boot: bootProfile } : {}), ...(dependencies.length ? { artifacts: dependencies.map(item => ({ media_id: item.id, sha256: item.sha256 })) } : {}), ...(compatibility ? { compatibility } : {}) } : undefined,
     };
     const result = await action.run(() =>
       upload
@@ -249,7 +253,7 @@ function RegisterMediaDialog({
           id="media-arch"
           value={arch}
           onChange={(event) => setArch(event.target.value as typeof arch)}
-          disabled={action.busy}
+          disabled={action.busy || !!scriptInterpreter}
         >
           <NativeSelectOption value="amd64">amd64</NativeSelectOption>
           <NativeSelectOption value="arm64">arm64</NativeSelectOption>
@@ -264,7 +268,7 @@ function RegisterMediaDialog({
           value={osScope}
           onChange={(event) => setOsScope(event.target.value)}
           maxLength={120}
-          disabled={action.busy}
+          disabled={action.busy || !!scriptInterpreter}
         />
       </div>
       <div className="field">
@@ -274,11 +278,16 @@ function RegisterMediaDialog({
           value={hwScope}
           onChange={(event) => setHwScope(event.target.value)}
           maxLength={120}
-          disabled={action.busy}
+          disabled={action.busy || !!scriptInterpreter}
         />
       </div>
-      <MediaCompatibilityImport projectId={projectId} disabled={action.busy} value={compatibility} onChange={setCompatibility} onBlocked={setMatrixBlocked} />
-      <MediaDependencyPicker projectId={projectId} arch={arch} selected={dependencies} onChange={setDependencies} disabled={action.busy} />
+      {type === 'tool' && <div className="field"><Label htmlFor="media-task-script">{t('mediaTaskScript')}</Label><NativeSelect id="media-task-script" value={scriptInterpreter} disabled={action.busy} onChange={event => {
+        const next = event.target.value === 'shell' || event.target.value === 'python' ? event.target.value : '';
+        setScriptInterpreter(next);
+        if (next) { setArch('noarch'); setOsScope('linux'); setHwScope(''); setDependencies([]); setCompatibility(undefined); setMatrixBlocked(false); }
+      }}><NativeSelectOption value="">{t('mediaTaskScriptNone')}</NativeSelectOption><NativeSelectOption value="shell">{t('mediaTaskScriptShell')}</NativeSelectOption><NativeSelectOption value="python">{t('mediaTaskScriptPython')}</NativeSelectOption></NativeSelect><p className="field-hint">{t('mediaTaskScriptHint')}</p></div>}
+      {!scriptInterpreter && <MediaCompatibilityImport projectId={projectId} disabled={action.busy} value={compatibility} onChange={setCompatibility} onBlocked={setMatrixBlocked} />}
+      {!scriptInterpreter && <MediaDependencyPicker projectId={projectId} arch={arch} selected={dependencies} onChange={setDependencies} disabled={action.busy} />}
       {type === "os" && <MediaBootProfileEditor value={bootProfile} onChange={setBootProfile} dependencies={dependencies} arch={arch} disabled={action.busy} />}
       {!upload && (
         <div className="field">
@@ -389,6 +398,7 @@ function TransitionDialog({
       </dl>
       <MediaDependencySummary refs={item.deps.artifacts} />
       <MediaBootProfileSummary profile={item.deps.os_boot} />
+      {item.deps.task_script && <p className="impact-notice">{t('mediaTaskScriptApproval', { interpreter: item.deps.task_script.interpreter })}</p>}
       <MediaCompatibilitySummary matrix={item.deps.compatibility} />
       {target === "retired" && (
         <p className="impact-notice">{t("mediaRetireImpact")}</p>
