@@ -235,3 +235,10 @@ POST项目安装会话`/preflight/refresh`要求当前Admin/DE/DL/SRE、未选�
 只有待处理请求触发同一内存启动密钥下再次调用原只读helper。刷新POST仍走preflight路径，附refresh_id，proof operation为preflight-refresh，签名输入为`Keel preflight refresh v1`、NUL、请求ID、NUL、精确helper原字节。控制器同时核对当前待处理请求、下一序号和新鲜事实；重复请求、错绑及选盘后报告均拒绝。回包丢失不重发，已有报告留本地。首份证据在等待人工前即落tmpfs；后续各份保留独立`/run/keel/reports/<sequence>`目录，不覆盖历史证据。
 
 initrd审批等待受原DHCP租约、ARP冲突监测、Spec到期和上下文共同约束，不自动续租/重新注册/换接口。布局批准后仅返回storage_approved_no_write_permit并撤下临时网络，仍没有写盘器、写盘许可或自动重启；未来writer必须在独立工具/镜像输入及当前许可完成后接在同一受控运行阶段。页面增加请求刷新按钮与等待提示；列表刷新只是读取状态，不能刷新硬件时间戳。
+
+
+## 已批准布局到确定的GPT字节（源码，不执行写盘）
+
+provisionstorage.PrepareGPT消费完整有效Plan和独立的3个UUIDv4（磁盘/EFI分区/根分区），确定性生成目标盘首尾各1MiB的PMBR、primary/backup GPT、128×128字节分区数组、CRC和零保留区。保持明确的UEFI FAT32+ext4两分区布局与512/4Kn几何，不变动批准的分区边界；两端字节与完整Plan摘要/UUID/容量/扇区共同摘要，供后续当前许可绑定。InspectGPTEdges只读核对上述精确区域，返回同一摘要；不证明真实盘身份/几何、文件系统、擦除完成或可启动。无打开设备、写入/格式化/挂载调用，没有许可接口调用或安装成功投影。
+
+格式字段依据[Linux GPT结构定义](https://github.com/torvalds/linux/blob/master/block/partitions/efi.h)与[GPT解析校验](https://github.com/torvalds/linux/blob/master/block/partitions/efi.c)，类型GUID参照[gptfdisk类型登记](https://android.googlesource.com/platform/external/gptfdisk/+/c59dc86/parttypes.cc)。实现为独立Go字节构造，不复制其源码；generic Linux filesystem类型不冒称DPS根分区自动发现，GPT不等同安装bootloader。真实writer仍须独立批准工具/镜像、当前VerifyCurrent及一次性许可、受控设备FD和每个破坏操作前的权限检查，再回读/回执。

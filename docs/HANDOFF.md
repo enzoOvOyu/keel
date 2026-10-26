@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～102。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～103。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，三小时开发窗口进行中）
 
@@ -1287,3 +1287,10 @@ initrd等待受原DHCP/ARP/Spec/context限制，不续租、重启或创建新�
 接续b25d290。新增execution软件集成fixture：先经真实介质登记/独立审批和平台manifest签名导出5个独立runtime输入，再构建/另批完整initrd、冻结OS recipe、实际验证来源字节与签名，取得opaque验证结果后按真实claim/lease激活。内部ELF和硬件观察明确为不可执行格式/软件事实fixture，不执行组件或证明可启动镜像/硬件。原故意损坏initrd的负例保留，未改为假PASS。
 
 新组TestProvisionInstallationLiveBootPostgres覆盖当前文件取得/hash、Token一次消费、报告重放、status不改版本、刷新请求不改版本且阻断旧选盘、刷新一次消费、摘要列表不拉多MiB报告/详情保留精确字节、独立布局审批不签permit、选盘后报告拒绝、并发刷新只接受一个、撤域拒绝新回调。已接provision-only集中入口，只执行go test -run '^$'编译（/tmp/keel-live-boot-fixture-compile.log，退出0）；没有执行用例/CLI/PG迁移/镜像或硬件。P1仍partial。
+
+
+## 103. 写盘器前置GPT字节核心（2026-10-26，源码待集中验证）
+
+接续ed1906b。新增provisionstorage的确定性GPT构造/只读回验，绑定完整Plan摘要、3个唯一显式UUIDv4、精确容量和512/4Kn扇区，输出首尾各1MiB及摘要；主备header/array、PMBR/饱和逻辑块数、CRC、GUID端序和零保留区均固定。Segments返回独立副本，调用方不能修改已准备对象。此核心只处理内存字节和调用方提供的ReaderAt，不打开设备/文件、不写盘/格式化/挂载或签发许可，不把GPT正确当实际安装/擦除完成。
+
+新增512/4Kn/大容量和PMBR非饱和计数、主备CRC/数组/稳定ID/边界、篡改/部分读/换GUID/过期/改布局/副本保护用例，仅写入。实际go test -run '^$'编译与vet（/tmp/keel-gpt-layout-{compile,vet}.log）退出0；随后增补同一测试函数的PMBR非饱和断言，不改变产品源码。格式来源见PROVISIONING，不执行任何设备/磁盘工具。P1仍partial，下一块是独立批准的writer工具输入接入完整镜像，之后当前许可及实际写盘回执。
