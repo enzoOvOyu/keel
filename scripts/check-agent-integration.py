@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import urllib.parse
 import uuid
+from p1_evidence import go_test_evidence, repository_source, source_provenance
 
 os.umask(0o077)
 parser = argparse.ArgumentParser(description=__doc__)
@@ -16,6 +17,7 @@ parser.add_argument('--run', default='TestAgent|TestProtected|TestWriteNew|TestA
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 os.chdir(root)
+source_before = repository_source(root)
 work = Path(tempfile.mkdtemp(prefix='keel-agent-integration-'))
 binary_root = Path.home() / '.local/state/keel/evidence/agent-binaries'
 binary_root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -26,6 +28,8 @@ created = False
 try:
     record = json.loads(subprocess.check_output(['docker', 'inspect', container]))[0]
     assert record['Config'].get('Labels', {}).get('io.keel.test-environment') == 'disposable'
+    ports = record['NetworkSettings']['Ports'].get('5432/tcp') or []
+    assert any(item.get('HostIp') == '127.0.0.1' and item.get('HostPort') == '15433' for item in ports)
     config = dict(value.split('=', 1) for value in record['Config']['Env'] if '=' in value)
     owner = config['POSTGRES_USER']
     subprocess.run(['docker', 'exec', container, 'createdb', '-U', owner, database], check=True, capture_output=True)
@@ -44,7 +48,25 @@ try:
             subprocess.run(['go', 'build', '-o', str(binary), './cmd/keel-' + name], env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
             env['KEEL_TEST_AGENT_' + name.upper() + '_BIN'] = str(binary)
         result = subprocess.run(['go', 'test', '-p=1', '-race', '-count=1', '-v', './internal/agentpki', './internal/agentinventory', './internal/agentidentity', './internal/agentclient', './internal/platform', './internal/execution', './internal/taskrunner', './internal/httpapi', '-run', args.run], env=env, stdout=log, stderr=subprocess.STDOUT)
-    (work / 'result.json').write_text(json.dumps({'exit_code': result.returncode, 'test_filter': args.run, 'real_postgresql': True, 'verified_loopback_tls_grpc': True, 'browser_requested': args.browser, 'physical_device_acceptance': False}))
+    transcript = (work / 'go-integration.log').read_text()
+    evidence = go_test_evidence(transcript, result.returncode, {
+        'loopback_tls_grpc': ['TestAgentIdentityPostgresMTLSLifecycle', 'TestAgentTasksPostgresExecutionAndRecovery'],
+        'worker_cli': ['TestAgentWorkerAndCLIExecutionLifecycle'],
+        'browser': ['TestAgentReadOnlyLaunchBrowser'],
+        'native_host_dag': ['TestHostFlowDAGAgentAdmissionAndReceiptsPostgres', 'TestHostFlowUnknownBlocksDependencyUntilExplicitReconcilePostgres', 'TestHostFlowFailureSkipsDependentAndPauseStopsDispatchPostgres'],
+        'native_host_rerun': ['TestHostFlowRerunCreatesIndependentAgentDAGPostgres', 'TestHostFlowRerunRefusesRetiredFrozenArtifactPostgres', 'TestHostFlowRerunSnapshotRejectsOwnedWorkflows'],
+        'control_kv': ['TestControlKVAtomicReceiptCASAndProjectIsolationPostgres', 'TestControlKVExpiredClaimHasNonCommitProofPostgres', 'TestControlKVPauseKillAndCurrentAuthorityPostgres'],
+    })
+    (work / 'result.json').write_text(json.dumps({
+        'exit_code': result.returncode, 'test_filter': args.run,
+        'real_postgresql_configured': True,
+        'verified_loopback_tls_grpc': evidence['verified_groups']['loopback_tls_grpc'],
+        'browser_requested': args.browser,
+        'browser_verified': args.browser and evidence['verified_groups']['browser'],
+        'physical_device_acceptance': False,
+        'source': source_provenance(source_before, repository_source(root)),
+        **evidence,
+    }))
     print('Agent evidence:', work, 'exit:', result.returncode)
     raise SystemExit(result.returncode)
 finally:

@@ -3,6 +3,7 @@ APP_VERSION ?= development
 .PHONY: check build build-agent build-preflight build-firstboot build-installer-helpers build-initrd generate-agent-proto integration dev-api dev-web dev-worker up logs
 check:
 	python3 scripts/check-design.py
+	python3 -m unittest discover -s scripts -p 'test_p1_evidence.py'
 	python3 -m unittest discover -s poc/h1 -p 'test_*.py'
 	python3 -m unittest discover -s poc/bom-h15 -p 'test_*.py'
 	python3 -m unittest discover -s poc/ztp-h16 -p 'test_*.py'

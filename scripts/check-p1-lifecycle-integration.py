@@ -15,6 +15,7 @@ import subprocess
 import tempfile
 import urllib.parse
 import uuid
+from p1_evidence import go_test_evidence, repository_source, source_provenance
 
 os.umask(0o077)
 parser = argparse.ArgumentParser(description=__doc__)
@@ -22,6 +23,7 @@ parser.add_argument('--run', default='TestOSBootMediaComposition|TestProvisionPr
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 os.chdir(root)
+source_before = repository_source(root)
 work = Path(tempfile.mkdtemp(prefix='keel-p1-lifecycle-'))
 binary_root = Path.home() / '.local/state/keel/evidence/p1-lifecycle-binaries'
 binary_root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -47,12 +49,16 @@ try:
         subprocess.run(['go', 'build', '-o', env['KEEL_TEST_P1_ADMIN_BIN'], './cmd/keel-admin'], env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
         result = subprocess.run(['go', 'test', '-p=1', '-race', '-count=1', '-v', './internal/auditevidence', './internal/webhook', './internal/mediasource', './internal/credentialvault', './internal/mediamanifest', './internal/provisionseed', './internal/fabricboot', './internal/platform', './cmd/keel-admin', '-run', args.run], env=env, stdout=log, stderr=subprocess.STDOUT)
     transcript = (work / 'integration.log').read_text()
-    passed = re.findall(r'^--- PASS: (\S+)', transcript, re.MULTILINE)
+    evidence = go_test_evidence(transcript, result.returncode, {
+        'owner_cli': ['TestCredentialMasterAtomicRewrapAndRecovery', 'TestAuditEvidenceDetectsOwnerChangesWithoutExportingMetadata', 'TestWebhookDurableOutboxDeliveryAndIsolation'],
+        'ztp_200': ['TestZTPP1LogicalBatch200Postgres'],
+    })
+    passed = evidence['passed_tests']
     owner_cli_verified = all(marker in transcript for marker in ['P1_LIFECYCLE_MASTER_CLI_OK', 'P1_LIFECYCLE_AUDIT_CLI_OK', 'P1_LIFECYCLE_WEBHOOK_CLI_OK']) and all(name in passed for name in ['TestCredentialMasterAtomicRewrapAndRecovery', 'TestAuditEvidenceDetectsOwnerChangesWithoutExportingMetadata', 'TestWebhookDurableOutboxDeliveryAndIsolation'])
     ztp_batches = [json.loads(match.group(1)) for match in re.finditer(r'P1_ZTP_LOGICAL_BATCH (\{[^\n]+\})', transcript)]
     ztp_200 = next((batch for batch in ztp_batches if batch.get('logical_targets') == 200), None)
     ztp_200_verified = result.returncode == 0 and 'TestZTPP1LogicalBatch200Postgres' in passed and ztp_200 is not None and ztp_200.get('source') == 'sim' and ztp_200.get('managed_first_pass', 0) >= 198 and ztp_200.get('identity_matches') == 200 and ztp_200.get('protocol_label_violations') == 0 and ztp_200.get('device_observations') == 0
-    (work / 'result.json').write_text(json.dumps({'exit_code': result.returncode, 'test_filter': args.run, 'real_postgresql_configured': True, 'owner_cli_binary_built': True, 'owner_cli_lifecycle_verified': owner_cli_verified, 'passed_tests': passed, 'ztp_200_logical_verified': ztp_200_verified, 'ztp_logical_batches': ztp_batches, 'object_transport': 'in-memory fixture', 'browser_run': False, 'image_build': False, 'production_writes': False, 'full_p1_acceptance': False}))
+    (work / 'result.json').write_text(json.dumps({'exit_code': result.returncode, 'test_filter': args.run, 'real_postgresql_configured': True, 'owner_cli_binary_built': True, 'owner_cli_lifecycle_verified': result.returncode == 0 and owner_cli_verified and evidence['verified_groups']['owner_cli'], 'source': source_provenance(source_before, repository_source(root)), **evidence, 'ztp_200_logical_verified': ztp_200_verified, 'ztp_logical_batches': ztp_batches, 'object_transport': 'in-memory fixture', 'browser_run': False, 'image_build': False, 'production_writes': False, 'full_p1_acceptance': False}))
     print('P1 lifecycle batch exit:', result.returncode, flush=True)
     raise SystemExit(result.returncode)
 finally:

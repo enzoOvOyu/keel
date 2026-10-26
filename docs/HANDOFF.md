@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～153。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～154。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本轮开发检查点）
 
 当前用户规模调整（2026-10-26）：P1逻辑设备扇出按200台，原2,000台后续优化，不再阻断当前P1闭环；成功率/介质完整性/权限/恢复要求保留。默认脚本已改，尚未运行，详见§136。
 
-### 低Token接续入口（2026-10-26，接续§153）
+### 低Token接续入口（2026-10-26，接续§154）
 
 - 工作区`/opt/keel`、分支`dev/p1-network-bom`，单Agent。§137～140为批准制品/取回/未启动证明；§141～145为DHCPv6 136协议及项目模拟链、双通道版本化主机DAG/批准介质步骤和YAML定位；§146为重装/RMA身份历史。§147～150已补参数熔断默认值、无介质项目KV、独立RMA审批及200逻辑ZTP/H-15/H-16材料，最近提交`0c3bc0b`；§151接通知投递可见性，不重做已有功能。
 - 用户要求直接推进至P1闭环；集中验证仍由用户另行安排。不运行测试、编译、静态检查、数据库、浏览器或镜像验证；必要gofmt/API生成只算源码产物。无tmux、SSH绕转、子Agent、工作树或推送。
@@ -1716,3 +1716,13 @@ WP-1.4/1.5/1.9：原重跑只支持sim，现接发布过的keel.host/v1 SSH/Agen
 预览冻结execution target ID、machine UID和SN、来源版本/摘要与排除项；前端按rerun_supported呈现，原生必须勾选重复整个DAG并可能重复已成功步骤副作用，API强制confirm_full_workflow=true。缺回执或已领取却无停止证明的cancelled/skipped按unknown排除；未结束源仍不能重跑。装机/互信修复/Kea/项目KV保留原业务入口。
 
 新增TestHostFlowRerun*源码（原Agent集中入口已覆盖TestHostFlow）：独立新DAG/新命令/幂等/单目标/未知阻断/退休制品/资产版本变更/撤销会话/源历史不变，源码未执行。必要gofmt及API类型生成完成，无编译、静态/测试/数据库/浏览器/镜像验证、部署或推送。补齐上批生成类型中的event_expired枚举；源62迁移/运行46不变，065未应用。P1仍需集中验收，不能宣称闭环通过。
+
+## 154. 集中验收证据去假通过（2026-10-26，源码未执行）
+
+修正check-agent-integration.py无条件将verified_loopback_tls_grpc写true：现在必须指定身份/任务协议用例实际PASS且整批退出0，skip/窄跑/失败均不记通过。分别记录实际PASS/SKIP/FAIL、Agent/worker/浏览器、原生DAG/重跑和KV组；browser_requested不代替browser_verified。Agent测试服务先复核disposable标签及loopback15433端口。
+
+新增仅元数据的p1_evidence.py与未执行单元用例源码，报告前后Git提交、跟踪修改/额外未跟踪项；只有两份原草稿以精确排除overlay保护时才可标unchanged_clean_snapshot。不读取或执行原草稿。该字段只描述报告脚本看到的源码，不证明运行二进制与提交一致，完整验收仍需父级构建记录。Agent/lifecycle组件结果始终full_p1_acceptance=false。
+
+200逻辑执行容量报告先写suite_completed=false，后续恢复/权限等整批完成才改true，避免容量子项已通过却被当成整批通过。所有脚本/新单元源码均未运行，没有编译、测试、数据库/浏览器/镜像操作、部署或推送；源62迁移/运行46不变。
+
+本轮定向读源码发现两个真实后续项：Control KV已接RunClaim，但公开worker Claim的mode查询遗漏control，需修复并从公开领取入口覆盖；WP-1.3/ADR-01的Redis Streams可重建队列仍未实现，目前PumpOutbox为PostgreSQL消费/去重/调度，Redis仅部署，不可写成Redis事件总线已交付。不要再把已存在的Machine/Component/PhysicalPort/项目资产/稳定BOM/outbox写成planned。

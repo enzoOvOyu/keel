@@ -9,8 +9,10 @@ from pathlib import Path
 import platform
 import secrets
 import time
+from p1_evidence import repository_source, source_provenance
 import urllib.parse
 
+source_before=repository_source(Path(__file__).resolve().parents[1])
 file=Path(os.environ.get('KEEL_AUTH_BROWSER_CREDENTIALS_FILE','/tmp/keel-auth-browser-credentials.json'))
 assert file.stat().st_mode & 0o077 == 0, 'Private isolated credentials required'
 credentials=json.loads(file.read_text())
@@ -98,7 +100,7 @@ assert len(done['execution']['snapshot']['targets'])==count
 attempt_page=admin.call('GET',path+'/executions/'+run['id']+'/attempts?page=2&page_size=1')
 assert attempt_page['total']==count and len(attempt_page['items'])==(1 if count>1 else 0)
 elapsed=round(time.monotonic()-start,3)
-report={'mode':'sim','hardware_evidence':False,'logical_targets':count,'real_device_connections':0,'real_hardware_transport_bytes':0,'seed':42,'simulation_task_ms':10,'tasks_per_target':1,'worker_concurrency':os.environ.get('KEEL_WORKER_CONCURRENCY','8'),'execution_concurrency':64,'success':count,'success_percent':100,'elapsed_seconds':elapsed,'architecture':platform.machine(),'logical_cpus':os.cpu_count(),'memory_total_kib':int(next(line.split()[1] for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith('MemTotal:'))),'execution_id':run['id']}
+report={'suite_completed':False,'full_p1_acceptance':False,'mode':'sim','hardware_evidence':False,'logical_targets':count,'real_device_connections':0,'real_hardware_transport_bytes':0,'seed':42,'simulation_task_ms':10,'tasks_per_target':1,'worker_concurrency':os.environ.get('KEEL_WORKER_CONCURRENCY','8'),'execution_concurrency':64,'success':count,'success_percent':100,'elapsed_seconds':elapsed,'architecture':platform.machine(),'logical_cpus':os.cpu_count(),'memory_total_kib':int(next(line.split()[1] for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith('MemTotal:'))),'execution_id':run['id']}
 report_path=Path(os.environ.get('KEEL_SIM_REPORT_FILE','/tmp/keel-simulation-report.json'))
 report_path.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');report_path.chmod(0o600)
 passed(f'{count} persisted logical targets completed at 100%; frozen version and paginated attempts ({elapsed}s, simulation only)')
@@ -193,4 +195,6 @@ next_events=admin.call('GET',path+'/executions/'+run['id']+'/events?after='+str(
 assert all(e['sequence']>events['next_cursor'] for e in next_events['items'])
 assert all(a['project_id']==p['id'] for a in admin.call('GET',path+'/audits?action=execution.create')['items'])
 passed('Durable event cursor replay and project-scoped execution audits')
+report.update({'suite_completed':True,'passed_groups':checks,'source':source_provenance(source_before,repository_source(Path(__file__).resolve().parents[1]))})
+report_path.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
 print(f'Execution HTTP integration passed: {len(checks)} groups; report {report_path}',flush=True)
