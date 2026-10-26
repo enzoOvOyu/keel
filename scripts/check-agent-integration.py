@@ -13,7 +13,7 @@ from p1_evidence import go_test_evidence, repository_source, source_provenance
 os.umask(0o077)
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--browser', action='store_true', help='Also exercise built web UI with the actual Agent transport')
-parser.add_argument('--run', default='TestAgent|TestProtected|TestWriteNew|TestAuthority|TestIssued|TestCSR|TestControlKV|TestHostFlow|TestHostMedia|TestArtifact|TestFlowYAML|TestWorkflowYAML|TestExecutionStream|TestExecutionQueue', help='Go test name filter for a targeted rerun')
+parser.add_argument('--run', default='TestAgent|TestProtected|TestWriteNew|TestAuthority|TestIssued|TestCSR|TestControlKV|TestHostFlow|TestHostMedia|TestArtifact|TestFlowYAML|TestWorkflowYAML|TestExecutionStream|TestExecutionQueue|TestProvision', help='Go test name filter for a targeted rerun')
 parser.add_argument('--redis-address', help='Opt-in dedicated Redis fixture, literal loopback:16379; never the application Redis')
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
@@ -62,6 +62,11 @@ try:
         'streams_postgresql': ['TestExecutionStreamsCommitBeforeACKAndDuplicatePostgres', 'TestExecutionStreamsRejectAndBusyRecoveryPostgres', 'TestExecutionStreamsRebuildAndFailureIsolationPostgres'],
         'redis_streams_protocol': ['TestExecutionQueueRedisStreamsRecovery'],
         'redis_postgresql_scheduler': ['TestExecutionStreamsRedisPostgresScheduler'],
+        'provision_admission': ['TestProvisionExecutionKernelPostgres', 'TestProvisionInstallationKernelPostgres'],
+        'provision_boot_write': ['TestProvisionInstallationLiveBootPostgres', 'TestProvisionInstallationFileDeliveryPostgres', 'TestProvisionInstallationWritePermitPostgres', 'TestProvisionInstallationFirstBootPostgres'],
+        'provision_ssh_configuration': ['TestProvisionInstallationFirstSSHPostgres', 'TestProvisionInstallationBaselinePostgres', 'TestProvisionInstallationConfigurationPostgres'],
+        'provision_unknown_recovery': ['TestProvisionInstallationPrewriteRecoveryPostgres', 'TestProvisionInstallationRegisteredRecoveryPostgres', 'TestProvisionInstallationFirstSSHOrphanDispatchPostgres'],
+        'provision_repair_rollout': ['TestProvisionInstallationKnownFailedSSHPostgres', 'TestProvisionInstallationSSHBatchPostgres', 'TestProvisionInstallationKeyRepairPostgres', 'TestProvisionInstallationRepairListPostgres', 'TestProvisionInstallationRolloutPostgres'],
     })
     (work / 'result.json').write_text(json.dumps({
         'exit_code': result.returncode, 'test_filter': args.run,
@@ -70,6 +75,7 @@ try:
         'browser_requested': args.browser,
         'browser_verified': args.browser and evidence['verified_groups']['browser'],
         'physical_device_acceptance': False,
+        'provision_transport': 'mock object/machine proofs; no actual PXE or physical installation',
         'source': source_provenance(source_before, repository_source(root)),
         **evidence,
     }))
