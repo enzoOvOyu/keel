@@ -4,6 +4,57 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{id}/ztp/replacements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listZTPReplacements"];
+        put?: never;
+        /** @description Request RMA before starting the new session. Freeze old/new distinct BOM SN and management MAC at the same explicit dc/rack/idx. No device writes, credential transfer or binding retirement until independent project-admin approval. Simulation and device bindings remain separate. */
+        post: operations["createZTPReplacement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/replacements/{replacementId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description A different current project administrator confirms the exact snapshot/version. Rechecks requester authority and current old/new SN/MAC/location, retires the old project binding and creates the new active binding atomically. No DHCP/device/credential writes. Mode sim changes only simulation bindings. Original physical identities and BOM history remain. */
+        post: operations["approveZTPReplacement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ztp/replacements/{replacementId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Project administrator rejects an exact pending request without changing bindings or credentials. Approved retirement cannot be undone through rejection. Permits a new reviewed request after BOM correction. */
+        post: operations["rejectZTPReplacement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/ztp/identity-history": {
         parameters: {
             query?: never;
@@ -5033,6 +5084,56 @@ export interface components {
             base_mac?: string;
             other_macs?: string[];
         };
+        ZTPReplacementDevice: {
+            switch_id: components["schemas"]["EntityID"];
+            serial: string;
+            mgmt_mac: string;
+            position: {
+                [key: string]: string;
+            };
+        };
+        ZTPReplacementSnapshot: {
+            from_session_id: components["schemas"]["EntityID"];
+            /** Format: int64 */
+            from_session_version: number;
+            /** @enum {string} */
+            mode: "sim" | "device";
+            old: components["schemas"]["ZTPReplacementDevice"];
+            new: components["schemas"]["ZTPReplacementDevice"];
+        };
+        ZTPReplacementInput: {
+            from_session_id: components["schemas"]["EntityID"];
+            /** Format: int64 */
+            from_expected_version: number;
+            to_switch_id: components["schemas"]["EntityID"];
+            reason: string;
+            /** @constant */
+            confirmed: true;
+        };
+        ZTPReplacementApproval: {
+            /** Format: int64 */
+            expected_version: number;
+            snapshot_sha256: string;
+            /** @constant */
+            confirmed: true;
+        };
+        ZTPReplacement: {
+            id: components["schemas"]["EntityID"];
+            project_id: components["schemas"]["EntityID"];
+            /** @enum {string} */
+            state: "requested" | "approved" | "rejected";
+            /** Format: int64 */
+            state_version: number;
+            snapshot: components["schemas"]["ZTPReplacementSnapshot"];
+            snapshot_sha256: string;
+            reason: string;
+            created_by: components["schemas"]["EntityID"];
+            /** Format: date-time */
+            created_at: string;
+            approved_by?: components["schemas"]["EntityID"];
+            /** Format: date-time */
+            approved_at?: string;
+        };
         ZTPIdentityHistorySnapshot: {
             session_id: components["schemas"]["EntityID"];
             state_version: number;
@@ -5056,6 +5157,8 @@ export interface components {
             reason: string;
             /** @constant */
             confirmed: true;
+            /** @description Required for RMA: independently approved replacement that precedes the target session and covers exact old/new identities/mode. Not used by reinstall. */
+            replacement_id?: components["schemas"]["EntityID"];
         };
         ZTPIdentityHistory: {
             id: components["schemas"]["EntityID"];
@@ -5072,6 +5175,8 @@ export interface components {
             recorded_at: string;
             /** @enum {string} */
             declaration_source: "operator_declared";
+            /** @description Required for RMA: independently approved replacement that precedes the target session and covers exact old/new identities/mode. Not used by reinstall. */
+            replacement_id?: components["schemas"]["EntityID"];
         };
         ZTPIdentityResolution: {
             /** @enum {string} */
@@ -6394,6 +6499,297 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listZTPReplacements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project scoped identity lineage */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPReplacement"][];
+                };
+            };
+            /** @description Invalid declaration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Current project permission required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Project session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Session state, mode, order or predecessor conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createZTPReplacement: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: string;
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZTPReplacementInput"];
+            };
+        };
+        responses: {
+            /** @description Project scoped identity lineage */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPReplacement"];
+                };
+            };
+            /** @description Invalid declaration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Current project permission required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Project session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Session state, mode, order or predecessor conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    approveZTPReplacement: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: string;
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: components["schemas"]["EntityID"];
+                replacementId: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZTPReplacementApproval"];
+            };
+        };
+        responses: {
+            /** @description Project scoped identity lineage */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPReplacement"];
+                };
+            };
+            /** @description Invalid declaration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Current project permission required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Project session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Session state, mode, order or predecessor conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    rejectZTPReplacement: {
+        parameters: {
+            query?: never;
+            header: {
+                Origin: string;
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: components["schemas"]["EntityID"];
+                replacementId: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZTPReplacementApproval"];
+            };
+        };
+        responses: {
+            /** @description Project scoped identity lineage */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZTPReplacement"];
+                };
+            };
+            /** @description Invalid declaration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Current project permission required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Project session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Session state, mode, order or predecessor conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     listZTPIdentityHistory: {
         parameters: {
             query?: never;

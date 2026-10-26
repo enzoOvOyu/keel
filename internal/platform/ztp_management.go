@@ -55,7 +55,7 @@ func managementPlanTx(ctx context.Context, tx *sql.Tx, projectID, ref string) (*
 		}
 	}
 	devices := []fabricboot.ManagementDevice{}
-	rows, err := tx.QueryContext(ctx, `SELECT b.item_uid,coalesce(b.serial,''),coalesce(b.position->>'dc',''),coalesce(b.pod,''),coalesce(b.role,''),coalesce(b.position->>'rack',''),coalesce(b.position->>'idx','') FROM bom_items b JOIN switches s ON s.id=b.item_uid WHERE b.status<>'retired' AND EXISTS(SELECT 1 FROM bom_item_revisions r WHERE r.item_uid=b.item_uid AND r.project_id=$1) ORDER BY b.item_uid`, projectID)
+	rows, err := tx.QueryContext(ctx, `SELECT b.item_uid,coalesce(b.serial,''),coalesce(b.position->>'dc',''),coalesce(b.pod,''),coalesce(b.role,''),coalesce(b.position->>'rack',''),coalesce(b.position->>'idx','') FROM bom_items b JOIN switches s ON s.id=b.item_uid WHERE b.status<>'retired' AND NOT EXISTS(SELECT 1 FROM ztp_switch_project_bindings rb WHERE rb.project_id=$1 AND rb.switch_id=b.item_uid AND rb.mode='device' AND rb.state='retired') AND EXISTS(SELECT 1 FROM bom_item_revisions r WHERE r.item_uid=b.item_uid AND r.project_id=$1) ORDER BY b.item_uid`, projectID)
 	if err != nil {
 		return nil, err
 	}

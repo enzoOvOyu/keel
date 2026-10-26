@@ -34,3 +34,11 @@ export const runZTPSimSession = (projectId: string, id: string, input: component
 export type ZTPIdentityHistory=components['schemas']['ZTPIdentityHistory']
 export const listZTPIdentityHistory=(project:string,signal:AbortSignal)=>request<ZTPIdentityHistory[]>(`/projects/${encodeURIComponent(project)}/ztp/identity-history`,{signal})
 export const recordZTPIdentityHistory=(project:string,body:components['schemas']['ZTPIdentityHistoryInput'],csrf:string)=>request<ZTPIdentityHistory>(`/projects/${encodeURIComponent(project)}/ztp/identity-history`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify(body)})
+
+export type ZTPReplacement=components['schemas']['ZTPReplacement']
+const replacementBase=(project:string)=>`/projects/${encodeURIComponent(project)}/ztp/replacements`
+export const listZTPReplacements=(project:string,signal?:AbortSignal)=>request<ZTPReplacement[]>(replacementBase(project),{signal})
+export const createZTPReplacement=(project:string,body:components['schemas']['ZTPReplacementInput'],csrf:string)=>request<ZTPReplacement>(replacementBase(project),{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify(body)})
+export const approveZTPReplacement=(project:string,id:string,body:components['schemas']['ZTPReplacementApproval'],csrf:string)=>request<ZTPReplacement>(`${replacementBase(project)}/${encodeURIComponent(id)}/approve`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify(body)})
+
+export const rejectZTPReplacement=(project:string,id:string,body:components['schemas']['ZTPReplacementApproval'],csrf:string)=>request<ZTPReplacement>(`${replacementBase(project)}/${encodeURIComponent(id)}/reject`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify(body)})

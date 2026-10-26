@@ -128,6 +128,13 @@ func (s *Store) keaDeploymentFactsTx(ctx context.Context, tx *sql.Tx, a *AuthSes
 		if assignment.Batch != input.BatchRef {
 			continue
 		}
+		var retired bool
+		if e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM ztp_switch_project_bindings WHERE project_id=$1 AND switch_id=$2 AND mode='device' AND state='retired')`, projectID, assignment.SwitchID).Scan(&retired); e != nil {
+			return nil, e
+		}
+		if retired {
+			return nil, apiError(409, "ZTP_RMA_BINDING_RETIRED", "Regenerate the approved management plan after replacement")
+		}
 		var mac string
 		e = tx.QueryRowContext(ctx, `SELECT mac FROM switch_mac_bindings WHERE switch_id=$1 AND kind='mgmt'`, assignment.SwitchID).Scan(&mac)
 		if errors.Is(e, sql.ErrNoRows) {

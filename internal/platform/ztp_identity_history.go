@@ -13,6 +13,7 @@ import (
 )
 
 type ZTPIdentityHistoryInput struct {
+	ReplacementID       string `json:"replacement_id,omitempty"`
 	Kind                string `json:"kind"`
 	FromSessionID       string `json:"from_session_id"`
 	ToSessionID         string `json:"to_session_id"`
@@ -32,6 +33,7 @@ type ZTPIdentityHistorySnapshot struct {
 	ManagedAt    time.Time `json:"managed_at"`
 }
 type ZTPIdentityHistory struct {
+	ReplacementID     string                     `json:"replacement_id,omitempty"`
 	ID                string                     `json:"id"`
 	ProjectID         string                     `json:"project_id"`
 	Kind              string                     `json:"kind"`
@@ -44,12 +46,12 @@ type ZTPIdentityHistory struct {
 	DeclarationSource string                     `json:"declaration_source"`
 }
 
-const ztpHistoryColumns = "id,project_id,kind,mode,source_snapshot,target_snapshot,reason,recorded_by,recorded_at"
+const ztpHistoryColumns = "id,project_id,kind,mode,source_snapshot,target_snapshot,reason,recorded_by,recorded_at,coalesce(replacement_id,'')"
 
 func scanZTPIdentityHistory(row scanner) (*ZTPIdentityHistory, error) {
 	var out ZTPIdentityHistory
 	var source, target []byte
-	err := row.Scan(&out.ID, &out.ProjectID, &out.Kind, &out.Mode, &source, &target, &out.Reason, &out.RecordedBy, &out.RecordedAt)
+	err := row.Scan(&out.ID, &out.ProjectID, &out.Kind, &out.Mode, &source, &target, &out.Reason, &out.RecordedBy, &out.RecordedAt, &out.ReplacementID)
 	if err == nil {
 		err = json.Unmarshal(source, &out.Source)
 	}
@@ -115,6 +117,24 @@ func (s *Store) RecordZTPIdentityHistory(ctx context.Context, a *AuthSession, pr
 	if !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
+	var replacement *ZTPReplacement
+	if in.Kind == "rma" {
+		if !bootMediaID.MatchString(in.ReplacementID) {
+			return nil, apiError(409, "ZTP_RMA_APPROVAL_REQUIRED", "RMA lineage requires an independently approved replacement")
+		}
+		replacement, err = scanZTPReplacement(tx.QueryRowContext(ctx, "SELECT "+ztpReplacementFields+" FROM ztp_replacements WHERE project_id=$1 AND id=$2 FOR SHARE", project.ID, in.ReplacementID))
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		if err != nil {
+			return nil, err
+		}
+		if replacement.State != "approved" || replacement.ApprovedAt == nil || replacement.Snapshot.FromSessionID != in.FromSessionID {
+			return nil, apiError(409, "ZTP_RMA_APPROVAL_REQUIRED", "Replacement approval does not cover the original session")
+		}
+	} else if in.ReplacementID != "" {
+		return nil, apiError(400, "ZTP_HISTORY_INVALID", "Reinstall does not consume an RMA approval")
+	}
 	rows, err := tx.QueryContext(ctx, `SELECT id FROM ztp_sessions WHERE project_id=$1 AND id IN($2,$3) ORDER BY id FOR UPDATE`, project.ID, in.FromSessionID, in.ToSessionID)
 	if err != nil {
 		return nil, err
@@ -165,11 +185,24 @@ func (s *Store) RecordZTPIdentityHistory(ctx context.Context, a *AuthSession, pr
 	if in.Kind == "reinstall" && source.SwitchID != target.SwitchID || in.Kind == "rma" && (source.SwitchID == target.SwitchID || source.Serial == target.Serial) {
 		return nil, apiError(409, "ZTP_HISTORY_KIND_MISMATCH", "Reinstall keeps physical identity; RMA requires a different BOM device and serial")
 	}
+	if replacement != nil && (replacement.Snapshot.Old.SwitchID != source.SwitchID || replacement.Snapshot.New.SwitchID != target.SwitchID || replacement.Snapshot.Mode != to.Mode || target.StartedAt.Before(*replacement.ApprovedAt) || replacement.Snapshot.Old.Serial != source.Serial || replacement.Snapshot.New.Serial != target.Serial) {
+		return nil, apiError(409, "ZTP_RMA_APPROVAL_SCOPE_MISMATCH", "Replacement approval must precede and cover the exact new identity and evidence mode")
+	}
+	if replacement != nil {
+		stale, e := activeReplacementStaleTx(ctx, tx, project.ID, target.SwitchID, to.Mode)
+		if e != nil {
+			return nil, e
+		}
+		if stale {
+			return nil, apiError(409, "ZTP_RMA_SNAPSHOT_CHANGED", "New binding facts changed after replacement approval")
+		}
+	}
 	now := time.Now().UTC()
 	out := &ZTPIdentityHistory{ID: RandomID(), ProjectID: project.ID, Kind: in.Kind, Mode: to.Mode, Source: source, Target: target, Reason: in.Reason, RecordedBy: a.User.ID, RecordedAt: now, DeclarationSource: "operator_declared"}
 	sourceRaw, _ := json.Marshal(source)
 	targetRaw, _ := json.Marshal(target)
-	_, err = tx.ExecContext(ctx, `INSERT INTO ztp_identity_history(id,project_id,kind,from_session_id,to_session_id,from_switch_id,to_switch_id,mode,source_snapshot,target_snapshot,reason,request_hash,recorded_by,recorded_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`, out.ID, project.ID, in.Kind, from.ID, to.ID, source.SwitchID, target.SwitchID, to.Mode, sourceRaw, targetRaw, in.Reason, requestHash, a.User.ID, now)
+	out.ReplacementID = in.ReplacementID
+	_, err = tx.ExecContext(ctx, `INSERT INTO ztp_identity_history(id,project_id,kind,from_session_id,to_session_id,from_switch_id,to_switch_id,mode,source_snapshot,target_snapshot,reason,request_hash,recorded_by,recorded_at,replacement_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NULLIF($15,''))`, out.ID, project.ID, in.Kind, from.ID, to.ID, source.SwitchID, target.SwitchID, to.Mode, sourceRaw, targetRaw, in.Reason, requestHash, a.User.ID, now, in.ReplacementID)
 	if err != nil {
 		return nil, err
 	}

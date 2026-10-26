@@ -345,7 +345,7 @@ func (s *Store) advanceZTPSimSessionTx(ctx context.Context, tx *sql.Tx, projectI
 			if err = json.Unmarshal(rawClaim, &claim); err != nil {
 				return nil, err
 			}
-			resolution, lookupErr := resolveZTPIdentityTx(ctx, tx, projectID, claim)
+			resolution, lookupErr := resolveZTPIdentityTx(ctx, tx, projectID, claim, "sim")
 			if lookupErr != nil {
 				return nil, lookupErr
 			}

@@ -75,3 +75,11 @@ KeaDHCP6Control独立绑定dhcp6服务；候选测试、两次漂移检查、写
 项目接口`GET/POST /api/v1/projects/{id}/ztp/identity-history`只关联已managed且身份matched的前后两次会话。POST提供kind(reinstall/rma)、from/to_session_id、双方expected_version、3～1000字单行reason、confirmed=true；当前fabric:plan权限、同项目同模式、前一次完成不晚于新会话开始为前置。重装保留同一物理UID；RMA使用不同UID和SN，旧SN不改写。每个新会话只有一个不可变前驱；相同请求可安全重试。返回operator_declared历史，不是新设备配置、旧凭据撤销或生产NP证据。
 
 页面在已完成模拟会话中选择前驱并确认，列表区分sim/device。API契约和迁移062已写，迁移及PG用例未执行；不能由历史声明冒充真实RMA PoC。
+
+## 批准RMA（FR-0.3.7，源码未验证）
+
+§146的历史关联不能单独代替批准换件。现在先选原managed会话和独立新BOM设备，POST`/ztp/replacements`提交from_session_id/from_expected_version/to_switch_id/reason/confirmed。要求两者不同SN/管理MAC、相同明确dc/rack/idx，冻结BOM/原会话版本摘要。另一位当前项目Admin通过`/{id}/approve`提交expected_version/snapshot_sha256/confirmed，重查原申请者权限与当前BOM；`/{id}/reject`只能拒绝pending申请，不会恢复已退役绑定。项目可GET列表，页面提供上述操作。
+
+待审批新设备的引导被拒；批准后旧项目绑定退役，新实物独立active绑定。模拟与device分表键隔离，模拟不会退役真实设备或删除真实地址。device只退役旧当前地址投影，历史BOM/冻结规划/会话保留；必须重新规划并按正常Kea/引导准入开通新设备，不自动转移凭据/生产配置。新绑定SN/MAC/位置变更后拒绝原审批继续开通。
+
+新设备会话必须晚于审批；完成后RMA历史提供replacement_id，校验原会话及新旧身份/模式/审批时间。既有无审批历史仍是历史声明，无退役授权。迁移064、API和用例源码未执行，不代表真实换件通过。

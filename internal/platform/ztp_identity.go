@@ -43,7 +43,7 @@ func (s *Store) ResolveZTPIdentity(ctx context.Context, a *AuthSession, project 
 	return out, nil
 }
 
-func resolveZTPIdentityTx(ctx context.Context, tx *sql.Tx, projectID string, input ZTPIdentityInput) (*ZTPIdentityResolution, error) {
+func resolveZTPIdentityTx(ctx context.Context, tx *sql.Tx, projectID string, input ZTPIdentityInput, evidenceMode ...string) (*ZTPIdentityResolution, error) {
 	var err error
 	input.Serial = strings.TrimSpace(input.Serial)
 	if input.Serial != "" && !snPattern.MatchString(input.Serial) {
@@ -152,6 +152,37 @@ func resolveZTPIdentityTx(ctx context.Context, tx *sql.Tx, projectID string, inp
 		}
 	}
 	if len(out.Reasons) > 0 {
+		return out, nil
+	}
+	mode := "device"
+	if len(evidenceMode) == 1 && evidenceMode[0] == "sim" {
+		mode = "sim"
+	}
+	var retired bool
+	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM ztp_switch_project_bindings WHERE project_id=$1 AND switch_id=$2 AND mode=$3 AND state='retired')`, projectID, candidate, mode).Scan(&retired); err != nil {
+		return nil, err
+	}
+	if retired {
+		out.Verdict = "conflict"
+		out.Reasons = append(out.Reasons, "project_binding_retired_by_approved_rma")
+		return out, nil
+	}
+	var pending bool
+	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM ztp_replacements WHERE project_id=$1 AND to_switch_id=$2 AND mode=$3 AND state='requested')`, projectID, candidate, mode).Scan(&pending); err != nil {
+		return nil, err
+	}
+	if pending {
+		out.Verdict = "conflict"
+		out.Reasons = append(out.Reasons, "replacement_approval_pending")
+		return out, nil
+	}
+	stale, err := activeReplacementStaleTx(ctx, tx, projectID, candidate, mode)
+	if err != nil {
+		return nil, err
+	}
+	if stale {
+		out.Verdict = "conflict"
+		out.Reasons = append(out.Reasons, "replacement_approval_facts_changed")
 		return out, nil
 	}
 	out.Verdict = "matched"
