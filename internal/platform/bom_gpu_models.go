@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/enzoOvOyu/keel/internal/provisionpreflight"
 )
 
 // These are the existing hardware specification fields, not inferred BOM facts.
@@ -13,6 +15,11 @@ func modelGPUExpectation(raw json.RawMessage) (*int, string, error) {
 	var spec map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &spec); err != nil {
 		return nil, "", err
+	}
+	if spec != nil {
+		if _, _, err := provisionpreflight.ModelPCIIdentities(raw); err != nil {
+			return nil, "", fmt.Errorf("hw_spec GPU/non-GPU PCI identities must be nonempty disjoint lists of canonical vendor:device IDs")
+		}
 	}
 	var count *int
 	if value, ok := spec["gpu_count"]; ok {

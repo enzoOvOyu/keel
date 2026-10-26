@@ -59,3 +59,17 @@ v1 的 config 安装模板为最多64 KiB的单个 YAML mapping，可带 `#cloud
 后续还须完成：真实装机Execution/持久网络Grant、当前网络计划与批准启动固件/安装recipe、受批准initrd中的硬件预检、可信文件Authority和一次性回调、启动路径接线、软件协议/实际可启动镜像验收；再按独立PoC窗口验证真实固件。此次没有新生产网络监听、Kea变更或数据库迁移。
 
 协议依据：[RFC1350](https://www.rfc-editor.org/rfc/rfc1350.html)、[RFC2347](https://www.rfc-editor.org/rfc/rfc2347.html)、[RFC1123](https://www.rfc-editor.org/rfc/rfc1123.html)、[RFC2131](https://www.rfc-editor.org/rfc/rfc2131.html)、[RFC4578](https://www.rfc-editor.org/rfc/rfc4578.html)、[IANA处理器架构登记](https://www.iana.org/assignments/dhcpv6-parameters/dhcpv6-parameters.xhtml#processor-architecture)、[iPXE UEFI HTTP](https://ipxe.org/appnote/uefihttp)、[iPXE user-class](https://ipxe.org/appnote/userclass)、[iPXE PXE discovery定义](https://dox.ipxe.org/group__dhcpopts.html)。仅据官方协议实现传输，没有把这些资料视作Keel已验证证据。
+
+
+## 安装环境只读硬件预检（源码增量，未接真实引导）
+
+`internal/provisionpreflight` 与 `cmd/keel-preflight` 实现 FR-2.2 的安装前判定。iPXE 负责进入批准的、含预检 helper/驱动/smartctl 的 Linux 安装环境，不能把 iPXE 本身当作可执行 SMART 的 Linux。`make build-preflight` 产出 linux/amd64 与 linux/arm64 静态二进制；须通过受审核介质打包进 initrd/安装环境并固定摘要。此目标不修改现有 API 镜像，也不自动运行 helper；现有任意 rootfs 不能据此声称已具备可启动安装环境。
+
+控制面将项目/申请/机器、实际安装 attempt/command/fence、快照摘要、期限及固定型号期望形成 `keel.provision-preflight/v1` Spec；helper 仅从本地 `--spec-file` 读取有界、严格无重复字段的 JSON，不接受自定义 sysfs 根目录或用户命令。该 Spec 尚待真实装机执行器和受限文件授权链签发；准备阶段不是签发权限。helper 输出原始事实与 PASS/FAIL/BLOCKED 报告，退出0仅代表本地预检 PASS，退出1为 FAIL/BLOCKED、退出2为非法/过期规格或输出失败。没有 HTTP 回调、凭据、安装命令、挂载、擦盘或资产状态更新。
+
+- 硬件事实读取 DMI/ARM device-tree SN、运行架构、PCI 类别/精确 vendor:device、物理槽位、VF 标记和物理 netdev/MAC。按 `physical_slot` 聚合多端口/多功能 NIC，不把端口或 VF 算成物理卡；未知槽位/驱动缺失阻断。BOM 引导 MAC 必须在真实非 VF 的 network-class PCI 端口上唯一出现；不能用 GPU 的 BDF、bond/VLAN/loopback 证明网卡。
+- `ExpectationFromModel` 只消费申请固定的已发布型号，调用方仍须复核版本与内容摘要。`bom_expect.nic_count`、`hw_spec.gpu_count` 缺失保持 unknown，不从本次观测反推期望。新增可选 `hw_spec.gpu_pci_ids` / `non_gpu_pci_ids` 为非空、互斥、无重复的小写 `vendor:device` 列表；前者识别 GPU，后者由型号审核显式排除 BMC 显示等非 GPU 设备。未知显示/加速设备阻断，即使期望 GPU=0；不按厂商名字静默猜测，VF 不算物理 GPU。PCI 类别/ID 只证明在位，不证明 GPU 驱动、HBM 或 G2/G3 健康。
+- 磁盘只运行固定绝对路径 smartctl 的 `--json=c --health /dev/<受限设备名>`，不启用 SMART、不启动自测。进程/JSON exit_status 必须一致；读取/解析/不支持（位0～2）为 unknown，当前失败（位3～4）或 NVMe critical warning 非零为 FAIL。仅历史位不是当前故障结论；原 exit status 留在事实中，此项不替代完整磁盘验收。语义参照 [smartmontools 官方状态位定义](https://github.com/smartmontools/smartmontools/blob/main/src/smartctl.h)。至少1块磁盘是预检工程底线，不是目标盘选择授权；未支持的非虚拟磁盘类型或 RAID 后端须补可信适配，否则 BLOCKED。
+- 文件/目录/JSON有界，采集最多90秒、每盘8秒、报告输入2MiB上限；陈旧/不完整来源不得算零硬件。控制面 `EvaluateReport` 比对整个冻结 Spec，并根据事实重算结论/逐项检查，拒绝改期望、改 fence、伪造 PASS/WAIVED。这个函数不提供认证：真正消费前必须核验一次性回调凭据、当前审批/独占 lease、同一安装 attempt/command/fence/申请/项目；报告不能独立授权擦盘或安装。
+
+本批仅编译/静态检查，新增采集/判定/SMART/规格错绑用例待 P1 集中执行；没有在开发宿主机执行任何采集/SMART/装机操作。后续仍缺批准的引导固件与安装 recipe、把 helper 打入实际可启动介质、装机执行器及网络 Authority、一次性回调、SSH 首连和真实/规模验收。WP-1.7/P1 保持 partial。

@@ -4233,6 +4233,10 @@ export interface components {
         ModelHardwareSpecification: {
             /** @description Physical GPU component count; omission supplies no count rule. */
             gpu_count?: number;
+            /** @description Independently approved GPU vendor:device PCI IDs for installation preflight; disjoint from non_gpu_pci_ids. Omission cannot classify unknown hardware. */
+            gpu_pci_ids?: string[];
+            /** @description Explicit reviewed display/accelerator-class PCI identities which are not GPUs, such as the model BMC display. No vendor-name inference. */
+            non_gpu_pci_ids?: string[];
             /** @description Exact published GPU model name; no surrounding whitespace. Compared with the GPU component model identity */
             gpu?: string;
         } & {

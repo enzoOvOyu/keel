@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 APP_VERSION ?= development
-.PHONY: check build build-agent generate-agent-proto integration dev-api dev-web dev-worker up logs
+.PHONY: check build build-agent build-preflight generate-agent-proto integration dev-api dev-web dev-worker up logs
 check:
 	python3 scripts/check-design.py
 	python3 -m unittest discover -s poc/h1 -p 'test_*.py'
@@ -23,6 +23,10 @@ build-agent:
 	mkdir -p bin/linux-amd64 bin/linux-arm64
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w -X main.version=$(APP_VERSION)" -o bin/linux-amd64/keel-agent ./cmd/keel-agent
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w -X main.version=$(APP_VERSION)" -o bin/linux-arm64/keel-agent ./cmd/keel-agent
+build-preflight:
+	mkdir -p bin/linux-amd64 bin/linux-arm64
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o bin/linux-amd64/keel-preflight ./cmd/keel-preflight
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o bin/linux-arm64/keel-preflight ./cmd/keel-preflight
 generate-agent-proto:
 	test "$$(protoc --version)" = 'libprotoc 3.21.12'
 	test "$$(protoc-gen-go --version)" = 'protoc-gen-go v1.36.12'

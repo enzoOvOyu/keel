@@ -4778,6 +4778,20 @@ components:
       additionalProperties: true
       properties:
         gpu_count: { type: integer, minimum: 0, description: Physical GPU component count; omission supplies no count rule. }
+        gpu_pci_ids:
+          type: array
+          minItems: 1
+          maxItems: 256
+          uniqueItems: true
+          description: Independently approved GPU vendor:device PCI IDs for installation preflight; disjoint from non_gpu_pci_ids. Omission cannot classify unknown hardware.
+          items: { type: string, pattern: '^[a-f0-9]{4}:[a-f0-9]{4}$' }
+        non_gpu_pci_ids:
+          type: array
+          minItems: 1
+          maxItems: 256
+          uniqueItems: true
+          description: Explicit reviewed display/accelerator-class PCI identities which are not GPUs, such as the model BMC display. No vendor-name inference.
+          items: { type: string, pattern: '^[a-f0-9]{4}:[a-f0-9]{4}$' }
         gpu: { type: string, minLength: 1, maxLength: 120, description: Exact published GPU model name; no surrounding whitespace. Compared with the GPU component model identity, never its user-supplied sub_type. }
     ModelBOMExpectation:
       type: object

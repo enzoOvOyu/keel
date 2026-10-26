@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～80。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-26；下列恢复入口为当前事实，后续编号章节保留各批次快照，最新已发布完整证据见§74；本次源码及未验证项见§75～81。本文件只记录当前快照，操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-26，本次两小时开发窗口）
 
 用户于2026-10-26 00:11:10 UTC授权继续两小时开发，当前窗口至02:11:10 UTC。保持单Agent，不启动子代理；P1实现完成后集中联调/全量测试/浏览器验证/镜像发布，开发只做必要编译与静态检查。此前收工/暂停记录是历史快照。
 
-- **本窗口源码尚未发布（§75～80）**：单Agent完成同密钥续签/状态、OS引导介质/BOM配置预览、owner主密钥重包裹、独立审计留证、默认关闭的执行Webhook及其owner查询入口，以及持久装机准备/独立审批/共享独占Execution和页面；新增用例和集中验证入口已写入，除§75早期续签安全检查外均未运行。必要Go/TS编译与静态检查已完成，不等于功能/SQL迁移通过。源迁移50、运行46；3000仍§74。原草稿保留。
+- **本窗口源码尚未发布（§75～81）**：单Agent完成同密钥续签/状态、OS引导介质/BOM配置预览、owner主密钥重包裹、独立审计留证、默认关闭的执行Webhook及其owner查询入口，以及持久装机准备/独立审批/共享独占Execution和页面；新增用例和集中验证入口已写入，除§75早期续签安全检查外均未运行。必要Go/TS编译与静态检查已完成，不等于功能/SQL迁移通过。源迁移50、运行46；3000仍§74。原草稿保留。
 
 - **Agent网页只读链路已发布（§74）**：既有mTLS任务通过认证API/资产页启动并进入原执行五Tab，unknown由当前操作员凭worker查询的真实回执显式对账；实际HTTP/Agent/浏览器和完整CI通过。生产HTTP任务准入、listener及worker继续关闭。
 
@@ -1112,3 +1112,12 @@ API集合、创建/详情/审批/取消/准备执行及候选公共密钥契约�
 Authority是明确的待接业务边界：每次必须证明当前审批、scope/请求/机器/MAC/架构、attempt/command/fence、快照及真实独占lease。**尚无生产Authority/装机Execution接线，prepared不足以签发引导许可**；无API/worker自动启动。当前传输源码不是完整可运行装机系统，未证明真实固件/镜像、硬件预检、回调或首连。网络scope当前文件清单不能独立证明现有Kea范围完整，后续须从当前网络计划逐次核验。
 
 仅实际执行Go编译（go test -p=1 ./internal/provisionboot -run '^$'，/tmp/keel-boot-transport-compile.log）和定向go vet（-vet.log），带既有overlay/内存限制；均退出0。新协议/权限/Range/损坏拒绝/TFTP去重与终止/fuzz用例只写入未运行。没有新SQL迁移，source50/runtime46及3000不变。后续先形成批准的启动固件/安装recipe与硬件预检输入，再接真实lease Authority、一次性回调及首连；不能假设现有任意rootfs已具有可启动安装参数或预检helper。
+
+
+## 81. 安装环境只读硬件预检与双架构 helper（2026-10-26，源码待集中验证）
+
+接续3619992，新增internal/provisionpreflight与cmd/keel-preflight；读取Linux sysfs/DMI/device-tree和固定只读SMART命令，按批准冻结Spec检查SN/架构/唯一物理引导MAC、按physical_slot分组的NIC数、明确PCI身份的GPU在位和当前磁盘健康。缺驱动/槽位/SMART/独立期望/未知设备或陈旧事实保持BLOCKED；支持状态不伪造PASS/WAIVED。原始报告的控制面复算比较完整Spec与逐项结果，仍必须由未来真实装机Authority核验一次性回调与当前安装lease。无硬件执行/磁盘修改、网络回调或生产接线。
+
+型号新增可选gpu_pci_ids/non_gpu_pci_ids，扫描草稿/发布共用互斥非空规范ID校验；OpenAPI与生成TS同步，不改历史型号，也不从本次事实推导独立期望。Makefile新增build-preflight，CI源码追加双架构编译；API镜像不打包/自动启动helper。后续必须把固定二进制和驱动/smartctl打进批准的可启动介质，再形成实际recipe/装机Execution与Authority；prepared不能替代。
+
+本批用例已写但未运行（采集fixture、NIC多端口/VF/驱动、GPU/BMC/零数量、SMART退出位/未知、报告错绑/伪造）。实际仅执行：带overlay/内存限制的go test -p=1 ./internal/provisionpreflight ./cmd/keel-preflight ./internal/platform -run '^$'编译；provisionpreflight/CLI定向go vet；OpenAPI生成与tsc --noEmit；check-design；均退出0。amd64/arm64 CGO_ENABLED=0交叉构建成功，file确认为静态ELF（/tmp/keel-preflight-binaries.log），二进制未执行；日志为/tmp/keel-preflight-{compile,vet,types,tsc,design}.log；无SQL迁移、runtime/source数量和3000不变。保持原overlay/GOMEMLIMIT=768MiB/GOMAXPROCS=2，未启动其他Agent，继续开发窗口至02:11:10 UTC。
