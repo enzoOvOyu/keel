@@ -172,6 +172,14 @@ try {
   await boardPage.getByRole('button', { name: '刷新', exact: true }).click()
   await boardRow.getByText('准备完成', { exact: true }).waitFor()
   await boardPage.screenshot({ path: work + '/provision-prepared.png', fullPage: true })
+  // A failed current read must remove cached approval/action rows.
+  const boardPattern = `**/api/v1/projects/${project.id}/provision/requests?**`
+  await boardPage.route(boardPattern, route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'TEMPORARY_FAILURE', message: 'fixture unavailable' } }) }))
+  await boardPage.getByRole('button', { name: '刷新', exact: true }).click()
+  await boardRow.waitFor({ state: 'detached' })
+  await boardPage.unroute(boardPattern)
+  await boardPage.getByRole('button', { name: '刷新', exact: true }).click()
+  await boardRow.waitFor({ state: 'visible' })
   await call('POST', requestBase + '/cancel', { expected_version: prepared.state_version, reason: 'Retire isolated preparation fixture' })
   await boardPage.close(); await reviewPage.close()
   await owner('ssh-key-revoke', ['--project', project.id, '--id', key.id, '--expected-version', String(key.state_version), '--reason', 'isolated preview revocation check'])
@@ -195,6 +203,6 @@ try {
   for (const group of roots) for (const item of [group.root, group.kernel, group.initrd, group.template, group.incompatible]) await call('POST', group.base + '/' + item.id + '/transition', { state: 'retired' }, 200, reviewer, reviewToken)
   assert.deepEqual(errors, [])
   console.log('PASS durable independent provisioning approval, native source verification and unchanged asset/trust state; actual project/global OS upload UI pins exact roles/digests; readback checks real stored bytes and permission failure hides stale metadata')
-  console.log('PASS actual BOM/model/vault key preview, image change clears result, owner revocation rejects refresh, no execution/asset mutation, Viewer denied')
+  console.log('PASS actual BOM/model/vault key preview, image change clears result, owner revocation rejects refresh, no installation/asset-state mutation, Viewer denied')
   console.log('No PXE, installation, host trust or hardware acceptance is claimed')
 } finally { await browser.close() }
