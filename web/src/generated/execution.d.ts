@@ -979,6 +979,7 @@ export interface components {
         Error: {
             code: string;
             message: string;
+            /** @description Stable public diagnostics only. Workflow YAML parsing may include workflow_yaml_line:<1-based line>; parser text and source values are never reflected. */
             details: string[];
             trace_id: string;
         };

@@ -36,7 +36,7 @@ func (a *authAPI) respondError(c *gin.Context, err error) {
 		if e.RetryAfter > 0 {
 			c.Header("Retry-After", strconv.Itoa(e.RetryAfter))
 		}
-		failure(c, e.Status, e.Code, e.Message)
+		failure(c, e.Status, e.Code, e.Message, e.Details...)
 		return
 	}
 	var pg *pgconn.PgError

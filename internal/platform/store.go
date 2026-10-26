@@ -109,6 +109,7 @@ func validToken(token string) bool {
 }
 
 type Error struct {
+	Details       []string
 	Status        int
 	Code, Message string
 	RetryAfter    int

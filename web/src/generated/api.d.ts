@@ -5487,6 +5487,7 @@ export interface components {
         Error: {
             code: string;
             message: string;
+            /** @description Stable public diagnostics; workflow YAML may include workflow_yaml_line:<1-based line> without parser text. */
             details: string[];
             trace_id: string;
         };
@@ -5897,6 +5898,13 @@ export interface components {
             };
             snapshot: components["schemas"]["ExecutionSnapshot"];
         };
+        "schemas-Error": {
+            code: string;
+            message: string;
+            /** @description Stable public diagnostics only. Workflow YAML parsing may include workflow_yaml_line:<1-based line>; parser text and source values are never reflected. */
+            details: string[];
+            trace_id: string;
+        };
         ArtifactNonstartProofInput: {
             expected_version: number;
             /** @constant */
@@ -6180,6 +6188,78 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description Invalid JSON, unsupported fields, validation failure, or missing idempotency key. */
+        "responses-InvalidRequest": {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["schemas-Error"];
+            };
+        };
+        /** @description Missing, invalid, expired or revoked session; on login, a uniform account or credential failure. */
+        "responses-Unauthenticated": {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["schemas-Error"];
+            };
+        };
+        /** @description Origin or CSRF rejected, or the account does not have the required action permission. */
+        "responses-Forbidden": {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["schemas-Error"];
+            };
+        };
+        /** @description The requested project is not visible to this account; used for both absent and unauthorized IDs. */
+        "responses-NotFound": {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["schemas-Error"];
+            };
+        };
+        /** @description Version conflict, duplicate username/membership/project slug, idempotency content mismatch, or removal of the last active platform/project administrator. */
+        "responses-Conflict": {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["schemas-Error"];
+            };
+        };
+        /** @description JSON request exceeds 64 KiB. */
+        "responses-TooLarge": {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["schemas-Error"];
+            };
+        };
+        /** @description Request Content-Type must be application/json. */
+        "responses-UnsupportedMediaType": {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["schemas-Error"];
+            };
+        };
+        /** @description Authentication is not configured or initialized, or an essential service is unavailable. No authenticated session is issued on failure. */
+        "responses-Unavailable": {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["schemas-Error"];
+            };
+        };
     };
     parameters: {
         /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
@@ -6228,14 +6308,14 @@ export interface operations {
                     "application/json": components["schemas"]["Execution"];
                 };
             };
-            400: components["responses"]["InvalidRequest"];
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            413: components["responses"]["TooLarge"];
-            415: components["responses"]["UnsupportedMediaType"];
-            503: components["responses"]["Unavailable"];
+            400: components["responses"]["responses-InvalidRequest"];
+            401: components["responses"]["responses-Unauthenticated"];
+            403: components["responses"]["responses-Forbidden"];
+            404: components["responses"]["responses-NotFound"];
+            409: components["responses"]["responses-Conflict"];
+            413: components["responses"]["responses-TooLarge"];
+            415: components["responses"]["responses-UnsupportedMediaType"];
+            503: components["responses"]["responses-Unavailable"];
         };
     };
     requestArtifactNonstartProof: {
@@ -6271,14 +6351,14 @@ export interface operations {
                     "application/json": components["schemas"]["ArtifactNonstartProofRequest"];
                 };
             };
-            400: components["responses"]["InvalidRequest"];
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            413: components["responses"]["TooLarge"];
-            415: components["responses"]["UnsupportedMediaType"];
-            503: components["responses"]["Unavailable"];
+            400: components["responses"]["responses-InvalidRequest"];
+            401: components["responses"]["responses-Unauthenticated"];
+            403: components["responses"]["responses-Forbidden"];
+            404: components["responses"]["responses-NotFound"];
+            409: components["responses"]["responses-Conflict"];
+            413: components["responses"]["responses-TooLarge"];
+            415: components["responses"]["responses-UnsupportedMediaType"];
+            503: components["responses"]["responses-Unavailable"];
         };
     };
     createArtifactRetrieval: {
@@ -6312,14 +6392,14 @@ export interface operations {
                     "application/json": components["schemas"]["Execution"];
                 };
             };
-            400: components["responses"]["InvalidRequest"];
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            413: components["responses"]["TooLarge"];
-            415: components["responses"]["UnsupportedMediaType"];
-            503: components["responses"]["Unavailable"];
+            400: components["responses"]["responses-InvalidRequest"];
+            401: components["responses"]["responses-Unauthenticated"];
+            403: components["responses"]["responses-Forbidden"];
+            404: components["responses"]["responses-NotFound"];
+            409: components["responses"]["responses-Conflict"];
+            413: components["responses"]["responses-TooLarge"];
+            415: components["responses"]["responses-UnsupportedMediaType"];
+            503: components["responses"]["responses-Unavailable"];
         };
     };
     downloadRetrievedArtifact: {
@@ -6396,14 +6476,14 @@ export interface operations {
                     "application/json": components["schemas"]["Execution"];
                 };
             };
-            400: components["responses"]["InvalidRequest"];
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            413: components["responses"]["TooLarge"];
-            415: components["responses"]["UnsupportedMediaType"];
-            503: components["responses"]["Unavailable"];
+            400: components["responses"]["responses-InvalidRequest"];
+            401: components["responses"]["responses-Unauthenticated"];
+            403: components["responses"]["responses-Forbidden"];
+            404: components["responses"]["responses-NotFound"];
+            409: components["responses"]["responses-Conflict"];
+            413: components["responses"]["responses-TooLarge"];
+            415: components["responses"]["responses-UnsupportedMediaType"];
+            503: components["responses"]["responses-Unavailable"];
         };
     };
     getExecutionReport: {
@@ -6462,14 +6542,14 @@ export interface operations {
                     "application/json": components["schemas"]["ScriptNonstartProofRequest"];
                 };
             };
-            400: components["responses"]["InvalidRequest"];
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            413: components["responses"]["TooLarge"];
-            415: components["responses"]["UnsupportedMediaType"];
-            503: components["responses"]["Unavailable"];
+            400: components["responses"]["responses-InvalidRequest"];
+            401: components["responses"]["responses-Unauthenticated"];
+            403: components["responses"]["responses-Forbidden"];
+            404: components["responses"]["responses-NotFound"];
+            409: components["responses"]["responses-Conflict"];
+            413: components["responses"]["responses-TooLarge"];
+            415: components["responses"]["responses-UnsupportedMediaType"];
+            503: components["responses"]["responses-Unavailable"];
         };
     };
     getAgentCacheInventory: {
@@ -6493,14 +6573,14 @@ export interface operations {
                     "application/json": components["schemas"]["AgentCacheInventory"];
                 };
             };
-            400: components["responses"]["InvalidRequest"];
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            413: components["responses"]["TooLarge"];
-            415: components["responses"]["UnsupportedMediaType"];
-            503: components["responses"]["Unavailable"];
+            400: components["responses"]["responses-InvalidRequest"];
+            401: components["responses"]["responses-Unauthenticated"];
+            403: components["responses"]["responses-Forbidden"];
+            404: components["responses"]["responses-NotFound"];
+            409: components["responses"]["responses-Conflict"];
+            413: components["responses"]["responses-TooLarge"];
+            415: components["responses"]["responses-UnsupportedMediaType"];
+            503: components["responses"]["responses-Unavailable"];
         };
     };
     getAgentNetworkInventory: {
@@ -6524,14 +6604,14 @@ export interface operations {
                     "application/json": components["schemas"]["AgentNetworkInventory"];
                 };
             };
-            400: components["responses"]["InvalidRequest"];
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            413: components["responses"]["TooLarge"];
-            415: components["responses"]["UnsupportedMediaType"];
-            503: components["responses"]["Unavailable"];
+            400: components["responses"]["responses-InvalidRequest"];
+            401: components["responses"]["responses-Unauthenticated"];
+            403: components["responses"]["responses-Forbidden"];
+            404: components["responses"]["responses-NotFound"];
+            409: components["responses"]["responses-Conflict"];
+            413: components["responses"]["responses-TooLarge"];
+            415: components["responses"]["responses-UnsupportedMediaType"];
+            503: components["responses"]["responses-Unavailable"];
         };
     };
     getProvisionOSDependencies: {

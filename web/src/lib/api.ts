@@ -9,7 +9,7 @@ type ProjectList = paths['/api/v1/projects']['get']['responses'][200]['content']
 
 export class ApiError extends Error {
   constructor(public readonly status: number, public readonly code: string,
-    public readonly traceId = '', public readonly retryAfter = 0) { super(code) }
+    public readonly traceId = '', public readonly retryAfter = 0, public readonly details: readonly string[] = []) { super(code) }
 }
 export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   let response: Response
@@ -23,7 +23,8 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     const retryAfter = /^\d+$/.test(retryValue) ? Number(retryValue) : Math.ceil((Date.parse(retryValue) - Date.now()) / 1000)
     throw new ApiError(response.status, typeof error.code === 'string' ? error.code : 'HTTP_ERROR',
       typeof error.trace_id === 'string' ? error.trace_id : response.headers.get('X-Request-ID') ?? '',
-      Number.isFinite(retryAfter) ? Math.max(0, retryAfter) : 0)
+      Number.isFinite(retryAfter) ? Math.max(0, retryAfter) : 0,
+      error.code==='VALIDATION_ERROR'&&Array.isArray(error.details)?error.details.filter((v):v is string=>typeof v==='string'&&/^workflow_yaml_line:[1-9][0-9]{0,4}$/.test(v)&&Number(v.split(':')[1])<=49153).slice(0,1):[])
   }
   if (response.status === 204) return undefined as T
   try { return await response.json() as T } catch { throw new ApiError(502, 'INVALID_RESPONSE') }

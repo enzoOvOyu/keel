@@ -5129,6 +5129,7 @@ components:
         message:
           type: string
         details:
+          description: Stable public diagnostics; workflow YAML may include workflow_yaml_line:<1-based line> without parser text.
           type: array
           items:
             type: string

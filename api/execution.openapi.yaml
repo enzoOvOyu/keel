@@ -4659,7 +4659,8 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Stable public diagnostics only. Workflow YAML parsing may include workflow_yaml_line:<1-based line>; parser text and source values are never reflected."
           },
           "trace_id": {
             "type": "string",

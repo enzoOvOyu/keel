@@ -173,6 +173,9 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 	})
 	return r
 }
-func failure(c *gin.Context, status int, code, message string) {
-	c.JSON(status, gin.H{"code": code, "message": message, "details": []string{}, "trace_id": c.GetString("trace_id")})
+func failure(c *gin.Context, status int, code, message string, details ...string) {
+	if details == nil {
+		details = []string{}
+	}
+	c.JSON(status, gin.H{"code": code, "message": message, "details": details, "trace_id": c.GetString("trace_id")})
 }

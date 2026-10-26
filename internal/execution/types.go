@@ -17,6 +17,7 @@ import (
 	"io"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -269,20 +270,27 @@ func (in PublishInput) Parse() (Definition, error) {
 			return d, invalid("YAML source is too large")
 		}
 		var node yaml.Node
-		if yaml.Unmarshal([]byte(in.YAMLSource), &node) != nil {
-			return d, invalid("invalid workflow YAML")
+		if err := yaml.Unmarshal([]byte(in.YAMLSource), &node); err != nil {
+			return d, workflowYAMLError("invalid workflow YAML", yamlErrorLine(err))
 		}
 		if !safeYAML(&node, 0) {
-			return d, invalid("YAML aliases or excessive depth are unsupported")
+			return d, workflowYAMLError("YAML aliases or excessive depth are unsupported", unsafeYAMLLine(&node, 0))
 		}
 		dec := yaml.NewDecoder(strings.NewReader(in.YAMLSource))
 		dec.KnownFields(true)
 		if e := dec.Decode(&d); e != nil {
-			return d, invalid("invalid or unsupported workflow YAML")
+			return d, workflowYAMLError("invalid or unsupported workflow YAML", yamlErrorLine(e))
 		}
-		var extra any
-		if dec.Decode(&extra) != io.EOF {
-			return d, invalid("one YAML document is required")
+		var extra yaml.Node
+		if err := dec.Decode(&extra); err != io.EOF {
+			line := extra.Line
+			if err != nil {
+				line = yamlErrorLine(err)
+			}
+			if line == 0 && len(extra.Content) > 0 {
+				line = extra.Content[0].Line
+			}
+			return d, workflowYAMLError("one YAML document is required", line)
 		}
 	}
 	return d, d.Validate()
@@ -591,4 +599,40 @@ func safeYAML(n *yaml.Node, depth int) bool {
 		}
 	}
 	return true
+}
+
+// Return only a bounded source coordinate, never YAML values or parser text.
+var yamlLinePattern = regexp.MustCompile(`(?:^|\s)line ([1-9][0-9]*)(?::|\s|$)`)
+
+func yamlErrorLine(err error) int {
+	if err == nil {
+		return 0
+	}
+	match := yamlLinePattern.FindStringSubmatch(err.Error())
+	if len(match) != 2 {
+		return 0
+	}
+	line, e := strconv.Atoi(match[1])
+	if e != nil || line < 1 || line > 49153 {
+		return 0
+	}
+	return line
+}
+func workflowYAMLError(message string, line int) error {
+	e := &platform.Error{Status: 400, Code: "VALIDATION_ERROR", Message: message}
+	if line > 0 && line <= 49153 {
+		e.Details = []string{"workflow_yaml_line:" + strconv.Itoa(line)}
+	}
+	return e
+}
+func unsafeYAMLLine(node *yaml.Node, depth int) int {
+	if depth > 16 || node.Kind == yaml.AliasNode {
+		return node.Line
+	}
+	for _, child := range node.Content {
+		if line := unsafeYAMLLine(child, depth+1); line > 0 {
+			return line
+		}
+	}
+	return 0
 }

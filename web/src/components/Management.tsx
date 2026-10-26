@@ -22,7 +22,7 @@ export function ActionError({ error }: { error: unknown }) {
   }
   const problem = error instanceof ApiError ? error : new ApiError(0, 'NETWORK_ERROR')
   const key = known[problem.code] ?? (problem.status === 403 ? 'accessDenied' : problem.status === 404 ? 'resourceNotFound' : problem.status === 409 ? 'versionConflict' : problem.status === 429 ? 'rateLimited' : 'actionUnavailable')
-  return <div className="form-error" role="alert"><strong>{t(key)}</strong>{problem.traceId && <small>{t('traceId')}: {problem.traceId}</small>}</div>
+  return <div className="form-error" role="alert"><strong>{t(key)}</strong>{problem.details.map(detail=>/^workflow_yaml_line:[1-9][0-9]{0,4}$/.test(detail)&&<span key={detail}>{t('flowYAMLErrorLine',{line:Number(detail.split(':')[1])})}</span>)}{problem.traceId && <small>{t('traceId')}: {problem.traceId}</small>}</div>
 }
 export function SuccessNotice({ children }: { children: ReactNode }) {
   return <div className="success-notice" role="status"><Icon name="shield" /><span>{children}</span></div>
