@@ -2613,6 +2613,106 @@
         },
         "description": "Current project member read of authenticated Agent ownership-index observations. Contains no seed project/media references or executable approval. Content is not verified; current identity and 30-second freshness are required. Failed/disabled observations preserve explicitly historical entries."
       }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/attempts/{attemptId}/script-nonstart-proof": {
+      "post": {
+        "operationId": "requestScriptNonstartProof",
+        "tags": [
+          "SSH execution"
+        ],
+        "x-permission": "execution:reconcile",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "attemptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "202": {
+            "description": "Proof request journaled; terminal proof and explicit reconciliation remain required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptNonstartProofRequest"
+                }
+              }
+            }
+          }
+        },
+        "description": "Explicit Admin/DL/SRE request for target proof of a never-started approved script after the original dispatch authorization expired. Only unknown native SSH/Agent attempts. Requests are bound to attempt version and original command for five minutes. Worker owns target IO; no script rerun or automatic reconciliation/resource release. Existing accepted/running cannot be inferred stopped.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScriptNonstartProofInput"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5814,6 +5914,57 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 8192
+          }
+        }
+      },
+      "ScriptNonstartProofInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expected_version",
+          "confirmed"
+        ],
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "confirmed": {
+            "type": "boolean",
+            "const": true
+          }
+        }
+      },
+      "ScriptNonstartProofRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "execution_id",
+          "attempt_id",
+          "state",
+          "requested_at",
+          "expires_at"
+        ],
+        "properties": {
+          "execution_id": {
+            "type": "string"
+          },
+          "attempt_id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "requested"
+            ]
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }

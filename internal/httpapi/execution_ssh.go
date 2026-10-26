@@ -84,6 +84,22 @@ func (a *authAPI) registerSSHExecution(r *gin.Engine, base string) {
 		}
 		c.JSON(201, x)
 	})
+	r.POST(base+"/executions/:executionId/attempts/:attemptId/script-nonstart-proof", func(c *gin.Context) {
+		actor, s, ok := a.executionProject(c, true)
+		if !ok {
+			return
+		}
+		var in execution.ScriptNonstartProofInput
+		if !decodeExecutionBody(c, &in) {
+			return
+		}
+		out, err := s.RequestScriptNonstartProof(c.Request.Context(), actor, c.Param("id"), c.Param("executionId"), c.Param("attemptId"), in, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.JSON(202, out)
+	})
 	r.POST(base+"/executions/:executionId/attempts/:attemptId/ssh-receipt", func(c *gin.Context) {
 		actor, s, ok := a.executionProject(c, true)
 		if !ok {

@@ -1,5 +1,6 @@
 import {RerunDialog} from './RerunDialog'
 import { CacheOutput } from './CacheOutput'
+import { ScriptNonstartProof } from './ScriptNonstartProof'
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -448,6 +449,7 @@ function AttemptDrawer({
             <h3>{t('executionReconcileTitle')}</h3>
             <p className="impact-notice">{t(matchingProof ? 'executionReconcileDescription' : 'executionReconcilePending')}</p>
             <Button type="button" variant="outline" disabled={action.busy || query.isFetching} onClick={() => void query.refetch()}>{t('executionReconcileRefresh')}</Button>
+            {canReconcile && !matchingProof && query.data.task.script && ['ssh', 'agent'].includes(query.data.mode) && !denied && !['archived', 'delivered'].includes(project.state) && <ScriptNonstartProof key={`${attempt}:${currentAttempt.state_version}`} projectId={projectId} executionId={executionId} attemptId={attempt} version={currentAttempt.state_version} onDenied={error => setDenied(error)} onRequested={() => { void query.refetch() }} />}
             {canReconcile && matchingProof && proof && !['archived', 'delivered'].includes(project.state) && <form onSubmit={event => void reconcile(event)} aria-busy={action.busy}>
               <p>{t('executionReconcileResult')}: <strong>{t('attempt_state_' + proof.result)}</strong></p>
               <div className="field"><Label htmlFor="execution-reconcile-evidence">{t('executionReconcileEvidence')}</Label><Textarea id="execution-reconcile-evidence" value={evidence} onChange={event => setEvidence(event.target.value)} required minLength={10} maxLength={2000} disabled={action.busy} aria-describedby="execution-reconcile-hint" /><p className="field-hint" id="execution-reconcile-hint">{t('executionReconcileEvidenceHint')}</p></div>

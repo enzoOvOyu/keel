@@ -105,6 +105,9 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 	if r.Validate() != nil || privateDirectory(w.StateDirectory) != nil {
 		return zero, ErrRejected
 	}
+	if r.Action == "settle" && (ctx.Err() != nil || time.UnixMicro(r.Command.AuthorizationExpiresAt).After(time.Now())) {
+		return zero, ErrRejected
+	}
 	if r.Action == "cache" {
 		return probeScriptCache(ctx, MediaCacheDirectory, w.ScriptProcessIsolation && w.ScriptMediaCacheEnabled, r.Command)
 	}
@@ -115,7 +118,7 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 		return zero, ErrRejected
 	}
 	dir := filepath.Join(w.StateDirectory, r.Command.CommandID)
-	if r.Action == "run" {
+	if r.Action == "run" || r.Action == "settle" {
 		if e := os.Mkdir(dir, 0700); e != nil && !errors.Is(e, os.ErrExist) {
 			return zero, ErrRejected
 		}
@@ -133,7 +136,7 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 		return zero, ErrUnknown
 	}
 	path := filepath.Join(dir, "receipt.json")
-	if r.Action != "run" {
+	if r.Action != "run" && r.Action != "settle" {
 		o, e := readObservation(path)
 		if e != nil {
 			return zero, ErrUnknown
@@ -177,6 +180,20 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 		return o, o.Validate(r.Command)
 	} else if !errors.Is(e, os.ErrNotExist) {
 		return zero, ErrUnknown
+	}
+	if r.Action == "settle" {
+		// The same lock excludes every invocation that could create accepted.
+		// Only absence before acceptance plus expired original authority proves
+		// no process could have started. Existing accepted/running stays unknown.
+		if ctx.Err() != nil || time.UnixMicro(r.Command.AuthorizationExpiresAt).After(time.Now()) {
+			return zero, ErrRejected
+		}
+		now := time.Now().UTC().Truncate(time.Microsecond)
+		o := Observation{Command: r.Command, State: "failed", StartedAt: now, FinishedAt: now, Output: map[string]any{"process_started": false, "process_tree_stopped": true, "reason": "script_authorization_expired_before_start", "nonstart_proof": true}}
+		if writeObservation(dir, o) != nil {
+			return zero, ErrUnknown
+		}
+		return o, o.Validate(r.Command)
 	}
 	o := Observation{Command: r.Command, State: "accepted", Output: map[string]any{}}
 	if e = writeObservation(dir, o); e != nil {

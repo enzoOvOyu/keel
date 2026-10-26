@@ -90,10 +90,13 @@ type Request struct {
 }
 
 // Validate binds the optional body to the immutable command before transport or
-// receipt state can be consumed. Query/cancel/cache never carry executable bytes.
+// receipt state can be consumed. Query/cancel/cache/settle never carry executable bytes.
 // Cached runs carry only frozen metadata; the target verifies actual owned bytes.
 func (r Request) Validate() error {
-	if r.Command.Validate() != nil || (r.Action != "run" && r.Action != "query" && r.Action != "cancel" && r.Action != "cache") {
+	if r.Command.Validate() != nil || (r.Action != "run" && r.Action != "query" && r.Action != "cancel" && r.Action != "cache" && r.Action != "settle") {
+		return ErrRejected
+	}
+	if r.Action == "settle" && r.Command.Operation != "script.run" {
 		return ErrRejected
 	}
 	if r.Action == "cache" {

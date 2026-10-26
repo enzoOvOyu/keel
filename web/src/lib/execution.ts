@@ -63,3 +63,7 @@ export type AgentCacheInventory = components['schemas']['AgentCacheInventory']
 export const getAgentCacheInventory = (projectId:string,machineId:string,signal:AbortSignal) => request<AgentCacheInventory>(`/projects/${encodeURIComponent(projectId)}/agent-targets/${encodeURIComponent(machineId)}/cache-inventory`,{signal})
 export type AgentNetworkInventory = components['schemas']['AgentNetworkInventory']
 export const getAgentNetworkInventory = (projectId:string,machineId:string,signal:AbortSignal) => request<AgentNetworkInventory>(`/projects/${encodeURIComponent(projectId)}/agent-targets/${encodeURIComponent(machineId)}/network-inventory`,{signal})
+
+export type ScriptNonstartProofInput = components['schemas']['ScriptNonstartProofInput']
+export type ScriptNonstartProofRequest = components['schemas']['ScriptNonstartProofRequest']
+export const requestScriptNonstartProof = (projectId:string,executionId:string,attemptId:string,body:ScriptNonstartProofInput,csrf:string,key:string) => request<ScriptNonstartProofRequest>(`/projects/${encodeURIComponent(projectId)}/executions/${encodeURIComponent(executionId)}/attempts/${encodeURIComponent(attemptId)}/script-nonstart-proof`,{method:'POST',headers:{'X-CSRF-Token':csrf,'Idempotency-Key':key},body:JSON.stringify(body)})

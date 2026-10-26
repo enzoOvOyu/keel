@@ -65,6 +65,19 @@ func (s *Store) agentScriptRequestTx(ctx context.Context, tx *sql.Tx, r taskrunn
 	}
 	// Historical query/cancel remains available after opt-out or media retirement.
 	// It retrieves existing proof and cannot deliver any executable body.
+	if r.Action == "settle" {
+		if expiry.After(now) {
+			return taskrunner.ErrRejected
+		}
+		allowed, err := ScriptNonstartProofAllowedTx(ctx, tx, c)
+		if err != nil {
+			return err
+		}
+		if !allowed {
+			return taskrunner.ErrRejected
+		}
+		return nil
+	}
 	if r.Action == "query" || r.Action == "cancel" {
 		return nil
 	}

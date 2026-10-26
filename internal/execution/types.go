@@ -23,6 +23,8 @@ import (
 )
 
 type Service struct {
+	scriptProofMu        sync.Mutex
+	scriptProofCursor    int64
 	agentReceiptMu       sync.Mutex
 	agentReceiptCursorAt time.Time
 	agentReceiptCursorID string

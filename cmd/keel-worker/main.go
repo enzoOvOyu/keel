@@ -137,8 +137,8 @@ func main() {
 		fail("Agent worker listener configuration rejected")
 	}
 	var refreshDone <-chan struct{}
-	if service.AgentRunner != nil {
-		refreshDone = startAgentReceiptRefresh(ctx, service)
+	if service.AgentRunner != nil || service.SSHRunner != nil {
+		refreshDone = startHostReceiptRefresh(ctx, service)
 	}
 	listenerFailed := false
 	ticker := time.NewTicker(100 * time.Millisecond)

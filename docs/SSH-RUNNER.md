@@ -177,3 +177,14 @@ SSH/Agent脚本创建输入新增可选`prefer_cache:true`，默认false；页�
 唯一派发授权提交后、唯一run之前，以原命令发起最长1秒`action:cache`只读探测，只有固定平台缓存实际归属/大小/SHA均成立才返回命中。瞬时`accepted/cache_probe`不是持久任务接收、执行或停止证明，不创建命令目录/receipt/Agent fence。Agent控制面按run同等要求重查当前用户/项目/租约/介质审批/独占资源和原授权期限；query/cancel才保留历史语义。缓存关闭、未命中、忙、探测未知或不合法响应均只允许在首次run之前回落到传输已批准正文。
 
 命中时唯一run仅发送原命令与`use_cached_script:true`，不发送正文；目标端再次以共享锁核对归属索引并读取有界文件副本，实际摘要匹配后将这份内存副本传入固定解释器stdin，不在校验后重新按路径打开。缓存禁用、变化或丢失在进程启动前明确`failed/script_cache_rejected`；此时绝不补传正文或再次run。目标端原fence/accepted/running/终态持久语义、进程树停止证明及unknown隔离不变。大文件断点续传、容量/淘汰/清理和缓存命中率规模验收仍待后续实施。
+
+
+### 过期脚本派发的显式未启动证明（2026-10-26，源码未验证）
+
+唯一派发在控制面先消费，故控制面/传输在目标持久接收之前崩溃可留下unknown且无目标回执。新增项目作用域`POST /executions/{executionId}/attempts/{attemptId}/script-nonstart-proof`，仅当前Admin/DL/SRE，显式`confirmed:true`、unknown尝试版本及幂等键；仅SSH/Agent批准脚本，必须有唯一原派发事件且原授权已过期。API只向既有outbox和审计登记请求，5分钟有效，冻结原command/attempt/version/requester；不派发脚本、不立即解除隔离。
+
+拥有目标通道的worker轮转处理有界请求，重查当前项目/目标身份和请求人当前启用/角色，Agent broker独立重查原派发和显式请求。目标`action:settle`不带正文/缓存执行标志、不消费Agent fence、不启动子进程，可在脚本功能关闭后处理历史派发。仅原授权已过期且独占原command的run.lock后仍无receipt时，才持久`failed/process_started=false/process_tree_stopped=true/script_authorization_expired_before_start/nonstart_proof=true`。run.lock仍被占用、损坏receipt、已有accepted/running都不推断未启动；已有真实终态原样返回。与run使用同一锁及原命令身份，晚到run只能读取已持久失败，不能执行。
+
+worker仅保存目标终态证明，**不执行Reconcile、不释放unknown资源**。原尝试抽屉可显式请求并手动刷新；取得匹配回执后仍按既有说明/版本/权限显式对账。该证明依赖目标受保护状态目录/文件系统持久化、时钟和已安装helper契约；不将网络错误、文件缺失或人工描述本身当作停止证明。已接收后丢失执行结果仍继续隔离，不能借此自动清理/重跑。请求过期或请求人被禁用/撤权后，不再获取新证明，已记录历史回执仍按原显式对账规则处理。
+
+新增目标未到期拒绝/未接收持久失败/晚到正文不执行/accepted-running-lock忙损坏保持未知及PG请求幂等/无证明不放行/撤权阻断源码用例，均未运行；仅定向格式化/API生成，不代表软件/硬件验收。

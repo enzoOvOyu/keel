@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/enzoOvOyu/keel/internal/platform"
 	"github.com/enzoOvOyu/keel/internal/taskrunner"
@@ -81,7 +82,7 @@ func TestAgentApprovedScriptPostgresAdmissionAndUnknown(t *testing.T) {
 		media, err = f.store.TransitionMedia(ctx, approver, project, media.ID, state, "agent-script-test")
 		mustAgent(t, err)
 	}
-	in := SSHScriptCreateInput{PreferCache: true, ResultFormat: "json", MachineIDs: []string{f.machine}, MediaID: media.ID, TimeoutMS: 5000}
+	in := SSHScriptCreateInput{PreferCache: true, ResultFormat: "json", MachineIDs: []string{f.machine}, MediaID: media.ID, TimeoutMS: 1000}
 	if _, err = f.service.CreateAgentScript(ctx, f.actor, f.project, in, platform.RandomID(), "test"); err == nil {
 		t.Fatal("default-off Agent script admitted")
 	}
@@ -138,4 +139,44 @@ func TestAgentApprovedScriptPostgresAdmissionAndUnknown(t *testing.T) {
 	if competing := f.claim(t, f.create(t).ID); competing != nil {
 		t.Fatal("unknown script released shared device isolation")
 	}
+	settle := taskrunner.Request{Action: "settle", Command: runner.request.Command}
+	if err = f.store.AgentRequestAllowed(ctx, settle, f.credential); err == nil {
+		t.Fatal("non-start settlement lacked explicit operator request")
+	}
+	if remaining := time.Until(time.UnixMicro(settle.Command.AuthorizationExpiresAt)); remaining > 0 {
+		time.Sleep(remaining + 10*time.Millisecond)
+	}
+	current, err := scanAttempt(f.store.DB.QueryRowContext(ctx, "SELECT "+attemptColumns+" FROM exec_task_attempts WHERE id=$1", claim.Attempt.ID))
+	mustAgent(t, err)
+	input := ScriptNonstartProofInput{ExpectedVersion: current.StateVersion, Confirmed: true}
+	requestKey := platform.RandomID()
+	requested, err := f.service.RequestScriptNonstartProof(ctx, f.actor, f.project, x.ID, current.ID, input, requestKey, "nonstart-test")
+	mustAgent(t, err)
+	replayed, err := f.service.RequestScriptNonstartProof(ctx, f.actor, f.project, x.ID, current.ID, input, requestKey, "nonstart-test")
+	mustAgent(t, err)
+	if !requested.ExpiresAt.Equal(replayed.ExpiresAt) || requested.State != "requested" {
+		t.Fatal("proof request idempotency lost")
+	}
+	var requests int
+	mustAgent(t, f.store.DB.QueryRowContext(ctx, `SELECT count(*) FROM exec_outbox WHERE execution_id=$1 AND event_type='script.nonstart_requested'`, x.ID).Scan(&requests))
+	if requests != 1 {
+		t.Fatal("idempotent request duplicated", requests)
+	}
+	mustAgent(t, f.store.AgentRequestAllowed(ctx, settle, f.credential))
+	// The lost runner never fabricates target proof; requests alone cannot unlock.
+	refreshed, err := f.service.RefreshScriptNonstartProofs(ctx, 4)
+	mustAgent(t, err)
+	if refreshed != 0 || runner.runs != 1 {
+		t.Fatal("proof request ran a script or fabricated completion", refreshed, runner.runs)
+	}
+	mustAgent(t, f.store.DB.QueryRowContext(ctx, `SELECT state FROM exec_task_attempts WHERE id=$1`, current.ID).Scan(&state))
+	if state != "unknown" {
+		t.Fatal("request released unknown without proof", state)
+	}
+	_, err = f.store.DB.ExecContext(ctx, `UPDATE users SET enabled=false WHERE id=$1`, f.actor.User.ID)
+	mustAgent(t, err)
+	if err = f.store.AgentRequestAllowed(ctx, settle, f.credential); err == nil {
+		t.Fatal("revoked requester retained recovery authority")
+	}
+
 }

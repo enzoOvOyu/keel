@@ -58,8 +58,9 @@ func startAgentWorker(ctx context.Context, store *platform.Store, config *agenti
 }
 
 // Receipt recovery has its own bounded loop so a missing target cannot block
-// the common outbox/lease/claim heartbeat. It only queries existing attempts.
-func startAgentReceiptRefresh(ctx context.Context, service *execution.Service) <-chan struct{} {
+// the common outbox/lease/claim heartbeat. Human-requested expired non-start
+// proof never runs a task or reconciles/releases the unknown resource.
+func startHostReceiptRefresh(ctx context.Context, service *execution.Service) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -70,7 +71,10 @@ func startAgentReceiptRefresh(ctx context.Context, service *execution.Service) <
 			case <-ctx.Done():
 				return
 			case <-tick.C:
-				work, cancel := context.WithTimeout(ctx, 6*time.Second)
+				work, cancel := context.WithTimeout(ctx, 3*time.Second)
+				_, _ = service.RefreshScriptNonstartProofs(work, 4)
+				cancel()
+				work, cancel = context.WithTimeout(ctx, 3*time.Second)
 				_, _ = service.RefreshAgentReceipts(work, 4)
 				cancel()
 			}
