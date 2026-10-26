@@ -52,7 +52,7 @@ try:
  if args.provision_only or full_browser:
   env.update(KEEL_PROVISION_PREPARE_ENABLED='true',KEEL_TEST_AGENT_DATABASE_URL=dsn+provision_database+'?sslmode=disable')
  if args.provision_only:
-  result=checked(['go','test','-p=1','-race','./internal/mediamanifest','./internal/provisionseed','./internal/platform','./internal/execution','-run','TestOSBoot|TestSignedOSBootRoles|TestSignedBootRecipe|TestInstallerOverlay|TestProvisionPreview|TestProvisionRequest|TestProvisionExecutionKernelPostgres|TestCloudInit|TestModelPreflight','-count=1'],env)
+  result=checked(['go','test','-p=1','-race','./internal/mediamanifest','./internal/provisionseed','./internal/platform','./internal/execution','-run','TestOSBoot|TestSignedOSBootRoles|TestSignedBootRecipe|TestInstallerOverlay|TestInstallerInitrd|TestProvisionPreview|TestProvisionRequest|TestProvisionExecutionKernelPostgres|TestCloudInit|TestModelPreflight','-count=1'],env)
   (work/'go-integration.log').write_text(result);print(result,flush=True)
  elif args.filters_only:
   result=checked(['go','test','-race','./internal/platform','-run','TestMediaIntegrityRetriesAndQuarantine','-count=1'],env)
@@ -67,7 +67,7 @@ try:
   result=checked(['go','test','-race','./internal/platform','-run','TestMediaArtifactDependenc|TestCatalogArtifactAdmission|TestMediaArtifactsLifecycleAndIntegrity','-count=1'],env)
   (work/'go-integration.log').write_text(result);print(result,flush=True)
  elif not (args.catalog_only or args.management_only or args.global_media_only or args.media_conflict_only or args.matrix_only or args.large_artifact_only or args.filters_only or args.browser_only):
-  result=checked(['go','test','-race','./internal/mediaartifact','./internal/mediamanifest','./internal/mediasource','./internal/platform','-run','TestSource|TestMediaSourceFetch|TestMediaIntegrity|TestSignedManifest|TestMediaBundle|TestSigning|TestSignedOSBootRoles|TestSignedBootRecipe|TestInstallerOverlay|TestSignedMediaManifest|TestRejectUnsafeMediaConfiguration|TestRealMinIOVersionPinning|TestMediaArtifactsLifecycleAndIntegrity|TestMediaArtifactDependenc|TestMediaConditionalTransitions|TestCatalogArtifactAdmission|TestCatalogCorrelatedCombinations|TestCatalogManagement|TestGlobalCatalogScopeBoundaries|TestCompatibility|TestZTP239ApprovedIsolationScript|TestSZTP143|TestZTPMockKeaDurableStageCommit|TestBOMPackage','-count=1'],env)
+  result=checked(['go','test','-race','./internal/mediaartifact','./internal/mediamanifest','./internal/mediasource','./internal/platform','-run','TestSource|TestMediaSourceFetch|TestMediaIntegrity|TestSignedManifest|TestMediaBundle|TestSigning|TestSignedOSBootRoles|TestSignedBootRecipe|TestInstallerOverlay|TestInstallerInitrd|TestSignedMediaManifest|TestRejectUnsafeMediaConfiguration|TestRealMinIOVersionPinning|TestMediaArtifactsLifecycleAndIntegrity|TestMediaArtifactDependenc|TestMediaConditionalTransitions|TestCatalogArtifactAdmission|TestCatalogCorrelatedCombinations|TestCatalogManagement|TestGlobalCatalogScopeBoundaries|TestCompatibility|TestZTP239ApprovedIsolationScript|TestSZTP143|TestZTPMockKeaDurableStageCommit|TestBOMPackage','-count=1'],env)
   (work/'go-integration.log').write_text(result);print(result,flush=True)
  if full_browser and not args.browser_only:
   result=checked(['go','test','-p=1','-race','-count=1','./internal/platform','./internal/execution','-run','TestOSBoot|TestProvisionPreview|TestProvisionRequest|TestProvisionExecutionKernelPostgres|TestModelPreflight'],env)

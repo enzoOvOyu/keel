@@ -8,12 +8,12 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/enzoOvOyu/keel/internal/provisionimage"
 	"golang.org/x/sys/unix"
 )
 
@@ -96,51 +96,7 @@ func LoadBootRoots() (*x509.CertPool, error) {
 	if err != nil || len(raw) > 1<<20 || int64(len(raw)) != stat.Size {
 		return nil, ErrUnavailable
 	}
-	return ParseBootRoots(raw, time.Now())
-}
-
-func ParseBootRoots(raw []byte, now time.Time) (*x509.CertPool, error) {
-	if len(raw) == 0 || len(raw) > 1<<20 {
-		return nil, ErrUnavailable
-	}
-	pool := x509.NewCertPool()
-	count := 0
-	seen := map[[32]byte]bool{}
-	for len(raw) > 0 {
-		// pem.Decode tolerates text before a block; trust files do not.
-		for len(raw) > 0 && (raw[0] == ' ' || raw[0] == '\r' || raw[0] == '\n' || raw[0] == '\t') {
-			raw = raw[1:]
-		}
-		if len(raw) == 0 {
-			break
-		}
-		if len(raw) < 27 || string(raw[:27]) != "-----BEGIN CERTIFICATE-----" {
-			return nil, ErrUnavailable
-		}
-		block, rest := pem.Decode(raw)
-		if block == nil || block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
-			return nil, ErrUnavailable
-		}
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil || !cert.IsCA || !cert.BasicConstraintsValid || cert.KeyUsage&x509.KeyUsageCertSign == 0 || now.Before(cert.NotBefore) || !now.Before(cert.NotAfter) {
-			return nil, ErrUnavailable
-		}
-		hash := sha256.Sum256(cert.Raw)
-		if seen[hash] {
-			return nil, ErrUnavailable
-		}
-		seen[hash] = true
-		count++
-		if count > 32 {
-			return nil, ErrUnavailable
-		}
-		pool.AddCert(cert)
-		raw = rest
-	}
-	if count == 0 {
-		return nil, ErrUnavailable
-	}
-	return pool, nil
+	return provisionimage.ParseBootRoots(raw, time.Now())
 }
 
 func ReadBootInput() (Input, error) {

@@ -177,3 +177,18 @@ HTTPS文件客户端必须显式CA信任池、已分配本地地址及对应接�
 此入口依赖批准镜像实际包含静态 `/init`、预检/SSH helper、静态 smartctl 和公共 CA，及与机器兼容的内建 NIC/存储驱动、proc/sysfs/devtmpfs、ARP/IPv4、sealed executable memfd 内核能力。`make build-initrd` 仅编译双架构入口和 helper，既有 helper overlay 仍不能冒充完整镜像。下一步独立 runtime-set 输入与完整 initrd 生产，不以成品 initrd/OS recipe 为输入前提。新增 DHCP/ARP/CA/宿主拒绝用例只写入；未配置宿主网络、运行 helper/PID1 或开展硬件启动。
 
 协议依据：[RFC 2131](https://www.rfc-editor.org/rfc/rfc2131) 的 DHCP 客户端选择/请求/拒绝及重传流程、[RFC 5227](https://www.rfc-editor.org/rfc/rfc5227) 的使用前冲突探测。当前只实现同网段、短期只读会话子集，不宣称支持 relay、持久租约续租或完整操作系统网络管理。
+
+### 完整只读 runtime-set 与 initrd 离线生产（源码，非启动验收）
+
+`mediaboot.RuntimeSet` / `keel.installer-runtime-set/v1` 为独立config：固定schema、arch及init/preflight/ssh_helper/smartctl/boot_ca五个`{media_id,sha256}`，使用Go紧凑规范JSON。前四项是同架构、无动态依赖的静态ELF os介质，CA是noarch config；五个ID互异。配置的签名manifest须恰含配置+五个无子依赖的直接输入，无kernel/成品initrd/OS反向依赖。先通过既有介质审批/manifest导出得到独立输入，再在受保护目录中生产新归档：
+
+```sh
+keel-admin provision-initrd-create --public-key-file /protected/media-public.pem --manifest-file /protected/runtime-manifest.json --artifact-directory /protected/runtime-inputs --output-file /protected/output/keel-initrd.cpio.gz
+keel-admin provision-initrd-verify --public-key-file /protected/media-public.pem --initrd-file /protected/output/keel-initrd.cpio.gz
+```
+
+这两个子命令在DB/网络初始化前分支，仅离线读取/产出文件，不执行输入。源文件名为`<media_id>.bin`；公共签名根必须独立提供。生产前验签、核对每个输入实际摘要/大小/静态ELF/CA；复制时再次摘要校验，deterministic gzip/newc，精确目录和文件白名单，root所有、固定mode/时间，无symlink/设备节点/未知脚本。归档含`/init`、两helper、`/usr/sbin/smartctl`、`/etc/keel/boot-ca.pem`、三份公开输入/元数据。输出独占0600、fsync及不覆盖发布，失败不发表部分归档。反向校验有界展开≤固定五个输入各上限，拒绝额外路径、错误mode/owner、拼接gzip、尾随/截断/篡改；重新独立验签并比较完整五项记录。原helper-set/overlay保留其两项输入与非完整镜像边界。
+
+产物实际摘要/大小须导入介质库并**另行审批**，然后才能成为最终OS recipe的initrd角色。`VerifyInstallerInitrdForPlan`提供实际归档+独立签名根与冻结Plan的校验，核对外层initrd摘要/大小/架构及内含preflight/SSH helper的ID/摘要/大小，防仅凭recipe字段声称兼容。它不替代当前介质撤销检查、内核/驱动启动验收或live安装锁/许可；尚未接生产装机Authority。静态ELF格式也不能证明某二进制确实是期望工具，必须独立审批真实构建来源/版本，不能拿软件格式fixture充当smartctl或已验收入口。
+
+当前没有运行上述CLI/生成部署镜像/启动硬件。新增纯格式、实际签名/私有发布/拒绝覆盖、错误密钥/输入变化/取消及最终Plan错绑用例留待P1集中测试。实际只编译相关包/命令并做vet与静态文档/脚本检查；窗口继续接持久安装授权和存储审批，不把本阶段“完整只读归档源码”报告为可写盘安装器。

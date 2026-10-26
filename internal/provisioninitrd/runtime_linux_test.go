@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"github.com/enzoOvOyu/keel/internal/provisionimage"
 	"math/big"
 	"os"
 	"testing"
@@ -27,20 +28,20 @@ func TestBootRootsRejectUnapprovedTrustMaterial(t *testing.T) {
 		t.Fatal(err)
 	}
 	valid := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
-	if _, err = ParseBootRoots(valid, now); err != nil {
+	if _, err = provisionimage.ParseBootRoots(valid, now); err != nil {
 		t.Fatal(err)
 	}
 	for name, raw := range map[string][]byte{"empty": nil, "text prefix": append([]byte("ignored text\n"), valid...), "duplicate": append(append([]byte(nil), valid...), valid...), "private key": pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: []byte{1, 2, 3}}), "bad DER": pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte{1, 2, 3}}), "text suffix": append(append([]byte(nil), valid...), []byte("ignored text")...)} {
 		t.Run(name, func(t *testing.T) {
-			if _, err := ParseBootRoots(raw, now); err == nil {
+			if _, err := provisionimage.ParseBootRoots(raw, now); err == nil {
 				t.Fatal("accepted invalid public trust file")
 			}
 		})
 	}
-	if _, err = ParseBootRoots(valid, now.Add(2*time.Hour)); err == nil {
+	if _, err = provisionimage.ParseBootRoots(valid, now.Add(2*time.Hour)); err == nil {
 		t.Fatal("expired CA")
 	}
-	if _, err = ParseBootRoots(valid, now.Add(-2*time.Hour)); err == nil {
+	if _, err = provisionimage.ParseBootRoots(valid, now.Add(-2*time.Hour)); err == nil {
 		t.Fatal("future CA")
 	}
 	ca.IsCA = false
@@ -48,7 +49,7 @@ func TestBootRootsRejectUnapprovedTrustMaterial(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = ParseBootRoots(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), now); err == nil {
+	if _, err = provisionimage.ParseBootRoots(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), now); err == nil {
 		t.Fatal("leaf as bootstrap root")
 	}
 }

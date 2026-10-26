@@ -1226,3 +1226,9 @@ Make新增build-installer-helpers跨架构生产两份实际helper；CLI不接DB
 接续b78492c，新增独立cmd/keel-initrd与Linux虚拟文件系统/console/public-CA适配，唯一BOM MAC的直接DHCP客户端、严格租约/包绑定和ARP使用前探测/会话冲突监听。仅读会话结束/期限/取消后撤下临时IPv4，不设置默认路由/DNS，不把地址留到后续安装。拒绝relay/已有IPv4/端口占用，不干预其他接口/服务。Prepare保留精确原始报告字节供tmpfs证据和后续磁盘审批，PID1最终保持等待，无回调/写盘/自动重启。完整边界及内核要求见PROVISIONING末节。
 
 Makefile新增双架构build-initrd，CI已有ARM编译列表加入新命令，未执行构建镜像/推送/CI。新增DHCP/ARP/公共CA/普通宿主守卫用例未运行。实际仅定向编译/vet（/tmp/keel-initrd-network-{compile,vet}.log）及linux/arm64静态入口编译（/tmp/keel-initrd-network-arm64），不能作为网络/启动证据。当前仍缺完整批准镜像，接下来实现独立runtime-set生产路径；P1 partial，05:12:04 UTC窗口继续。
+
+## 96. 独立runtime-set到完整只读initrd的无环生产（2026-10-26，源码待集中验证）
+
+接续68ec35e，新增mediaboot.RuntimeSet，先批准init/preflight/ssh_helper/smartctl/public-CA五个无子依赖输入及独立config，再生产initrd，最后另批产物并纳入OS recipe；不依赖未来成品。provisionimage完整固定gzip/newc写入/反向检查复用原CPIO/ELF实现，CA解析移到共享字节层；mediamanifest提供独立验签、全五项hash/arch/size校验、受保护目录0600原子非覆盖发布和校验。keel-admin新增provision-initrd-create/verify早期离线分支，源码不依赖DB/网络、不执行组件。ForPlan入口核对归档实际摘要及内含helper与最终Plan一致，但尚未生产Authority调用。
+
+新runtime JSON/归档/签名/发布/错绑用例仅写入；provision-only和全media入口regex加入TestInstallerInitrd。未执行CLI/功能用例/镜像构建/硬件启动。仅定向编译/vet（/tmp/keel-runtime-image-{compile,vet}.log）及文档/脚本静态检查。完整归档源码不等于已验收可启动镜像，更不等于写盘许可；内建驱动/内核能力与真实smartctl仍需独立输入及PoC。P1 partial，下一步实际安装Execution/lease、一次性凭据/回调与持久存储审批。
