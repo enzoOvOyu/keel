@@ -17,9 +17,10 @@ import (
 var _ RecollectionClient = (*fabricboot.ProbeSuite)(nil)
 
 type recollectLedger struct {
-	requests                map[string]string
-	results                 map[string]*fabricboot.CollectorRecollectResponse
-	failBegin, failComplete bool
+	requests                             map[string]string
+	results                              map[string]*fabricboot.CollectorRecollectResponse
+	failBegin, failComplete, failObserve bool
+	observations                         int
 }
 
 func newRecollectLedger() *recollectLedger {
@@ -48,10 +49,18 @@ func (l *recollectLedger) Complete(_ context.Context, _ ReadbackBinding, r fabri
 	return nil
 }
 
+func (l *recollectLedger) Observe(_ context.Context, _ ReadbackBinding, _ fabricboot.CollectorRecollectRequest, _ fabricboot.CollectorRecollectObservation) error {
+	if l.failObserve {
+		return errors.New("terminal query persistence failed")
+	}
+	l.observations++
+	return nil
+}
+
 type recollectClient struct {
-	ledger             *recollectLedger
-	posts, queries     int
-	loseReply, running bool
+	ledger                      *recollectLedger
+	posts, queries              int
+	loseReply, running, stopped bool
 }
 
 func (c *recollectClient) RecollectPorts(_ context.Context, r fabricboot.CollectorRecollectRequest) (*fabricboot.CollectorRecollectResponse, error) {
@@ -69,6 +78,10 @@ func (c *recollectClient) QueryRecollection(_ context.Context, r fabricboot.Coll
 	result := recollectResponse(r)
 	now := time.Now().UTC()
 	out := &fabricboot.CollectorRecollectObservation{Version: "fabric-recollect-status/v1", ProjectID: r.ProjectID, ExecutionID: r.ExecutionID, CommandID: r.CommandID, FencingToken: r.FencingToken, ScopeHash: r.ScopeHash, RequestHash: netbaseline.ContentHash(r), EvidenceSource: r.EvidenceSource, State: "completed", FinishedAt: &now, Result: result}
+	if c.stopped {
+		out.State = "stopped"
+		out.Result = nil
+	}
 	if c.running {
 		out.State = "running"
 		out.FinishedAt = nil
@@ -173,5 +186,24 @@ func TestReadbackPersistenceAndExchangeProjection(t *testing.T) {
 	}
 	if _, e = NewRecollector(binding, client, nil)(context.Background(), scope); !errors.Is(e, ErrCaptureRejected) {
 		t.Fatal("nil ledger allowed dispatch")
+	}
+}
+
+func TestStoppedCollectorQueryMustBeRetained(t *testing.T) {
+	binding, scope := recollectScope()
+	ledger := newRecollectLedger()
+	client := &recollectClient{ledger: ledger, loseReply: true}
+	run := NewRecollector(binding, client, ledger)
+	if _, e := run(context.Background(), scope); !errors.Is(e, ErrOutcomeUnknown) {
+		t.Fatal(e)
+	}
+	client.stopped = true
+	ledger.failObserve = true
+	if _, e := run(context.Background(), scope); !errors.Is(e, ErrOutcomeUnknown) {
+		t.Fatal("unretained stopped receipt released quarantine")
+	}
+	ledger.failObserve = false
+	if _, e := run(context.Background(), scope); !errors.Is(e, ErrCaptureRejected) || client.posts != 1 || ledger.observations != 1 {
+		t.Fatal("known stopped command was reissued or terminal receipt lost")
 	}
 }

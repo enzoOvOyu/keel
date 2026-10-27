@@ -47,3 +47,7 @@ StepReport具备step/version/parent/source_hash/verdict/detail及历史、当前
 回读复用固定mTLS `ProbeSuite.RecollectPorts/QueryRecollection`，每块一个交换机、最多2端口，按稳定ID规范化；不扩大既有FR-0.8.2协议上限。派发前账本提交原请求，重复/未知仅查询原命令；结果保存失败也不得重POST。归档保留每块请求/响应，反向重建时对所有采样分别检查广播窗口与原命令，派生交换机投影不能自行宣称通过。
 
 086源码新增命令注册、固定广告窗口、不可变派发/结果账本。注册要求原Step1、完全相同物理身份、新的单主机握手以及共享Execution中主机device/ssh和相关交换机device/ssh全范围独占；不复用Step1旧握手。握手消费由数据库原行锁在Step1/命令两类用途间互斥。此边界尚未接入实际共享Execution派发或真实特权设备helper；没有执行开关绕过，也未开放Step2～4。所有新增检查NOT_RUN，086未应用。
+
+## 原始停止归档（源码，NOT_RUN）
+
+087增加不可变原命令终态查询和停止capture。查询`completed/stopped/rejected`须绑定原请求摘要和原终态时间；保存失败仍unknown。内部RecordWiringCapture接受受控执行消费者传来的原文，核对注册HostOrigin/冻结期望/命令、每块已保存响应和无未决会话；版本对象写入后反读SHA256/大小，原文冲突不覆盖。ReadWiringCapture反向解析固定版本，并在原停止时刻重算历史判据；不续期、不宣称当前G2。原始缺测不造时间、不转PASS。无上传API，后续步骤仍须原共享runner已完成回执与当前范围校验才能开放；087未应用，新用例NOT_RUN。

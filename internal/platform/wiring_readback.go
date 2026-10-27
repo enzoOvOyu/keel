@@ -17,6 +17,7 @@ import (
 // It consumes a NEW one-host readiness handshake; the earlier Step 1 lease is
 // historical evidence and cannot authorize later hardware work.
 type WiringCommand struct {
+	HostOrigin  string                 `json:"host_origin"`
 	BatchID     string                 `json:"batch_id"`
 	AssetID     string                 `json:"asset_id"`
 	HandshakeID string                 `json:"handshake_id"`
@@ -26,8 +27,8 @@ type WiringCommand struct {
 	Plan        wiring.Plan            `json:"plan"`
 }
 
-func (s *Store) RegisterWiringCommandTx(ctx context.Context, tx *sql.Tx, batch, asset, handshake string, binding wiring.ReadbackBinding) (*WiringCommand, error) {
-	if !s.WiringEnabled || !validEntityID(batch) || !validEntityID(asset) || !validEntityID(handshake) {
+func (s *Store) RegisterWiringCommandTx(ctx context.Context, tx *sql.Tx, batch, asset, handshake, hostOrigin string, binding wiring.ReadbackBinding) (*WiringCommand, error) {
+	if hostOrigin != "real" && hostOrigin != "sim" || !s.WiringEnabled || !validEntityID(batch) || !validEntityID(asset) || !validEntityID(handshake) {
 		return nil, apiError(409, "WIRING_DISABLED", "A frozen wiring target and fresh readiness handshake are required")
 	}
 	var exists bool
@@ -39,7 +40,7 @@ func (s *Store) RegisterWiringCommandTx(ctx context.Context, tx *sql.Tx, batch, 
 	} // Never authorize a second Begin.
 	var expectedRaw []byte
 	var topology string
-	out := &WiringCommand{BatchID: batch, AssetID: asset, HandshakeID: handshake, Binding: binding}
+	out := &WiringCommand{HostOrigin: hostOrigin, BatchID: batch, AssetID: asset, HandshakeID: handshake, Binding: binding}
 	e := tx.QueryRowContext(ctx, `SELECT t.expectation,t.topology_id,r.id FROM validation_wiring_batch_targets t JOIN validation_wiring_step_reports r ON r.batch_id=t.batch_id AND r.asset_id=t.asset_id AND r.step=1 AND r.verdict='PASS' WHERE t.batch_id=$1 AND t.asset_id=$2 AND t.project_id=$3 AND NOT EXISTS(SELECT 1 FROM validation_wiring_step_reports n WHERE n.batch_id=r.batch_id AND n.asset_id=r.asset_id AND n.step=1 AND n.version>r.version)`, batch, asset, binding.ProjectID).Scan(&expectedRaw, &topology, &out.ParentID)
 	if e != nil {
 		return nil, e
@@ -100,7 +101,7 @@ func loadWiringCommandTx(ctx context.Context, tx *sql.Tx, binding wiring.Readbac
 		return nil, e
 	}
 	var out WiringCommand
-	if json.Unmarshal(raw, &out) != nil || string(networkJSON(out.Binding)) != string(networkJSON(binding)) || out.Expectation.Validate() != nil {
+	if json.Unmarshal(raw, &out) != nil || out.HostOrigin != "real" && out.HostOrigin != "sim" || string(networkJSON(out.Binding)) != string(networkJSON(binding)) || out.Expectation.Validate() != nil {
 		return nil, wiring.ErrCaptureRejected
 	}
 	plan, e := wiring.BuildPlan(out.Expectation, binding.CommandID)
@@ -215,6 +216,51 @@ func (l *WiringReadbackLedger) Complete(ctx context.Context, binding wiring.Read
 		return e
 	}
 	_, e = tx.ExecContext(ctx, `INSERT INTO validation_wiring_readback_results(child_command_id,response,content_hash,received_at) VALUES($1,$2,$3,statement_timestamp())`, request.CommandID, networkJSON(response), netbaseline.ContentHash(response))
+	if e != nil {
+		return e
+	}
+	return tx.Commit()
+}
+
+// Observe retains the authenticated terminal response of an original-command
+// query. HTTP absence/running/unknown can never be stored as stopped evidence.
+func (l *WiringReadbackLedger) Observe(ctx context.Context, binding wiring.ReadbackBinding, request fabricboot.CollectorRecollectRequest, observation fabricboot.CollectorRecollectObservation) error {
+	if l == nil || l.Store == nil || !l.Store.WiringEnabled || !observation.Terminal() || observation.Validate(request, time.Now().UTC()) != nil {
+		return wiring.ErrOutcomeUnknown
+	}
+	tx, e := l.Store.DB.BeginTx(ctx, nil)
+	if e != nil {
+		return e
+	}
+	defer tx.Rollback()
+	if e = lockKey(ctx, tx, "wiring-command:"+binding.CommandID); e != nil {
+		return e
+	}
+	if _, e = loadWiringCommandTx(ctx, tx, binding); e != nil {
+		return e
+	}
+	var original, prior []byte
+	var hash string
+	e = tx.QueryRowContext(ctx, `SELECT request,content_hash FROM validation_wiring_readback_dispatches WHERE child_command_id=$1 AND command_id=$2`, request.CommandID, binding.CommandID).Scan(&original, &hash)
+	if e != nil {
+		return e
+	}
+	var frozen fabricboot.CollectorRecollectRequest
+	if json.Unmarshal(original, &frozen) != nil || netbaseline.ContentHash(frozen) != hash || string(networkJSON(frozen)) != string(networkJSON(request)) {
+		return wiring.ErrCaptureRejected
+	}
+	e = tx.QueryRowContext(ctx, `SELECT observation,content_hash FROM validation_wiring_readback_queries WHERE child_command_id=$1`, request.CommandID).Scan(&prior, &hash)
+	if e == nil {
+		var old fabricboot.CollectorRecollectObservation
+		if json.Unmarshal(prior, &old) != nil || netbaseline.ContentHash(old) != hash || string(networkJSON(old)) != string(networkJSON(observation)) {
+			return wiring.ErrOutcomeUnknown
+		}
+		return tx.Commit()
+	}
+	if !errors.Is(e, sql.ErrNoRows) {
+		return e
+	}
+	_, e = tx.ExecContext(ctx, `INSERT INTO validation_wiring_readback_queries(child_command_id,observation,content_hash,observed_at) VALUES($1,$2,$3,statement_timestamp())`, request.CommandID, networkJSON(observation), netbaseline.ContentHash(observation))
 	if e != nil {
 		return e
 	}

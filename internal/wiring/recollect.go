@@ -36,6 +36,7 @@ type ReadbackDecision struct {
 type ReadbackLedger interface {
 	Begin(context.Context, ReadbackBinding, fabricboot.CollectorRecollectRequest) (ReadbackDecision, error)
 	Complete(context.Context, ReadbackBinding, fabricboot.CollectorRecollectRequest, fabricboot.CollectorRecollectResponse) error
+	Observe(context.Context, ReadbackBinding, fabricboot.CollectorRecollectRequest, fabricboot.CollectorRecollectObservation) error
 }
 type RecollectionClient interface {
 	RecollectPorts(context.Context, fabricboot.CollectorRecollectRequest) (*fabricboot.CollectorRecollectResponse, error)
@@ -129,6 +130,9 @@ func NewRecollector(binding ReadbackBinding, client RecollectionClient, ledger R
 				} else {
 					observation, queryErr := client.QueryRecollection(ctx, request)
 					if queryErr != nil || observation == nil || observation.Validate(request, time.Now().UTC()) != nil || !observation.Terminal() {
+						return nil, ErrOutcomeUnknown
+					}
+					if e := ledger.Observe(ctx, binding, request, *observation); e != nil {
 						return nil, ErrOutcomeUnknown
 					}
 					if observation.State != "completed" {
