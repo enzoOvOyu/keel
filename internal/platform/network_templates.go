@@ -37,9 +37,11 @@ type NetworkTemplateVersion struct {
 	CreatedAt       time.Time              `json:"created_at"`
 }
 type NetworkPlanInput struct {
-	TemplateID  string `json:"template_id"`
-	BaselineRef string `json:"baseline_ref"`
-	BatchRef    string `json:"batch_ref"`
+	TemplateChangeID   string `json:"template_change_id,omitempty"`
+	ExpectedImpactHash string `json:"expected_impact_hash,omitempty"`
+	TemplateID         string `json:"template_id"`
+	BaselineRef        string `json:"baseline_ref"`
+	BatchRef           string `json:"batch_ref"`
 }
 type NetworkPlannedDevice struct {
 	ApprovedVariables  map[string]any  `json:"approved_variables"`
@@ -365,7 +367,11 @@ func (s *Store) ReleaseNetworkTemplate(ctx context.Context, a *AuthSession, p *P
 	if e != nil {
 		return nil, e
 	}
-	if e = appendAudit(ctx, tx, a.User.ID, p.ID, "network.template.release", id, trace, map[string]any{"report_id": report.ID, "content_hash": template.ContentHash}); e != nil {
+	queued, e := queueNetworkTemplateChangesTx(ctx, tx, template, a.User.ID)
+	if e != nil {
+		return nil, e
+	}
+	if e = appendAudit(ctx, tx, a.User.ID, p.ID, "network.template.release", id, trace, map[string]any{"report_id": report.ID, "content_hash": template.ContentHash, "queued_assessments": queued}); e != nil {
 		return nil, e
 	}
 	template.State = "released"

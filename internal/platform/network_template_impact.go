@@ -2,6 +2,7 @@ package platform
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"time"
@@ -21,6 +22,8 @@ type NetworkTemplateImpactDevice struct {
 	BatchRef              string                        `json:"batch_ref"`
 	BaselineRef           string                        `json:"baseline_ref"`
 	PreviousIntendedHash  string                        `json:"previous_intended_hash"`
+	CandidateFactsHash    string                        `json:"candidate_facts_hash,omitempty"`
+	TargetCount           int                           `json:"target_count"`
 	CandidateIntendedHash string                        `json:"candidate_intended_hash,omitempty"`
 	Verdict               string                        `json:"verdict"`
 	Reason                string                        `json:"reason,omitempty"`
@@ -96,13 +99,9 @@ func (s *Store) NetworkTemplateImpact(ctx context.Context, a *AuthSession, p *Pr
 	if e != nil {
 		return nil, e
 	}
-	type record struct {
-		job, execution, device, state, executionState string
-		input, facts, proof, previous                 []byte
-	}
-	records := []record{}
+	records := []templateImpactRecord{}
 	for rows.Next() {
-		var r record
+		var r templateImpactRecord
 		if e = rows.Scan(&r.job, &r.input, &r.execution, &r.device, &r.state, &r.executionState, &r.facts, &r.proof, &r.previous); e != nil {
 			rows.Close()
 			return nil, e
@@ -114,11 +113,29 @@ func (s *Store) NetworkTemplateImpact(ctx context.Context, a *AuthSession, p *Pr
 	if e != nil {
 		return nil, e
 	}
+	out.Items, e = evaluateNetworkTemplateImpactTx(ctx, tx, p.ID, candidate, records)
+	if e != nil {
+		return nil, e
+	}
+	return out, nil
+}
+
+type templateImpactRecord struct {
+	job, execution, device, state, executionState string
+	input, facts, proof, previous                 []byte
+}
+
+func evaluateNetworkTemplateImpactTx(ctx context.Context, tx *sql.Tx, project string, candidate *NetworkTemplateVersion, records []templateImpactRecord) ([]NetworkTemplateImpactDevice, error) {
+	var e error
+	now := time.Now().UTC()
+	items := []NetworkTemplateImpactDevice{}
 	// Render each current approved batch once per page. All lookups share this
 	// repeatable-read snapshot, and never call a device/validation adapter.
 	type batch struct {
-		devices map[string]NetworkPlannedDevice
-		reason  string
+		devices   map[string]NetworkPlannedDevice
+		reason    string
+		factsHash string
+		count     int
 	}
 	batches := map[string]batch{}
 	for _, r := range records {
@@ -138,17 +155,17 @@ func (s *Store) NetworkTemplateImpact(ctx context.Context, a *AuthSession, p *Pr
 		if proof != nil {
 			item.EvidenceSource = proof.EvidenceSource
 		}
-		if r.state != "VERIFIED" || (r.executionState != "success" && r.executionState != "failed") || proof == nil || proof.RunningHash != previous.IntendedHash || proof.DeviceID != r.device || proof.Serial != previous.Serial || proof.ProjectID != p.ID || proof.State != "completed" || proof.ExitCode != 0 || proof.ObservedAt.IsZero() || proof.ObservedAt.After(now) || item.PreviousIntendedHash != previous.IntendedHash {
+		if r.state != "VERIFIED" || (r.executionState != "success" && r.executionState != "failed") || proof == nil || proof.RunningHash != previous.IntendedHash || proof.DeviceID != r.device || proof.Serial != previous.Serial || proof.ProjectID != project || proof.State != "completed" || proof.ExitCode != 0 || proof.ObservedAt.IsZero() || proof.ObservedAt.After(now) || item.PreviousIntendedHash != previous.IntendedHash {
 			item.Reason = "current_golden_or_execution_unresolved"
-			out.Items = append(out.Items, item)
+			items = append(items, item)
 			continue
 		}
 		key := input.BaselineRef + "\x00" + input.BatchRef
 		b, ok := batches[key]
 		if !ok {
 			input.TemplateID = candidate.ID
-			_, _, devices, err := networkTemplateFactsTx(ctx, tx, p.ID, input)
-			b = batch{devices: map[string]NetworkPlannedDevice{}}
+			_, _, devices, err := networkTemplateFactsTx(ctx, tx, project, input)
+			b = batch{devices: map[string]NetworkPlannedDevice{}, factsHash: netbaseline.ContentHash(devices), count: len(devices)}
 			if err != nil {
 				var business *Error
 				if !errors.As(err, &business) {
@@ -170,6 +187,8 @@ func (s *Store) NetworkTemplateImpact(ctx context.Context, a *AuthSession, p *Pr
 			item.Reason = "current_approved_device_binding_changed"
 		default:
 			item.CandidateIntendedHash = next.IntendedHash
+			item.CandidateFactsHash = b.factsHash
+			item.TargetCount = b.count
 			changes, err := netbaseline.StructuredDiff(json.RawMessage(r.previous), next.Intended)
 			if err != nil {
 				return nil, err
@@ -182,7 +201,7 @@ func (s *Store) NetworkTemplateImpact(ctx context.Context, a *AuthSession, p *Pr
 				item.Changes = append(item.Changes, NetworkTemplateImpactChange{Path: change.Path, Severity: change.Severity})
 			}
 		}
-		out.Items = append(out.Items, item)
+		items = append(items, item)
 	}
-	return out, nil
+	return items, nil
 }

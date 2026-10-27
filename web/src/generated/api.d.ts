@@ -2360,6 +2360,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/fabric/template-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["networkTemplateChanges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/fabric/templates": {
         parameters: {
             query?: never;
@@ -5167,6 +5183,10 @@ export interface components {
             health: components["schemas"]["NetworkHealthReport"];
         };
         NetworkPushInput: {
+            /** @description Optional durable template change selected for a new ordinary batch PushJob. */
+            template_change_id?: string;
+            /** @description Required with template_change_id; pins current production reference and the entire approved candidate batch. */
+            expected_impact_hash?: string;
             template_id: string;
             baseline_ref: string;
             batch_ref: string;
@@ -5292,6 +5312,9 @@ export interface components {
             baseline_ref: string;
             previous_intended_hash: string;
             candidate_intended_hash?: string;
+            candidate_facts_hash?: string;
+            /** @description Entire approved batch affected by job creation. */
+            target_count: number;
             /** @enum {string} */
             verdict: "DIFF" | "UNCHANGED" | "BLOCKED";
             reason?: string;
@@ -5302,6 +5325,35 @@ export interface components {
                 /** @enum {string} */
                 severity: "Critical" | "Major" | "Minor";
             }[];
+        };
+        NetworkTemplateChangePage: {
+            /** @enum {string} */
+            version: "network-template-changes/v1";
+            project_id: string;
+            page: number;
+            page_size: number;
+            total: number;
+            /** Format: date-time */
+            evaluated_at: string;
+            items: components["schemas"]["NetworkTemplateChange"][];
+        };
+        NetworkTemplateChange: {
+            id: string;
+            project_id: string;
+            candidate_template_id: string;
+            candidate_name: string;
+            candidate_version: number;
+            base_template_id: string;
+            switch_id: string;
+            source_execution_id: string;
+            /** @enum {string} */
+            state: "DIFF" | "UNCHANGED" | "BLOCKED" | "STALE" | "PLANNED" | "RESOLVED";
+            assessment_hash: string;
+            assessment: components["schemas"]["NetworkTemplateImpactDevice"];
+            plan_input: components["schemas"]["NetworkPushInput"];
+            linked_job_id?: string;
+            /** Format: date-time */
+            created_at: string;
         };
         NetworkPlannedDevice: {
             approved_variables?: {
@@ -13071,6 +13123,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FabricDeviceEvidence"];
+                };
+            };
+        };
+    };
+    networkTemplateChanges: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Durable release work list evaluated against current approved facts and latest production attempts; ordinary PushJob prechecks and approvals remain required. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkTemplateChangePage"];
                 };
             };
         };

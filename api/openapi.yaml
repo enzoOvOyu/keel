@@ -2643,6 +2643,20 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/FabricDeviceEvidence' }
 
+  /api/v1/projects/{id}/fabric/template-changes:
+    get:
+      operationId: networkTemplateChanges
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: page_size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Durable release work list evaluated against current approved facts and latest production attempts; ordinary PushJob prechecks and approvals remain required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkTemplateChangePage' }
   /api/v1/projects/{id}/fabric/templates:
     get:
       operationId: listNetworkTemplates
@@ -4037,6 +4051,8 @@ components:
       type: object
       required: [template_id, baseline_ref, batch_ref]
       properties:
+        template_change_id: { type: string, description: Optional durable template change selected for a new ordinary batch PushJob. }
+        expected_impact_hash: { type: string, description: Required with template_change_id; pins current production reference and the entire approved candidate batch. }
         template_id: { type: string }
         baseline_ref: { type: string }
         batch_ref: { type: string }
@@ -4168,7 +4184,7 @@ components:
         items: { type: array, items: { $ref: '#/components/schemas/NetworkTemplateImpactDevice' } }
     NetworkTemplateImpactDevice:
       type: object
-      required: [switch_id, serial, job_id, execution_id, batch_ref, baseline_ref, previous_intended_hash, verdict, changes]
+      required: [switch_id, serial, job_id, execution_id, batch_ref, baseline_ref, previous_intended_hash, target_count, verdict, changes]
       properties:
         switch_id: { type: string }
         serial: { type: string }
@@ -4178,6 +4194,8 @@ components:
         baseline_ref: { type: string }
         previous_intended_hash: { type: string }
         candidate_intended_hash: { type: string }
+        candidate_facts_hash: { type: string }
+        target_count: { type: integer, description: Entire approved batch affected by job creation. }
         verdict: { type: string, enum: [DIFF, UNCHANGED, BLOCKED] }
         reason: { type: string }
         evidence_source: { type: string, enum: [device, protocol_fixture] }
@@ -4189,6 +4207,35 @@ components:
             properties:
               path: { type: string }
               severity: { type: string, enum: [Critical, Major, Minor] }
+    NetworkTemplateChangePage:
+      type: object
+      required: [version, project_id, page, page_size, total, evaluated_at, items]
+      properties:
+        version: { type: string, enum: [network-template-changes/v1] }
+        project_id: { type: string }
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
+        evaluated_at: { type: string, format: date-time }
+        items: { type: array, items: { $ref: '#/components/schemas/NetworkTemplateChange' } }
+    NetworkTemplateChange:
+      type: object
+      required: [id, project_id, candidate_template_id, candidate_name, candidate_version, base_template_id, switch_id, source_execution_id, state, assessment_hash, assessment, plan_input, created_at]
+      properties:
+        id: { type: string }
+        project_id: { type: string }
+        candidate_template_id: { type: string }
+        candidate_name: { type: string }
+        candidate_version: { type: integer }
+        base_template_id: { type: string }
+        switch_id: { type: string }
+        source_execution_id: { type: string }
+        state: { type: string, enum: [DIFF, UNCHANGED, BLOCKED, STALE, PLANNED, RESOLVED] }
+        assessment_hash: { type: string }
+        assessment: { $ref: '#/components/schemas/NetworkTemplateImpactDevice' }
+        plan_input: { $ref: '#/components/schemas/NetworkPushInput' }
+        linked_job_id: { type: string }
+        created_at: { type: string, format: date-time }
     NetworkPlannedDevice:
       type: object
       required: [intended_id, id, serial, hostname, management_ip, model_version_id, credential_batch_ref, intended_hash]

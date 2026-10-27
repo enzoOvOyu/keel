@@ -11,3 +11,5 @@ export const deprecateNetworkTemplate=(id:string,template:string,hash:string,rea
 export type NetworkTemplateImpact=components['schemas']['NetworkTemplateImpact']
 export const rollbackNetworkTemplate=(id:string,template:string,head:NetworkTemplate,reason:string,csrf:string)=>request<NetworkTemplate>(`${path(id)}/${encodeURIComponent(template)}/rollback`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify({expected_head_id:head.id,expected_head_hash:head.content_hash,reason})})
 export const networkTemplateImpact=(id:string,candidate:string,base:string,page:number,signal:AbortSignal)=>request<NetworkTemplateImpact>(`${path(id)}/${encodeURIComponent(candidate)}/impact?base_template_id=${encodeURIComponent(base)}&page=${page}&page_size=20`,{signal})
+export type NetworkTemplateChange=components['schemas']['NetworkTemplateChange']
+export const networkTemplateChanges=(id:string,page:number,signal:AbortSignal)=>request<components['schemas']['NetworkTemplateChangePage']>(`/projects/${encodeURIComponent(id)}/fabric/template-changes?page=${page}&page_size=20`,{signal})

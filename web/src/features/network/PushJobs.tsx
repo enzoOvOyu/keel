@@ -9,7 +9,7 @@ import {Link} from '@tanstack/react-router'
 import {useQuery,useQueryClient} from '@tanstack/react-query'
 import {useTranslation} from 'react-i18next'
 import {ActionDialog} from '../../components/Management'
-import {useProject,canManageProject} from '../../components/ProjectWorkspace'
+import {useProject} from '../../components/ProjectWorkspace'
 import {useSession,useExpireOnUnauthorized} from '../../lib/session'
 import {useAction} from '../../lib/management'
 import {listNetworkPush,archiveNetworkPush,createNetworkPush,executeNetworkPush,decideNetworkPush,type NetworkPushJob} from '../../lib/network-push'
@@ -21,14 +21,14 @@ export function PushJobs({templates,baseline,batch}:{templates:NetworkTemplate[]
  const key=['private',session.user.id,p.id,'network-push-jobs']
  const query=useQuery({queryKey:key,queryFn:({signal})=>listNetworkPush(p.id,signal),refetchInterval:q=>q.state.data?.jobs.some(j=>['PRECHECKING','EXECUTING','VERIFYING','ROLLING_BACK'].includes(j.state))?2000:false})
  useExpireOnUnauthorized(query.error)
- const released=templates.filter(v=>v.state==='released'),selected=released.some(v=>v.id===template)?template:released[0]?.id??'',canExecute=canManageProject(p,session.user.is_admin)||p.role==='NDE',canSign=['NE','DE','NH'].includes(p.role)
+ const released=templates.filter(v=>v.state==='released'),selected=released.some(v=>v.id===template)?template:released[0]?.id??'',canExecute=session.user.is_admin||p.role==='NDE',canSign=['NE','DE','NH'].includes(p.role)
  async function refresh(){await client.invalidateQueries({queryKey:key})}
  async function create(){const result=await action.run(()=>createNetworkPush(p.id,{template_id:selected,baseline_ref:baseline,batch_ref:batch},session.csrf_token));if(result.ok)await refresh()}
  async function archive(job:NetworkPushJob){const r=await action.run(()=>archiveNetworkPush(p.id,job.id,session.csrf_token));if(r.ok)await refresh()}
  async function prepare(job:NetworkPushJob){const result=await action.run(()=>executeNetworkPush(p.id,job.id,'prepare',session.csrf_token,`${job.id}:prepare:${job.prepare_execution_id||'initial'}`));if(result.ok)await refresh()}
  function open(job:NetworkPushJob,kind:Decision['kind']){setComment('');setConfirmation('');setDecision({job,kind})}
  async function submit(){if(!decision)return;const d=decision;const result=await action.run(async()=>{if(d.kind==='push'){await executeNetworkPush(p.id,d.job.id,'push',session.csrf_token,`${d.job.id}:push`)}else{await decideNetworkPush(p.id,d.job.id,d.job.review_hash,comment,d.kind,session.csrf_token)}});if(result.ok){setDecision(null);await refresh()}}
- return <section className="management-planning panel" aria-label={t('networkPushJobs')}><h2>{t('networkPushJobs')}</h2><p>{t('networkPushIntro')}</p>
+ return <section id="network-push-jobs" className="management-planning panel" aria-label={t('networkPushJobs')}><h2>{t('networkPushJobs')}</h2><p>{t('networkPushIntro')}</p>
  {!query.data?.writes_enabled&&<p role="status">{t('networkPushWritesDisabled')}</p>}
  <div className="management-plan-controls"><div className="field"><Label className="ui:block ui:leading-normal" htmlFor="network-push-template">{t('networkPushTemplate')}</Label><NativeSelect id="network-push-template" value={selected} onChange={e=>setTemplate(e.target.value)} disabled={action.busy||!canExecute}>{!released.length&&<NativeSelectOption value="">—</NativeSelectOption>}{released.map(v=><NativeSelectOption key={v.id} value={v.id}>{v.name} · v{v.version}</NativeSelectOption>)}</NativeSelect></div><Button variant="outline" className="secondary-button" disabled={!canExecute||!selected||!baseline||!batch||action.busy} onClick={()=>void create()}>{t('networkPushCreate')}</Button><Button variant="outline" className="secondary-button" onClick={()=>void refresh()}>{t('refreshProjects')}</Button></div>
  {(action.error||query.error)&&<p role="alert">{t('networkPushFailed')}{action.error&&` · ${action.error.code}: ${action.error.message}`}</p>}

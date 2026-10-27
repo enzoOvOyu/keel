@@ -138,6 +138,9 @@ func (s *Store) CreateNetworkPush(ctx context.Context, a *AuthSession, p *Projec
 	if template.State != "released" {
 		return nil, apiError(409, "NETWORK_TEMPLATE_RELEASE_REQUIRED", "Use an independently released template")
 	}
+	if e = reviewTemplateChangePlanTx(ctx, tx, p.ID, input, netbaseline.ContentHash(devices)); e != nil {
+		return nil, e
+	}
 	if s.FabricProbes == nil {
 		return nil, apiError(409, "NETWORK_ADAPTER_NOT_CONFIGURED", "Network adapter is not configured")
 	}
@@ -178,6 +181,9 @@ func (s *Store) CreateNetworkPush(ctx context.Context, a *AuthSession, p *Projec
 			return nil, e
 		}
 		j.Devices = append(j.Devices, NetworkPushDevice{Device: d, State: "PENDING", Ordinal: i, Diff: []netbaseline.Difference{}})
+	}
+	if e = linkTemplateChangeJobTx(ctx, tx, j, a.User.ID); e != nil {
+		return nil, e
 	}
 	if _, e = tx.ExecContext(ctx, `INSERT INTO network_push_events(job_id,state,metadata,created_at) VALUES($1,'CREATED',$2,now())`, j.ID, networkJSON(map[string]any{"facts_hash": j.FactsHash})); e != nil {
 		return nil, e
