@@ -108,7 +108,14 @@ func TestSwitchReadbackHappensBeforeStoppingAdvertisement(t *testing.T) {
 		p := scope.Ports[0]
 		snapshot := *switches[p.SwitchSerial].Snapshot
 		snapshot.CollectedAt = time.Now().UTC()
-		return &Readback{PlanDigest: scope.PlanDigest, CommandID: scope.CommandID, ScopeHash: scope.ScopeHash, Origin: "protocol_fixture", Devices: []fabricmon.Snapshot{snapshot}}, nil
+		binding := recollectBinding(scope.CommandID)
+		requests, e := BuildReadbackRequests(binding, scope)
+		if e != nil {
+			return nil, e
+		}
+		response := recollectResponse(requests[0])
+		response.Devices = []fabricmon.Snapshot{snapshot}
+		return &Readback{Binding: binding, Exchanges: []ReadbackExchange{{Request: requests[0], Response: *response}}, PlanDigest: scope.PlanDigest, CommandID: scope.CommandID, ScopeHash: scope.ScopeHash, Origin: "protocol_fixture", Devices: []fabricmon.Snapshot{snapshot}}, nil
 	}
 	archive, e := CaptureWithReadback(context.Background(), driver.expected, strings.Repeat("f", 32), driver, callback)
 	if e != nil || archive == nil || len(archive.Capture.Missing) != 0 || driver.stopCount != 1 || archive.Readback == nil {
@@ -155,5 +162,13 @@ func TestStoppedArchiveReverseReadRejectsInventedProjection(t *testing.T) {
 	}
 	if _, e = DecodeArchive(altered); e == nil {
 		t.Fatal("configuration change acquired restoration proof")
+	}
+}
+
+func TestCollectorUnknownKeepsQuarantineAfterHostCleanup(t *testing.T) {
+	driver := newCaptureDriver()
+	archive, e := CaptureWithReadback(context.Background(), driver.expected, strings.Repeat("a", 32), driver, func(context.Context, ReadbackScope) (*Readback, error) { return nil, ErrOutcomeUnknown })
+	if !errors.Is(e, ErrOutcomeUnknown) || archive != nil || driver.stopCount != 1 {
+		t.Fatal("host stop released a collector with no terminal proof")
 	}
 }

@@ -73,6 +73,8 @@ type ReadbackScope struct {
 	Ports         []ExpectedPort `json:"ports"`
 }
 type Readback struct {
+	Binding    ReadbackBinding      `json:"binding"`
+	Exchanges  []ReadbackExchange   `json:"exchanges"`
 	PlanDigest string               `json:"plan_digest"`
 	CommandID  string               `json:"command_id"`
 	ScopeHash  string               `json:"scope_hash"`
@@ -161,7 +163,7 @@ func CaptureWithReadback(parent context.Context, expected Expectation, commandID
 		e = ErrOutcomeUnknown
 	}
 	cancel()
-	if e != nil || validateLocalState(expected, after, false) != nil || !localConfigurationEqual(before, after) {
+	if e != nil || errors.Is(readbackErr, ErrOutcomeUnknown) || validateLocalState(expected, after, false) != nil || !localConfigurationEqual(before, after) {
 		return nil, ErrOutcomeUnknown
 	}
 
@@ -336,6 +338,18 @@ func localConfigurationEqual(before, after []LocalState) bool {
 
 func readbackMatches(plan Plan, expected Expectation, observed *Observation, proof *Readback, stopped time.Time) bool {
 	if proof == nil || observed == nil || proof.PlanDigest != plan.Digest || proof.CommandID != plan.CommandID || proof.ScopeHash != expected.ScopeHash || proof.Origin != "device" && proof.Origin != "protocol_fixture" {
+		return false
+	}
+	if proof.Binding.ProjectID != expected.ProjectID || proof.Binding.CommandID != plan.CommandID || proof.Binding.Origin != proof.Origin {
+		return false
+	}
+	projection, e := projectReadback(proof.Binding, ReadbackScope{PlanDigest: plan.Digest, CommandID: plan.CommandID, ScopeHash: expected.ScopeHash, AdvertisingAt: observed.AdvertisingAt, Ports: expected.Ports}, proof.Exchanges, stopped)
+	if e != nil {
+		return false
+	}
+	want, _ := json.Marshal(projection)
+	got, _ := json.Marshal(proof.Devices)
+	if !bytes.Equal(want, got) {
 		return false
 	}
 	ports := map[string]map[string]bool{}

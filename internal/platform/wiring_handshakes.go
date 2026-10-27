@@ -230,7 +230,11 @@ func (s *Store) wiringHandshakeTx(ctx context.Context, tx *sql.Tx, project, id s
 	if e = json.Unmarshal(collector, &out.Collector); e != nil {
 		return nil, e
 	}
-	if out.BatchID != "" {
+	var dispatched bool
+	if e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM validation_wiring_commands WHERE handshake_id=$1)`, out.ID).Scan(&dispatched); e != nil {
+		return nil, e
+	}
+	if out.BatchID != "" || dispatched {
 		out.Validity = "invalidated"
 		out.InvalidationReason = "WIRING_HANDSHAKE_CONSUMED"
 		return &out, nil
