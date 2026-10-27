@@ -2360,6 +2360,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/assets/{assetId}/bmc/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listBMCPolicies"];
+        put?: never;
+        /** @description Current Admin/DE/DL/SRE; DE may edit only owned policies. UTC five-field cron or trusted business events, exact version CAS, immutable ownership and run history. Saving a new revision resets the cursor; no historical catch-up. Actual device work uses the shared Execution kernel. Policy does not enable a disabled BMC adapter. */
+        post: operations["createBMCPolicy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/bmc/policies/{policyId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Current Admin/DE/DL/SRE; DE may edit only owned policies. UTC five-field cron or trusted business events, exact version CAS, immutable ownership and run history. Saving a new revision resets the cursor; no historical catch-up. Actual device work uses the shared Execution kernel. Policy does not enable a disabled BMC adapter. */
+        put: operations["updateBMCPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/bmc/policies/{policyId}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listBMCPolicyRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/assets/{assetId}/bmc/collections": {
         parameters: {
             query?: never;
@@ -5438,6 +5488,71 @@ export interface components {
                     after_present: boolean;
                 }[];
             }[];
+        };
+        BMCPolicyInput: {
+            /** @enum {string} */
+            level: "L1" | "L2" | "L3";
+            /** @enum {string} */
+            trigger_kind: "cron" | "event";
+            cron_expression: string;
+            /** @enum {string} */
+            event_type: "" | "bom.committed" | "credential.batch.rotated" | "asset.provisioned";
+            enabled: boolean;
+            max_retries: number;
+            retry_delay_seconds: number;
+            expected_version: number;
+            reason: string;
+        };
+        BMCPolicy: {
+            id: string;
+            project_id: string;
+            asset_id: string;
+            /** @enum {string} */
+            level: "L1" | "L2" | "L3";
+            /** @enum {string} */
+            trigger_kind: "cron" | "event";
+            cron_expression: string;
+            /** @enum {string} */
+            event_type: "" | "bom.committed" | "credential.batch.rotated" | "asset.provisioned";
+            enabled: boolean;
+            max_retries: number;
+            retry_delay_seconds: number;
+            state_version: number;
+            /** Format: date-time */
+            next_due: string | null;
+            last_event_sequence: number;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        BMCPolicyRun: {
+            id: string;
+            policy_id: string;
+            project_id: string;
+            policy_version: number;
+            policy_snapshot: components["schemas"]["BMCPolicy"];
+            trigger_key: string;
+            /** @enum {string} */
+            trigger_kind: "cron" | "event" | "retry";
+            source_ref: string;
+            parent_run_id: string | null;
+            attempt_no: number;
+            execution_id: string | null;
+            /** @enum {string} */
+            state: "admitted" | "blocked";
+            code: string;
+            /** Format: date-time */
+            scheduled_at: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        BMCPolicyRunPage: {
+            items: components["schemas"]["BMCPolicyRun"][];
+            total: number;
+            page: number;
+            page_size: number;
         };
         BMCCollectionInput: {
             /** @enum {string} */
@@ -13666,6 +13781,143 @@ export interface operations {
                     "application/json": components["schemas"]["FabricDeviceEvidence"];
                 };
             };
+        };
+    };
+    listBMCPolicies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped BMC inventory policy metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BMCPolicy"][];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    createBMCPolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BMCPolicyInput"];
+            };
+        };
+        responses: {
+            /** @description Project-scoped BMC inventory policy metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BMCPolicy"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    updateBMCPolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                assetId: string;
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BMCPolicyInput"];
+            };
+        };
+        responses: {
+            /** @description Project-scoped BMC inventory policy metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BMCPolicy"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listBMCPolicyRuns: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project-scoped BMC inventory policy metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BMCPolicyRunPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     listBMCCollections: {

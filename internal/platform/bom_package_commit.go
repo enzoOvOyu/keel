@@ -463,6 +463,9 @@ ON CONFLICT(project_id,credential_batch_ref) DO UPDATE SET scope=excluded.scope,
 			return nil, err
 		}
 	}
+	if err = AppendBMCInventoryEventTx(ctx, tx, project.ID, "bom.committed", result.PackageID, "", ""); err != nil {
+		return nil, err
+	}
 	if err = appendAudit(ctx, tx, a.User.ID, project.ID, "bom.package.commit", result.PackageID, trace, map[string]any{"batch_id": result.BatchID, "content_hash": result.ContentHash, "items": result.ItemCount}); err != nil {
 		return nil, err
 	}

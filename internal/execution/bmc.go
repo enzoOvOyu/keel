@@ -37,6 +37,19 @@ func (s *Service) CreateBMCCollection(ctx context.Context, a *Actor, project, as
 		out, e := decode[Execution](prior)
 		return &out, e
 	}
+	out, e := s.createBMCCollectionTx(ctx, tx, a, project, asset, in, trace, nil)
+	if e != nil {
+		return nil, e
+	}
+	if e = remember(ctx, tx, idem, in, out); e != nil {
+		return nil, e
+	}
+	return out, tx.Commit()
+}
+
+// Only authenticated HTTP admission or a current authorized policy owner reaches
+// this core. It neither commits nor replaces the shared Execution scheduler.
+func (s *Service) createBMCCollectionTx(ctx context.Context, tx *sql.Tx, a *Actor, project, asset string, in platform.BMCCollectionInput, trace string, trigger *BMCExecutionTrigger) (*Execution, error) {
 	admission, e := s.BMCStore.PrepareBMCCollectionTx(ctx, tx, project, asset, platform.RandomID(), in)
 	if e != nil {
 		return nil, e
@@ -56,6 +69,9 @@ func (s *Service) CreateBMCCollection(ctx context.Context, a *Actor, project, as
 		return nil, e
 	}
 	params := map[string]any{"bmc_collection_id": admission.Target.RequestID, "bmc_target": admission.Target, "bmc_level": in.Level, "evidence_origin": admission.Origin}
+	if trigger != nil {
+		params["bmc_trigger"] = trigger
+	}
 	targetHash := hash(jsonBytes(admission))
 	out := &Execution{ID: platform.RandomID(), ProjectID: project, FlowVersionID: flow.ID, Mode: "bmc", State: "created", StateVersion: 1, DesiredState: "running", Parameters: params, TargetSetHash: targetHash, Concurrency: 1, CircuitBreakerPercent: 100, CreatedBy: a.User.ID, CreatedAt: now}
 	out.Snapshot = Snapshot{Mode: "bmc", Flow: flow, Targets: []Target{target}, Parameters: params, TargetSetHash: targetHash, FrozenAt: now, Admission: "Read-only BMC inventory; current project BOM/asset identity, immutable credential version and adapter binding; shared machine and exclusive BMC channel leases; raw-backed sim/real evidence does not assert G1/G2/G3"}
@@ -74,11 +90,9 @@ func (s *Service) CreateBMCCollection(ctx context.Context, a *Actor, project, as
 	if e = event(ctx, tx, out.ID, "execution.created", map[string]any{"mode": "bmc", "collection_id": admission.Target.RequestID, "origin": admission.Origin, "level": in.Level}); e != nil {
 		return nil, e
 	}
-	if e = remember(ctx, tx, idem, in, out); e != nil {
-		return nil, e
-	}
-	return out, tx.Commit()
+	return out, nil
 }
+
 func (s *Service) runBMCCollectionClaim(ctx context.Context, c *Claim) error {
 	if s.BMCStore == nil || c.Task.Type != "bmc.inventory" {
 		return errors.New("BMC inventory worker is disabled")

@@ -223,6 +223,9 @@ func (s *Store) FinalizeProvisionFirstSSH(ctx context.Context, project, id strin
 	if _, err = tx.ExecContext(ctx, `INSERT INTO trust_logs(id,machine_id,project_id,action,outcome,fingerprint,detail,created_by,created_at) VALUES($1,$2,$3,'trust.verify','success',$4,$5,$6,$7)`, RandomID(), x.MachineID, project, work.Plan.HostKey, provisionFirstSSHJSON(map[string]any{"installation_id": x.ID, "execution_id": x.ExecutionID, "command_id": work.Command.CommandID, "attempt_id": work.Command.AttemptID, "fencing_token": work.Command.FencingToken, "binding_sha256": work.Plan.BindingSHA256, "source": "ssh"}), x.CreatedBy, now); err != nil {
 		return nil, err
 	}
+	if err = AppendBMCInventoryEventTx(ctx, tx, project, "asset.provisioned", x.ID, x.MachineID, ""); err != nil {
+		return nil, err
+	}
 	if err = appendAudit(ctx, tx, x.CreatedBy, project, "provision.first_ssh.verified", x.ID, "worker", map[string]any{"execution_id": x.ExecutionID, "binding_sha256": work.Plan.BindingSHA256, "host_fingerprint": work.Plan.HostKey, "asset_version": asset.ActiveVersion + 1}); err != nil {
 		return nil, err
 	}

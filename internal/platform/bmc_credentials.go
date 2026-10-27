@@ -149,6 +149,11 @@ func (s *Store) ImportDeviceCredential(ctx context.Context, vault *credentialvau
 	if e != nil {
 		return nil, e
 	}
+	if identity.Scope == "bmc" {
+		if e = AppendBMCInventoryEventTx(ctx, tx, identity.ProjectID, "credential.batch.rotated", digest(string(networkJSON([]string{identity.Ref, identity.Version}))), "", identity.Ref); e != nil {
+			return nil, e
+		}
+	}
 	if e = appendAudit(ctx, tx, "", identity.ProjectID, "credential.batch.rotate", identity.Ref, "cli", map[string]any{"scope": identity.Scope, "credential_version": identity.Version, "previous_version": current, "expires_at": identity.ExpiresAt, "wrapping_key_id": vault.KeyID(), "verification_state": "pending", "reason": reason}); e != nil {
 		return nil, e
 	}

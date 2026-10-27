@@ -169,6 +169,8 @@ func main() {
 	var jobs sync.WaitGroup
 	var active atomic.Int64
 	lastBeat := time.Time{}
+	lastBMCPolicyTick := time.Time{}
+	bmcPolicyOK := true
 	queueMode := "postgresql-only"
 	if service.Queue != nil {
 		queueMode = "redis-streams"
@@ -199,7 +201,17 @@ loop:
 				slog.Error("worker reconciliation scan failed")
 				continue
 			}
-			cycleOK := queueOK
+			if service.BMCStore != nil && time.Since(lastBMCPolicyTick) >= 5*time.Second {
+				policyCtx, policyCancel := context.WithTimeout(ctx, 3*time.Second)
+				_, policyErr := service.TickBMCInventoryPolicies(policyCtx, 20)
+				policyCancel()
+				bmcPolicyOK = policyErr == nil
+				lastBMCPolicyTick = time.Now()
+				if !bmcPolicyOK {
+					slog.Error("BMC policy admission scan failed")
+				}
+			}
+			cycleOK := queueOK && bmcPolicyOK
 			for int(active.Load()) < concurrency {
 				claim, err := service.Claim(ctx, id, lease)
 				if err != nil {

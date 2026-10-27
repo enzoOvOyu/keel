@@ -17,3 +17,9 @@ export async function downloadBMCRaw(project: string, asset: string, collection:
  if (!response.ok) { let problem: { code?: string; trace_id?: string } = {}; try { problem = await response.json() } catch { /* Preserve safe proxy failure. */ }; throw new ApiError(response.status, problem.code ?? 'HTTP_ERROR', problem.trace_id ?? '') }
  const blob = await response.blob(), url = URL.createObjectURL(blob), link = document.createElement('a'); link.href = url; link.download = `bmc-${collection.slice(0, 8)}-resource.json`; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
+export type BMCPolicy = components['schemas']['BMCPolicy']
+export type BMCPolicyInput = components['schemas']['BMCPolicyInput']
+const policyBase = (project: string, asset: string) => `/projects/${encodeURIComponent(project)}/assets/${encodeURIComponent(asset)}/bmc/policies`
+export const listBMCPolicies = (project: string, asset: string, signal: AbortSignal) => request<BMCPolicy[]>(policyBase(project, asset), { signal })
+export const saveBMCPolicy = (project: string, asset: string, id: string, body: BMCPolicyInput, csrf: string, key: string) => request<BMCPolicy>(`${policyBase(project, asset)}${id ? `/${encodeURIComponent(id)}` : ''}`, { method: id ? 'PUT' : 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify(body) })
+export const listBMCPolicyRuns = (project: string, asset: string, policy: string, page: number, signal: AbortSignal) => request<components['schemas']['BMCPolicyRunPage']>(`${policyBase(project, asset)}/${encodeURIComponent(policy)}/runs?page=${page}&page_size=20`, { signal })

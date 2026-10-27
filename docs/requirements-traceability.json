@@ -173,7 +173,7 @@
         "H-2"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Bounded L1/L2/L3 Redfish/raw evidence, domain-owned manual shared Execution with current BOM/asset/credential/adapter pins, device/BMC fenced leases, one-shot dispatch and original-report receipt recovery, encrypted batch version CAS/expiry/revocation CLI, scoped paginated lazy asset UI now have source. Source migrations076/077 and new cases are NOT_RUN, not deployed. Cron/event/retry scheduling, IPMI fallback and full-batch credential revalidation remain incomplete. No G1/G2/G3 acceptance; see HANDOFF section179 and BMC-INVENTORY.md.",
+      "implementation_notes": "Bounded L1/L2/L3 Redfish/raw evidence, manual and policy-triggered shared Executions with current BOM/asset/credential/adapter pins, fenced device/BMC leases, one-shot dispatch and original-report receipt recovery, encrypted credential version CAS/expiry/revocation and lazy asset UI have source. UTC cron coalescing, scoped transactional BOM/credential/provision events, bounded stopped-proof retries, immutable trigger lineage, policy CAS/disable/owner-revocation and UI now have source. Source migrations076-078 and new cases are NOT_RUN, not deployed. IPMI fallback, full-batch credential revalidation, model coverage and WP-2.2 remain incomplete; no G1/G2/G3 acceptance. See HANDOFF section180 and BMC-INVENTORY.md.",
       "evidence_refs": [
         "internal/bmc/collector.go",
         "internal/platform/bmc_inventory.go",
@@ -182,7 +182,11 @@
         "internal/execution/bmc.go",
         "internal/platform/bmc_credentials.go",
         "web/src/features/assets/BMCInventoryDialog.tsx",
-        "docs/BMC-INVENTORY.md"
+        "docs/BMC-INVENTORY.md",
+        "internal/execution/bmc_policy.go",
+        "internal/execution/bmc_policy_worker.go",
+        "internal/platform/bmc_inventory_events.go",
+        "web/src/features/assets/BMCPolicyPanel.tsx"
       ]
     },
     {
