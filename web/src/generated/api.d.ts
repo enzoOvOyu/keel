@@ -3836,10 +3836,220 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/assets/{assetId}/topology/scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["previewTopology"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/topology": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listTopology"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/topology/{snapshotId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getTopology"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/topology/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["validateTopology"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        PciTopologyNode: {
+            bdf: string;
+            root: string;
+            upstream: string[];
+            class: string;
+            pcie_type: string;
+            numa: number | null;
+            socket: number | null;
+            physical_slot: string;
+            max_speed_gt: number | null;
+            max_width: number | null;
+            speed_gt: number | null;
+            width: number | null;
+        };
+        PciTopologyDevice: {
+            label: string;
+            /** @enum {string} */
+            kind: "gpu" | "nic";
+            bdf: string;
+            identity: string;
+            serial?: string;
+        };
+        PciTopologyAffinity: {
+            from: string;
+            to: string;
+            observed: string;
+            computed: string;
+        };
+        PciTopologyNVLink: {
+            gpu: string;
+            index: number;
+            /** @enum {string} */
+            state: "active" | "inactive" | "unknown";
+        };
+        PciTopologyCapture: {
+            version: string;
+            nodes: components["schemas"]["PciTopologyNode"][];
+            devices: components["schemas"]["PciTopologyDevice"][];
+            affinity: components["schemas"]["PciTopologyAffinity"][];
+            nvlinks: components["schemas"]["PciTopologyNVLink"][];
+            missing: string[];
+        };
+        PciTopologyExpectedDevice: {
+            key: string;
+            kind: string;
+            pcie_slot: string;
+            root: string;
+            upstream: string[];
+            numa: number;
+            speed_gt: number;
+            width: number;
+        };
+        PciTopologyExpectedNVLink: {
+            from: string;
+            to: string;
+            links: number;
+        };
+        PciTopologyExpectation: {
+            version: string;
+            provenance: {
+                kind: string;
+                reference: string;
+                sha256: string;
+            };
+            devices: components["schemas"]["PciTopologyExpectedDevice"][];
+            nvlinks: components["schemas"]["PciTopologyExpectedNVLink"][];
+        };
+        PciTopologyBinding: {
+            key: string;
+            component_id: string;
+            kind: string;
+            bdf: string;
+        };
+        PciTopologyScope: {
+            version: string;
+            rule_version: string;
+            project_id: string;
+            asset_id: string;
+            machine_id: string;
+            precollect_id: string;
+            precollect_sha256: string;
+            precollect_scope_hash: string;
+            g1_id: string;
+            model_version_id: string;
+            model_content_hash: string;
+            expectation: components["schemas"]["PciTopologyExpectation"] | null;
+            bindings: components["schemas"]["PciTopologyBinding"][];
+            /** Format: date-time */
+            valid_until: string;
+            scope_hash: string;
+            ready: boolean;
+            code: string;
+        };
+        PciTopologyFinding: {
+            category: string;
+            code: string;
+            target: string;
+            verdict: string;
+            expected: unknown;
+            actual: unknown;
+        };
+        PciTopologyEvaluation: {
+            rule_version: string;
+            verdict: string;
+            diffs: components["schemas"]["PciTopologyFinding"][];
+        };
+        TopologyDiff: {
+            id: string;
+            detail: components["schemas"]["PciTopologyFinding"];
+            issue_id: string;
+        };
+        PciTopologySnapshot: {
+            id: string;
+            project_id: string;
+            asset_id: string;
+            machine_id: string;
+            version: number;
+            model_version_id: string;
+            precollect_id: string;
+            g1_id: string;
+            scope_hash: string;
+            origin: string;
+            raw_sha256: string;
+            snapshot?: components["schemas"]["PciTopologyCapture"];
+            evaluation: components["schemas"]["PciTopologyEvaluation"];
+            verdict: string;
+            /** Format: date-time */
+            valid_until: string;
+            /** Format: date-time */
+            created_at: string;
+            scope?: components["schemas"]["PciTopologyScope"];
+            diffs: components["schemas"]["TopologyDiff"][];
+            validity: string;
+            effective_verdict: string;
+            invalidation_reason: string;
+        };
+        PciTopologyPage: {
+            items: components["schemas"]["PciTopologySnapshot"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        PciTopologyValidateInput: {
+            scope_hash: string;
+            reason: string;
+        };
         AssetViewColor: {
             baseline_key: string;
             /** @enum {string} */
@@ -4079,6 +4289,7 @@ export interface components {
             pci_topology: string;
             gpu_topology: string;
             missing: string[] | null;
+            topology?: components["schemas"]["PciTopologyCapture"];
         };
         CurrentG1: {
             /** @enum {string} */
@@ -17697,6 +17908,129 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    previewTopology: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retained PCIe comparison after current G1; historical verdict and current effective validity are separate. Reading never captures hardware. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PciTopologyScope"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listTopology: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retained PCIe comparison after current G1; historical verdict and current effective validity are separate. Reading never captures hardware. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PciTopologyPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getTopology: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+                snapshotId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retained PCIe comparison after current G1; historical verdict and current effective validity are separate. Reading never captures hardware. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PciTopologySnapshot"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    validateTopology: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PciTopologyValidateInput"];
+            };
+        };
+        responses: {
+            /** @description Retained PCIe comparison after current G1; historical verdict and current effective validity are separate. Reading never captures hardware. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PciTopologySnapshot"];
                 };
             };
             400: components["responses"]["InvalidRequest"];

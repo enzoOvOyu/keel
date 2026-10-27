@@ -1,0 +1,13 @@
+.pcie-view { display: grid; gap: var(--space-5); }
+.pcie-view section { min-width: 0; }
+.pcie-root { overflow-x: auto; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.pcie-tree { list-style: none; margin: 0; padding-inline-start: var(--space-4); }
+.pcie-tree > li { border-inline-start: 1px solid var(--color-border); padding: var(--space-2) 0 var(--space-2) var(--space-3); }
+.pcie-node { display: grid; gap: var(--space-1); width: fit-content; min-width: 15rem; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.pcie-node-diff { border-color: var(--color-warning); background: var(--color-bg-subtle); }
+.pcie-node[data-numa="0"] { border-inline-start-width: 4px; border-inline-start-color: var(--color-primary-500); }
+.pcie-node[data-numa="1"] { border-inline-start-width: 4px; border-inline-start-color: var(--color-warning); }
+.pcie-nvlinks { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.pcie-nvlinks li[data-state="inactive"] { color: var(--color-danger); }
+.pcie-nvlinks li[data-state="unknown"] { color: var(--color-text-muted); }
+.pcie-finding { display: grid; gap: var(--space-1); overflow-wrap: anywhere; margin-block: var(--space-3); }

@@ -143,11 +143,10 @@ func Decode(raw []byte, now time.Time) (*Bundle, error) {
 	if b.Version != Version || (b.Origin != "sim" && b.Origin != "real") || b.StartedAt.IsZero() || b.CollectedAt.Before(b.StartedAt) || b.CollectedAt.After(now.Add(5*time.Second)) || b.CollectedAt.Sub(b.StartedAt) > 30*time.Second || len(b.Serial) > 120 || len(b.OSRelease) > 16384 || len(b.Interfaces) > 128 || len(b.RDMADevices) > 128 || len(b.Probes) > 600 || len(b.Missing) > 128 || len(b.PCIMissing) > 256 {
 		return nil, ErrInvalid
 	}
-	if b.PCINodes != nil {
-		candidate := pcitopology.Snapshot{Version: pcitopology.Version, Nodes: b.PCINodes, Missing: b.PCIMissing}
-		if candidate.Validate() != nil {
-			return nil, ErrInvalid
-		}
+	// A bounded but incomplete sysfs graph is retained as original evidence.
+	// Graph/format failures must not prevent recovery of a stopped collector.
+	if len(b.PCINodes) > pcitopology.MaxNodes {
+		return nil, ErrInvalid
 	}
 	seen := map[string]bool{}
 	for _, p := range b.Interfaces {
@@ -270,7 +269,7 @@ func Normalize(b *Bundle) (*Report, error) {
 		}
 		r.Topology = pcitopology.Normalize(b.PCINodes, interfaces, ready("gpu_identity", ""), ready("gpu_topology", ""), ready("nvlink", ""), b.PCIMissing)
 		if r.Topology.Validate() != nil {
-			return nil, ErrInvalid
+			r.Topology = &pcitopology.Snapshot{Version: pcitopology.Version, Nodes: []pcitopology.Node{}, Devices: []pcitopology.Device{}, Affinity: []pcitopology.Affinity{}, NVLinks: []pcitopology.NVLink{}, Missing: []string{"pci_topology_format_unsupported"}}
 		}
 	}
 	if p, ok := probes["gpu:"]; !ok || p.State != "ready" {

@@ -8,4 +8,6 @@
 
 亲和计算使用 sysfs 路径和 PCIe capability 的端口类型区分 Root Port、Switch Upstream、Switch Downstream。NUMA 不直接等于 socket；CPU package 证据不足时 NODE/SYS 保留 unknown。NVIDIA NIC 编号只通过原始 NIC Legend 的接口名关联，不推断编号顺序。NVLink 仅来自 NVIDIA 的矩阵和链路状态。
 
-2026-10-27：采集与四维核心、严格型号录入和四类异常 fixture/源码用例已编写，**NOT_RUN**。数据库版本化、T7 处置/重验、Step1 消费、前端、H-13 材料在接续实施中，WP-2.12 尚未闭环。真实 B300/GB300 工具输出、槽位属性与亲和语义、性能统一留待集中测试和用户 PoC。
+2026-10-27：采集与四维核心、严格型号录入和四类异常 fixture/源码用例已编写，**NOT_RUN**。数据库版本化、当前G1范围核验、T7差异开单与资产页视图已接源码；T7处置重验、Step1消费及H-13材料继续实施中，WP-2.12 尚未闭环。真实 B300/GB300 工具输出、槽位属性与亲和语义、性能统一留待集中测试和用户 PoC。
+
+视图当前使用已有React能力提供可访问的上游层级树；设计要求的完整React Flow交互仍未完成。新迁移082仅源码，未应用。当前窗口开发检查点不代表验证、发布或P2完成。

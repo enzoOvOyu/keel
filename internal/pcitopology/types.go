@@ -134,6 +134,20 @@ func DecodeExpectation(raw []byte) (*Expectation, error) {
 	if d.Decode(&out) != nil || d.Decode(new(any)) != io.EOF || out.Validate() != nil {
 		return nil, ErrInvalid
 	}
+	// All dimensions are explicit. Keeping the canonical typed form identical
+	// to the published JSON also makes the DB model-to-scope guard exact.
+	var value any
+	if json.Unmarshal(raw, &value) != nil {
+		return nil, ErrInvalid
+	}
+	canonical, _ := json.Marshal(value)
+	typed, _ := json.Marshal(out)
+	var typedValue any
+	_ = json.Unmarshal(typed, &typedValue)
+	typed, _ = json.Marshal(typedValue)
+	if !bytes.Equal(canonical, typed) {
+		return nil, ErrInvalid
+	}
 	return &out, nil
 }
 func validSpeed(v float64) bool {
@@ -143,7 +157,7 @@ func validWidth(v int) bool {
 	return v == 1 || v == 2 || v == 4 || v == 8 || v == 12 || v == 16 || v == 32
 }
 func (e *Expectation) Validate() error {
-	if e == nil || e.Version != Version || (e.Provenance.Kind != "vendor_spec" && e.Provenance.Kind != "approved_golden") || len(strings.TrimSpace(e.Provenance.Reference)) < 3 || len(e.Provenance.Reference) > 1000 || !regexp.MustCompile(`^[a-f0-9]{64}$`).MatchString(e.Provenance.SHA256) || len(e.Devices) == 0 || len(e.Devices) > 256 || len(e.NVLinks) > 256*256 {
+	if e == nil || e.Version != Version || (e.Provenance.Kind != "vendor_spec" && e.Provenance.Kind != "approved_golden") || len(strings.TrimSpace(e.Provenance.Reference)) < 3 || len(e.Provenance.Reference) > 1000 || !regexp.MustCompile(`^[a-f0-9]{64}$`).MatchString(e.Provenance.SHA256) || len(e.Devices) == 0 || len(e.Devices) > 256 || e.NVLinks == nil || len(e.NVLinks) > 256*256 {
 		return ErrInvalid
 	}
 	keys := map[string]string{}
