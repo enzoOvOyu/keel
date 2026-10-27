@@ -205,7 +205,7 @@ func (s *Service) tickBMCPolicy(ctx context.Context, id string) (bool, error) {
 				if run.ParentRunID != nil {
 					trigger.ParentRunID = *run.ParentRunID
 				}
-				x, admissionErr := s.createBMCCollectionTx(ctx, tx, actor, p.ProjectID, p.AssetID, platform.BMCCollectionInput{Level: p.Level, ExpectedAssetVersion: version, Reason: "Inventory policy " + p.ID + " " + run.TriggerKey}, "bmc-policy:"+run.ID, trigger)
+				x, admissionErr := s.createBMCCollectionTx(ctx, tx, actor, p.ProjectID, p.AssetID, platform.BMCCollectionInput{Level: p.Level, ExpectedAssetVersion: version, Reason: "Inventory policy " + p.ID + " " + run.TriggerKey}, "bmc-policy:"+run.ID, trigger, "")
 				if admissionErr != nil {
 					if !errors.As(admissionErr, &business) {
 						return false, admissionErr

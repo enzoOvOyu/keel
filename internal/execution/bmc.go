@@ -37,7 +37,7 @@ func (s *Service) CreateBMCCollection(ctx context.Context, a *Actor, project, as
 		out, e := decode[Execution](prior)
 		return &out, e
 	}
-	out, e := s.createBMCCollectionTx(ctx, tx, a, project, asset, in, trace, nil)
+	out, e := s.createBMCCollectionTx(ctx, tx, a, project, asset, in, trace, nil, "")
 	if e != nil {
 		return nil, e
 	}
@@ -49,7 +49,7 @@ func (s *Service) CreateBMCCollection(ctx context.Context, a *Actor, project, as
 
 // Only authenticated HTTP admission or a current authorized policy owner reaches
 // this core. It neither commits nor replaces the shared Execution scheduler.
-func (s *Service) createBMCCollectionTx(ctx context.Context, tx *sql.Tx, a *Actor, project, asset string, in platform.BMCCollectionInput, trace string, trigger *BMCExecutionTrigger) (*Execution, error) {
+func (s *Service) createBMCCollectionTx(ctx context.Context, tx *sql.Tx, a *Actor, project, asset string, in platform.BMCCollectionInput, trace string, trigger *BMCExecutionTrigger, verification string) (*Execution, error) {
 	admission, e := s.BMCStore.PrepareBMCCollectionTx(ctx, tx, project, asset, platform.RandomID(), in)
 	if e != nil {
 		return nil, e
@@ -69,6 +69,9 @@ func (s *Service) createBMCCollectionTx(ctx context.Context, tx *sql.Tx, a *Acto
 		return nil, e
 	}
 	params := map[string]any{"bmc_collection_id": admission.Target.RequestID, "bmc_target": admission.Target, "bmc_level": in.Level, "evidence_origin": admission.Origin}
+	if verification != "" {
+		params["bmc_credential_verification_id"] = verification
+	}
 	if trigger != nil {
 		params["bmc_trigger"] = trigger
 	}

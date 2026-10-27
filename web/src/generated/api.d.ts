@@ -2360,6 +2360,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/bmc/credential-batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listBMCCredentialBatches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/bmc/credential-batches/{batchRef}/verification-scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["previewBMCCredentialVerification"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/bmc/credential-batches/{batchRef}/verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listBMCCredentialVerifications"];
+        put?: never;
+        /** @description Freeze every current committed BOM member and the exact credential head; admit 1–200 ordinary L1 BMC Executions atomically. No caller target subset. Only retained stopped real evidence for the entire unchanged scope can end the rotation window. Simulation never marks credentials verified. Unknown jobs are not replayed. */
+        post: operations["createBMCCredentialVerification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/bmc/credential-batches/{batchRef}/verifications/{verificationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getBMCCredentialVerification"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/assets/{assetId}/bmc/policies": {
         parameters: {
             query?: never;
@@ -5488,6 +5553,101 @@ export interface components {
                     after_present: boolean;
                 }[];
             }[];
+        };
+        BMCCredentialBatch: {
+            credential_batch_ref: string;
+            credential_version: string;
+            /** Format: date-time */
+            expires_at: string | null;
+            /** @enum {string} */
+            verification_state: "pending" | "verified";
+            revoked: boolean;
+        };
+        BMCCredentialVerificationTarget: {
+            asset_id: string;
+            machine_id: string;
+            serial: string;
+            hostname: string;
+            bom_package_id: string;
+            adapter_binding_hash: string;
+            origin: string;
+            code: string;
+            asset_version: number;
+        };
+        BMCCredentialVerificationScope: {
+            project_id: string;
+            credential_batch_ref: string;
+            credential_version: string;
+            /** Format: date-time */
+            credential_expires_at: string;
+            scope_hash: string;
+            target_count: number;
+            ready: boolean;
+            code: string;
+            targets: components["schemas"]["BMCCredentialVerificationTarget"][];
+        };
+        BMCCredentialVerificationInput: {
+            expected_credential_version: string;
+            expected_scope_hash: string;
+            reason: string;
+        };
+        BMCCredentialVerificationProgress: {
+            asset_id: string;
+            machine_id: string;
+            execution_id: string;
+            collection_id: string;
+            execution_state: string;
+            outcome: string;
+            code: string;
+            evidence_hash: string;
+            origin: string;
+        };
+        BMCCredentialVerificationSummary: {
+            id: string;
+            credential_version: string;
+            scope_hash: string;
+            target_count: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @enum {string} */
+            outcome: "pending" | "passed" | "simulated" | "failed" | "stale" | "expired";
+            code: string;
+            /** Format: date-time */
+            finished_at: string | null;
+        };
+        BMCCredentialVerification: {
+            id: string;
+            project_id: string;
+            credential_batch_ref: string;
+            credential_version: string;
+            scope_hash: string;
+            created_by: string;
+            code: string;
+            scope: components["schemas"]["BMCCredentialVerificationScope"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @enum {string} */
+            outcome: "pending" | "passed" | "simulated" | "failed" | "stale" | "expired";
+            result_id: string | null;
+            /** Format: date-time */
+            finished_at: string | null;
+            targets: components["schemas"]["BMCCredentialVerificationProgress"][];
+        };
+        BMCCredentialBatchPage: {
+            items: components["schemas"]["BMCCredentialBatch"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        BMCCredentialVerificationPage: {
+            items: components["schemas"]["BMCCredentialVerificationSummary"][];
+            total: number;
+            page: number;
+            page_size: number;
         };
         BMCPolicyInput: {
             /** @enum {string} */
@@ -13792,6 +13952,162 @@ export interface operations {
                     "application/json": components["schemas"]["FabricDeviceEvidence"];
                 };
             };
+        };
+    };
+    listBMCCredentialBatches: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current project-scoped full-batch credential verification metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BMCCredentialBatchPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    previewBMCCredentialVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                batchRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current project-scoped full-batch credential verification metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BMCCredentialVerificationScope"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listBMCCredentialVerifications: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                batchRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current project-scoped full-batch credential verification metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BMCCredentialVerificationPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    createBMCCredentialVerification: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                batchRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BMCCredentialVerificationInput"];
+            };
+        };
+        responses: {
+            /** @description Current project-scoped full-batch credential verification metadata */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BMCCredentialVerification"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getBMCCredentialVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                batchRef: string;
+                verificationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current project-scoped full-batch credential verification metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BMCCredentialVerification"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     listBMCPolicies: {

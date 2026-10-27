@@ -64,7 +64,7 @@ func (s *Store) PrepareBMCCollectionTx(ctx context.Context, tx *sql.Tx, project,
 	if selection.Origin == "sim" && selection.Hostname == "" {
 		out.Target.CredentialVersion = "sim-v1"
 	} else {
-		e = tx.QueryRowContext(ctx, `SELECT v.credential_version FROM device_credential_heads h JOIN device_credential_versions v USING(project_id,credential_batch_ref,scope,credential_version) WHERE h.project_id=$1 AND h.credential_batch_ref=$2 AND h.scope='bmc' AND v.expires_at>clock_timestamp() AND NOT EXISTS(SELECT 1 FROM device_credential_revocations r WHERE (r.project_id,r.credential_batch_ref,r.scope,r.credential_version)=(v.project_id,v.credential_batch_ref,v.scope,v.credential_version)) FOR SHARE OF h,v`, project, selection.CredentialBatchRef).Scan(&out.Target.CredentialVersion)
+		e = tx.QueryRowContext(ctx, `SELECT v.credential_version FROM device_credential_heads h JOIN device_credential_versions v USING(project_id,credential_batch_ref,scope,credential_version) WHERE h.project_id=$1 AND h.credential_batch_ref=$2 AND h.scope='bmc' AND v.expires_at>clock_timestamp() AND NOT EXISTS(SELECT 1 FROM device_credential_revocations r WHERE (r.project_id,r.credential_batch_ref,r.scope,r.credential_version)=(v.project_id,v.credential_batch_ref,v.scope,v.credential_version)) FOR SHARE OF h`, project, selection.CredentialBatchRef).Scan(&out.Target.CredentialVersion)
 		if errors.Is(e, sql.ErrNoRows) {
 			return nil, apiError(409, "BMC_CREDENTIAL_REQUIRED", "A current unrevoked BMC credential batch version is required")
 		}
@@ -120,6 +120,13 @@ func (s *Store) AttachBMCCollectionTx(ctx context.Context, tx *sql.Tx, a *AuthSe
 func (s *Store) BMCCollectionFrozenTx(ctx context.Context, tx *sql.Tx, request, execution string) (*BMCCollectionAdmission, error) {
 	if !s.BMCInventoryEnabled || s.BMCInventory == nil {
 		return nil, apiError(409, "BMC_INVENTORY_DISABLED", "BMC inventory adapter is disabled")
+	}
+	var expired bool
+	if e := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM bmc_credential_verification_targets t JOIN bmc_credential_verifications q ON q.id=t.verification_id WHERE t.collection_id=$1 AND t.execution_id=$2 AND (q.expires_at<=statement_timestamp() OR EXISTS(SELECT 1 FROM bmc_credential_verification_results r WHERE r.verification_id=q.id)))`, request, execution).Scan(&expired); e != nil {
+		return nil, e
+	}
+	if expired {
+		return nil, apiError(409, "BMC_VERIFICATION_CLOSED", "Frozen full-batch verification window is closed")
 	}
 	var raw []byte
 	out := &BMCCollectionAdmission{}

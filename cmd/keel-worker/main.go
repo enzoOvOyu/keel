@@ -204,6 +204,9 @@ loop:
 			if service.BMCStore != nil && time.Since(lastBMCPolicyTick) >= 5*time.Second {
 				policyCtx, policyCancel := context.WithTimeout(ctx, 3*time.Second)
 				_, policyErr := service.TickBMCInventoryPolicies(policyCtx, 20)
+				if policyErr == nil {
+					_, policyErr = service.BMCStore.ReconcileBMCCredentialVerifications(policyCtx, 10)
+				}
 				policyCancel()
 				bmcPolicyOK = policyErr == nil
 				lastBMCPolicyTick = time.Now()

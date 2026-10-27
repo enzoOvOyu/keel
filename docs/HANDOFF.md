@@ -2015,3 +2015,14 @@ API及生成类型、共享UI入口与工单内分页诊断历史已接入，页
 - 增加受控Redfish/IPMI sim fixture文件，内容摘要冻结到adapter binding，real拒绝fixture；版本化样本在sim/fixtures/bmc。Dockerfile增加Debian bookworm固定ipmitool=1.8.19-4+deb12u2，TOOLCHAIN注明来源与配置摘要要求；只是源码，未执行安装/镜像构建或启动真实功能。
 - 已编写原始证据/降级原因、FRU破损/SN防伪、不绕过认证或TLS、混源/原始层失败、fixture变更失效、匿名凭据fd/工具摘要与共享Execution保存查询等用例，全部NOT_RUN。仅执行带overlay/内存限制的gofmt、正式API类型生成（成功），未运行编译/测试/类型检查/浏览器/迁移/授权/镜像/部署/推送。开始时只读确认原3000/数据容器healthy及端口，未改其他进程。
 - 仍75条源迁移（排除原026），068～078待应用，运行库64/最后067；3000仍7afda32。WP-2.1/FR-3保持partial，下一块凭据批次全量复验及型号硬件覆盖，再接WP-2.3预收集/G1；真实H-2和IPMI兼容PoC均NOT_RUN。原fabric两草稿未读取/编辑/提交。
+
+## 182. WP-2.1 凭据批次整批复验与当前证明（2026-10-27，源码）
+
+- 接续92df00a，仍在本轮06:35:30～08:35:30 UTC两小时开发窗口；工作区/分支/单Agent及草稿隔离规则不变。
+- 新增079源码：不可变批次请求、完整成员与结果；当前范围由项目资产＋Machine SN＋非retired BOM项＋最新已提交BOM批次确定，不由浏览器传子集。预览冻结完整范围摘要、资产/BOM/适配器及当前密码版本，提交CAS并在同一事务创建1～200个普通L1 BMC Executions；超过200整批拒绝。同范围活跃请求去重，保留HTTP会话/当前角色/CSRF/Origin/幂等审计。
+- 复用原调度/双租约/一次dispatch/原报告停止回执，不增设备队列。窗口最多2小时且不晚于密码过期，已结束/过期窗口不再派发；worker沿原5秒有界BMC tick汇总已终止整批或过期批次，无设备IO/自动重放。unknown/reconciling保持pending等待显式恢复或到期。所有成员有效身份＋原始报告＋停止回执/摘要＋精确密码版本才能判定，缺失failed，范围/head/适配器/创建者权限变更stale，到期expired。
+- 身份型sim/静态fixture未实际使用密码，不能准入凭据验证；受控HTTPS mock可走密码流程但sim结果仅simulated。全real保留证据才passed并绑定head证明，不把partial采集补成完整，不声称G1。旧密码版本继续自然过期/显式撤销。有效状态重读当前全范围与配置；历史passed不代表当前verified。
+- 受限角色只获head verification_receipt_id列更新，触发器校验完整真实证明并派生状态；仍不能改密码/版本/有效期。不可变密码版本行取消无必要且不满足app权限的FOR SHARE锁，只锁head；汇总依靠既有全局准入锁及唯一结果，不请求不可变请求表的UPDATE权限。Owner CLI缺少当前路由上下文时保守pending。
+- API/OpenAPI/生成TS与按需展开的批次列表、范围预览、创建、分页历史及有界目标进度面板已接线；无自动轮询，不上传/展示密码。控件沿用shadcn/ui和既有等宽字体。
+- 新增隔离PG/HTTPS协议mock用例源码：真实分支/模拟隔离、head轮换存量版本保留、范围新增拒旧预览、单台成功不能替全批、伪造结果/跨项目/不可变、unknown不重放、201台整批拒绝，全部NOT_RUN。real分支协议mock不是硬件PoC。
+- 只执行源码审查、受overlay/内存限制的gofmt及npm run api:generate --prefix web（生成成功，/tmp/keel-bmc-credential-api-generation.log）；未运行编译/测试/静态/类型/DB/浏览器/镜像，未迁移/授权/部署/推送。源76条迁移（排除原026），068～079待应用，运行仍64/最后067，3000仍7afda32；所有新开关未启用。WP-2.1/FR-3保持partial，下一块完整型号硬件覆盖，再接WP-2.3预收集/G1；两份原草稿保留。

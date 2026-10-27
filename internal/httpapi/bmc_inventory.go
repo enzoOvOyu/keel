@@ -10,6 +10,7 @@ import (
 
 func (a *authAPI) registerBMCInventory(r *gin.Engine) {
 	a.registerBMCPolicies(r)
+	a.registerBMCCredentialVerification(r)
 	base := "/api/v1/projects/:id/assets/:assetId/bmc/collections"
 	r.POST(base, func(c *gin.Context) {
 		actor, service, ok := a.executionProject(c, true)

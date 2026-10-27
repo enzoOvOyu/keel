@@ -130,8 +130,23 @@ func (s *Store) ImportDeviceCredential(ctx context.Context, vault *credentialvau
 		if current != identity.Version {
 			return nil, apiError(409, "DEVICE_CREDENTIAL_HEAD_CHANGED", "Historical credential cannot replace the current batch head")
 		}
-		if e = tx.QueryRowContext(ctx, `SELECT verification_state FROM device_credential_heads WHERE project_id=$1 AND credential_batch_ref=$2 AND scope=$3`, identity.ProjectID, identity.Ref, identity.Scope).Scan(&out.VerificationState); e != nil {
+		if e = tx.QueryRowContext(ctx, `SELECT CASE WHEN scope='bmc' AND keel_bmc_credential_verified(project_id,credential_batch_ref,credential_version) THEN 'verified' ELSE 'pending' END FROM device_credential_heads WHERE project_id=$1 AND credential_batch_ref=$2 AND scope=$3`, identity.ProjectID, identity.Ref, identity.Scope).Scan(&out.VerificationState); e != nil {
 			return nil, e
+		}
+		// Owner-only CLI imports do not load device routing. A cached proof
+		// cannot establish that the current operator adapter binding is intact.
+		if out.VerificationState == "verified" {
+			var raw []byte
+			if e = tx.QueryRowContext(ctx, `SELECT q.scope FROM device_credential_heads h JOIN bmc_credential_verification_results r ON r.id=h.verification_receipt_id JOIN bmc_credential_verifications q ON q.id=r.verification_id WHERE h.project_id=$1 AND h.credential_batch_ref=$2 AND h.scope=$3`, identity.ProjectID, identity.Ref, identity.Scope).Scan(&raw); e != nil {
+				return nil, e
+			}
+			var scope BMCCredentialVerificationScope
+			if e = json.Unmarshal(raw, &scope); e != nil {
+				return nil, e
+			}
+			if !s.bmcVerificationBindingsCurrent(scope) {
+				out.VerificationState = "pending"
+			}
 		}
 		return out, tx.Commit()
 	}
@@ -145,7 +160,7 @@ func (s *Store) ImportDeviceCredential(ctx context.Context, vault *credentialvau
 	if e != nil {
 		return nil, e
 	}
-	_, e = tx.ExecContext(ctx, `INSERT INTO device_credential_heads(project_id,credential_batch_ref,scope,credential_version,state_version,verification_state,updated_at) VALUES($1,$2,$3,$4,1,'pending',now()) ON CONFLICT(project_id,credential_batch_ref,scope) DO UPDATE SET credential_version=excluded.credential_version,state_version=device_credential_heads.state_version+1,verification_state='pending',updated_at=now()`, identity.ProjectID, identity.Ref, identity.Scope, identity.Version)
+	_, e = tx.ExecContext(ctx, `INSERT INTO device_credential_heads(project_id,credential_batch_ref,scope,credential_version,state_version,verification_state,updated_at) VALUES($1,$2,$3,$4,1,'pending',now()) ON CONFLICT(project_id,credential_batch_ref,scope) DO UPDATE SET credential_version=excluded.credential_version,state_version=device_credential_heads.state_version+1,verification_state='pending',verification_receipt_id=NULL,updated_at=now()`, identity.ProjectID, identity.Ref, identity.Scope, identity.Version)
 	if e != nil {
 		return nil, e
 	}

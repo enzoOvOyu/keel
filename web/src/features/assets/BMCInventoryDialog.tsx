@@ -1,3 +1,4 @@
+import { BMCCredentialVerificationPanel } from './BMCCredentialVerificationPanel'
 import { BMCPolicyPanel } from './BMCPolicyPanel'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
@@ -29,7 +30,8 @@ export function BMCInventoryDialog({ asset, onClose }: { asset: ProjectAsset; on
  const [page, setPage] = useState(1), [collection, setCollection] = useState(''), [resourcePage, setResourcePage] = useState(1), [resourcePath, setResourcePath] = useState('')
  const [level, setLevel] = useState<BMCInput['level']>('L1'), [reason, setReason] = useState(''), [validation, setValidation] = useState('')
  const [showPolicies, setShowPolicies] = useState(false), [policyBusy, setPolicyBusy] = useState(false)
- const busy = action.busy || policyBusy
+ const [showBatchVerification, setShowBatchVerification] = useState(false), [batchBusy, setBatchBusy] = useState(false)
+ const busy = action.busy || policyBusy || batchBusy
  const attempt = useRef({ body: '', key: '' }), mounted = useRef(true)
  useEffect(() => {mounted.current=true;return () => {mounted.current=false}}, [])
  const allowed = session.user.is_admin || ['Admin', 'DE', 'DL', 'SRE'].includes(project.role)
@@ -64,6 +66,8 @@ export function BMCInventoryDialog({ asset, onClose }: { asset: ProjectAsset; on
   </form>}
   <Button type="button" variant="outline" disabled={busy || denied} aria-expanded={showPolicies} onClick={() => setShowPolicies(!showPolicies)}>{t('bmcPolicies')}</Button>
   {showPolicies && <BMCPolicyPanel asset={asset.id} canWrite={canWrite} onBusyChange={setPolicyBusy} />}
+  <Button type="button" variant="outline" disabled={busy || denied} aria-expanded={showBatchVerification} onClick={() => setShowBatchVerification(!showBatchVerification)}>{t('bmcBatchVerification')}</Button>
+  {showBatchVerification && <BMCCredentialVerificationPanel canWrite={canWrite} onBusyChange={setBatchBusy} />}
   <div className="panel-heading"><h3>{t('bmcHistory')}</h3><Button type="button" variant="outline" disabled={list.isFetching || denied} onClick={() => void list.refetch()}>{t('bmcRefresh')}</Button></div><ActionError error={list.error} />
   {list.isPending && <p role="status">{t('loadingRecords')}</p>}
   {list.data && <><Table><TableHeader><TableRow><TableHead>{t('bmcCollectedAt')}</TableHead><TableHead>{t('bmcLevel')}</TableHead><TableHead>{t('bmcQuality')}</TableHead><TableHead>{t('bmcSource')}</TableHead><TableHead>{t('bmcCollection')}</TableHead></TableRow></TableHeader><TableBody>{list.data.items.map(row => <TableRow key={row.id} data-bmc-collection={row.id}><TableCell>{new Date(row.collected_at).toLocaleString()}</TableCell><TableCell>{row.level}</TableCell><TableCell>{t(`bmc_state_${row.state}`)}</TableCell><TableCell>BMC · {t(`bmcOrigin_${row.origin}`)}</TableCell><TableCell><Button type="button" variant={row.id === collection ? 'default' : 'outline'} size="sm" disabled={denied} onClick={() => { setCollection(row.id); setResourcePage(1); setResourcePath('') }}>{t('bmcDetails')}</Button></TableCell></TableRow>)}</TableBody></Table>{!list.data.items.length && <p>{t('bmcEmpty')}</p>}<Pagination offset={(page - 1) * list.data.page_size} limit={list.data.page_size} total={list.data.total} busy={list.isFetching} onChange={offset => setPage(Math.floor(offset / (list.data?.page_size ?? 20)) + 1)} /></>}
