@@ -23,6 +23,7 @@ import { commitBomPackage, commitLegacyBom, listProjectAssets, previewBomPackage
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 
 const PrecollectDialog = lazy(() => import('./PrecollectDialog'))
+const AssetViewsDialog = lazy(() => import('./AssetViewsDialog'))
 
 function BomImportDialog({ projectId, onClose, onDone }: { projectId: string; onClose: () => void; onDone: (message: string) => Promise<void> }) {
   const { t } = useTranslation(), session = useSession(), action = useAction()
@@ -129,6 +130,7 @@ function AssetsContent() {
   const [modelTarget, setModelTarget] = useState<ProjectAsset | null>(null)
   const [bmcTarget,setBMCTarget] = useState<ProjectAsset|null>(null)
   const [precollectTarget, setPrecollectTarget] = useState<ProjectAsset | null>(null)
+  const [showAssetViews, setShowAssetViews] = useState(false)
   const manage = canManageProject(project, session.user.is_admin) && session.permissions.includes('model:manage')
   const assets = useQuery({ queryKey: ['private', session.user.id, 'project', project.id, 'assets', page], queryFn: ({ signal }) => listProjectAssets(project.id, page, signal), enabled: allowed })
   useExpireOnUnauthorized(assets.error)
@@ -140,7 +142,7 @@ function AssetsContent() {
   if (!allowed) return <PermissionDenied />
   return <>
     <div className="page-heading"><div><p className="section-eyebrow">{project.name}</p><h1>{t('bomTitle')}</h1><p>{t('bomIntro')}</p></div>
-      {manage && <div className="table-actions"><Button variant="default" className="primary-button ui:min-h-11" onClick={() => { setSuccess(''); setPackageImporting(true) }}>{t('bomPackageTitle')}</Button><Button variant="outline" className="secondary-button ui:min-h-11" onClick={() => { setSuccess(''); setImporting(true) }}>{t('bomImport')}</Button><Button variant="outline" className="secondary-button ui:min-h-11" disabled={!selected.size} onClick={() => { setSuccess(''); setTrustTarget((assets.data?.items ?? []).filter((a) => selected.has(a.machine_id))) }}>{t('trustMockTitle')}</Button></div>}</div>
+      <Button type="button" variant="outline" onClick={() => setShowAssetViews(true)}>{t('assetViewsTitle')}</Button>{manage && <div className="table-actions"><Button variant="default" className="primary-button ui:min-h-11" onClick={() => { setSuccess(''); setPackageImporting(true) }}>{t('bomPackageTitle')}</Button><Button variant="outline" className="secondary-button ui:min-h-11" onClick={() => { setSuccess(''); setImporting(true) }}>{t('bomImport')}</Button><Button variant="outline" className="secondary-button ui:min-h-11" disabled={!selected.size} onClick={() => { setSuccess(''); setTrustTarget((assets.data?.items ?? []).filter((a) => selected.has(a.machine_id))) }}>{t('trustMockTitle')}</Button></div>}</div>
     {success && <SuccessNotice>{success}</SuccessNotice>}
     <section className="management-panel" aria-busy={assets.isFetching}>
       <ActionError error={assets.error} />
@@ -160,6 +162,7 @@ function AssetsContent() {
     <AgentExecutions />
     <SSHDomainKeys />
     {provisionTarget && <ProvisionPreviewDialog key={`${project.id}:${provisionTarget.id}`} projectId={project.id} asset={provisionTarget} onClose={() => setProvisionTarget(null)} />}
+    {showAssetViews && <Suspense fallback={<p role="status">{t('loadingRecords')}</p>}><AssetViewsDialog key={project.id} onClose={() => setShowAssetViews(false)} /></Suspense>}
     {precollectTarget && <Suspense fallback={<p role="status">{t('loadingRecords')}</p>}><PrecollectDialog key={`${project.id}:${precollectTarget.id}`} asset={precollectTarget} onClose={() => setPrecollectTarget(null)} /></Suspense>}
     {bmcTarget && <BMCInventoryDialog key={`${project.id}:${bmcTarget.id}`} asset={bmcTarget} onClose={()=>setBMCTarget(null)} />}
     {modelTarget && <AssetModelDialog key={`${project.id}:${modelTarget.id}`} projectId={project.id} asset={modelTarget} onClose={() => setModelTarget(null)} />}

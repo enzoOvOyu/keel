@@ -3771,10 +3771,169 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/asset-views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAssetViews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/asset-views/{viewId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAssetView"];
+        /** @description Client supplies stable 32-hex viewId. expected_version=0 creates; updates append immutable revisions with CAS. Exact repeats return the same revision. Visibility is immutable; copy a personal view to share with the team. Personal views are owner-only; team edits require owner or Admin/DL. */
+        put: operations["saveAssetView"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/asset-views/{viewId}/data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["evaluateAssetView"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/asset-views/{viewId}/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["exportAssetView"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AssetViewColor: {
+            baseline_key: string;
+            /** @enum {string} */
+            operator: "eq" | "ne";
+            /** @enum {string} */
+            tone: "danger" | "warning" | "success";
+        };
+        AssetViewColumn: {
+            id: string;
+            title: string;
+            /** @enum {string} */
+            source: "asset" | "redfish" | "network";
+            path: string;
+            color?: components["schemas"]["AssetViewColor"];
+        };
+        AssetViewDefinition: {
+            columns: components["schemas"]["AssetViewColumn"][];
+            sort_column: string;
+            /** @enum {string} */
+            sort_direction: "asc" | "desc";
+            group_column: string;
+        };
+        AssetViewInput: {
+            name: string;
+            /** @enum {string} */
+            visibility: "personal" | "team";
+            expected_version: number;
+            definition: components["schemas"]["AssetViewDefinition"];
+            reason: string;
+        };
+        AssetView: {
+            id: string;
+            project_id: string;
+            owner_id: string;
+            /** @enum {string} */
+            visibility: "personal" | "team";
+            version: number;
+            name: string;
+            definition: components["schemas"]["AssetViewDefinition"];
+            content_hash: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        AssetViewBaseline: {
+            key: string;
+            id: string;
+            version: string;
+            value: string;
+            state: string;
+        };
+        AssetViewCell: {
+            values: unknown[];
+            state: string;
+            tone: string;
+            baseline?: components["schemas"]["AssetViewBaseline"];
+        };
+        AssetViewSource: {
+            id: string;
+            hash: string;
+            origin: string;
+            state: string;
+            collected_at: string;
+            valid_until: string;
+        };
+        AssetViewRow: {
+            id: string;
+            device_id: string;
+            kind: string;
+            name: string;
+            serial: string;
+            group: string;
+            cells: {
+                [key: string]: components["schemas"]["AssetViewCell"];
+            };
+            sources: {
+                [key: string]: components["schemas"]["AssetViewSource"];
+            };
+        };
+        AssetViewPage: {
+            items: components["schemas"]["AssetView"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        AssetViewData: {
+            view: components["schemas"]["AssetView"];
+            items: components["schemas"]["AssetViewRow"][];
+            total: number;
+            page: number;
+            page_size: number;
+            /** Format: date-time */
+            evaluated_at: string;
+            source_fingerprint: string;
+        };
         PrecollectExpectedPort: {
             physical_port_id: string;
             component_id: string;
@@ -17379,6 +17538,163 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listAssetViews: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved bounded inventory view. No device IO or validation gate changes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetViewPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getAssetView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                viewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved bounded inventory view. No device IO or validation gate changes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetView"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    saveAssetView: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+                viewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetViewInput"];
+            };
+        };
+        responses: {
+            /** @description Saved bounded inventory view. No device IO or validation gate changes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetView"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    evaluateAssetView: {
+        parameters: {
+            query: {
+                page?: number;
+                page_size?: number;
+                version: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                viewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved bounded inventory view. No device IO or validation gate changes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetViewData"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    exportAssetView: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                viewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved bounded inventory view. No device IO or validation gate changes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
                 };
             };
             400: components["responses"]["InvalidRequest"];
