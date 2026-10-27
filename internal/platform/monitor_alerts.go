@@ -12,7 +12,7 @@ import (
 )
 
 func (s *Store) monitorEvaluateFrameTx(ctx context.Context, tx *sql.Tx, project, machine, credential, frame string, now time.Time) error {
-	rows, e := tx.QueryContext(ctx, `SELECT `+monitorObservationFields+` FROM monitor_metric_samples sample JOIN monitor_metric_latest latest ON latest.sample_sequence=sample.sequence WHERE sample.project_id=$1 AND sample.machine_id=$2 AND sample.credential_id=$3 AND sample.frame_id=$4 ORDER BY sample.sequence`, project, machine, credential, frame)
+	rows, e := tx.QueryContext(ctx, `SELECT `+monitorObservationFields+` FROM monitor_metric_samples sample JOIN monitor_metric_latest latest ON latest.sample_sequence=sample.sequence WHERE sample.project_id=$1 AND sample.machine_id=$2 AND sample.credential_id IS NOT DISTINCT FROM nullif($3,'')::varchar AND sample.frame_id=$4 ORDER BY sample.sequence`, project, machine, credential, frame)
 	if e != nil {
 		return e
 	}
@@ -30,6 +30,9 @@ func (s *Store) monitorEvaluateFrameTx(ctx context.Context, tx *sql.Tx, project,
 	if e != nil {
 		return e
 	}
+	return s.monitorEvaluateObservationsTx(ctx, tx, project, machine, observations, now)
+}
+func (s *Store) monitorEvaluateObservationsTx(ctx context.Context, tx *sql.Tx, project, machine string, observations []MonitorObservation, now time.Time) error {
 	thresholds, e := fabricDDMLimitsTx(ctx, tx, project)
 	if e != nil {
 		return e
@@ -101,6 +104,9 @@ func (s *Store) monitorEvaluateFrameTx(ctx context.Context, tx *sql.Tx, project,
 			}
 		}
 		for _, finding := range monitor.Evaluate(sample, previous, expectedUp, transitions, limits) {
+			if observation.SnapshotOnly && finding.RuleID == "link-flapping" {
+				continue
+			}
 			// No valid current physical mapping means no inferred port incident.
 			if (strings.HasPrefix(finding.RuleID, "link-") || strings.HasPrefix(finding.RuleID, "optics-") || finding.RuleID == "pfc-pause-growth") && !expectedUp {
 				continue

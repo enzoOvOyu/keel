@@ -12,6 +12,10 @@ import (
 )
 
 type MonitorObservation struct {
+	SourceRef         string         `json:"source_ref"`
+	SourceHash        string         `json:"source_hash"`
+	SnapshotOnly      bool           `json:"snapshot_only"`
+	SourceValidUntil  *time.Time     `json:"source_valid_until"`
 	Sequence          int64          `json:"sequence"`
 	DType             string         `json:"dtype"`
 	Source            string         `json:"source"`
@@ -49,12 +53,12 @@ type MonitorSnapshot struct {
 	Gaps              []MonitorGap         `json:"gaps"`
 }
 
-const monitorObservationFields = `sample.sequence,sample.dtype,sample.source,sample.method,sample.origin,sample.unit,sample.sample,sample.received_at,sample.policy_id,sample.interval_seconds,coalesce(sample.physical_port_id,''),coalesce(sample.mapping_revision_id,'')`
+const monitorObservationFields = `sample.sequence,sample.dtype,sample.source,sample.method,sample.origin,sample.unit,sample.sample,sample.received_at,sample.policy_id,sample.interval_seconds,coalesce(sample.physical_port_id,''),coalesce(sample.mapping_revision_id,''),sample.source_ref,sample.source_hash,sample.snapshot_only,sample.source_valid_until`
 
 func scanMonitorObservation(row scanner, now time.Time) (*MonitorObservation, error) {
 	var out MonitorObservation
 	var raw []byte
-	if e := row.Scan(&out.Sequence, &out.DType, &out.Source, &out.Method, &out.Origin, &out.Unit, &raw, &out.ReceivedAt, &out.PolicyID, &out.IntervalSeconds, &out.PhysicalPortID, &out.MappingRevisionID); e != nil {
+	if e := row.Scan(&out.Sequence, &out.DType, &out.Source, &out.Method, &out.Origin, &out.Unit, &raw, &out.ReceivedAt, &out.PolicyID, &out.IntervalSeconds, &out.PhysicalPortID, &out.MappingRevisionID, &out.SourceRef, &out.SourceHash, &out.SnapshotOnly, &out.SourceValidUntil); e != nil {
 		return nil, e
 	}
 	if e := json.Unmarshal(raw, &out.Sample); e != nil {
@@ -64,6 +68,15 @@ func scanMonitorObservation(row scanner, now time.Time) (*MonitorObservation, er
 	out.Freshness = "fresh"
 	if !now.Before(out.Sample.ObservedAt.Add(time.Duration(out.StaleAfterSeconds)*time.Second)) || !now.Before(out.ReceivedAt.Add(time.Duration(out.StaleAfterSeconds)*time.Second)) {
 		out.Freshness = "stale"
+	}
+	if out.SnapshotOnly {
+		out.Freshness = "stale"
+		if out.SourceValidUntil != nil {
+			out.StaleAfterSeconds = max(0, int(out.SourceValidUntil.Sub(out.Sample.ObservedAt)/time.Second))
+			if now.Before(*out.SourceValidUntil) {
+				out.Freshness = "fresh"
+			}
+		}
 	}
 	return &out, nil
 }
@@ -151,6 +164,7 @@ func (s *Store) MonitorSnapshot(ctx context.Context, a *AuthSession, project, as
 }
 
 type MonitorTrendBucket struct {
+	SnapshotOnly    bool      `json:"snapshot_only"`
 	At              time.Time `json:"at"`
 	Samples         int64     `json:"samples"`
 	GoodSamples     int64     `json:"good_samples"`
@@ -208,14 +222,14 @@ func (s *Store) MonitorTrend(ctx context.Context, a *AuthSession, project, asset
 	}
 	now := time.Now().UTC()
 	out := &MonitorTrend{Key: key, Entity: entity, Source: source, Method: method, Origin: origin, Unit: definition.Unit, Window: window, BucketSeconds: bucket, From: now.Add(-duration), To: now, Items: []MonitorTrendBucket{}}
-	rows, e := tx.QueryContext(ctx, `WITH observed AS(SELECT DISTINCT ON(observed_at) observed_at,sample,interval_seconds FROM monitor_metric_samples WHERE project_id=$1 AND machine_id=$2 AND metric_key=$3 AND entity_key=$4 AND source=$5 AND method=$6 AND origin=$7 AND observed_at>=$8 AND observed_at<$9 ORDER BY observed_at,sequence DESC) SELECT date_bin($10::interval,observed_at,'2000-01-01'::timestamptz),count(*),count(*) FILTER(WHERE sample->>'quality'='good'),ceil($11/avg(interval_seconds)),min((sample->>'value')::double precision) FILTER(WHERE sample->>'quality'='good'),max((sample->>'value')::double precision) FILTER(WHERE sample->>'quality'='good'),avg((sample->>'value')::double precision) FILTER(WHERE sample->>'quality'='good'),count(*) FILTER(WHERE sample->>'quality'='good' AND sample->>'state' IN('up','on','running','healthy')),count(*) FILTER(WHERE sample->>'quality'='good' AND sample->>'state' IN('down','off','stopped','critical')) FROM observed GROUP BY 1 ORDER BY 1`, project, machine, key, entity, source, method, origin, out.From, out.To, fmt.Sprintf("%d seconds", bucket), bucket)
+	rows, e := tx.QueryContext(ctx, `WITH observed AS(SELECT DISTINCT ON(observed_at) observed_at,sample,interval_seconds,snapshot_only FROM monitor_metric_samples WHERE project_id=$1 AND machine_id=$2 AND metric_key=$3 AND entity_key=$4 AND source=$5 AND method=$6 AND origin=$7 AND observed_at>=$8 AND observed_at<$9 ORDER BY observed_at,sequence DESC) SELECT date_bin($10::interval,observed_at,'2000-01-01'::timestamptz),count(*),count(*) FILTER(WHERE sample->>'quality'='good'),CASE WHEN bool_and(snapshot_only) THEN 0 ELSE ceil($11/avg(interval_seconds) FILTER(WHERE NOT snapshot_only)) END,min((sample->>'value')::double precision) FILTER(WHERE sample->>'quality'='good'),max((sample->>'value')::double precision) FILTER(WHERE sample->>'quality'='good'),avg((sample->>'value')::double precision) FILTER(WHERE sample->>'quality'='good'),count(*) FILTER(WHERE sample->>'quality'='good' AND sample->>'state' IN('up','on','running','healthy')),count(*) FILTER(WHERE sample->>'quality'='good' AND sample->>'state' IN('down','off','stopped','critical')),bool_and(snapshot_only) FROM observed GROUP BY 1 ORDER BY 1`, project, machine, key, entity, source, method, origin, out.From, out.To, fmt.Sprintf("%d seconds", bucket), bucket)
 	if e != nil {
 		return nil, e
 	}
 	byTime := map[time.Time]MonitorTrendBucket{}
 	for rows.Next() {
 		var b MonitorTrendBucket
-		if e = rows.Scan(&b.At, &b.Samples, &b.GoodSamples, &b.ExpectedSamples, &b.Minimum, &b.Maximum, &b.Average, &b.UpSamples, &b.DownSamples); e != nil {
+		if e = rows.Scan(&b.At, &b.Samples, &b.GoodSamples, &b.ExpectedSamples, &b.Minimum, &b.Maximum, &b.Average, &b.UpSamples, &b.DownSamples, &b.SnapshotOnly); e != nil {
 			rows.Close()
 			return nil, e
 		}

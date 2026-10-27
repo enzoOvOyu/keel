@@ -1,9 +1,6 @@
 package platform
 
-import (
-	"context"
-	"time"
-)
+import "context"
 
 // Incremental hourly materialization keeps source/method/origin separate. Each
 // affected bucket is recomputed from distinct observation timestamps, so retries
@@ -31,7 +28,7 @@ func (s *Store) MaintainMonitorHistory(ctx context.Context) error {
  FROM changed JOIN monitor_metric_samples s ON s.project_id=changed.project_id AND s.machine_id=changed.machine_id AND s.source=changed.source AND s.method=changed.method AND s.origin=changed.origin AND s.metric_key=changed.metric_key AND s.entity_key=changed.entity_key AND s.observed_at>=changed.bucket_at AND s.observed_at<changed.bucket_at+interval '1 hour'
  ORDER BY s.project_id,s.machine_id,s.source,s.method,s.origin,s.metric_key,s.entity_key,s.observed_at,s.sequence DESC
  ) INSERT INTO monitor_hourly_samples(project_id,machine_id,source,method,origin,metric_key,entity_key,bucket_at,unit,samples,good_samples,expected_samples,minimum,maximum,total,last_sequence)
- SELECT project_id,machine_id,source,method,origin,metric_key,entity_key,bucket_at,min(unit),count(*),count(*)FILTER(WHERE sample->>'quality'='good'),ceil(3600.0/min(interval_seconds)),min((sample->>'value')::double precision)FILTER(WHERE sample->>'quality'='good'),max((sample->>'value')::double precision)FILTER(WHERE sample->>'quality'='good'),sum((sample->>'value')::double precision)FILTER(WHERE sample->>'quality'='good'),max(sequence) FROM points GROUP BY 1,2,3,4,5,6,7,8
+ SELECT project_id,machine_id,source,method,origin,metric_key,entity_key,bucket_at,min(unit),count(*),count(*)FILTER(WHERE sample->>'quality'='good'),CASE WHEN bool_and(snapshot_only) THEN 0 ELSE ceil(3600.0/min(interval_seconds) FILTER(WHERE NOT snapshot_only)) END,min((sample->>'value')::double precision)FILTER(WHERE sample->>'quality'='good'),max((sample->>'value')::double precision)FILTER(WHERE sample->>'quality'='good'),sum((sample->>'value')::double precision)FILTER(WHERE sample->>'quality'='good'),max(sequence) FROM points GROUP BY 1,2,3,4,5,6,7,8
  ON CONFLICT(project_id,machine_id,source,method,origin,metric_key,entity_key,bucket_at)DO UPDATE SET samples=EXCLUDED.samples,good_samples=EXCLUDED.good_samples,expected_samples=EXCLUDED.expected_samples,minimum=EXCLUDED.minimum,maximum=EXCLUDED.maximum,total=EXCLUDED.total,last_sequence=EXCLUDED.last_sequence`)
 	if e != nil {
 		return e
@@ -67,23 +64,17 @@ func (s *Store) TickMonitorFreshness(ctx context.Context) error {
 		return e
 	}
 	defer tx.Rollback()
-	rows, e := tx.QueryContext(ctx, `SELECT alert.id,asset.state,sample.observed_at,sample.received_at,sample.interval_seconds FROM monitor_alerts alert JOIN project_assets asset ON asset.project_id=alert.project_id AND asset.machine_id=alert.machine_id LEFT JOIN monitor_metric_samples sample ON sample.sequence=alert.sample_sequence WHERE alert.source='host' AND alert.sample_sequence IS NOT NULL AND alert.state IN('firing','suppressed') AND ((asset.state='maintained' AND alert.state<>'suppressed') OR (asset.state<>'maintained' AND (sample.observed_at+make_interval(secs=>sample.interval_seconds*3)<=clock_timestamp() OR sample.received_at+make_interval(secs=>sample.interval_seconds*3)<=clock_timestamp()))) ORDER BY alert.id FOR UPDATE OF alert SKIP LOCKED LIMIT 200`)
+	rows, e := tx.QueryContext(ctx, `SELECT alert.id,CASE WHEN asset.state='maintained' AND alert.source='host' THEN 'suppressed' ELSE 'unknown' END FROM monitor_alerts alert JOIN project_assets asset ON asset.project_id=alert.project_id AND asset.machine_id=alert.machine_id JOIN monitor_metric_samples sample ON sample.sequence=alert.sample_sequence WHERE alert.state IN('firing','suppressed') AND ((asset.state='maintained' AND alert.source='host' AND alert.state<>'suppressed') OR ((asset.state<>'maintained' OR alert.source<>'host') AND CASE WHEN sample.snapshot_only THEN coalesce(sample.source_valid_until<=clock_timestamp(),true) ELSE sample.observed_at+make_interval(secs=>sample.interval_seconds*3)<=clock_timestamp() OR sample.received_at+make_interval(secs=>sample.interval_seconds*3)<=clock_timestamp() END)) ORDER BY alert.id FOR UPDATE OF alert SKIP LOCKED LIMIT 200`)
 	if e != nil {
 		return e
 	}
 	type change struct{ id, state string }
 	changes := []change{}
 	for rows.Next() {
-		var id, state string
-		var at, received time.Time
-		var interval int
-		if e = rows.Scan(&id, &state, &at, &received, &interval); e != nil {
+		var id, next string
+		if e = rows.Scan(&id, &next); e != nil {
 			rows.Close()
 			return e
-		}
-		next := "unknown"
-		if state == "maintained" {
-			next = "suppressed"
 		}
 		changes = append(changes, change{id, next})
 	}

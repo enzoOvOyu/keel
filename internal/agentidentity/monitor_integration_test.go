@@ -111,6 +111,23 @@ func TestMonitorPostgresMTLSDurableReplayPolicyHistoryAndStageTransition(t *test
 	if len(snapshot.Items) != 1 || snapshot.Items[0].Source != "host" || snapshot.Items[0].Origin != "real" || snapshot.Items[0].MappingRevisionID != "" {
 		t.Fatal("telemetry fabricated mapping or source")
 	}
+	// A switch source needs its own retained collection receipt. Copying an
+	// authenticated Agent observation cannot manufacture network-side evidence.
+	_, err = f.store.DB.ExecContext(ctx, `INSERT INTO monitor_metric_samples(project_id,machine_id,frame_id,metric_key,entity_key,dtype,source,method,origin,unit,sample,observed_at,received_at,policy_id,interval_seconds) SELECT project_id,machine_id,'forged-switch-source',metric_key,entity_key,dtype,'switch','collector',origin,unit,sample,observed_at,received_at,policy_id,interval_seconds FROM monitor_metric_samples WHERE credential_id=$1 LIMIT 1`, credential.ID)
+	if err == nil {
+		t.Fatal("Agent telemetry relabelled as independent switch evidence")
+	}
+	if projected, sourceErr := f.store.TickMonitorSources(ctx, 200); sourceErr != nil || projected != 0 {
+		t.Fatal("missing G3/network observations manufactured a source", projected, sourceErr)
+	}
+	// Check the database whitelist independently of Go projection. Missing DOM
+	// stays unknown; an actual down remains down; arbitrary metrics are rejected.
+	var downState, unknownQuality string
+	var rejected bool
+	requireNoError(t, f.store.DB.QueryRowContext(ctx, `SELECT keel_monitor_switch_projection('{"link_up":false}'::jsonb,'link.state','port')->>'state',keel_monitor_switch_projection('{}'::jsonb,'dom.rx_power','port')->>'quality',keel_monitor_switch_projection('{}'::jsonb,'host.load1','port') IS NULL`).Scan(&downState, &unknownQuality, &rejected))
+	if downState != "down" || unknownQuality != "unknown" || !rejected {
+		t.Fatal("database source projection invented observations")
+	}
 	trend, err := f.store.MonitorTrend(ctx, f.actor, f.project, asset, "host.load1", "host", "host", "agent", "real", "1h")
 	requireNoError(t, err)
 	if len(trend.Items) == 0 {

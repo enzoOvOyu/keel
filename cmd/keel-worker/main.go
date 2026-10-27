@@ -258,7 +258,10 @@ loop:
 			if store.MonitorEnabled && time.Since(lastMonitorTick) >= 10*time.Second {
 				lastMonitorTick = time.Now()
 				work, cancel := context.WithTimeout(ctx, 3*time.Second)
-				monitorErr := store.TickMonitorFreshness(work)
+				_, monitorErr := store.TickMonitorSources(work, 200)
+				if monitorErr == nil {
+					monitorErr = store.TickMonitorFreshness(work)
+				}
 				if monitorErr == nil {
 					monitorErr = store.TickMonitorAgentHealth(work)
 				}

@@ -4831,6 +4831,11 @@ export interface components {
             global_bytes_per_second: number;
         };
         MonitorObservation: {
+            source_ref: string;
+            source_hash: string;
+            snapshot_only: boolean;
+            /** Format: date-time */
+            source_valid_until: string | null;
             sequence: number;
             dtype: string;
             source: string;
@@ -4873,6 +4878,7 @@ export interface components {
             gaps: components["schemas"]["MonitorGap"][];
         };
         MonitorTrendBucket: {
+            snapshot_only: boolean;
             /** Format: date-time */
             at: string;
             samples: number;

@@ -2294,3 +2294,11 @@ ReadWiringCapture重新打开固定版本对象、核对SHA256/大小、重建�
 - 原始探针适配接口/静态健康fixture已留；真实受控helper读取驱动/固件/完整DOM仍属PoC适配，不把结构化软件fixture当实际硬件采集。
 - 本轮重大分类检查：`go test ./internal/wiring -count=1 -timeout=90s -v` PASS（含T1～T5各两种变体、unknown/计数重置/窗口/缺阈值、原始health与投影防变造、既有档案/增量/恢复全部用例）；隔离库 `go test ./internal/platform ./internal/execution -run TestWiring -count=1 -timeout=90s -v` PASS（全104条源码迁移，通过107；冻结策略不可被端口子集替换、既有拒绝链）；前端 `tsc --noEmit` PASS。日志 `/tmp/keel-health-milestone-yzen8smd/`，仅删除自建临时库。
 - 该结果不包含十种故障分别创建工单的正向数据库全链、真实G2/G3、完整维修正向链、浏览器或硬件PoC，不声明F-4.6/P2已验收。运行3000仍7afda32、数据库64/067，068～107未应用；未部署/push/操作硬件，原草稿和netbom.xlsx隔离不变。继续mon-svc网络/BMC来源桥接、Agentless SSH、portmon领域重验及完整P2收口。
+
+
+## 210. 交换机原始快照桥接统一监控
+
+- 接续2736e0f，worker有界消费已保留的交换机采集，只在当前有效G3下按原物理对端投影link/DOM；不发起设备连接、不重采或续期门禁。每端口不可变回执保留原run/switch/hash/映射版本，数据库同时核对原值白名单、原时间、原来源和期限，禁止把Agent样本改标switch。
+- 原始按需结果标记snapshot_only；有效期取原采集5分钟与原run有效期较早者，不因桥接延长。趋势和小时聚合不生成连续采样覆盖率，flapping不使用这些快照。预算复用全局与设备共享令牌桶，预算不足保留原来源待后续消费，单端口savepoint回滚不吞全局额度。
+- 重大来源里程碑检查：`go test ./internal/platform -run 'TestMonitorSwitch|TestPortMonitor' -count=1 -timeout=90s -v`、独立keel_test_agent_source_*库`go test ./internal/agentidentity -run TestMonitorPostgres -count=1 -timeout=90s -v`及前端`tsc --noEmit`均通过。证据`/tmp/keel-monitor-source-milestone-r8w5xyj2/`，临时库已删除；包含105条源码迁移（排除原026），来源拒绝链/mTLS/趋势/小时历史回归。没有伪造G3正向业务链，不作为真实来源/硬件或整体验收证据。
+- 108尚未应用运行库；3000仍7afda32，运行64条迁移/067，原草稿/netbom.xlsx保留。未构建镜像、部署或push。BMC来源、Agentless降级、portmon维修、版本布局和抽屉交互仍继续开发；维护期WP-4.8不提前实现。

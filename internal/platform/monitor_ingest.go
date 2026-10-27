@@ -137,7 +137,16 @@ func (s *Store) ingestAgentMonitorTx(ctx context.Context, tx *sql.Tx, credential
 
 // All accepted methods converge here. Port binding uses the immutable physical
 // tuple, never an OS-name-only match or a client-supplied gate verdict.
+type monitorSampleProof struct {
+	SourceRef, SourceHash, PhysicalPortID, MappingRevisionID string
+	SnapshotOnly                                             bool
+	ValidUntil                                               *time.Time
+}
+
 func (s *Store) recordMonitorSampleTx(ctx context.Context, tx *sql.Tx, project, machine, credential, frame, policy, source, method, origin string, interval int, sample monitor.Sample, now time.Time) error {
+	return s.recordMonitorSourceSampleTx(ctx, tx, project, machine, credential, frame, policy, source, method, origin, interval, sample, now, monitorSampleProof{})
+}
+func (s *Store) recordMonitorSourceSampleTx(ctx context.Context, tx *sql.Tx, project, machine, credential, frame, policy, source, method, origin string, interval int, sample monitor.Sample, now time.Time, proof monitorSampleProof) error {
 	if sample.Validate(now) != nil {
 		return apiError(400, "MONITOR_INVALID_SAMPLE", "Invalid observation")
 	}
@@ -149,8 +158,14 @@ func (s *Store) recordMonitorSampleTx(ctx context.Context, tx *sql.Tx, project, 
 			return e
 		}
 	}
+	if proof.PhysicalPortID != "" || proof.MappingRevisionID != "" {
+		if source != "switch" || !validEntityID(proof.PhysicalPortID) || !validEntityID(proof.MappingRevisionID) {
+			return apiError(409, "MONITOR_SOURCE_BINDING_INVALID", "Source requires the original server-side physical peer")
+		}
+		port, revision = sql.NullString{String: proof.PhysicalPortID, Valid: true}, sql.NullString{String: proof.MappingRevisionID, Valid: true}
+	}
 	var sequence int64
-	if e := tx.QueryRowContext(ctx, `INSERT INTO monitor_metric_samples(project_id,machine_id,credential_id,frame_id,metric_key,entity_key,dtype,source,method,origin,unit,sample,observed_at,received_at,policy_id,interval_seconds,physical_port_id,mapping_revision_id)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)RETURNING sequence`, project, machine, nullBOMString(credential), frame, sample.Key, sample.Entity, definition.DType, source, method, origin, definition.Unit, networkJSON(sample), sample.ObservedAt, now, policy, interval, port, revision).Scan(&sequence); e != nil {
+	if e := tx.QueryRowContext(ctx, `INSERT INTO monitor_metric_samples(project_id,machine_id,credential_id,frame_id,metric_key,entity_key,dtype,source,method,origin,unit,sample,observed_at,received_at,policy_id,interval_seconds,physical_port_id,mapping_revision_id,source_ref,source_hash,snapshot_only,source_valid_until)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)RETURNING sequence`, project, machine, nullBOMString(credential), frame, sample.Key, sample.Entity, definition.DType, source, method, origin, definition.Unit, networkJSON(sample), sample.ObservedAt, now, policy, interval, port, revision, proof.SourceRef, proof.SourceHash, proof.SnapshotOnly, proof.ValidUntil).Scan(&sequence); e != nil {
 		return e
 	}
 	_, e := tx.ExecContext(ctx, `INSERT INTO monitor_metric_latest(project_id,machine_id,source,method,metric_key,entity_key,sample_sequence)VALUES($1,$2,$3,$4,$5,$6,$7)ON CONFLICT(project_id,machine_id,source,method,metric_key,entity_key)DO UPDATE SET sample_sequence=EXCLUDED.sample_sequence WHERE (SELECT observed_at FROM monitor_metric_samples WHERE sequence=monitor_metric_latest.sample_sequence)<$8`, project, machine, source, method, sample.Key, sample.Entity, sequence, sample.ObservedAt)
