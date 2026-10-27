@@ -37,7 +37,7 @@ func Evaluate(expected Expectation, host *Capture, switches map[string]SwitchEvi
 		add(2, ExpectedPort{}, "BLOCKED", "", "host_capture_scope_required", nil, nil)
 		return finish()
 	}
-	if host.StartedAt.IsZero() || host.AdvertisingAt.Before(host.StartedAt) || host.CollectedAt.Before(host.AdvertisingAt) || host.CollectedAt.After(now.Add(5*time.Second)) || !host.CollectedAt.After(now.Add(-5*time.Minute)) || host.CollectedAt.Sub(host.StartedAt) > 2*time.Minute {
+	if host.StartedAt.IsZero() || host.AdvertisingAt.Before(host.StartedAt) || host.CollectedAt.Before(host.AdvertisingAt) || host.AdvertisingStoppedAt.Before(host.CollectedAt) || host.AdvertisingStoppedAt.After(now.Add(5*time.Second)) || host.CollectedAt.After(now.Add(5*time.Second)) || !host.CollectedAt.After(now.Add(-5*time.Minute)) || host.CollectedAt.Sub(host.StartedAt) > 2*time.Minute {
 		add(2, ExpectedPort{}, "BLOCKED", "", "host_capture_window_invalid", nil, nil)
 		return finish()
 	}
@@ -77,7 +77,7 @@ func Evaluate(expected Expectation, host *Capture, switches map[string]SwitchEvi
 			continue
 		}
 		proof, ok := switches[p.SwitchSerial]
-		validSwitch[p.SwitchSerial] = ok && proof.Origin == "device" && proof.Snapshot != nil && proof.Snapshot.Validate(p.SwitchSerial, now) == nil && proof.Snapshot.Capabilities["lldp"] && proof.Snapshot.Capabilities["interfaces"] && !proof.Snapshot.CollectedAt.Before(host.AdvertisingAt)
+		validSwitch[p.SwitchSerial] = ok && proof.Origin == "device" && proof.Snapshot != nil && proof.Snapshot.Validate(p.SwitchSerial, now) == nil && proof.Snapshot.Capabilities["lldp"] && proof.Snapshot.Capabilities["interfaces"] && !proof.Snapshot.CollectedAt.Before(host.AdvertisingAt) && !proof.Snapshot.CollectedAt.After(host.AdvertisingStoppedAt)
 		if validSwitch[p.SwitchSerial] {
 			index := map[string]fabricmon.Port{}
 			for _, port := range proof.Snapshot.Ports {

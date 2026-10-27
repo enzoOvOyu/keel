@@ -15,7 +15,7 @@ func wireFixture() (Expectation, *Capture, map[string]SwitchEvidence, time.Time)
 	p := ExpectedPort{PhysicalPortID: id("4"), ComponentID: id("5"), CableID: id("6"), SwitchID: id("7"), PortIndex: "1", Interface: "eth1", PermanentMAC: "02:00:00:00:01:01", BDF: "0000:41:00.0", Rail: "rail-1", SwitchSerial: "leaf-1-sn", SwitchPort: "swp1", SwitchChassisIDs: []string{"02:00:00:00:02:01"}}
 	expected := Expectation{Version: Version, ProjectID: id("1"), AssetID: id("2"), MachineID: id("3"), Serial: "host-sn", Hostname: "host-1.example.test", ScopeHash: strings.Repeat("a", 64), Ports: []ExpectedPort{p}}
 	local := &Identity{ChassisID: p.PermanentMAC, PortID: p.PhysicalPortID, Sysname: expected.Hostname, Sysdesc: Description(expected.Serial, p.Rail, p.PortIndex)}
-	host := &Capture{Stopped: true, AdminRestored: true, ConfigurationPreserved: true, Version: Version, Origin: "real", ProjectID: expected.ProjectID, MachineID: expected.MachineID, ScopeHash: expected.ScopeHash, Serial: expected.Serial, StartedAt: now.Add(-20 * time.Second), AdvertisingAt: now.Add(-15 * time.Second), CollectedAt: now.Add(-time.Second), Missing: []string{}, Ports: []HostPort{{PhysicalPortID: p.PhysicalPortID, Interface: p.Interface, BDF: p.BDF, PermanentMAC: p.PermanentMAC, CurrentMAC: p.PermanentMAC, LinkUp: &up, LLDPReadable: true, WindowComplete: true, Advertised: local, Neighbors: []fabricmon.Neighbor{{ChassisID: p.SwitchChassisIDs[0], PortID: p.SwitchPort, Sysname: "leaf-1"}}}}}
+	host := &Capture{Stopped: true, AdminRestored: true, ConfigurationPreserved: true, Version: Version, Origin: "real", ProjectID: expected.ProjectID, MachineID: expected.MachineID, ScopeHash: expected.ScopeHash, Serial: expected.Serial, StartedAt: now.Add(-20 * time.Second), AdvertisingAt: now.Add(-15 * time.Second), AdvertisingStoppedAt: now, CollectedAt: now.Add(-time.Second), Missing: []string{}, Ports: []HostPort{{PhysicalPortID: p.PhysicalPortID, Interface: p.Interface, BDF: p.BDF, PermanentMAC: p.PermanentMAC, CurrentMAC: p.PermanentMAC, LinkUp: &up, LLDPReadable: true, WindowComplete: true, Advertised: local, Neighbors: []fabricmon.Neighbor{{ChassisID: p.SwitchChassisIDs[0], PortID: p.SwitchPort, Sysname: "leaf-1"}}}}}
 	switches := map[string]SwitchEvidence{p.SwitchSerial: {Origin: "device", Snapshot: &fabricmon.Snapshot{Version: "fabric-snapshot/v1", Source: "switch", Provider: "synthetic-software-fixture", Serial: p.SwitchSerial, CollectedAt: now, Capabilities: map[string]bool{"lldp": true, "interfaces": true}, Ports: []fabricmon.Port{{Name: p.SwitchPort, LinkUp: &up, LLDPReadable: true, Neighbor: &fabricmon.Neighbor{ChassisID: p.PermanentMAC, PortID: p.PhysicalPortID, Sysname: expected.Hostname, Sysdesc: local.Sysdesc}}}}}}
 	return expected, host, switches, now
 }
@@ -43,6 +43,9 @@ func TestThreeSourceWireIdentityAndStepOrdering(t *testing.T) {
 			p := s[e.Ports[0].SwitchSerial]
 			p.Origin = "protocol_fixture"
 			s[e.Ports[0].SwitchSerial] = p
+		}, "BLOCKED", "BLOCKED", "current_device_switch_readback_required"},
+		{"switch sampled after advertisement stopped", func(e *Expectation, h *Capture, s map[string]SwitchEvidence) {
+			s[e.Ports[0].SwitchSerial].Snapshot.CollectedAt = h.AdvertisingStoppedAt.Add(time.Second)
 		}, "BLOCKED", "BLOCKED", "current_device_switch_readback_required"},
 		{"old switch sample", func(e *Expectation, h *Capture, s map[string]SwitchEvidence) {
 			s[e.Ports[0].SwitchSerial].Snapshot.CollectedAt = h.AdvertisingAt.Add(-time.Second)

@@ -128,6 +128,7 @@ type Capture struct {
 	ScopeHash              string     `json:"scope_hash"`
 	Serial                 string     `json:"serial"`
 	StartedAt              time.Time  `json:"started_at"`
+	AdvertisingStoppedAt   time.Time  `json:"advertising_stopped_at"`
 	AdvertisingAt          time.Time  `json:"advertising_at"`
 	CollectedAt            time.Time  `json:"collected_at"`
 	Ports                  []HostPort `json:"ports"`

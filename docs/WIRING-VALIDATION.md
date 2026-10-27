@@ -33,3 +33,11 @@
 迁移085新增不可变batch/targets/StepReport。显式`POST .../batches`以本次握手ID、事实摘要、原因和幂等键消费唯一未使用握手，再次核对当前范围，归档每台的独立拓扑GPU→NIC关系为Step1版本1；最多200台，不更改资产里程碑。NE可发起布线握手/Step1，与DE/DL/SRE/Admin共同工程权限，拓扑校验权限本身未扩展。握手一旦被消费，GET明确返回batch_id和不可再次准入状态。重试同幂等键只返回原batch，不能再消耗或生成版本。
 
 StepReport具备step/version/parent/source_hash/verdict/detail及历史、当前有效判定。Step1有效性只依赖其当前拓扑，初次网络握手过期不会回溯抹掉它；拓扑/G1/型号变化或过期则当前Step1为BLOCKED，历史内容保留。前端显示四步时间线，后3步仍未执行，不显示假的PASS或G2。当前数据库明确拒绝Step2～4插入，待真实受控执行回执绑定迁移后才开放；不能上传判定绕过前驱PASS和范围检查。下一工作包仍是LLDP特权适配器/共享Execution停止证据、Step2/3持久化及定向重验，之后才是DL确认和NP-3。全部新增验证NOT_RUN，当前P2保持partial。
+
+## LLDP会话与双端采集窗口
+
+设备适配器保留`Inspect→Begin→Observe→Stop`边界；已有客户LLDP、VF/bond/bridge归属或冻结BDF/MAC不符时不能开始。固定计划的每端口实例不等于已有真实特权实现：当前仅实现驱动接口与协调器、源码中的模拟驱动用例，尚未安装/启用Linux特权helper，也未注册普通SSH任意动作。
+
+`CaptureWithReadback`在同一次有界流程中先取得主机观察，再**保持广播期间**调用固定FR-0.8.2回读，之后停止自有进程并恢复原接口。交换机快照必须落在advertising_at～advertising_stopped_at，不能用停止后读取的空邻居造成假T1。原网络握手不代替本次新回读。观察或回读失败也必须尝试停止；独立3秒cleanup不受调用取消影响。缺少确切停止/恢复证明、原地址/MTU/MAC等配置变化或启动结果不明返回unknown，不自动再Begin。缺少协调回读时局部抓取仍可归档，但不可供G2通过。
+
+归档保留原始有界lldpcli json0正文、观察元数据、原/后接口状态、计划/命令摘要、停止证明和交换机投影。反向读取按同一纯投影逻辑重建，拒绝篡改派生邻居或“已恢复”字段；解析失败保留缺口，不从空成功构造数据。模拟来源保持sim/protocol_fixture，不能变成真实门禁。协调器、unknown与原配置保留、双端窗口先后及原文/投影一致性的新增用例全部NOT_RUN。接共享Execution的持久会话/原回执/派发重验和真实受控特权适配器仍是下一工作。
