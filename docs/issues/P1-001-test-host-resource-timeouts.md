@@ -16,6 +16,10 @@
 
 首批还有整包10分钟预算耗尽：execution包结束时`TestProvisionInstallationFirstSSHPostgres`仅运行11秒；platform包结束时`TestZTPP1LogicalBatch200Postgres`运行3分44秒，堆栈位于200条DUID预留的`MergeBootstrap136`计算，未发现锁等待证据。两者均不能据此判定单用例死锁或通过，保留待隔离复验，不直接提高整包预算。Agent浏览器子进程也在期限内被终止，虽然打印了部分成功断言，整项仍为未通过。
 
+用户再次明确：后续步骤若也可能受到本地性能影响，沿用issue记录方式，不追求立即解决。SSH首批`TestSSHKeyInstallBrowserApprovalAndExecution`等待成功状态30秒后失败；同一功能在独占数据库中定向运行8.70秒通过，随后实际SSH/HTTP及CLI批次退出0。首批失败仍保留，尚未区分资源/租约期限与共享夹具干扰，不能据此把首批整批改为PASS，不再反复复跑。Agent制品派发的`TestAgentArtifactApprovalFrozenDispatchAndUnknown`还出现RunClaim后状态仍running，其夹具使用1秒租约；与脚本终态回执问题一起待隔离判别，不放宽unknown或fencing要求。
+
+200逻辑执行容量另有本轮独立成功证据：`/tmp/keel-execution-capacity-6flmflee/`，200/200成功、8.235秒，完整12组控制/恢复/权限检查通过。共享宿主的这次成功不关闭上述超时问题，也不证明真实设备或独立性能基线。
+
 1. 本轮资源相关超时保留为未通过/待复验；不提高全局超时，不因宿主压力改变 unknown、回执或权限判据。
 2. 后续将重型批次串行安排，Go 临时构建产物放磁盘目录；仅清理本轮明确拥有且已停止使用的临时构建目录，不停止其他项目或清理其缓存/数据库。
 3. 在空闲或更宽裕的宿主上，仅复验上述失败用例，记录 CPU、MemAvailable、tmpfs、磁盘等待和PG阻塞；仍失败再按实际代码问题处理。
