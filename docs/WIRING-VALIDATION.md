@@ -27,3 +27,9 @@
 固定计划为每个物理端口生成独立lldpd实例、独立socket/PID/配置，避免全局ChassisID/sysdesc错误复用于多个NIC；只给明确选中接口，保留全部邻居而非随机选一个，不读写客户全局配置。实现依据[lldpd官方手册](https://lldpd.github.io/usage.html)与[上游json0结构测试](https://github.com/lldpd/lldpd/blob/master/tests/integration/test_lldpcli.py)；启动配置先于自动resume的语义依据[官方daemon源码](https://github.com/lldpd/lldpd/blob/master/src/daemon/lldpd.c)。命令计划只是可审查数据，未执行或注册到普通任意命令入口。
 
 现有SSH wrapper为非root；真实临时interface-up、隔离lldpd及停止/恢复证明还需受控特权适配器，不能直接在该wrapper中偷偷加sudo或启用系统lldpd。共享Execution派发/停止回收接线尚未完成，页面仍不提供LLDP执行。新增单元场景覆盖完整双端、缺测、不可读、空邻居、多邻居、旧/fixture交换机、错线、序列号前缀和sim隔离；均NOT_RUN。
+
+## Step 1 与四步记录
+
+迁移085新增不可变batch/targets/StepReport。显式`POST .../batches`以本次握手ID、事实摘要、原因和幂等键消费唯一未使用握手，再次核对当前范围，归档每台的独立拓扑GPU→NIC关系为Step1版本1；最多200台，不更改资产里程碑。NE可发起布线握手/Step1，与DE/DL/SRE/Admin共同工程权限，拓扑校验权限本身未扩展。握手一旦被消费，GET明确返回batch_id和不可再次准入状态。重试同幂等键只返回原batch，不能再消耗或生成版本。
+
+StepReport具备step/version/parent/source_hash/verdict/detail及历史、当前有效判定。Step1有效性只依赖其当前拓扑，初次网络握手过期不会回溯抹掉它；拓扑/G1/型号变化或过期则当前Step1为BLOCKED，历史内容保留。前端显示四步时间线，后3步仍未执行，不显示假的PASS或G2。当前数据库明确拒绝Step2～4插入，待真实受控执行回执绑定迁移后才开放；不能上传判定绕过前驱PASS和范围检查。下一工作包仍是LLDP特权适配器/共享Execution停止证据、Step2/3持久化及定向重验，之后才是DL确认和NP-3。全部新增验证NOT_RUN，当前P2保持partial。

@@ -7,6 +7,35 @@ import (
 
 func (a *authAPI) registerWiring(r *gin.Engine) {
 	base := "/api/v1/projects/:id/validation/wiring"
+	r.POST(base+"/batches", func(c *gin.Context) {
+		actor, _, ok := a.executionProject(c, true)
+		if !ok {
+			return
+		}
+		var in platform.WiringBatchInput
+		if !decodeExecutionBody(c, &in) {
+			return
+		}
+		out, e := a.store.CreateWiringBatch(c.Request.Context(), actor, c.Param("id"), in, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
+	r.GET(base+"/batches/:batchId", func(c *gin.Context) {
+		actor, _, ok := a.executionProject(c, false)
+		if !ok {
+			return
+		}
+		out, e := a.store.GetWiringBatch(c.Request.Context(), actor, c.Param("id"), c.Param("batchId"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
+
 	r.POST(base+"/scope", func(c *gin.Context) {
 		actor, _, ok := a.executionProject(c, true)
 		if !ok {

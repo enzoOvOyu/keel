@@ -4012,10 +4012,119 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/validation/wiring/batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createWiringBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/validation/wiring/batches/{batchId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getWiringBatch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        WiringExpectedPort: {
+            physical_port_id: string;
+            component_id: string;
+            port_index: string;
+            interface: string;
+            permanent_mac: string;
+            bdf: string;
+            rail: string;
+            cable_id: string;
+            switch_id: string;
+            switch_serial: string;
+            switch_port: string;
+            switch_chassis_ids: string[];
+        };
+        WiringBatchInput: {
+            handshake_id: string;
+            facts_hash: string;
+            reason: string;
+        };
+        WiringStepDetail: {
+            version: string;
+            step: number;
+            verdict: string;
+            topology_id: string;
+            relations: components["schemas"]["PciTopologyRelationTable"];
+        };
+        WiringExpectation: {
+            version: string;
+            project_id: string;
+            asset_id: string;
+            machine_id: string;
+            serial: string;
+            hostname: string;
+            scope_hash: string;
+            ports: components["schemas"]["WiringExpectedPort"][];
+        };
+        WiringStepReport: {
+            id: string;
+            batch_id: string;
+            asset_id: string;
+            parent_id: string;
+            source_hash: string;
+            verdict: string;
+            created_by: string;
+            effective_verdict: string;
+            invalidation_reason: string;
+            step: number;
+            version: number;
+            detail: components["schemas"]["WiringStepDetail"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            valid_until: string | null;
+        };
+        WiringBatchTarget: {
+            asset_id: string;
+            machine_id: string;
+            topology_id: string;
+            expectation: components["schemas"]["WiringExpectation"];
+            relations: components["schemas"]["PciTopologyRelationTable"];
+            reports: components["schemas"]["WiringStepReport"][];
+        };
+        WiringBatch: {
+            id: string;
+            project_id: string;
+            handshake_id: string;
+            facts_hash: string;
+            created_by: string;
+            reason: string;
+            state: string;
+            code: string;
+            /** Format: date-time */
+            created_at: string;
+            targets: components["schemas"]["WiringBatchTarget"][];
+            next_step: number;
+            can_start_step2: boolean;
+        };
         WiringTargetInput: {
             asset_id: string;
             physical_port_ids: string[];
@@ -4112,6 +4221,7 @@ export interface components {
             validity: "fresh" | "stale" | "invalidated" | "unchecked";
             ready: boolean;
             invalidation_reason: string;
+            batch_id: string;
         };
         WiringHandshakePage: {
             items: components["schemas"]["WiringHandshake"][];
@@ -18616,6 +18726,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WiringHandshake"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    createWiringBatch: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WiringBatchInput"];
+            };
+        };
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WiringBatch"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getWiringBatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                batchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WiringBatch"];
                 };
             };
             400: components["responses"]["InvalidRequest"];

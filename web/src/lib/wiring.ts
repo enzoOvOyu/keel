@@ -8,3 +8,7 @@ export const previewWiring = (project: string, targets: WiringTarget[], csrf: st
 export const createWiringHandshake = (project: string, targets: WiringTarget[], reason: string, csrf: string, key: string) => request<WiringHandshake>(`${base(project)}/handshakes`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify({ targets, reason }) })
 export const listWiringHandshakes = (project: string, page: number, signal: AbortSignal) => request<components['schemas']['WiringHandshakePage']>(`${base(project)}/handshakes?page=${page}&page_size=10`, { signal })
 export const getWiringHandshake = (project: string, id: string, signal: AbortSignal) => request<WiringHandshake>(`${base(project)}/handshakes/${encodeURIComponent(id)}`, { signal })
+
+export type WiringBatch = components['schemas']['WiringBatch']
+export const createWiringBatch = (project: string, handshakeId: string, factsHash: string, reason: string, csrf: string, key: string) => request<WiringBatch>(`${base(project)}/batches`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify({ handshake_id: handshakeId, facts_hash: factsHash, reason }) })
+export const getWiringBatch = (project: string, id: string, signal: AbortSignal) => request<WiringBatch>(`${base(project)}/batches/${encodeURIComponent(id)}`, { signal })

@@ -1,12 +1,14 @@
 # 当前开发状态
 
-更新：2026-10-27；当前集中测试结果见 [P1验证记录](P1-VALIDATION-2026-10-27.md) 与§160～162，性能待复验项见 [P1-001](issues/P1-001-test-host-resource-timeouts.md)。用户发布后决定P1带遗留项收口、允许进入P2（§164）；main已合并并推送至`1a96897`，当前P2分支`dev/p2-validation`接续§191；3000现为`7afda32`、数据库64条迁移（最后067），发布证据见§163。后续编号章节保留历史快照；操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-27；当前集中测试结果见 [P1验证记录](P1-VALIDATION-2026-10-27.md) 与§160～162，性能待复验项见 [P1-001](issues/P1-001-test-host-resource-timeouts.md)。用户发布后决定P1带遗留项收口、允许进入P2（§164）；main已合并并推送至`1a96897`，当前P2分支`dev/p2-validation`接续§192；3000现为`7afda32`、数据库64条迁移（最后067），发布证据见§163。后续编号章节保留历史快照；操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-27，集中测试检查点）
 
 当前P1逻辑设备扇出按200台。本轮执行容量200/200成功（8.235秒，sim），完整12组控制/恢复/权限检查通过；200逻辑ZTP仍因整包超时待复验。原2,000台后续优化，成功率/介质完整性/权限/恢复要求保留。
 
-### 低Token接续入口（2026-10-27，接续§191）
+### 低Token接续入口（2026-10-27，接续§192）
+
+- §192接续a48ff7f：一次性握手消费、Step1关系快照与不可变StepReport/四步时间线已接源码，后3步仍未执行；085待应用，源82条/运行64条。NE布线权限按US-18接入，真实LLDP特权/Execution回收未完成；继续至11:05:21 UTC，新用例NOT_RUN。
 
 - §191接续9b1ed3d：LLDP json0严格身份解析、固定逐端口计划、Step2阻断后续的双端证据/Step3三方比对核心及用例已编写，全部NOT_RUN。真实特权临时up/隔离进程和共享Execution接线未完成；继续至11:05:21 UTC，当前下一块Step1/StepReport版本化持久管道。
 
@@ -2114,3 +2116,11 @@ API契约/类型、拓扑关系页端口选择与握手历史、CSRF/工程角�
 接续9b1ed3d，新增internal/wiring纯判据、json0严格解析和固定逐物理端口lldpd计划；稳定交换机MAC绑定加入握手事实摘要，模型/BOM期望不从邻居反推。Step2全选中端口和双端证据完整后才比较Step3，不以缺测/多邻居/旧快照/sim输出通过。ChassisID、物理PortID、hostname、精确SN/rail/port描述逐项核对；独立实例避免多NIC共用全局身份。缺少停止、原接口恢复和配置保留证明也不能PASS。详细约束/官方来源见WIRING-VALIDATION.md。
 
 已编写协议/纯逻辑用例，全部NOT_RUN。仅gofmt与定向源码审查；没有编译、测试、真实LLDP/特权动作或服务变更。现有SSH wrapper必须保持非root，真实lldpd/临时up仍需受控特权适配器及共享Execution接线，不自动sudo/安装/启动。源81条迁移、运行64条/最后067、3000仍7afda32；窗口继续至11:05:21 UTC。下一块Step1与StepReport持久化，不冒称LLDP执行或G2闭环。
+
+## 192. Step1快照与不可变四步记录（2026-10-27，进行中检查点）
+
+接续a48ff7f，本轮继续至11:05:21 UTC。新增唯一消费就绪握手的batch，冻结目标/端口期望及独立GPU→NIC关系，生成每台Step1版本1；前后鉴权/当前范围核验、幂等、审计、项目作用域保留。NE按US-18可发起布线相关握手/Step1，不改变拓扑验证权限。握手消费后返回batch_id并拒绝重用；Step1当前有效性独立跟随拓扑，不因初次30秒网络凭证过期直接抹掉历史。
+
+迁移085增加不可变batch/target/StepReport及同范围前驱PASS/单调版本约束，当前明确拒绝步骤2～4插入，留待原始LLDP执行回执绑定接入。API/类型、握手入口中的四步时间线及到期展示已接；后3步未执行、无G2/NP-3/Mapping发布或资产状态推进。源码82条迁移（排除原026），运行仍64条/最后067，3000仍7afda32。
+
+编写缺少握手不生成batch/跨项目读取与提交拒绝用例，全部NOT_RUN；只gofmt、API类型生成和源码审查，日志/tmp/keel-wiring-step-api-generation.log不代表测试。未编译、测试、迁移、发布、推送、特权接口操作或安装lldpd。下一块真实受控LLDP特权适配器和共享Execution（原wrapper保持非root），再接双端归档、Step2/3和定向重验。

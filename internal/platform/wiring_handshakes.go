@@ -16,6 +16,7 @@ import (
 // A handshake is immutable readiness evidence, not a G2 verdict or permission
 // to execute arbitrary commands. Its lease starts before the collector probe.
 type WiringHandshake struct {
+	BatchID            string                 `json:"batch_id"`
 	ID                 string                 `json:"id"`
 	ProjectID          string                 `json:"project_id"`
 	Facts              *WiringFacts           `json:"facts"`
@@ -41,7 +42,7 @@ func wiringScopePermissionTx(ctx context.Context, tx *sql.Tx, a *AuthSession, pr
 	if e != nil {
 		return e
 	}
-	if !slices.Contains([]string{"Admin", "DE", "DL", "SRE"}, role) {
+	if !slices.Contains([]string{"Admin", "DE", "DL", "NE", "SRE"}, role) {
 		return ErrForbidden
 	}
 	var state string
@@ -220,11 +221,19 @@ func (s *Store) wiringHandshakeTx(ctx context.Context, tx *sql.Tx, project, id s
 	if e != nil {
 		return nil, e
 	}
+	if e = tx.QueryRowContext(ctx, `SELECT coalesce((SELECT id FROM validation_wiring_batches WHERE handshake_id=$1 AND project_id=$2),'')`, id, project).Scan(&out.BatchID); e != nil {
+		return nil, e
+	}
 	if e = json.Unmarshal(facts, &out.Facts); e != nil {
 		return nil, e
 	}
 	if e = json.Unmarshal(collector, &out.Collector); e != nil {
 		return nil, e
+	}
+	if out.BatchID != "" {
+		out.Validity = "invalidated"
+		out.InvalidationReason = "WIRING_HANDSHAKE_CONSUMED"
+		return &out, nil
 	}
 	out.Validity = "stale"
 	out.InvalidationReason = "WIRING_HANDSHAKE_EXPIRED"

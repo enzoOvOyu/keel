@@ -2,6 +2,7 @@ package platform
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"sort"
 
@@ -49,6 +50,13 @@ func (s *Store) TopologyRelations(ctx context.Context, a *AuthSession, project, 
 	if e = precollectReadScope(ctx, tx, a, project, asset); e != nil {
 		return nil, e
 	}
+	out, e := s.topologyRelationsTx(ctx, tx, project, asset, id)
+	if e != nil {
+		return nil, e
+	}
+	return out, tx.Commit()
+}
+func (s *Store) topologyRelationsTx(ctx context.Context, tx *sql.Tx, project, asset, id string) (*TopologyRelationTable, error) {
 	record, e := s.topologyDetailTx(ctx, tx, project, asset, id)
 	if e != nil {
 		return nil, e
