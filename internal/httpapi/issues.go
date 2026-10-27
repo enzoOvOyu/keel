@@ -6,6 +6,18 @@ import (
 )
 
 func (a *authAPI) registerIssues(r *gin.Engine) {
+	r.GET("/api/v1/issues/:issueId/verification-scope", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		out, e := a.store.IssueVerificationScope(c.Request.Context(), actor, c.Param("issueId"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
 	r.GET("/api/v1/issues/:issueId/port-diagnostics", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {

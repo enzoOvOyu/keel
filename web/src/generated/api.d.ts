@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/issues/{issueId}/verification-scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Read-only current scoped revalidation preflight. Resolves trusted discovery, latest repair, network BOM, stable switch/port identities, origin, policy/intent and required category checks. No execution is created; execution_available remains false until the shared execution consumer is connected. scope_hash excludes read time; submission must recompute scope and permissions. Never closure evidence. */
+        get: operations["getIssueVerificationScope"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/issues/{issueId}/port-diagnostics": {
         parameters: {
             query?: never;
@@ -3280,6 +3297,35 @@ export interface components {
             total: number;
             page: number;
             page_size: number;
+        };
+        IssueVerificationScope: {
+            version: string;
+            issue_id: string;
+            project_id: string;
+            category: string;
+            package_id: string;
+            evidence_origin: string;
+            cable_uid: string;
+            port_uid: string;
+            policy_hash: string;
+            intent_hash: string;
+            scope_hash: string;
+            rule_ref: string;
+            /** Format: int64 */
+            issue_version: number;
+            /** Format: int64 */
+            repair_version: number;
+            required_checks: string[];
+            blockers: string[];
+            targets: {
+                switch_id: string;
+                serial: string;
+                ports: string[];
+            }[];
+            /** Format: date-time */
+            valid_until: string;
+            /** @enum {boolean} */
+            execution_available: false;
         };
         FabricDiagnosticRecordInput: {
             port?: string;
@@ -6943,6 +6989,32 @@ export interface operations {
                 };
             };
             400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getIssueVerificationScope: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issueId: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current revalidation preflight with explicit missing dependencies */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueVerificationScope"];
+                };
+            };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

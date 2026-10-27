@@ -47,3 +47,14 @@
 同一范围和完全相同的证据/版本复用原记录及原过期时间，读取时间或重复run不能延长其有效期。记录及关联观察只追加，规则和参数变化生成独立证据。`GET /api/v1/issues/{issueId}/port-diagnostics`按当前项目权限分页查询，保留原记录；stale当前反映TTL和网络BOM变化，不能代替后续重验准入对全部配置/规则版本与范围的复核。前端有显式记录入口、工单跳转与历史原值查看；NP-3始终BLOCKED。
 
 本批仅格式化和生成OpenAPI类型，新增指纹隔离单元用例及缓存记录/幂等/不可变/未知端口的PostgreSQL用例源码，均未执行；070尚未应用，3000不变。下一步接领域限定的重验Execution与完整证据关闭/失败升级，不把本次缓存记录冒充硬件复采或整项WP闭环。
+
+
+## P2 接续：重验作用域预览与定向复采契约（源码，待里程碑验证）
+
+`GET /api/v1/issues/{issueId}/verification-scope`按当前项目成员权限返回只读预览：工单/最近处置版本、可信发现绑定与规则版本、当前网络BOM、最多两台交换机及具体端口、原device/protocol_fixture来源、参数/意图摘要、分类所需检查和缺失条件。重新分派/异常重开后要求新的处置登记；原链路无法对应当前BOM、跨主机侧、重复链路、未知身份不能直接套用旧范围。读取时间不参与scope_hash；这只是当前事实摘要，并非持久冻结请求或已接受的Execution，后续提交必须在事务内重算并复核当前权限和版本。界面按需查看，不因打开工单触发复采。
+
+T1/T2需单链路LLDP+交换机回读，端口T2还需rail意图核验；T3/T4需LLDP+DDM+单路径连通性；T5需预收集增量+LLDP+连通性；T6需配置回读+连通性；T7需拓扑+预收集增量。当前连通性、服务器侧等缺失条件显式返回。共享Execution提交/资源租约/结果消费与证据关闭尚未接通，`execution_available=false`，verify/close仍阻断。本批没有新增迁移或伪造执行记录。
+
+`ProbeSuite.RecollectPorts`新增固定mTLS origin上的`POST /v1/projects/{projectId}/recollections`客户端契约；现有GET snapshots仍仅缓存读取。请求/响应均为`fabric-recollect/v1`，绑定project_id、execution_id、command_id、fencing_token、scope_hash与evidence_source；请求另含not_before及targets[{switch_id,serial,ports}]。仅允许1～2台、每台1～2端口；设备/协议fixture不可切换。POST使用command_id作Idempotency-Key，禁止重定向、30秒边界、响应上限1MiB，无自动重试。响应必须精确匹配目标serial/端口且collected_at位于not_before与本次接收时刻之间，拒绝缓存、范围外读回及未请求的全局遥测。
+
+该客户端尚未由运行中的worker调用，也没有实现外部采集器服务或真实NOS重采适配；不能因契约存在宣称设备复采通过。后续先接交换机间T1/T2的共享Execution提交与双端资源锁，再将该响应作为围栏保护下的持久证据消费；T3/T4/T6完整关闭须等待其连通性消费者。新增拒绝重放/串范围/来源变化、HTTP路由/重定向、摘要隔离及PG预览用例均未执行，留待重大里程碑。

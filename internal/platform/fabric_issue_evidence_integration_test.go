@@ -3,6 +3,7 @@ package platform
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"testing"
 	"time"
 
@@ -143,6 +144,17 @@ func TestFabricIssueEvidencePostgresIdentityProvenanceAndHistory(t *testing.T) {
 		t.Fatal("unmodeled diagnostic scope was accepted")
 	}
 	id := first.IssueLinks[0].IssueID
+	scope, e := s.IssueVerificationScope(ctx, actor, id)
+	if e != nil || scope.PackageID != pkg || scope.CableUID != cableID || scope.EvidenceOrigin != "protocol_fixture" || len(scope.Targets) != 2 || scope.ExecutionAvailable || len(scope.ScopeHash) != 64 {
+		t.Fatalf("verification scope: %+v %v", scope, e)
+	}
+	if !slices.Contains(scope.Blockers, "issue_must_be_in_repair") || !slices.Contains(scope.Blockers, "current_repair_record_required") || !slices.Contains(scope.Blockers, "targeted_execution_adapter_pending") {
+		t.Fatalf("incomplete verification silently admitted: %+v", scope)
+	}
+	scopeAgain, e := s.IssueVerificationScope(ctx, actor, id)
+	if e != nil || scopeAgain.ScopeHash != scope.ScopeHash {
+		t.Fatalf("reading scope changed its identity: %+v %v", scopeAgain, e)
+	}
 	detail, e := s.GetIssue(ctx, actor, id)
 	if e != nil || detail.Issue.Source != "fabric" || detail.Issue.Version != 1 || len(detail.Events) != 1 {
 		t.Fatalf("initial discovery: %+v %v", detail, e)
