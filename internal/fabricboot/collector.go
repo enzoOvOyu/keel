@@ -63,3 +63,15 @@ func (s *ProbeSuite) CollectorConfigured() bool {
 	t, ok := p.client.Transport.(*http.Transport)
 	return ok && t.TLSClientConfig != nil && len(t.TLSClientConfig.Certificates) > 0
 }
+
+// CheckCollector reuses the fixed authenticated health protocol. G2 must not
+// depend on boot/Kea/repository probes from the earlier N-S3 onboarding phase.
+func (s *ProbeSuite) CheckCollector(ctx context.Context) ProbeResult {
+	out := ProbeResult{Service: "collector", State: "unknown", Code: "not_configured"}
+	start := time.Now()
+	if s.CollectorConfigured() {
+		out.State, out.Code = s.targets["collector"].check(ctx, "collector", "")
+	}
+	out.DurationMS = time.Since(start).Milliseconds()
+	return out
+}

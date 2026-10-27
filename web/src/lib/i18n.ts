@@ -1,3 +1,4 @@
+import { wiringTranslations } from './wiring-i18n'
 import { assetViewTranslations } from './asset-views-i18n'
 import { topologyTranslations } from './topology-i18n'
 import { precollectTranslations } from './precollect-i18n'
@@ -34,7 +35,7 @@ export const resources = {
   zh: { translation: {
     ...artifactTranslations.zh,
     ...managementTranslations.zh,...provisionTranslations.zh,
-    ...fabricTranslations.zh,...bmcTranslations.zh,...precollectTranslations.zh,...assetViewTranslations.zh,...topologyTranslations.zh,
+    ...fabricTranslations.zh,...bmcTranslations.zh,...precollectTranslations.zh,...assetViewTranslations.zh,...topologyTranslations.zh,...wiringTranslations.zh,
     ...networkDeliveryTranslations.zh,
     ...networkHealthTranslations.zh,...fabricDiagnosticTranslations.zh,...networkRuleTranslations.zh,...networkRuleTranslations.zh,
     ...networkPushTranslations.zh,
@@ -145,7 +146,7 @@ export const resources = {
   en: { translation: {
     ...artifactTranslations.en,
     ...managementTranslations.en,...provisionTranslations.en,
-    ...fabricTranslations.en,...bmcTranslations.en,...precollectTranslations.en,...assetViewTranslations.en,...topologyTranslations.en,
+    ...fabricTranslations.en,...bmcTranslations.en,...precollectTranslations.en,...assetViewTranslations.en,...topologyTranslations.en,...wiringTranslations.en,
     ...networkDeliveryTranslations.en,
     ...networkHealthTranslations.en,...fabricDiagnosticTranslations.en,...networkRuleTranslations.en,...networkRuleTranslations.en,
     ...networkPushTranslations.en,

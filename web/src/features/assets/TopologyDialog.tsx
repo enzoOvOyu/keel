@@ -15,10 +15,12 @@ import { downloadPrecollect } from '../../lib/precollect'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 import { getTopology, getTopologyRelations, listTopology, previewTopology, validateTopology } from '../../lib/topology'
 import PcieTopologyView from './PcieTopologyView'
+import WiringDialog from './WiringDialog'
 
 export default function TopologyDialog({ asset, onClose }: { asset: Pick<ProjectAsset, 'id' | 'hostname'>; onClose: () => void }) {
  const { t } = useTranslation(), { session } = useSession(), { project } = useProject(), action = useAction(), queries = useQueryClient()
  const [page, setPage] = useState(1), [selected, setSelected] = useState(''), [reason, setReason] = useState(''), [validation, setValidation] = useState(''), [now, setNow] = useState(Date.now())
+ const [showWiring, setShowWiring] = useState(false)
  const mounted = useRef(true), attempt = useRef({ body: '', key: '' })
  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
  const key = ['private', session.user.id, 'project', project.id, 'topology', asset.id]
@@ -48,6 +50,7 @@ export default function TopologyDialog({ asset, onClose }: { asset: Pick<Project
   const result = await action.run(() => validateTopology(project.id, asset.id, scope.data!.scope_hash, reason.trim(), session.csrf_token, attempt.current.key))
   if (result.ok && mounted.current) { queries.setQueryData([...key, 'detail', result.value.id], result.value); setSelected(result.value.id); void list.refetch(); void scope.refetch() }
  }
+ const wiringPorts = [...new Map((relations.data?.rows ?? []).filter(row => row.physical_port_id).map(row => [row.physical_port_id, { id: row.physical_port_id, name: row.interface, mac: row.permanent_mac }])).values()]
  const effective = record && Date.parse(record.valid_until) <= now ? 'BLOCKED' : record?.effective_verdict
  return <Dialog open onOpenChange={open => { if (!open && !action.busy) onClose() }}><DialogContent className="ui:max-h-[90vh] ui:overflow-y-auto ui:sm:max-w-6xl"><DialogHeader><DialogTitle>{t('topologyTitle')} · {asset.hostname}</DialogTitle><DialogDescription>{t('topologyIntro')}</DialogDescription></DialogHeader>
   {errors.map((error, index) => error ? <ActionError key={index} error={error as ApiError} /> : null)}
@@ -61,6 +64,8 @@ export default function TopologyDialog({ asset, onClose }: { asset: Pick<Project
    <section><h3>{t('topologyHistory')}</h3>{list.isPending && <p role="status">{t('loadingRecords')}</p>}{list.data && !list.isError && <><Table><TableHeader><TableRow><TableHead>{t('modelVersion')}</TableHead><TableHead>{t('topologyHistorical')}</TableHead><TableHead>{t('topologyEffective')}</TableHead><TableHead>{t('topologyUntil')}</TableHead><TableHead>{t('topologyEvidence')}</TableHead></TableRow></TableHeader><TableBody>{list.data.items.map(row => <TableRow key={row.id} aria-selected={selected === row.id}><TableCell>v{row.version}</TableCell><TableCell>{t(`precollect_${row.verdict}`)}</TableCell><TableCell>{t(`precollect_${Date.parse(row.valid_until) <= now ? 'BLOCKED' : row.effective_verdict}`)}</TableCell><TableCell>{new Date(row.valid_until).toLocaleString()}</TableCell><TableCell><Button variant="outline" size="sm" onClick={() => setSelected(row.id)}>{t('topologyEvidence')}</Button></TableCell></TableRow>)}</TableBody></Table>{list.data.items.length === 0 && <p>{t('topologyEmpty')}</p>}<Pagination offset={(page - 1) * list.data.page_size} limit={list.data.page_size} total={list.data.total} busy={list.isFetching} onChange={offset => setPage(Math.floor(offset / (list.data?.page_size ?? 20)) + 1)} /></>}</section>
    {record && !detail.isError && <section><h3>{t('topologyHistorical')}: {t(`precollect_${record.verdict}`)} · {t('topologyEffective')}: {t(`precollect_${effective}`)}</h3><p>{t('topologyActualSource')}: {record.origin} · {record.precollect_id}</p>{record.invalidation_reason && <p className="mono-value">{record.invalidation_reason}</p>}<Button variant="outline" disabled={action.busy} onClick={() => void action.run(() => downloadPrecollect(project.id, asset.id, record.precollect_id))}>{t('precollectRaw')}</Button><PcieTopologyView record={record} />{relations.data && !relations.isError && <section><h3>{t('topologyRelationsTitle')}</h3><p className="field-hint">{t('topologyRelationsHelp')}</p><Table><TableHeader><TableRow>{['GPU','NIC',t('topologyNUMA'),t('topologyMatrix'),t('topologyEffective')].map(label => <TableHead key={label}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>{relations.data.rows.map((row, index) => <TableRow key={`${row.gpu_key}:${row.nic_key}:${row.physical_port_id}:${index}`}><TableCell>{row.gpu_key}<code className="cell-subtitle">{row.gpu_uuid} · {row.gpu_node?.bdf}</code></TableCell><TableCell>{row.nic_key} · {row.interface}<code className="cell-subtitle">{row.permanent_mac} · {row.nic_node?.bdf}</code></TableCell><TableCell>{row.gpu_node?.numa ?? '?'} / {row.nic_node?.numa ?? '?'}</TableCell><TableCell>{row.expected_affinity} → {row.observed_affinity || '?'} ({row.computed_affinity || '?'})</TableCell><TableCell>{t(`precollect_${row.verdict}`)}</TableCell></TableRow>)}</TableBody></Table></section>}</section>}
   </>}
+  {!denied && wiringPorts.length > 0 && <Button variant="outline" disabled={action.busy} onClick={() => setShowWiring(true)}>{t('wiringTitle')}</Button>}
+  {showWiring && !denied && <WiringDialog key={`${project.id}:${asset.id}:${selected}`} asset={asset} ports={wiringPorts} onClose={() => setShowWiring(false)} />}
   <p className="field-hint">{t('topologyFirmwareHint')}</p><p className="field-hint">{t('topologyReadOnly')}</p><Button variant="outline" disabled={action.busy} onClick={onClose}>{t('bmcClose')}</Button>
  </DialogContent></Dialog>
 }

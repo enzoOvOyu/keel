@@ -4,12 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"time"
 
-	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/fabricmon"
-	"github.com/enzoOvOyu/keel/internal/netbaseline"
 )
 
 func (s *Store) NetworkReadiness(ctx context.Context, a *AuthSession, p *ProjectSummary, trace string) (*NetworkReadiness, error) {
@@ -77,57 +74,13 @@ func (s *Store) networkReadinessTx(ctx context.Context, tx *sql.Tx, project stri
 			readable.EvidenceRefs = append(readable.EvidenceRefs, collection.ID, device.SampleRef)
 		}
 		mergeNetworkGate(&np4, readable)
-		scope := &IssueVerificationScope{ProjectID: project, EvidenceOrigin: "device", Targets: []fabricboot.CollectorTarget{{SwitchID: device.Device.ID, Serial: device.Device.Serial}}}
-		if _, err := s.issueVerificationManagementHashTx(ctx, tx, scope); err != nil {
-			var business *Error
-			if !errors.As(err, &business) || business.Status != 409 {
-				return nil, err
-			}
-			mergeNetworkGate(&np2, networkGate(device.Device.ID, "BLOCKED", "authenticated_ztp_manageability_required"))
-		}
-		var raw []byte
-		var state, executionState string
-		var facts []byte
-		var jobID string
-		e = tx.QueryRowContext(ctx, latestNetworkTemplateDevicesCTE+` SELECT device_state,coalesce(verify_evidence,'null'),job_id,execution_state,facts FROM latest WHERE switch_id=$2`, project, device.Device.ID).Scan(&state, &raw, &jobID, &executionState, &facts)
-		if errors.Is(e, sql.ErrNoRows) {
-			mergeNetworkGate(&np2, networkGate(device.Device.ID, "BLOCKED", "golden_readback_required"))
-		} else if e != nil {
+		configured, e := s.networkConfigReadinessTx(ctx, tx, project, device.Device, out.ReadinessAt, true)
+		if e != nil {
 			return nil, e
-		} else {
-			var proof *netbaseline.OperationResult
-			var planned NetworkPlannedDevice
-			if e = json.Unmarshal(facts, &planned); e != nil {
-				return nil, e
-			}
-			if e = json.Unmarshal(raw, &proof); e != nil {
-				return nil, e
-			}
-			if state == "VERIFIED" {
-				j, err := loadNetworkPush(ctx, tx, project, jobID, false)
-				if err != nil {
-					return nil, err
-				}
-				if err = s.reviewNetworkPushFacts(ctx, tx, j); err != nil {
-					var business *Error
-					if !errors.As(err, &business) {
-						return nil, err
-					}
-					state = "STALE"
-				}
-			}
-			golden := networkGoldenReadbackGate(project, planned, state, executionState, proof, out.ReadinessAt)
-			if planned.ID != device.Device.ID || planned.Serial != device.Device.Serial {
-				golden = networkGate(device.Device.ID, "BLOCKED", "current_golden_identity_changed")
-			}
-			if golden.State == "PASS" {
-				golden.EvidenceRefs = append(golden.EvidenceRefs, jobID)
-				expiry := proof.ObservedAt.Add(networkGoldenMaxAge)
-				if expiry.Before(out.ValidUntil) {
-					out.ValidUntil = expiry
-				}
-			}
-			mergeNetworkGate(&np2, golden)
+		}
+		mergeNetworkGate(&np2, configured.Gate)
+		if configured.ValidUntil != nil && configured.ValidUntil.Before(out.ValidUntil) {
+			out.ValidUntil = *configured.ValidUntil
 		}
 		if device.Lossless.Fabric.Unknown {
 			mergeNetworkGate(&np6, networkGate(device.Device.ID, "BLOCKED", "lossless_counter_or_intent_unknown"))

@@ -3964,10 +3964,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/validation/wiring/scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewWiring"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/validation/wiring/handshakes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listWiringHandshakes"];
+        put?: never;
+        post: operations["createWiringHandshake"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/validation/wiring/handshakes/{handshakeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getWiringHandshake"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        WiringTargetInput: {
+            asset_id: string;
+            physical_port_ids: string[];
+        };
+        WiringScopeInput: {
+            targets: components["schemas"]["WiringTargetInput"][];
+        };
+        WiringHandshakeInput: {
+            targets: components["schemas"]["WiringTargetInput"][];
+            reason: string;
+        };
+        WiringPort: {
+            physical_port_id: string;
+            component_id: string;
+            port_index: string;
+            interface: string;
+            permanent_mac: string;
+            bdf: string;
+            cable_id: string;
+            switch_id: string;
+            switch_serial: string;
+            switch_port_id: string;
+            switch_port: string;
+            rail: string;
+        };
+        WiringHost: {
+            asset_id: string;
+            machine_id: string;
+            hostname: string;
+            serial: string;
+            bom_package_id: string;
+            g1_id: string;
+            precollect_id: string;
+            topology_id: string;
+            topology_scope_hash: string;
+            asset_version: number;
+            ports: components["schemas"]["WiringPort"][];
+        };
+        WiringGate: {
+            id: string;
+            /** @enum {string} */
+            state: "PASS" | "FAIL" | "BLOCKED";
+            reasons: string[];
+            evidence_refs: string[];
+        };
+        WiringSwitch: {
+            id: string;
+            serial: string;
+            management_hash: string;
+            golden_hash: string;
+            sample_hash: string;
+            ports: string[];
+            np1: components["schemas"]["WiringGate"];
+            np2: components["schemas"]["WiringGate"];
+            np4: components["schemas"]["WiringGate"];
+        };
+        WiringFacts: {
+            /** @enum {string} */
+            version: "keel.wiring-scope/v1";
+            project_id: string;
+            targets: components["schemas"]["WiringHost"][];
+            switches: components["schemas"]["WiringSwitch"][];
+            network_package_id: string;
+            collection_id: string;
+            collector_hash: string;
+            ttl_seconds: number;
+            /** Format: date-time */
+            evidence_valid_until: string;
+            facts_hash: string;
+            ready: boolean;
+            blockers: string[];
+        };
+        WiringCollectorProbe: {
+            service: string;
+            state: string;
+            code: string;
+            duration_ms: number;
+        };
+        WiringHandshake: {
+            id: string;
+            project_id: string;
+            facts: components["schemas"]["WiringFacts"];
+            collector: components["schemas"]["WiringCollectorProbe"];
+            /** Format: date-time */
+            readiness_at: string;
+            /** Format: date-time */
+            valid_until: string;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            reason: string;
+            /** @enum {string} */
+            validity: "fresh" | "stale" | "invalidated" | "unchecked";
+            ready: boolean;
+            invalidation_reason: string;
+        };
+        WiringHandshakePage: {
+            items: components["schemas"]["WiringHandshake"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
         PciTopologyRelationRow: {
             gpu_key: string;
             nic_key: string;
@@ -18340,6 +18490,131 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PciTopologyFleetPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    previewWiring: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WiringScopeInput"];
+            };
+        };
+        responses: {
+            /** @description Target-scoped G1/topology and NP-1/2/4 readiness. Explicit handshake checks only the authenticated collector; reads never probe. No StepReport, G2, NP-3 or execution is published. History is not admission. Lease is at most 30 seconds and evidence changes invalidate it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WiringFacts"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listWiringHandshakes: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Target-scoped G1/topology and NP-1/2/4 readiness. Explicit handshake checks only the authenticated collector; reads never probe. No StepReport, G2, NP-3 or execution is published. History is not admission. Lease is at most 30 seconds and evidence changes invalidate it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WiringHandshakePage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    createWiringHandshake: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WiringHandshakeInput"];
+            };
+        };
+        responses: {
+            /** @description Target-scoped G1/topology and NP-1/2/4 readiness. Explicit handshake checks only the authenticated collector; reads never probe. No StepReport, G2, NP-3 or execution is published. History is not admission. Lease is at most 30 seconds and evidence changes invalidate it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WiringHandshake"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getWiringHandshake: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                handshakeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Target-scoped G1/topology and NP-1/2/4 readiness. Explicit handshake checks only the authenticated collector; reads never probe. No StepReport, G2, NP-3 or execution is published. History is not admission. Lease is at most 30 seconds and evidence changes invalidate it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WiringHandshake"];
                 };
             };
             400: components["responses"]["InvalidRequest"];
