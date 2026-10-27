@@ -92,7 +92,7 @@ func (a *ProvisionBootAuthority) RecordFileServed(ctx context.Context, scope pro
 	// Current authority locks protect the short append transaction. The payload
 	// deliberately contains no source URL, bootstrap secret, key or client report.
 	_, err = tx.ExecContext(ctx, `INSERT INTO provision_installation_events(installation_id,event_type,payload,created_at)
- SELECT $1,'boot.file_served',jsonb_build_object('resource',$2::text,'sha256',$3::text,'bytes',$4::bigint,'full_response',true,'server_write_only',true),now()
+ SELECT $1::varchar,'boot.file_served',jsonb_build_object('resource',$2::text,'sha256',$3::text,'bytes',$4::bigint,'full_response',true,'server_write_only',true),now()
  WHERE NOT EXISTS(SELECT 1 FROM provision_installation_events WHERE installation_id=$1 AND event_type='boot.file_served' AND payload->>'resource'=$2)`, current.installation.ID, delivered.Resource, sha, size)
 	if err != nil {
 		return err

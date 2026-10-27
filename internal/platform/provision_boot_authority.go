@@ -119,7 +119,7 @@ func (a *ProvisionBootAuthority) LookupBoot(ctx context.Context, scope provision
 		return provisionboot.Grant{}, ErrProvisionBootDenied
 	}
 	// This is explicitly auxiliary network evidence, not authenticated identity.
-	_, err = tx.ExecContext(ctx, `INSERT INTO provision_installation_events(installation_id,event_type,payload,created_at) SELECT $1,'boot.dhcp_observed',jsonb_build_object('mac',$2::text,'arch',$3::text,'fingerprint_sha256',$4::text,'auxiliary_only',true),now() WHERE NOT EXISTS(SELECT 1 FROM provision_installation_events WHERE installation_id=$1 AND event_type='boot.dhcp_observed' AND payload->>'fingerprint_sha256'=$4)`, x.installation.ID, client.MAC, client.Arch, client.FingerprintSHA256)
+	_, err = tx.ExecContext(ctx, `INSERT INTO provision_installation_events(installation_id,event_type,payload,created_at) SELECT $1::varchar,'boot.dhcp_observed',jsonb_build_object('mac',$2::text,'arch',$3::text,'fingerprint_sha256',$4::text,'auxiliary_only',true),now() WHERE NOT EXISTS(SELECT 1 FROM provision_installation_events WHERE installation_id=$1 AND event_type='boot.dhcp_observed' AND payload->>'fingerprint_sha256'=$4)`, x.installation.ID, client.MAC, client.Arch, client.FingerprintSHA256)
 	if err != nil {
 		return provisionboot.Grant{}, err
 	}

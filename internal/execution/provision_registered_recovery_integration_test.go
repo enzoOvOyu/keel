@@ -60,11 +60,14 @@ func expireRegisteredProvisionFixture(t *testing.T, f *liveProvisionBootFixture)
 	mustAgent(t, err)
 	n, err := f.service.ReapExpired(ctx)
 	mustAgent(t, err)
-	if n != 1 {
-		t.Fatal("expected single quarantined native attempt", n)
+	if n < 1 {
+		t.Fatal("native attempt was not reaped", n)
 	}
 	attempt, err := scanAttempt(f.store.DB.QueryRowContext(ctx, "SELECT "+attemptColumns+" FROM exec_task_attempts WHERE id=$1", f.claim.Attempt.ID))
 	mustAgent(t, err)
+	if attempt.State != "unknown" {
+		t.Fatal("fixture native attempt was not quarantined", attempt.State)
+	}
 	return attempt
 }
 

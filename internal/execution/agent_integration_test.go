@@ -112,6 +112,16 @@ func agentKernel(t *testing.T) *agentKernelFixture {
 	mustAgent(t, e)
 	_, e = store.DB.ExecContext(ctx, `INSERT INTO project_assets(id,project_id,machine_id,hostname,state,created_at,updated_at)VALUES($1,$2,$3,$4,'provisioned',now(),now())`, platform.RandomID(), project.ID, machine, "agent-kernel-"+suffix)
 	mustAgent(t, e)
+	f := &agentKernelFixture{store: store, service: New(store.DB), actor: actor, project: project.ID, machine: machine, username: username}
+	f.enroll(t)
+	return f
+}
+
+func (f *agentKernelFixture) enroll(t *testing.T) {
+	t.Helper()
+	ctx := context.Background()
+	var serial string
+	mustAgent(t, f.store.DB.QueryRowContext(ctx, "SELECT serial_number FROM machines WHERE id=$1", f.machine).Scan(&serial))
 	directory := t.TempDir()
 	mustAgent(t, os.Chmod(directory, 0700))
 	ca, key, e := agentpki.NewAuthority(time.Now())
@@ -121,18 +131,17 @@ func agentKernel(t *testing.T) *agentKernelFixture {
 	mustAgent(t, agentpki.WriteNew(keyFile, key))
 	authority, e := agentpki.Load(caFile, keyFile)
 	mustAgent(t, e)
-	_, token, e := store.IssueAgentEnrollment(ctx, project.ID, machine, authority.ID, "isolated software execution kernel fixture", time.Minute)
+	_, token, e := f.store.IssueAgentEnrollment(ctx, f.project, f.machine, authority.ID, "isolated software execution kernel fixture", time.Minute)
 	mustAgent(t, e)
 	_, clientKey, e := ed25519.GenerateKey(rand.Reader)
 	mustAgent(t, e)
 	der, e := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{}, clientKey)
 	mustAgent(t, e)
-	credential, e := store.EnrollAgent(ctx, authority, project.ID, machine, serial, "kernel-fixture-v1", token, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: der}))
+	credential, e := f.store.EnrollAgent(ctx, authority, f.project, f.machine, serial, "kernel-fixture-v1", token, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: der}))
 	mustAgent(t, e)
-	runner := &agentKernelRunner{binding: platform.AgentCertificateBinding(credential), observations: map[string]taskrunner.Observation{}}
-	service := New(store.DB)
-	service.AgentRunner = runner
-	return &agentKernelFixture{store: store, service: service, actor: actor, project: project.ID, machine: machine, username: username, credential: credential, runner: runner}
+	f.credential = credential
+	f.runner = &agentKernelRunner{binding: platform.AgentCertificateBinding(credential), observations: map[string]taskrunner.Observation{}}
+	f.service.AgentRunner = f.runner
 }
 func (f *agentKernelFixture) create(t *testing.T) *Execution {
 	t.Helper()

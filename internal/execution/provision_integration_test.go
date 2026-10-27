@@ -95,6 +95,10 @@ func provisionKernelWithImage(t *testing.T, installable, signedImage bool, write
 	// Import updates the existing stable machine rather than inventing a separate resource identity.
 	_, err = s.CommitBomImport(ctx, f.actor, project, platform.BomImportInput{FileVersion: "prep-" + suffix, Machines: []platform.BomMachineRow{{SerialNumber: serial, Hostname: "prep-" + suffix, ModelName: model.Name, Ports: []platform.BomPortRow{{MacAddress: "02:" + suffix[0:2] + ":" + suffix[2:4] + ":" + suffix[4:6] + ":" + suffix[6:8] + ":" + suffix[8:10], PortName: "p1", Rail: 0}}}}}, "test")
 	mustAgent(t, err)
+	// BOM changes the asset version; an identity enrolled against the old
+	// version must remain invalid. Enroll this fixture against the current BOM.
+	mustAgent(t, s.RevokeAgentCredential(ctx, f.project, f.credential.ID, f.credential.StateVersion, "replace pre-BOM software fixture identity"))
+	f.enroll(t)
 	var asset string
 	mustAgent(t, s.DB.QueryRowContext(ctx, "SELECT id FROM project_assets WHERE project_id=$1 AND machine_id=$2", f.project, f.machine).Scan(&asset))
 	target, err := s.GetProvisionTarget(ctx, f.actor, project, asset)
