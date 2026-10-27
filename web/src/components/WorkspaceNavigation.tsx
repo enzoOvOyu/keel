@@ -43,7 +43,7 @@ export function ProjectSwitcher({ projectId }: { projectId?: string }) {
   return <Label className="workspace-project-switcher"><span className="sr-only">{t('switchProject')}</span><Icon name="folder" />
     <NativeSelect className="ui:w-[220px] ui:max-[1000px]:w-[180px] ui:max-[767px]:w-[110px]" aria-label={t('switchProject')} value={session.projects.some(project => project.id === projectId) ? projectId : ''} onChange={event => {
       const project = session.projects.find(item => item.id === event.target.value)
-      if (project) void navigate({ to: switchDestination(pathname, project, session), params: { projectId: project.id } })
+      if (project) { if (pathname === '/issues') void navigate({to:'/issues',search:{project_id:project.id}}); else void navigate({ to: switchDestination(pathname, project, session), params: { projectId: project.id } }) }
     }}>
       <NativeSelectOption value="" disabled>{t(session.projects.length ? 'selectProject' : 'noProjects')}</NativeSelectOption>
       {session.projects.map(project => <NativeSelectOption value={project.id} key={project.id}>{project.name}</NativeSelectOption>)}
@@ -62,13 +62,14 @@ export function WorkspaceNavigation({ projectId }: { projectId?: string }) {
     <section aria-label={t('deploymentPlane')}><h2 className="nav-section-heading"><span>{t('deploymentPlane')}</span></h2>
       <Link to="/projects" activeOptions={{ exact: true }} title={t('allProjects')} aria-label={t('allProjects')}><Icon name="folder" /><span className="nav-label">{t('allProjects')}</span></Link>
       <div className="sidebar-project-list" aria-label={t('projectListNavigation')}>
-        {session.projects.map(item => <Link key={item.id} to={switchDestination(pathname, item, session)} params={{ projectId: item.id }} className={projectId === item.id ? 'current-project' : ''} title={item.name} aria-label={`${t('openProject')}: ${item.name}`}>
+        {session.projects.map(item => pathname === '/issues' ? <Link key={item.id} to="/issues" search={{project_id:item.id}} className={projectId === item.id ? 'current-project' : ''} title={item.name} aria-label={`${t('openProject')}: ${item.name}`}><span className="project-nav-mark" aria-hidden="true">{item.name.slice(0, 1).toUpperCase()}</span><span className="nav-label">{item.name}</span></Link> : <Link key={item.id} to={switchDestination(pathname, item, session)} params={{ projectId: item.id }} className={projectId === item.id ? 'current-project' : ''} title={item.name} aria-label={`${t('openProject')}: ${item.name}`}>
           <span className="project-nav-mark" aria-hidden="true">{item.name.slice(0, 1).toUpperCase()}</span><span className="nav-label">{item.name}</span>
         </Link>)}
       </div>
       {links(deployment)}
     </section>
     <section aria-label={t('operationsPlane')}><h2 className="nav-section-heading"><span>{t('operationsPlane')}</span></h2>
+      <Link to="/issues" search={{project_id:project?.id}} title={t('issuesTitle')}><Icon name="audit"/><span className="nav-label">{t('issuesTitle')}</span></Link>
       {project ? <><p className="nav-scope-label">{t('projectFilter')}: {project.name}</p>{links(operations)}</> : <p className="nav-scope-label">{t('selectProjectForTools')}</p>}
     </section>
     <section aria-label={t('systemNavigation')}><h2 className="nav-section-heading"><span>{t('systemNavigation')}</span></h2>

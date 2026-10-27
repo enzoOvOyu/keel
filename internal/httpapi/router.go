@@ -81,6 +81,7 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 		auth := &authAPI{store: store, config: config, preRequests: make(map[string]preRate)}
 		auth.register(r)
 		auth.registerControl(r)
+		auth.registerIssues(r)
 		auth.registerExecution(r)
 		auth.registerExecutionViews(r)
 		auth.registerExecutionRerun(r)

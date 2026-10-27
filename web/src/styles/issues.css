@@ -1,0 +1,13 @@
+.issue-page{padding:var(--space-6,24px);max-width:1600px;margin:auto}
+.issue-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-block:24px}
+.issue-actions{display:flex;flex-wrap:wrap;gap:8px}
+.issue-board{display:grid;grid-template-columns:repeat(6,minmax(220px,1fr));gap:16px;overflow:auto;padding-block:16px}
+.issue-board h2{font-size:14px;margin-bottom:var(--space-3)}
+.issue-card{border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:var(--space-3);margin-bottom:var(--space-3)}
+.issue-card p{margin-block:8px}
+.issue-drawer{max-height:90dvh;overflow:auto}
+.issue-drawer pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}
+.issue-drawer dd{white-space:pre-wrap;overflow-wrap:anywhere}
+
+.issue-drop-lane{outline:1px dashed var(--color-border);outline-offset:4px}
+.issue-page>header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-3)}

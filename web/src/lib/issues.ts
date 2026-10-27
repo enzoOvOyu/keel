@@ -1,0 +1,29 @@
+import type { components } from '../generated/api'
+import { request } from './api'
+export type Issue = components['schemas']['Issue']
+export type IssueDetail = components['schemas']['IssueDetail']
+export type IssueAction = components['schemas']['IssueActionInput']
+export type NewIssue = components['schemas']['CreateIssueInput']
+export type IssueSearch = { page?: number; project_id?: string; state?: string; source?: string; phase?: string; category?: string; responsible_domain?: string }
+export const issueStates = ['open', 'assigned', 'in_repair', 'verify', 'closed', 'reopened'] as const
+export const issueSources = ['topology', 'g2', 'fabric', 'g5', 'g6', 'portmon', 'bmc'] as const
+export function issueSearch(raw: Record<string, unknown>): IssueSearch {
+ const out: IssueSearch = {}
+ for (const key of ['project_id','state','source','phase','category','responsible_domain'] as const) if (typeof raw[key] === 'string' && raw[key]) out[key] = String(raw[key]).slice(0,120)
+ const page=Number(raw.page); if (Number.isInteger(page)&&page>1&&page<=1000000) out.page=page
+ return out
+}
+export const listIssues = (search: IssueSearch, signal: AbortSignal) => {
+ const query = new URLSearchParams({page_size:'20'})
+ for(const [k,v] of Object.entries(search)) if(v) query.set(k,String(v))
+ return request<components['schemas']['IssuePage']>(`/issues?${query}`,{signal})
+}
+export const getIssue = (id: string, signal: AbortSignal) => request<IssueDetail>(`/issues/${encodeURIComponent(id)}`,{signal})
+export const issueTargets = (project: string, q: string, signal: AbortSignal) => request<components['schemas']['IssueTarget'][]>(`/projects/${encodeURIComponent(project)}/issues/targets?${new URLSearchParams({q})}`,{signal})
+export const issueAssignees = (project: string, signal: AbortSignal) => request<components['schemas']['IssueAssignee'][]>(`/projects/${encodeURIComponent(project)}/issues/assignees`,{signal})
+export const createIssue = (project: string, body: NewIssue, key: string, csrf: string) => request<Issue>(`/projects/${encodeURIComponent(project)}/issues`,{method:'POST',headers:{'X-CSRF-Token':csrf,'Idempotency-Key':key},body:JSON.stringify(body)})
+export const actOnIssue = (id: string, action: string, body: IssueAction, csrf: string) => request<Issue>(`/issues/${encodeURIComponent(id)}/${encodeURIComponent(action)}`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify(body)})
+export const issueLabels = {
+ zh: { title:'故障工单', all:'全部', project:'项目', state:'状态', source:'发现来源', phase:'产生阶段', category:'故障类别', responsible_domain:'责任域', host:'服务器', fabric:'网络底座', unknown:'待定位', delivery:'实施期', 'post-delivery':'交付后', open:'待分派', assigned:'已分派', in_repair:'处置中', verify:'待验证', closed:'已关闭', reopened:'已重开', new:'登记工单', name:'标题', target:'关联对象', search:'查找设备、端口或线缆', expected:'预期', actual:'实际观察', sourceVersion:'证据来源版本', observedAt:'观察时间', reason:'原因 / 处置说明', assign:'分派', start:'开始处置', repair:'登记处置', assignee:'项目网络工程师', detail:'工单详情', timeline:'时间线', empty:'当前筛选范围没有工单', list:'列表', board:'看板', version:'版本', save:'确认', cancel:'取消', next:'下一页', previous:'上一页', reload:'刷新', oldSerial:'旧实物 SN / 标签', newSerial:'新实物 SN / 标签', repairAction:'处置动作', reseat:'重插紧固', replace_cable:'换线缆', replace_optic:'换光模块', replace_nic:'换网卡', rma_machine:'RMA 整机', switch_repair:'交换机侧修复', configuration_fix:'配置修正', flash_bios:'刷 BIOS', rma_board:'主板 RMA', revalidation:'关闭前须取得覆盖本次对象与版本的有效定向复测结果。', noTargets:'没有匹配对象，请调整搜索或先导入 BOM。', noAssignees:'项目暂无可分派的网络工程师。', conflict:'工单已变化，请刷新后重新确认。', targetHelp:'关联稳定物理对象；未完成映射的端口也可登记。', reported:'人工登记观察', physicalOnly:'这里只记录现场处置，不会执行设备命令。', pageScope:'列表与看板展示当前页工单；可清除项目筛选查看所有获授权项目。', created:'开单', error:'操作失败，请检查权限和当前记录后重试。', loading:'加载中…' },
+ en: { title:'Issues', all:'All', project:'Project', state:'State', source:'Discovery source', phase:'Phase', category:'Category', responsible_domain:'Responsible domain', host:'Host', fabric:'Fabric', unknown:'Undetermined', delivery:'Delivery', 'post-delivery':'Post-delivery', open:'Open', assigned:'Assigned', in_repair:'In repair', verify:'Verify', closed:'Closed', reopened:'Reopened', new:'Report issue', name:'Title', target:'Related object', search:'Find device, port or cable', expected:'Expected', actual:'Observed', sourceVersion:'Evidence source version', observedAt:'Observed at', reason:'Reason / repair notes', assign:'Assign', start:'Start repair', repair:'Record repair', assignee:'Project network engineer', detail:'Issue details', timeline:'Timeline', empty:'No issues match these filters', list:'List', board:'Board', version:'Version', save:'Confirm', cancel:'Cancel', next:'Next', previous:'Previous', reload:'Refresh', oldSerial:'Previous physical SN / label', newSerial:'Replacement SN / label', repairAction:'Repair action', reseat:'Reseat', replace_cable:'Replace cable', replace_optic:'Replace optic', replace_nic:'Replace NIC', rma_machine:'Machine RMA', switch_repair:'Switch repair', configuration_fix:'Configuration fix', flash_bios:'Flash BIOS', rma_board:'Mainboard RMA', revalidation:'Closure requires valid targeted revalidation covering the affected objects and current versions.', noTargets:'No matching objects. Adjust the search or import a BOM first.', noAssignees:'No active project network engineer is available.', conflict:'This issue changed. Refresh and confirm the current record.', targetHelp:'Link a stable physical object; unmapped ports can also be reported.', reported:'Operator-reported observation', physicalOnly:'Records on-site work only; no device commands are executed.', pageScope:'List and board show the current page. Clear the project filter to see all authorized projects.', created:'Created', error:'Action failed. Check permissions and the current record before retrying.', loading:'Loading…' },
+}

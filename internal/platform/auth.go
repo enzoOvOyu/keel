@@ -187,19 +187,19 @@ func (s *Store) SessionResponse(ctx context.Context, a *AuthSession) (*SessionRe
 	}
 	// This union is for navigation only; mutation authorization uses the target
 	// project's current membership inside the transaction.
-	fabric := map[string]bool{}
+	domainPermissions := map[string]bool{}
 	if a.User.IsAdmin {
-		for _, permission := range fabricPermissions("Admin") {
-			fabric[permission] = true
+		for _, permission := range append(fabricPermissions("Admin"), issuePermissions("Admin")...) {
+			domainPermissions[permission] = true
 		}
 	}
 	for _, project := range projects {
-		for _, permission := range fabricPermissions(project.Role) {
-			fabric[permission] = true
+		for _, permission := range append(fabricPermissions(project.Role), issuePermissions(project.Role)...) {
+			domainPermissions[permission] = true
 		}
 	}
-	for _, permission := range []string{"fabric:read", "fabric:plan", "fabric:collect", "fabric:template:edit"} {
-		if fabric[permission] {
+	for _, permission := range []string{"fabric:read", "fabric:plan", "fabric:collect", "fabric:template:edit", "issue:read", "issue:create", "issue:assign", "issue:repair"} {
+		if domainPermissions[permission] {
 			permissions = append(permissions, permission)
 		}
 	}

@@ -41,6 +41,7 @@ GRANT USAGE ON SCHEMA public TO keel_app;
 GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO keel_app;
 GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO keel_app;
 DO $keel$ BEGIN
+  IF to_regclass('public.issue_events') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON issue_events FROM keel_app; REVOKE DELETE,TRUNCATE ON issues FROM keel_app; END IF;
   IF to_regclass('public.audits') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON audits FROM keel_app; END IF;
   IF to_regclass('public.keel_schema_migrations') IS NOT NULL THEN REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON keel_schema_migrations FROM keel_app; END IF;
   IF to_regclass('public.schema_migrations') IS NOT NULL THEN REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON schema_migrations FROM keel_app; END IF;
