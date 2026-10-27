@@ -115,6 +115,16 @@ try{
  await poll(async()=>await(await context.request.get(base+'/executions/'+unknownExec.id)).json(),v=>v.execution?.state==='reconciling')
  assert(uncertain.devices.slice(1).every(d=>d.state==='PREPARED'));await writeFile(c.fault_file,'')
  console.log('PASS ambiguous device write -> UNKNOWN / shared Execution reconciling; canary peers remain unexecuted and SSH lease stays quarantined')
+ const unknownDevice=uncertain.devices.find(d=>d.state==='UNKNOWN').device.id
+ const retained=await(await context.request.get(base+'/fabric/devices/'+unknownDevice+'/configuration')).json()
+ assert.equal(retained.latest_production.job_id,uncertain.id);assert.equal(retained.latest_production.device_state,'UNKNOWN');assert.notEqual(retained.latest_production.golden.state,'PASS')
+ assert.equal(retained.latest_production.verify,undefined)
+ assert(retained.latest_production.before_snapshot);assert(retained.latest_production.intended)
+ const configEvents=await(await context.request.get(base+'/fabric/devices/'+unknownDevice+'/configuration-events?page=1&page_size=2')).json()
+ assert(configEvents.total>0);assert(configEvents.items.length<=2);assert(configEvents.items.every(v=>['batch','device'].includes(v.scope)))
+ const foreignDeviceView=await context.request.get('/api/v1/projects/'+'f'.repeat(32)+'/fabric/devices/'+unknownDevice+'/configuration');assert.equal(foreignDeviceView.status(),404)
+ console.log('PASS retained device configuration keeps latest UNKNOWN production attempt, separates pre-change backup and intended, and exposes bounded scoped batch events')
+
  await page.goto(`/p/${c.management_project_id}/configuration`);await page.getByRole('heading',{name:'配置推送作业',exact:true}).waitFor();await page.getByText('Critical · NE + DE + NH 三签',{exact:true}).first().waitFor();assert.match(await page.locator('main').evaluate(e=>getComputedStyle(e).fontFamily),/JetBrains Mono/)
  await page.screenshot({path:process.env.KEEL_WORKSPACE_EVIDENCE_DIR+'/configuration-push-jobs.png',fullPage:true});assert.deepEqual(errors,[])
  const concurrencyResponse=await context.request.put(base+'/params',{headers,data:{key:'fabric.push_concurrency',value_type:'enum',options:['1','2'],default_value:'2',create_only:true}})

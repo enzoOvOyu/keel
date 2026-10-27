@@ -2360,6 +2360,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/fabric/devices/{deviceId}/configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Read-only retained configuration input, pre-change backup, latest plan and latest production attempt ordered by actual Execution creation. Never recollects a device or writes state. Unknown attempts cannot fall back to an older success. Golden is only the configuration evidence check, not the complete NP-2 gate. */
+        get: operations["networkDeviceConfiguration"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/devices/{deviceId}/configuration-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Descending immutable PushJob state events for jobs containing this device. Batch events are explicitly labeled and do not assert individual device success. Pagination is bounded; no task replay or device command occurs. */
+        get: operations["networkDeviceConfigurationEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/fabric/address-plans": {
         parameters: {
             query?: never;
@@ -5301,6 +5335,90 @@ export interface components {
                     before_present: boolean;
                     after_present: boolean;
                 }[];
+            }[];
+        };
+        NetworkDeviceConfiguration: {
+            /** @enum {string} */
+            version: "network-device-configuration/v1";
+            project_id: string;
+            switch_id: string;
+            serial: string;
+            /** Format: date-time */
+            read_at: string;
+            latest_production: components["schemas"]["NetworkDeviceConfigSnapshot"] | null;
+            latest_plan: components["schemas"]["NetworkDeviceConfigSnapshot"] | null;
+        };
+        NetworkDeviceConfigSnapshot: {
+            job_id: string;
+            job_state: string;
+            device_state: string;
+            template_id: string;
+            template_name: string;
+            template_version: number;
+            template_state: string;
+            baseline_id: string;
+            input: components["schemas"]["NetworkPushInput"];
+            facts_hash: string;
+            facts_current: boolean;
+            facts_problem?: string;
+            identity_current: boolean;
+            device: components["schemas"]["NetworkPlannedDevice"];
+            template: components["schemas"]["NetworkTemplateDefinition"];
+            intended: {
+                [key: string]: unknown;
+            };
+            /** @description Retained pre-change backup; never asserted to be current running configuration. */
+            before_snapshot?: {
+                [key: string]: unknown;
+            };
+            diff: components["schemas"]["NetworkConfigurationDifference"][];
+            prepare?: components["schemas"]["NetworkOperationResult"];
+            apply?: components["schemas"]["NetworkOperationResult"];
+            verify?: components["schemas"]["NetworkOperationResult"];
+            prepare_execution_id?: string;
+            push_execution_id?: string;
+            execution_state?: string;
+            /**
+             * Format: date-time
+             * @description Execution creation time used to order production attempts; not a fabricated device start timestamp.
+             */
+            execution_created_at?: string;
+            /** Format: date-time */
+            created_at: string;
+            golden: components["schemas"]["NetworkGate"];
+            /** Format: date-time */
+            golden_valid_until?: string;
+        };
+        NetworkConfigurationDifference: {
+            path: string;
+            /** @enum {string} */
+            severity: "Critical" | "Major" | "Minor";
+            before: unknown;
+            after: unknown;
+            before_present: boolean;
+            after_present: boolean;
+        };
+        NetworkDeviceConfigEventPage: {
+            project_id: string;
+            switch_id: string;
+            page: number;
+            page_size: number;
+            total: number;
+            items: {
+                /** Format: int64 */
+                sequence: number;
+                job_id: string;
+                state: string;
+                /** @enum {string} */
+                scope: "device" | "batch";
+                template_id: string;
+                template_name: string;
+                template_version: number;
+                batch_ref: string;
+                prepare_execution_id?: string;
+                push_execution_id?: string;
+                /** Format: date-time */
+                at: string;
             }[];
         };
         /** @description Explicit project-visible published switch DeviceModels and roles classify complete imported intent. Domains are tags, not permission to merge or partially apply fragments. Absent scope identifies a legacy unscoped definition; historical hashes remain unchanged. */
@@ -13312,6 +13430,57 @@ export interface operations {
                     "application/json": components["schemas"]["FabricDeviceEvidence"];
                 };
             };
+        };
+    };
+    networkDeviceConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                deviceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current-authority project device configuration references and retained evidence. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkDeviceConfiguration"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    networkDeviceConfigurationEvents: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                deviceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated configuration event history. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkDeviceConfigEventPage"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     listNetworkAddressPlans: {

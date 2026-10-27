@@ -155,7 +155,7 @@ func evaluateNetworkTemplateImpactTx(ctx context.Context, tx *sql.Tx, project st
 		if proof != nil {
 			item.EvidenceSource = proof.EvidenceSource
 		}
-		if r.state != "VERIFIED" || (r.executionState != "success" && r.executionState != "failed") || proof == nil || proof.RunningHash != previous.IntendedHash || proof.DeviceID != r.device || proof.Serial != previous.Serial || proof.ProjectID != project || proof.State != "completed" || proof.ExitCode != 0 || proof.ObservedAt.IsZero() || proof.ObservedAt.After(now) || item.PreviousIntendedHash != previous.IntendedHash {
+		if previous.ID != r.device || !networkGoldenProofMatches(project, previous, r.state, r.executionState, proof, now) || item.PreviousIntendedHash != previous.IntendedHash {
 			item.Reason = "current_golden_or_execution_unresolved"
 			items = append(items, item)
 			continue

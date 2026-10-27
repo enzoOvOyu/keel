@@ -10,3 +10,6 @@ export const deviceEvidence=(id:string,device:string,signal:AbortSignal)=>reques
 
 export const networkReadiness=(id:string,signal:AbortSignal)=>request<components['schemas']['NetworkReadiness']>(path(id)+'/readiness',{signal})
 export const networkCables=(id:string,page:number,signal:AbortSignal)=>request<components['schemas']['NetworkCablePage']>(path(id)+`/cables?page=${page}&page_size=20`,{signal})
+
+export const deviceConfiguration=(project:string,device:string,signal:AbortSignal)=>request<components['schemas']['NetworkDeviceConfiguration']>(`${path(project)}/devices/${encodeURIComponent(device)}/configuration`,{signal})
+export const deviceConfigurationEvents=(project:string,device:string,page:number,signal:AbortSignal)=>request<components['schemas']['NetworkDeviceConfigEventPage']>(`${path(project)}/devices/${encodeURIComponent(device)}/configuration-events?page=${page}&page_size=20`,{signal})

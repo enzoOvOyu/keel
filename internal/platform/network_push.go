@@ -231,7 +231,10 @@ func (s *Store) ListNetworkPush(ctx context.Context, a *AuthSession, p *ProjectS
 	return out, nil
 }
 func (s *Store) reviewNetworkPushFacts(ctx context.Context, tx *sql.Tx, j *NetworkPushJob) error {
-	template, base, devices, e := networkTemplateFactsTx(ctx, tx, j.ProjectID, j.Input, true)
+	return s.reviewNetworkPushFactsWithLock(ctx, tx, j, true)
+}
+func (s *Store) reviewNetworkPushFactsWithLock(ctx context.Context, tx *sql.Tx, j *NetworkPushJob, lock bool) error {
+	template, base, devices, e := networkTemplateFactsTx(ctx, tx, j.ProjectID, j.Input, lock)
 	if e != nil {
 		return e
 	}

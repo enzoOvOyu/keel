@@ -9,6 +9,7 @@ import (
 
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/fabricmon"
+	"github.com/enzoOvOyu/keel/internal/netbaseline"
 )
 
 func (s *Store) NetworkReadiness(ctx context.Context, a *AuthSession, p *ProjectSummary, trace string) (*NetworkReadiness, error) {
@@ -85,18 +86,19 @@ func (s *Store) networkReadinessTx(ctx context.Context, tx *sql.Tx, project stri
 			mergeNetworkGate(&np2, networkGate(device.Device.ID, "BLOCKED", "authenticated_ztp_manageability_required"))
 		}
 		var raw []byte
-		var state string
+		var state, executionState string
+		var facts []byte
 		var jobID string
-		e = tx.QueryRowContext(ctx, `SELECT d.state,coalesce(d.verify_evidence,'null'),j.id FROM network_push_devices d JOIN network_push_jobs j ON j.id=d.job_id WHERE j.project_id=$1 AND d.switch_id=$2 AND j.push_execution_id IS NOT NULL ORDER BY j.created_at DESC,j.id DESC LIMIT 1`, project, device.Device.ID).Scan(&state, &raw, &jobID)
+		e = tx.QueryRowContext(ctx, latestNetworkTemplateDevicesCTE+` SELECT device_state,coalesce(verify_evidence,'null'),job_id,execution_state,facts FROM latest WHERE switch_id=$2`, project, device.Device.ID).Scan(&state, &raw, &jobID, &executionState, &facts)
 		if errors.Is(e, sql.ErrNoRows) {
 			mergeNetworkGate(&np2, networkGate(device.Device.ID, "BLOCKED", "golden_readback_required"))
 		} else if e != nil {
 			return nil, e
 		} else {
-			var proof struct {
-				Source      string    `json:"evidence_source"`
-				ObservedAt  time.Time `json:"observed_at"`
-				RunningHash string    `json:"running_hash"`
+			var proof *netbaseline.OperationResult
+			var planned NetworkPlannedDevice
+			if e = json.Unmarshal(facts, &planned); e != nil {
+				return nil, e
 			}
 			if e = json.Unmarshal(raw, &proof); e != nil {
 				return nil, e
@@ -114,11 +116,18 @@ func (s *Store) networkReadinessTx(ctx context.Context, tx *sql.Tx, project stri
 					state = "STALE"
 				}
 			}
-			if state != "VERIFIED" || proof.Source != "device" || proof.RunningHash == "" || proof.ObservedAt.IsZero() || proof.ObservedAt.After(out.ReadinessAt) || out.ReadinessAt.Sub(proof.ObservedAt) > 5*time.Minute {
-				mergeNetworkGate(&np2, networkGate(device.Device.ID, "BLOCKED", "current_device_golden_readback_required"))
-			} else {
-				np2.EvidenceRefs = append(np2.EvidenceRefs, jobID)
+			golden := networkGoldenReadbackGate(project, planned, state, executionState, proof, out.ReadinessAt)
+			if planned.ID != device.Device.ID || planned.Serial != device.Device.Serial {
+				golden = networkGate(device.Device.ID, "BLOCKED", "current_golden_identity_changed")
 			}
+			if golden.State == "PASS" {
+				golden.EvidenceRefs = append(golden.EvidenceRefs, jobID)
+				expiry := proof.ObservedAt.Add(networkGoldenMaxAge)
+				if expiry.Before(out.ValidUntil) {
+					out.ValidUntil = expiry
+				}
+			}
+			mergeNetworkGate(&np2, golden)
 		}
 		if device.Lossless.Fabric.Unknown {
 			mergeNetworkGate(&np6, networkGate(device.Device.ID, "BLOCKED", "lossless_counter_or_intent_unknown"))
@@ -134,6 +143,9 @@ func (s *Store) networkReadinessTx(ctx context.Context, tx *sql.Tx, project stri
 	}
 	if out.EvidenceSource != "device" {
 		mergeNetworkGate(&np6, networkGate("source", "BLOCKED", "device_evidence_required"))
+	}
+	if seconds := int(out.ValidUntil.Sub(out.ReadinessAt) / time.Second); seconds < out.TTLSeconds {
+		out.TTLSeconds = seconds
 	}
 	out.Gates = []NetworkGate{np1, np2, np3, np4, np5, np6}
 	out.G2Admission = np1.State == "PASS" && np2.State == "PASS" && np4.State == "PASS"
