@@ -504,7 +504,7 @@ func (s *Service) Heartbeat(ctx context.Context, c *Claim) (bool, error) {
 	if e = tx.QueryRowContext(ctx, "SELECT desired_state FROM exec_executions WHERE id=$1", c.Attempt.ExecutionID).Scan(&desired); e != nil {
 		return false, e
 	}
-	return desired == "killed" || s.bmcHeartbeatTx(ctx, tx, c) || s.scriptHeartbeatTx(ctx, tx, c), tx.Commit()
+	return desired == "killed" || (c.Target.Precollect != nil && s.precollectFrozenTx(ctx, tx, c.Target) != nil) || s.bmcHeartbeatTx(ctx, tx, c) || s.scriptHeartbeatTx(ctx, tx, c), tx.Commit()
 }
 func (s *Service) RecordReceipt(ctx context.Context, r Receipt) error {
 	tx, e := s.DB.BeginTx(ctx, nil)
@@ -559,6 +559,9 @@ func (s *Service) recordReceiptTx(ctx context.Context, tx *sql.Tx, r Receipt) er
 		if _, err = provisionReceiptTarget(ctx, tx, attempt, r); err != nil {
 			return err
 		}
+	}
+	if e = s.precollectReceiptAllowedTx(ctx, tx, r); e != nil {
+		return e
 	}
 	if e = bmcReceiptAllowedTx(ctx, tx, r); e != nil {
 		return e

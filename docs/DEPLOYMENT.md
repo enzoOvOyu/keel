@@ -232,3 +232,7 @@ WP-1.5 的一次性注册、短期mTLS与连接心跳见 [AGENT-IDENTITY](AGENT-
 ## P1 源码与可选通知配置
 
 050/051/052 新增 Agent 续签、owner 主密钥维护和独立 Webhook 消费证据；2026-10-27用户明确要求先行发布后，运行已迁移至067（64条），版本与证据见HANDOFF §163。后续升级仍按备份恢复与权限演练流程部署，不能自动启用真实通道。可选 worker `KEEL_WEBHOOK_SINKS_FILE` 默认空，独立只读 `/run/keel/webhooks` 挂载默认无密钥；详见 [WEBHOOK-NOTIFICATIONS](WEBHOOK-NOTIFICATIONS.md)。主密钥维护与审计归档分别见 [CREDENTIAL-MASTER-ROTATION](CREDENTIAL-MASTER-ROTATION.md)、[AUDIT-EVIDENCE](AUDIT-EVIDENCE.md)，本批没有执行这些生产维护操作。运行版本与验证事实以 HANDOFF 最后记录为准。
+
+### P2预收集源码开关（2026-10-27，尚未发布）
+
+迁移080及预收集源代码尚未执行集中验证、隔离迁移/授权或部署。`KEEL_PRECOLLECT_ENABLED`（API/worker）与`KEEL_SSH_PRECOLLECT_ENABLED`（目标helper）默认false，不能只打开浏览器入口即宣称G1可用。还需匹配BOM/发布型号、SSH信任、BMC静态事实与版本化对象存储。详见[PRECOLLECT-G1](PRECOLLECT-G1.md)，保留当前3000与运行数据库不变。

@@ -27,6 +27,9 @@ type SSHCreateInput struct {
 }
 
 func (s *Service) sshTargetTx(ctx context.Context, tx *sql.Tx, project, machine string) (Target, error) {
+	return s.sshTargetForPrecollectTx(ctx, tx, project, machine, false)
+}
+func (s *Service) sshTargetForPrecollectTx(ctx context.Context, tx *sql.Tx, project, machine string, precollect bool) (Target, error) {
 	if s.SSHRunner == nil {
 		return Target{}, failure(503, "SSH_DISABLED", "SSH runner is not configured")
 	}
@@ -43,7 +46,7 @@ func (s *Service) sshTargetTx(ctx context.Context, tx *sql.Tx, project, machine 
 	if e != nil {
 		return t, e
 	}
-	if state != "provisioned" || trust != "established" || source != "ssh" || pin != b.HostKey {
+	if !(state == "provisioned" || precollect && platform.PrecollectAssetState(state)) || trust != "established" || source != "ssh" || pin != b.HostKey {
 		return t, failure(409, "SSH_TRUST_REQUIRED", "Provisioned target with established matching host key is required")
 	}
 	if e = platform.EnforceSSHDomainBinding(ctx, tx, s.SSHRunner, project, machine); e != nil {
@@ -53,6 +56,9 @@ func (s *Service) sshTargetTx(ctx context.Context, tx *sql.Tx, project, machine 
 }
 
 func (s *Service) sshFrozenTx(ctx context.Context, tx *sql.Tx, t Target) error {
+	if t.Precollect != nil {
+		return s.precollectFrozenTx(ctx, tx, t)
+	}
 	if t.SSHTrustRequestID != "" {
 		return s.sshTrustFrozenTx(ctx, tx, t)
 	}
@@ -357,6 +363,12 @@ func (s *Service) recordSSH(ctx context.Context, o taskrunner.Observation) error
 }
 
 func (s *Service) recordHost(ctx context.Context, mode string, o taskrunner.Observation) error {
+	if o.Command.Operation == "host.precollect" {
+		if mode != "ssh" {
+			return taskrunner.ErrRejected
+		}
+		return s.recordPrecollectObservation(ctx, o)
+	}
 	if !o.Terminal() {
 		return taskrunner.ErrUnknown
 	}
@@ -424,8 +436,11 @@ func (s *Service) runHostClaim(ctx context.Context, c *Claim, mode string) error
 			e = taskrunner.ErrRejected
 		}
 	}
-	if e == nil && (c.Task.Script != nil || c.Task.Artifact != nil) {
+	if e == nil && (c.Task.Script != nil || c.Task.Artifact != nil || c.Task.Type == "host.precollect") {
 		kind := "script.dispatch_committed"
+		if c.Task.Type == "host.precollect" {
+			kind = "precollect.dispatch_committed"
+		}
 		if c.Task.Artifact != nil {
 			kind = "artifact.dispatch_committed"
 		}
@@ -448,7 +463,7 @@ func (s *Service) runHostClaim(ctx context.Context, c *Claim, mode string) error
 		work, stop = context.WithDeadline(work, *c.Target.SSHTrustExpiresAt)
 		defer stop()
 	}
-	if c.Task.Artifact != nil {
+	if c.Task.Artifact != nil || c.Task.Type == "host.precollect" {
 		var deadlineCancel context.CancelFunc
 		work, deadlineCancel = context.WithDeadline(work, time.UnixMicro(command.AuthorizationExpiresAt))
 		defer deadlineCancel()
@@ -522,7 +537,11 @@ func (s *Service) runHostClaim(ctx context.Context, c *Claim, mode string) error
 	if e != nil || !o.Terminal() {
 		return taskrunner.ErrUnknown
 	}
-	finish, done := context.WithTimeout(context.Background(), 5*time.Second)
+	finishBudget := 5 * time.Second
+	if command.Operation == "host.precollect" {
+		finishBudget = 15 * time.Second
+	}
+	finish, done := context.WithTimeout(context.Background(), finishBudget)
 	defer done()
 	if o.Validate(command) != nil {
 		return taskrunner.ErrRejected
@@ -594,7 +613,12 @@ func (s *Service) FetchSSHReceipt(ctx context.Context, a *Actor, project, id, at
 			target = t
 		}
 	}
-	if e = s.sshFrozenTx(ctx, tx, target); e != nil {
+	if target.Precollect != nil {
+		e = s.precollectRecoveryBindingTx(ctx, tx, target)
+	} else {
+		e = s.sshFrozenTx(ctx, tx, target)
+	}
+	if e != nil {
 		return nil, e
 	}
 	task, e := taskByID(x.Snapshot.Flow.Definition, attempt.TaskID)
@@ -603,6 +627,12 @@ func (s *Service) FetchSSHReceipt(ctx context.Context, a *Actor, project, id, at
 	}
 	c := &Claim{Attempt: attempt, Target: target, Task: task, Parameters: x.Parameters}
 	command := sshCommand(c)
+	if task.Type == "host.precollect" {
+		command, e = originalDispatchCommandTx(ctx, tx, c, "precollect.dispatch_committed")
+		if e != nil {
+			return nil, e
+		}
+	}
 	if task.Artifact != nil {
 		command, e = originalDispatchCommandTx(ctx, tx, c, "artifact.dispatch_committed")
 		if e != nil {

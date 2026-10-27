@@ -58,6 +58,7 @@ func main() {
 		defer store.Close()
 		store.AgentTasksEnabled = os.Getenv("KEEL_AGENT_TASKS_ENABLED") == "true"
 		store.FabricIssueVerificationEnabled = os.Getenv("KEEL_FABRIC_ISSUE_VERIFY_ENABLED") == "true"
+		store.PrecollectEnabled = os.Getenv("KEEL_PRECOLLECT_ENABLED") == "true"
 		store.BMCInventoryEnabled = os.Getenv("KEEL_BMC_INVENTORY_ENABLED") == "true"
 		if err := store.ConfigureBMCInventory(os.Getenv("KEEL_BMC_INVENTORY_FILE"), os.Getenv("KEEL_DEVICE_CREDENTIAL_MASTER_KEY_FILE")); err != nil {
 			slog.Error("BMC inventory configuration rejected")
@@ -111,8 +112,8 @@ func main() {
 		if objects != nil {
 			store.MediaObjects = objects
 		}
-		if store.ProvisionInstallEnabled && store.MediaObjects == nil {
-			slog.Error("provision installation requires configured media storage")
+		if (store.PrecollectEnabled || store.ProvisionInstallEnabled) && store.MediaObjects == nil {
+			slog.Error("precollection or provision installation requires configured media storage")
 			os.Exit(1)
 		}
 		store.MediaManifestSigner, err = mediamanifest.LoadSigner(os.Getenv("KEEL_MEDIA_SIGNING_KEY_FILE"))

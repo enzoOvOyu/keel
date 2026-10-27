@@ -257,3 +257,7 @@ keel.host/v1进一步允许script.run/media.stage/media.fetch。发布源码只�
 新增批准前拒绝/关闭拒绝/独立批准后冻结、原版本不被改写、完整取回捕获后才放行依赖、脚本失联不重放/不放行依赖和资源锁用例源码，未执行。仅gofmt/API类型生成，仍无数据库或部署。
 
 通用主机Flow熔断默认由`exec.circuit_breaker_threshold`项目/全局目录提供，未配置5%；输入省略或0使用默认，明确1～100覆盖。退役或非法目录不能以覆盖输入绕过。目录事实与最终阈值冻结，原幂等请求不受后来目录修改影响；页面留空采用此默认。源码/用例未验证，见HANDOFF§147。
+
+## P2只读预收集（源码，未部署/未验证）
+
+新增专用`host.precollect`及原命令8192字节分块`read`。API/worker与目标helper分别通过`KEEL_PRECOLLECT_ENABLED`和`KEEL_SSH_PRECOLLECT_ENABLED`显式启用，均默认关闭；普通SSH/Host Flow不开放此任务。协议、原始证据/unknown恢复和PoC限制见[PRECOLLECT-G1](PRECOLLECT-G1.md)。本轮没有重建或部署目标helper。

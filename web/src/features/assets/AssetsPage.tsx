@@ -13,7 +13,7 @@ import { SSHDomainKeys } from './SSHDomainKeys'
 import { SSHExecutions } from './SSHExecutions'
 import { SSHScripts } from './SSHScripts'
 import { AgentExecutions } from './AgentExecutions'
-import { Fragment, useEffect, useState, type FormEvent } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ProjectWorkspace, canManageProject, useProject } from '../../components/ProjectWorkspace'
@@ -21,6 +21,8 @@ import { ActionDialog, ActionError, Pagination, PermissionDenied, SuccessNotice 
 import { useAction } from '../../lib/management'
 import { commitBomPackage, commitLegacyBom, listProjectAssets, previewBomPackage, previewLegacyBom, runTrustAction, type BomPackageIssue, type BomPackagePreview, type BomPackageSelection, type LegacyBomPreview, type ProjectAsset } from '../../lib/bom'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
+
+const PrecollectDialog = lazy(() => import('./PrecollectDialog'))
 
 function BomImportDialog({ projectId, onClose, onDone }: { projectId: string; onClose: () => void; onDone: (message: string) => Promise<void> }) {
   const { t } = useTranslation(), session = useSession(), action = useAction()
@@ -126,6 +128,7 @@ function AssetsContent() {
   const [provisionTarget, setProvisionTarget] = useState<ProjectAsset | null>(null)
   const [modelTarget, setModelTarget] = useState<ProjectAsset | null>(null)
   const [bmcTarget,setBMCTarget] = useState<ProjectAsset|null>(null)
+  const [precollectTarget, setPrecollectTarget] = useState<ProjectAsset | null>(null)
   const manage = canManageProject(project, session.user.is_admin) && session.permissions.includes('model:manage')
   const assets = useQuery({ queryKey: ['private', session.user.id, 'project', project.id, 'assets', page], queryFn: ({ signal }) => listProjectAssets(project.id, page, signal), enabled: allowed })
   useExpireOnUnauthorized(assets.error)
@@ -143,7 +146,7 @@ function AssetsContent() {
       <ActionError error={assets.error} />
       {assets.isPending ? <p className="table-loading" role="status">{t('loadingRecords')}</p> : assets.data && <>
         <div className="table-scroll" tabIndex={0} role="region" aria-label={t('bomTitle')}><Table scrollContainer={false} className="data-table"><TableHeader><TableRow>{manage && <TableHead className="ui:h-auto ui:p-4 ui:align-top ui:text-muted-foreground" scope="col"><NativeCheckbox aria-label={t('trustSelectAll')} checked={!!(assets.data.items ?? []).length && selected.size === (assets.data.items ?? []).length} onChange={(event) => setSelected(event.target.checked ? new Set((assets.data.items ?? []).map((a) => a.machine_id)) : new Set())} /></TableHead>}<TableHead className="ui:h-auto ui:p-4 ui:align-top ui:text-muted-foreground" scope="col">{t('bomHostname')}</TableHead><TableHead className="ui:h-auto ui:p-4 ui:align-top ui:text-muted-foreground" scope="col">{t('bomSerial')}</TableHead><TableHead className="ui:h-auto ui:p-4 ui:align-top ui:text-muted-foreground" scope="col">{t('bomModel')}</TableHead><TableHead className="ui:h-auto ui:p-4 ui:align-top ui:text-muted-foreground" scope="col">{t('bomRack')}</TableHead><TableHead className="ui:h-auto ui:p-4 ui:align-top ui:text-muted-foreground" scope="col">{t('bomIpRef')}</TableHead><TableHead className="ui:h-auto ui:p-4 ui:align-top ui:text-muted-foreground" scope="col">{t('bomState')}</TableHead><TableHead className="ui:h-auto ui:p-4 ui:align-top ui:text-muted-foreground" scope="col">{t('trustTitle')}</TableHead></TableRow></TableHeader>
-          <TableBody>{(assets.data.items ?? []).map((asset) => <TableRow key={asset.id}>{manage && <TableCell className="ui:p-4 ui:align-top ui:whitespace-normal"><NativeCheckbox aria-label={asset.hostname} checked={selected.has(asset.machine_id)} onChange={(event) => { const next = new Set(selected); if (event.target.checked) next.add(asset.machine_id); else next.delete(asset.machine_id); setSelected(next) }} /></TableCell>}<TableCell className="ui:p-4 ui:align-top ui:whitespace-normal"><strong>{asset.hostname}</strong><Button type="button" variant="ghost" size="sm" onClick={()=>setBMCTarget(asset)}>{t('bmcTitle')}</Button><span className="cell-subtitle">v{asset.version}</span></TableCell>
+          <TableBody>{(assets.data.items ?? []).map((asset) => <TableRow key={asset.id}>{manage && <TableCell className="ui:p-4 ui:align-top ui:whitespace-normal"><NativeCheckbox aria-label={asset.hostname} checked={selected.has(asset.machine_id)} onChange={(event) => { const next = new Set(selected); if (event.target.checked) next.add(asset.machine_id); else next.delete(asset.machine_id); setSelected(next) }} /></TableCell>}<TableCell className="ui:p-4 ui:align-top ui:whitespace-normal"><strong>{asset.hostname}</strong><Button type="button" variant="ghost" size="sm" onClick={()=>setBMCTarget(asset)}>{t('bmcTitle')}</Button><Button type="button" variant="ghost" size="sm" onClick={() => setPrecollectTarget(asset)}>{t('precollectTitle')}</Button><span className="cell-subtitle">v{asset.version}</span></TableCell>
             <TableCell className="mono-value ui:p-4 ui:align-top ui:whitespace-normal">{asset.serial_number}</TableCell><TableCell className="ui:p-4 ui:align-top ui:whitespace-normal">{asset.model_name || '—'}{asset.model_version_id && asset.model_version > 0 ? <><span className="cell-subtitle">{t('assetModelVersion')} v{asset.model_version}</span><Button type="button" variant="ghost" size="sm" onClick={() => setModelTarget(asset)}>{t('assetModelBinding')}</Button></> : <span className="cell-subtitle">{t('assetModelUnbound')}</span>}</TableCell><TableCell className="ui:p-4 ui:align-top ui:whitespace-normal">{asset.rack}{asset.unit_position ? ` / ${asset.unit_position}` : ''}</TableCell><TableCell className="mono-value ui:p-4 ui:align-top ui:whitespace-normal">{asset.ip_reference || '—'}</TableCell>
             <TableCell className="ui:p-4 ui:align-top ui:whitespace-normal"><span className={`status-label ${asset.state === 'provisioned' ? 'enabled' : asset.state === 'failed' ? 'disabled' : ''}`}>{t('bom_state_' + asset.state)}</span>{(session.user.is_admin || ['Admin','DE','DL','SRE'].includes(project.role)) && <Button type="button" variant="ghost" size="sm" onClick={() => setProvisionTarget(asset)}>{t('provisionPreviewTitle')}</Button>}</TableCell>
             <TableCell className="ui:p-4 ui:align-top ui:whitespace-normal"><span className={`status-label ${asset.ssh_trust === 'established' ? 'enabled' : asset.ssh_trust === 'revoked' ? 'disabled' : ''}`}>{t('trust_state_' + asset.ssh_trust)}</span><span className="cell-subtitle">{t('sshTrustSource_' + asset.ssh_trust_source)}</span>{asset.ssh_trust === 'established' && asset.ssh_trust_source !== 'ssh' && <span className="cell-subtitle">{t('sshTrustNeedsRealVerification')}</span>}</TableCell></TableRow>)}</TableBody></Table>
@@ -157,6 +160,7 @@ function AssetsContent() {
     <AgentExecutions />
     <SSHDomainKeys />
     {provisionTarget && <ProvisionPreviewDialog key={`${project.id}:${provisionTarget.id}`} projectId={project.id} asset={provisionTarget} onClose={() => setProvisionTarget(null)} />}
+    {precollectTarget && <Suspense fallback={<p role="status">{t('loadingRecords')}</p>}><PrecollectDialog key={`${project.id}:${precollectTarget.id}`} asset={precollectTarget} onClose={() => setPrecollectTarget(null)} /></Suspense>}
     {bmcTarget && <BMCInventoryDialog key={`${project.id}:${bmcTarget.id}`} asset={bmcTarget} onClose={()=>setBMCTarget(null)} />}
     {modelTarget && <AssetModelDialog key={`${project.id}:${modelTarget.id}`} projectId={project.id} asset={modelTarget} onClose={() => setModelTarget(null)} />}
     {packageImporting && <BomPackageDialog projectId={project.id} onClose={() => setPackageImporting(false)} onDone={(message) => done(message)} />}

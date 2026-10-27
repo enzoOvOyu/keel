@@ -58,6 +58,7 @@ func main() {
 		fail("fabric probe configuration rejected")
 	}
 	store.FabricIssueVerificationEnabled = os.Getenv("KEEL_FABRIC_ISSUE_VERIFY_ENABLED") == "true"
+	store.PrecollectEnabled = os.Getenv("KEEL_PRECOLLECT_ENABLED") == "true"
 	store.BMCInventoryEnabled = os.Getenv("KEEL_BMC_INVENTORY_ENABLED") == "true"
 	if err := store.ConfigureBMCInventory(os.Getenv("KEEL_BMC_INVENTORY_FILE"), os.Getenv("KEEL_DEVICE_CREDENTIAL_MASTER_KEY_FILE")); err != nil {
 		slog.Error("BMC inventory configuration rejected")
@@ -68,7 +69,7 @@ func main() {
 	if e = store.ConfigureProvisionInstall(os.Getenv("KEEL_PROVISION_INSTALL_ENABLED") == "true", os.Getenv("KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE")); e != nil {
 		fail("provision installer public trust configuration rejected")
 	}
-	if store.BMCInventoryEnabled || store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled || store.SSHScriptsEnabled || store.AgentScriptsEnabled || store.ArtifactTransfersEnabled {
+	if store.PrecollectEnabled || store.BMCInventoryEnabled || store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled || store.SSHScriptsEnabled || store.AgentScriptsEnabled || store.ArtifactTransfersEnabled {
 		store.MediaObjects, e = mediaartifact.Load()
 		if e != nil || store.MediaObjects == nil {
 			fail("Provision preparation requires configured media storage")
@@ -170,6 +171,8 @@ func main() {
 	var active atomic.Int64
 	lastBeat := time.Time{}
 	lastBMCPolicyTick := time.Time{}
+	lastPrecollectTick := time.Time{}
+	precollectOK := true
 	bmcPolicyOK := true
 	queueMode := "postgresql-only"
 	if service.Queue != nil {
@@ -214,7 +217,17 @@ loop:
 					slog.Error("BMC policy admission scan failed")
 				}
 			}
-			cycleOK := queueOK && bmcPolicyOK
+			if store.PrecollectEnabled && time.Since(lastPrecollectTick) >= 5*time.Second {
+				lastPrecollectTick = time.Now()
+				gateCtx, gateCancel := context.WithTimeout(ctx, 3*time.Second)
+				_, gateErr := store.ReconcilePrecollect(gateCtx, 10)
+				gateCancel()
+				precollectOK = gateErr == nil
+				if !precollectOK {
+					slog.Error("precollection evidence finalization failed")
+				}
+			}
+			cycleOK := queueOK && bmcPolicyOK && precollectOK
 			for int(active.Load()) < concurrency {
 				claim, err := service.Claim(ctx, id, lease)
 				if err != nil {

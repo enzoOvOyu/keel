@@ -223,7 +223,16 @@
         "F-4.19",
         "H-13"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "WP-2.3 now has source for domain-owned read-only host.precollect on existing SSH Executions, independent published-model/BOM/physical-port scope, bounded raw chunk recovery and versioned retained evidence, original stopped-receipt settlement, separate immutable G1 evaluation/current validity, and a lazy asset UI. Migration080 and authored parser/protocol/admission/isolated-PG cases are NOT_RUN and not deployed. Sim/missing/stale/DOM-unknown cannot pass; no LLDP, confirmed PortModel, MappingRevision, G2/G3 or waiver ledger is claimed. WP-2.4/2.5/2.8/2.12 and remaining FR-4 scope are pending. See HANDOFF section184 and PRECOLLECT-G1.md.",
+      "evidence_refs": [
+        "docs/PRECOLLECT-G1.md",
+        "internal/precollect/gate.go",
+        "internal/precollect/gate_test.go",
+        "internal/taskrunner/precollect_test.go",
+        "internal/execution/precollect_test.go",
+        "docs/HANDOFF.md#184"
+      ]
     },
     {
       "id": "FR-5",

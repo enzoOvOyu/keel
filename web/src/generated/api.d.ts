@@ -3675,10 +3675,282 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/assets/{assetId}/precollect/scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["previewPrecollect"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/precollect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listPrecollect"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/precollect/{precollectId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPrecollect"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/precollect/{precollectId}/raw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["downloadPrecollectRaw"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/gates/G1": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCurrentG1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/validation/precollect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createPrecollect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        PrecollectExpectedPort: {
+            physical_port_id: string;
+            component_id: string;
+            permanent_mac: string;
+            port_index: string;
+        };
+        PrecollectExpectation: {
+            serial: string;
+            arch: string;
+            gpu_count: number | null;
+            nic_count: number | null;
+            ports: components["schemas"]["PrecollectExpectedPort"][];
+        };
+        PrecollectBMCProof: {
+            id: string;
+            content_hash: string;
+            /** @enum {string} */
+            origin: "sim" | "real";
+            binding_hash: string;
+            /** Format: date-time */
+            collected_at: string;
+            address: string;
+        };
+        PrecollectComponent: {
+            id: string;
+            category: string;
+            serial: string;
+            slot: string;
+            model_version_id: string;
+        };
+        PrecollectScope: {
+            project_id: string;
+            asset_id: string;
+            machine_id: string;
+            asset_version: number;
+            model_version_id: string;
+            model_content_hash: string;
+            bom_package_id: string;
+            rule_version: string;
+            catalog_fingerprint: string;
+            gate_ttl_seconds: number;
+            asset_ttl_seconds: number;
+            bmc: components["schemas"]["PrecollectBMCProof"] | null;
+            expectation: components["schemas"]["PrecollectExpectation"];
+            components: components["schemas"]["PrecollectComponent"][];
+            scope_hash: string;
+            ready: boolean;
+            code: string;
+            ssh_host_key: string;
+            ssh_binding_hash: string;
+        };
+        PrecollectCreateInput: {
+            targets: {
+                asset_id: string;
+                expected_scope_hash: string;
+            }[];
+            reason: string;
+        };
+        PrecollectFinding: {
+            code: string;
+            field: string;
+            target: string;
+            /** @enum {string} */
+            verdict: "FAIL" | "BLOCKED";
+        };
+        PrecollectPortObservation: {
+            physical_port_id: string;
+            component_id: string;
+            permanent_mac: string;
+            interface: string;
+            bdf: string;
+        };
+        PrecollectEvaluation: {
+            rule_version: string;
+            /** @enum {string} */
+            verdict: "PASS" | "FAIL" | "BLOCKED";
+            required: number;
+            present: number;
+            completeness_percent: number;
+            findings: components["schemas"]["PrecollectFinding"][];
+            ports: components["schemas"]["PrecollectPortObservation"][];
+        };
+        ValidationGateEvidence: {
+            id: string;
+            /** @enum {string} */
+            gate: "G1";
+            precollect_id: string;
+            scope_hash: string;
+            revision_fingerprint: string;
+            /** @enum {string} */
+            verdict: "PASS" | "FAIL" | "BLOCKED" | "WAIVED";
+            /** @enum {string} */
+            validity: "fresh" | "stale" | "invalidated";
+            invalidation_reason: string;
+            rule_version: string;
+            /** Format: date-time */
+            observed_at: string;
+            /** Format: date-time */
+            valid_until: string;
+            evaluation: components["schemas"]["PrecollectEvaluation"];
+        };
+        PrecollectGPU: {
+            uuid: string;
+            bdf: string;
+            memory_mib: number | null;
+            driver_version: string;
+            uncorrected_ecc: number | null;
+            present: boolean;
+        };
+        PrecollectNIC: {
+            name: string;
+            bdf: string;
+            pf_bdf: string;
+            virtual_function: boolean;
+            permanent_mac: string;
+            link: string;
+            speed_mbps: number | null;
+            driver: string;
+            firmware: string;
+            rdma_links: string[] | null;
+            dom_state: string;
+            module_present: boolean | null;
+            temperature_c: number | null;
+            rx_power_dbm: number | null;
+            tx_power_dbm: number | null;
+        };
+        PrecollectReport: {
+            config_unchanged: boolean;
+            version: string;
+            /** @enum {string} */
+            origin: "sim" | "real";
+            serial: string;
+            arch: string;
+            os_release: string;
+            /** Format: date-time */
+            collected_at: string;
+            gpus: components["schemas"]["PrecollectGPU"][];
+            nics: components["schemas"]["PrecollectNIC"][];
+            rdma_devices: string[] | null;
+            nvlink_status: string;
+            pci_topology: string;
+            gpu_topology: string;
+            missing: string[] | null;
+        };
+        CurrentG1: {
+            /** @enum {string} */
+            gate: "G1";
+            evidence: components["schemas"]["ValidationGateEvidence"] | null;
+            /** @enum {string} */
+            effective_verdict: "PASS" | "FAIL" | "BLOCKED" | "WAIVED";
+            reason: string;
+        };
+        PrecollectRecord: {
+            id: string;
+            project_id: string;
+            asset_id: string;
+            machine_id: string;
+            execution_id: string;
+            execution_state: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            origin: "" | "sim" | "real";
+            collected_at: string | null;
+            raw_sha256: string;
+            raw_size: number;
+            scope?: components["schemas"]["PrecollectScope"];
+            report?: components["schemas"]["PrecollectReport"];
+            gate?: components["schemas"]["ValidationGateEvidence"];
+        };
+        PrecollectPage: {
+            items: components["schemas"]["PrecollectRecord"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
         FabricDiagnosticRecord: {
             id: string;
             content_hash: string;
@@ -16932,6 +17204,188 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    previewPrecollect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Source-backed precollection; no automatic topology or mapping publication. Historical verdict and current validity are separate. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrecollectScope"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listPrecollect: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Source-backed precollection; no automatic topology or mapping publication. Historical verdict and current validity are separate. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrecollectPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getPrecollect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+                precollectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Source-backed precollection; no automatic topology or mapping publication. Historical verdict and current validity are separate. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrecollectRecord"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    downloadPrecollectRaw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+                precollectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Source-backed precollection; no automatic topology or mapping publication. Historical verdict and current validity are separate. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getCurrentG1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Source-backed precollection; no automatic topology or mapping publication. Historical verdict and current validity are separate. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentG1"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    createPrecollect: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrecollectCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Source-backed precollection; no automatic topology or mapping publication. Historical verdict and current validity are separate. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
 }

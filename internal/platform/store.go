@@ -30,6 +30,7 @@ type MediaObjectStore interface {
 }
 
 type Store struct {
+	PrecollectEnabled              bool
 	BMCInventoryEnabled            bool
 	BMCInventory                   *bmc.Suite
 	FabricIssueVerificationEnabled bool
