@@ -323,6 +323,11 @@ func TestSSHKeyInstallBrowserApprovalAndExecution(t *testing.T) {
 	cmd.Env = append(os.Environ(), "KEEL_SSH_INSTALL_BROWSER_CREDENTIALS_FILE="+file)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		select {
+		case workerErr := <-fail:
+			t.Fatalf("key install worker failed: %#v; browser: %v\n%s", workerErr, err, output)
+		default:
+		}
 		t.Fatalf("key install browser: %v\n%s", err, output)
 	}
 	select {
