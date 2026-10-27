@@ -219,7 +219,7 @@ func (s *Store) ReadWiringCapture(ctx context.Context, binding wiring.ReadbackBi
 		return nil, nil, e
 	}
 	var retained wiring.Result
-	if json.Unmarshal(evaluationRaw, &retained) != nil || string(networkJSON(retained)) != string(networkJSON(evaluation)) || !out.StoppedAt.Equal(archive.Capture.AdvertisingStoppedAt) || (out.CollectedAt == nil) != archive.Capture.CollectedAt.IsZero() || out.CollectedAt != nil && !out.CollectedAt.Equal(archive.Capture.CollectedAt) {
+	if json.Unmarshal(evaluationRaw, &retained) != nil || string(networkJSON(retained)) != string(networkJSON(evaluation)) || !wiringStoredTimeEqual(out.StoppedAt, archive.Capture.AdvertisingStoppedAt) || (out.CollectedAt == nil) != archive.Capture.CollectedAt.IsZero() || out.CollectedAt != nil && !wiringStoredTimeEqual(*out.CollectedAt, archive.Capture.CollectedAt) {
 		return nil, nil, wiring.ErrCaptureRejected
 	}
 	tx, e = s.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})

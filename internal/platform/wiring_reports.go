@@ -16,10 +16,10 @@ func (s *Store) ApplyWiringCaptureTx(ctx context.Context, tx *sql.Tx, attempt, c
 		return apiError(409, "WIRING_DISABLED", "Wiring report consumer disabled")
 	}
 	var c WiringCommand
-	var commandRaw, evaluationRaw []byte
+	var commandRaw, evaluationRaw, portRaw []byte
 	var sha, owner string
 	var stopped time.Time
-	e := tx.QueryRowContext(ctx, `SELECT c.command,p.raw_sha256,p.evaluation,x.created_by,p.stopped_at FROM validation_wiring_commands c JOIN validation_wiring_capture_records p ON p.command_id=c.command_id JOIN exec_executions x ON x.id=c.execution_id WHERE c.attempt_id=$1 AND c.command_id=$2 AND c.fencing_token=$3`, attempt, command, fence).Scan(&commandRaw, &sha, &evaluationRaw, &owner, &stopped)
+	e := tx.QueryRowContext(ctx, `SELECT c.command,p.raw_sha256,p.evaluation,x.created_by,p.stopped_at,p.port_evaluations FROM validation_wiring_commands c JOIN validation_wiring_capture_records p ON p.command_id=c.command_id JOIN exec_executions x ON x.id=c.execution_id WHERE c.attempt_id=$1 AND c.command_id=$2 AND c.fencing_token=$3`, attempt, command, fence).Scan(&commandRaw, &sha, &evaluationRaw, &owner, &stopped, &portRaw)
 	if e != nil {
 		return e
 	}
@@ -44,6 +44,13 @@ func (s *Store) ApplyWiringCaptureTx(ctx context.Context, tx *sql.Tx, attempt, c
 	}
 	if topologyDeadline.Before(until) {
 		until = topologyDeadline
+	}
+	var ports map[string]wiring.Result
+	if e = json.Unmarshal(portRaw, &ports); e != nil {
+		return e
+	}
+	if _, e = recordWiringCoverageTx(ctx, tx, &c, ports, sha, owner, stopped, until); e != nil {
+		return e
 	}
 	parent := c.ParentID
 	for step := 2; step <= 3; step++ {

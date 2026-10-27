@@ -202,7 +202,7 @@ func verifyWiringHostBindingTx(ctx context.Context, tx *sql.Tx, binding wiring.R
 	if e != nil {
 		return e
 	}
-	if original != hostHash || !stopped.Equal(archive.Capture.AdvertisingStoppedAt) {
+	if original != hostHash || !wiringStoredTimeEqual(stopped, archive.Capture.AdvertisingStoppedAt) {
 		return wiring.ErrCaptureRejected
 	}
 	return nil
@@ -246,7 +246,7 @@ func (s *Store) ReadWiringHostStopped(ctx context.Context, binding wiring.Readba
 		return nil, e
 	}
 	reconstructed, e := wiring.HostEvidenceHash(archive)
-	if e != nil || reconstructed != hostHash.String || !stopped.Time.Equal(archive.Capture.AdvertisingStoppedAt) {
+	if e != nil || reconstructed != hostHash.String || !wiringStoredTimeEqual(stopped.Time, archive.Capture.AdvertisingStoppedAt) {
 		return nil, wiring.ErrCaptureRejected
 	}
 	return archive, nil
