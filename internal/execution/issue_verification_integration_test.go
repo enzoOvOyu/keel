@@ -230,6 +230,13 @@ func TestIssueVerificationExecutionEvidenceAndClosurePostgres(t *testing.T) {
 	}
 	detail, e := f.store.GetIssue(ctx, f.engineer, f.issue)
 	mustAgent(t, e)
+	project, e := f.store.GetProject(ctx, f.root, f.project)
+	mustAgent(t, e)
+	links, e := f.store.NetworkCables(ctx, f.root, project, 1, 20, "test")
+	mustAgent(t, e)
+	if len(links.Items) != 1 || links.Items[0].EvidenceScope != "targeted_link" || links.Items[0].Gate.State != "PASS" || links.Items[0].NP3 != "BLOCKED" || links.Items[0].ExecutionID != claim.Attempt.ExecutionID {
+		t.Fatalf("narrow link proof not available to network consumer: %+v", links)
+	}
 	closed, e := f.store.ActOnIssue(ctx, f.engineer, f.issue, "close", platform.IssueActionInput{Version: detail.Issue.Version, Reason: "Confirm scoped fixture verification"}, "test")
 	mustAgent(t, e)
 	if closed.State != "closed" || closed.Source != "fabric" || closed.Evidence.Actual != "Protocol fixture link down" {
@@ -339,5 +346,28 @@ func TestIssueVerificationLocalUndispatchedRecoveryPostgres(t *testing.T) {
 	// The original worker must not POST after the explicit no-dispatch proof.
 	if f.service.RunClaim(ctx, claim) == nil || f.posts.Load() != 0 {
 		t.Fatal("late worker dispatched an already reconciled command")
+	}
+}
+
+func TestNetworkReadinessSeparatesModelingFromFreshDeviceEvidencePostgres(t *testing.T) {
+	f := issueVerificationKernel(t)
+	ctx := context.Background()
+	project, e := f.store.GetProject(ctx, f.root, f.project)
+	mustAgent(t, e)
+	readiness, e := f.store.NetworkReadiness(ctx, f.root, project, "test")
+	mustAgent(t, e)
+	gates := map[string]string{}
+	for _, gate := range readiness.Gates {
+		gates[gate.ID] = gate.State
+	}
+	if gates["NP-1"] != "PASS" || gates["NP-2"] != "BLOCKED" || gates["NP-3"] != "BLOCKED" || gates["NP-4"] != "BLOCKED" || readiness.G2Admission {
+		t.Fatalf("modeling was confused with device or G2 proof: %+v", readiness.Gates)
+	}
+	_, e = f.store.UpsertParamKey(ctx, f.root, project, platform.UpsertParamKeyInput{Key: "gate.readiness_ttl", ValueType: "enum", Options: []string{"10", "30"}, DefaultValue: "10"}, "test")
+	mustAgent(t, e)
+	readiness, e = f.store.NetworkReadiness(ctx, f.root, project, "test")
+	mustAgent(t, e)
+	if readiness.TTLSeconds != 10 || readiness.ValidUntil.After(readiness.ReadinessAt.Add(10*time.Second)) {
+		t.Fatal("catalog readiness TTL was ignored")
 	}
 }

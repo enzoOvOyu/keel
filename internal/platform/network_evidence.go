@@ -24,17 +24,21 @@ type NetworkLLDPEvidence struct {
 	SampleRef      string              `json:"sample_ref"`
 }
 type NetworkCableEvidence struct {
-	CableID        string      `json:"cable_id"`
-	EndpointA      string      `json:"endpoint_a_uid"`
-	EndpointB      string      `json:"endpoint_b_uid"`
-	Gate           NetworkGate `json:"gate"`
-	RuleRef        string      `json:"rule_ref"`
-	Source         string      `json:"source"`
-	EvidenceSource string      `json:"evidence_source"`
-	Stage          string      `json:"stage"`
-	NP3            string      `json:"np3"`
-	CollectedAt    *time.Time  `json:"collected_at"`
-	ValidUntil     time.Time   `json:"valid_until"`
+	EvidenceScope         string      `json:"evidence_scope"`
+	VerificationRequestID string      `json:"verification_request_id,omitempty"`
+	ExecutionID           string      `json:"execution_id,omitempty"`
+	IssueID               string      `json:"issue_id,omitempty"`
+	CableID               string      `json:"cable_id"`
+	EndpointA             string      `json:"endpoint_a_uid"`
+	EndpointB             string      `json:"endpoint_b_uid"`
+	Gate                  NetworkGate `json:"gate"`
+	RuleRef               string      `json:"rule_ref"`
+	Source                string      `json:"source"`
+	EvidenceSource        string      `json:"evidence_source"`
+	Stage                 string      `json:"stage"`
+	NP3                   string      `json:"np3"`
+	CollectedAt           *time.Time  `json:"collected_at"`
+	ValidUntil            time.Time   `json:"valid_until"`
 }
 type NetworkCablePage struct {
 	Version   string                 `json:"version"`
@@ -144,7 +148,7 @@ func (s *Store) NetworkCables(ctx context.Context, a *AuthSession, p *ProjectSum
 	if e != nil {
 		return nil, e
 	}
-	out := &NetworkCablePage{Version: "network-cables/v1", ProjectID: p.ID, PackageID: pkg, Page: page, PageSize: size, Total: len(cables), Gate: networkGate("cables", "BLOCKED", "current_cable_evidence_required"), Items: []NetworkCableEvidence{}}
+	out := &NetworkCablePage{Version: "network-cables/v1", ProjectID: p.ID, PackageID: pkg, Page: page, PageSize: size, Total: len(cables), Gate: networkGate("cables", "PASS", ""), Items: []NetworkCableEvidence{}}
 	findings := map[string]fabricmon.Finding{}
 	if report != nil && !report.Stale {
 		for _, f := range report.Findings {
@@ -152,8 +156,12 @@ func (s *Store) NetworkCables(ctx context.Context, a *AuthSession, p *ProjectSum
 		}
 		out.Gate = networkGate("cables", "PASS", "")
 	}
+	scoped, e := s.currentScopedLinkEvidenceTx(ctx, tx, p.ID)
+	if e != nil {
+		return nil, e
+	}
 	for i, cable := range cables {
-		item := NetworkCableEvidence{CableID: cable.UID, EndpointA: cable.A.UID, EndpointB: cable.B.UID, Gate: networkGate(cable.UID, "BLOCKED", "cable_evidence_missing"), Source: "switch", Stage: "N-S5", NP3: "BLOCKED", ValidUntil: time.Now().UTC().Add(30 * time.Second), RuleRef: "PRECHECK-LLDP@1"}
+		item := NetworkCableEvidence{CableID: cable.UID, EndpointA: cable.A.UID, EndpointB: cable.B.UID, Gate: networkGate(cable.UID, "BLOCKED", "cable_evidence_missing"), Source: "switch", Stage: "N-S5", NP3: "BLOCKED", ValidUntil: time.Now().UTC().Add(30 * time.Second), RuleRef: fabricmon.CableComparisonRuleRef, EvidenceScope: "collection"}
 		if report != nil {
 			item.EvidenceSource = report.EvidenceSource
 			item.CollectedAt = &report.CollectedAt
@@ -173,6 +181,9 @@ func (s *Store) NetworkCables(ctx context.Context, a *AuthSession, p *ProjectSum
 				item.Gate.State = "BLOCKED"
 			}
 			item.Gate.EvidenceRefs = []string{report.ID}
+		}
+		if proof := newestScopedLinkEvidence(scoped[cable.UID], report); proof != nil {
+			applyScopedLinkEvidence(&item, proof)
 		}
 		mergeNetworkGate(&out.Gate, item.Gate)
 		if i >= (page-1)*size && i < page*size {

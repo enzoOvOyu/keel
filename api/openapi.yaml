@@ -3866,6 +3866,11 @@ components:
       type: object
       required: [key, unit, port, source, at, value]
       properties:
+        evidence_scope: { type: string, enum: [collection, targeted_link], description: Scope of the current cable precheck; targeted_link never refreshes the whole collection or NP-3. }
+        verification_request_id: { type: string }
+        execution_id: { type: string }
+        issue_id: { type: string }
+
         key: { type: string }
         unit: { type: string }
         port: { type: string }
@@ -3972,7 +3977,7 @@ components:
         project_id: { type: string }
         package_id: { type: string }
         readiness_at: { type: string, format: date-time }
-        ttl_seconds: { type: integer, enum: [30] }
+        ttl_seconds: { type: integer, minimum: 1, maximum: 30, description: Effective gate.readiness_ttl in seconds; default 30. }
         valid_until: { type: string, format: date-time }
         devices: { type: array, items: { $ref: '#/components/schemas/NetworkDeviceHealth' } }
         lossless: { $ref: '#/components/schemas/LosslessHealthRollup' }
@@ -3985,7 +3990,7 @@ components:
         version: { type: string, enum: [network-readiness/v1] }
         project_id: { type: string }
         readiness_at: { type: string, format: date-time }
-        ttl_seconds: { type: integer, enum: [30] }
+        ttl_seconds: { type: integer, minimum: 1, maximum: 30, description: Effective gate.readiness_ttl in seconds; default 30. }
         valid_until: { type: string, format: date-time }
         g2_admission: { type: boolean }
         gates: { type: array, items: { $ref: '#/components/schemas/NetworkGate' } }
@@ -4176,6 +4181,7 @@ components:
       nullable: true
       required: [package_id, source_hash, evidence_source, stage, np3, stale, collected_at, valid_until, devices, findings, issue_links]
       properties:
+        project_id: { type: string }
         issue_links: { type: array, items: { $ref: '#/components/schemas/FabricIssueLink' } }
         id: { type: string }
         package_id: { type: string }

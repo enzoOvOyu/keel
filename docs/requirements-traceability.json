@@ -2,7 +2,7 @@
   "schema_version": 1,
   "design_version": "v3.0.3",
   "product": "keel",
-  "updated_at": "2026-10-25",
+  "updated_at": "2026-10-27",
   "status_semantics": "Design mappings define required scope, not completed implementation. planned/partial describe the whole mapped requirement; individual tests, deployment health and hardware PoC are separate evidence. Preserve valid evidence and rerun only affected checks; full gates run at the documented PR/phase boundaries. Current runtime and remaining work are in docs/HANDOFF.md.",
   "requirements": [
     {
@@ -1913,7 +1913,15 @@
         "U-11",
         "U-13"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Issue CRUD, stable device/port binding, project roles, optimistic versions and immutable source observations are implemented. N-S5 switch-to-switch T1/T2 verification now uses domain-owned Execution, both-switch resource leases, immutable fresh collector proof, explicit PASS confirmation and repeated-FAIL escalation. Unknown dispatch is queried by original command only; termination proof is reconciled without replay. Other categories retain explicit missing-check blockers. New P2 implementation and authored tests are not yet run or deployed; complete work-package acceptance remains partial.",
+      "evidence_refs": [
+        "internal/platform/issues.go",
+        "internal/platform/issue_verification.go",
+        "internal/platform/issue_verification_recovery.go",
+        "internal/execution/issue_verification_integration_test.go",
+        "docs/HANDOFF.md"
+      ]
     },
     {
       "id": "WP-2.8",
@@ -2619,12 +2627,16 @@
         "H-17"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Switch collection and N-S5 prechecks now include typed T4 physical and T6 applied-configuration diagnostics, explicit approved rail intent and bounded immutable 24/48h DDM trends with audited PNG export. Verified isolated API/PG/mTLS/browser; full precheck governance, retention, issue integration, P95/capacity and hardware acceptance remain incomplete.",
+      "implementation_notes": "Switch collection and immutable N-S5 prechecks include T2-rail/T3/T4/T6 diagnostics and automatic issue observations. Existing DDM trend and PNG export evidence remains historical. This increment connects scoped T1/T2 recollection, original-command recovery, narrow link evidence projection and separate NP-1 modeling / NP-4 fresh LLDP readability. Narrow proof cannot renew whole-network freshness or produce server NP-3. H-17 N-S5 nine-case materials and offline checker are authored; hardware and full H-17/G2 remain NOT_RUN. New P2 source, database migrations and authored tests are not yet executed or deployed. Retention, periodic monitoring, full category verification and scale acceptance remain incomplete.",
       "evidence_refs": [
         "docs/FABRIC-DIAGNOSTICS.md",
         "docs/HANDOFF.md",
         "scripts/check-fabric-diagnostics-browser.mjs",
-        "internal/platform/fabric_ddm_trends_test.go"
+        "internal/platform/fabric_ddm_trends_test.go",
+        "internal/platform/network_readiness_scope.go",
+        "internal/platform/network_scoped_link_evidence.go",
+        "poc/fabric-h17/validate.py",
+        "poc/results/CHECKLIST.md"
       ]
     },
     {

@@ -30,6 +30,7 @@ type FabricDeviceSummary struct {
 	Capabilities map[string]bool `json:"capabilities"`
 }
 type FabricCollectionReport struct {
+	ProjectID      string                `json:"project_id"`
 	IssueLinks     []FabricIssueLink     `json:"issue_links"`
 	ID             string                `json:"id,omitempty"`
 	PackageID      string                `json:"package_id"`
@@ -193,7 +194,7 @@ func (s *Store) CollectFabric(ctx context.Context, a *AuthSession, p *ProjectSum
 		}
 		samples[sample.Serial] = sample
 	}
-	out := &FabricCollectionReport{ID: RandomID(), PackageID: pkg, SourceHash: fabricboot.ManagementPlanDigest(string(raw)), EvidenceSource: batch.EvidenceSource, Stage: "N-S5", NP3: "BLOCKED", CollectedAt: now, ValidUntil: now.Add(5 * time.Minute), Devices: devices, Findings: []fabricmon.Finding{}, IssueLinks: []FabricIssueLink{}}
+	out := &FabricCollectionReport{ProjectID: p.ID, ID: RandomID(), PackageID: pkg, SourceHash: fabricboot.ManagementPlanDigest(string(raw)), EvidenceSource: batch.EvidenceSource, Stage: "N-S5", NP3: "BLOCKED", CollectedAt: now, ValidUntil: now.Add(5 * time.Minute), Devices: devices, Findings: []fabricmon.Finding{}, IssueLinks: []FabricIssueLink{}}
 	for i := range out.Devices {
 		d := &out.Devices[i]
 		sample, ok := samples[d.Serial]
@@ -272,6 +273,8 @@ func latestFabricCollectionTx(ctx context.Context, tx *sql.Tx, project string) (
 	if e = json.Unmarshal(raw, &out); e != nil {
 		return nil, e
 	}
+	// The immutable row supplies project identity for pre-field legacy reports.
+	out.ProjectID = project
 	out.IssueLinks, e = fabricIssueLinksTx(ctx, tx, project, out.ID)
 	if e != nil {
 		return nil, e

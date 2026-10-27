@@ -33,3 +33,15 @@
 执行人签字：____________  审查人签字：____________
 
 只有全部断言有真实证据并完成正式评审后，才可另行更新H-1验收状态；本模板及校验器均不自动完成该操作。
+
+
+## H-17 网络侧执行材料（步骤 D / N-S5 子集）
+
+模板在`poc/fabric-h17/evidence.template.json`，离线检查入口为`python3 poc/fabric-h17/validate.py /private/poc/h17/evidence.json`。本轮仅编写材料，未执行硬件PoC或检查器；模板默认NOT_RUN。完整H-17要求8台服务器和2台交换机，并需后续G2三方确认/PortModel证据；N-S5子集就绪不能签署完整H-17。
+
+- [ ] 在仓库外受控私有目录保存平台精确提交、项目、批准窗口、设备SN/型号/NOS和UTC起止；不上传凭据、Cookie、私钥或认证HAR。collector按受控mTLS接入，真实配置另按发布流程准备，不能为了填表修改3000默认禁用项。
+- [ ] 保存九组对照样本：交换机互联正常、未装机服务器pending、无光T1、错口T2、缺侧pending、DDM越限T3、错轨T2-rail、物理CRC增长T4、批准配置不符T6。每组保留脱敏NOS原始输出和平台判定，不自填PASS冒充设备观察。T4计数需同设备/同源/同epoch且满足参数窗口的前后样本；T6/rail需批准意图。
+- [ ] 线缆病例保存`POST /api/v1/projects/{project}/fabric/collections`响应原文；诊断病例保存`POST /api/v1/projects/{project}/fabric/devices/{switch}/diagnostics/record`响应原文（精确路由按OpenAPI），包含固定规则版本、阈值与意图快照。发现工单必须保留source=fabric、稳定物理引用和原始观察。
+- [ ] 对一个T1/T2交换机互联案例按分派→处置登记→范围确认→定向复验→NE/DL确认关闭执行。保存`GET /api/v1/issues/{issue}`、完整`GET /api/v1/issues/{issue}/verifications?page=1&page_size=100`和`GET /api/v1/projects/{project}/executions/{execution}`原文；范围摘要、request/evidence/command/fence、设备来源、关闭版本和有效期应一致。完整页不能截取成功记录。
+- [ ] 所有文件相对manifest路径，逐文件计算真实SHA256；检查器复用有界/no-follow读取，不连接设备、不执行命令、不自动更新ACCEPTANCE。输出READY_FOR_REVIEW也保留hardware_acceptance=UNVERIFIED、完整H-17/G2=NOT_RUN，需所有者另审日志真实性与故障注入。
+- [ ] T3/T4/T6完整关闭仍需对应连通性/配置重验消费者；未交付时保留BLOCKED，不能用T1/T2的LLDP通过代替。服务器G2/NP-3、PortModel关系和完整8+2真机签署按后续实施依赖补齐。

@@ -5025,6 +5025,14 @@ export interface components {
             serial?: string;
         };
         FabricMetricPoint: {
+            /**
+             * @description Scope of the current cable precheck; targeted_link never refreshes the whole collection or NP-3.
+             * @enum {string}
+             */
+            evidence_scope?: "collection" | "targeted_link";
+            verification_request_id?: string;
+            execution_id?: string;
+            issue_id?: string;
             key: string;
             unit: string;
             port: string;
@@ -5102,8 +5110,8 @@ export interface components {
             package_id: string;
             /** Format: date-time */
             readiness_at: string;
-            /** @enum {integer} */
-            ttl_seconds: 30;
+            /** @description Effective gate.readiness_ttl in seconds; default 30. */
+            ttl_seconds: number;
             /** Format: date-time */
             valid_until: string;
             devices: components["schemas"]["NetworkDeviceHealth"][];
@@ -5117,8 +5125,8 @@ export interface components {
             project_id: string;
             /** Format: date-time */
             readiness_at: string;
-            /** @enum {integer} */
-            ttl_seconds: 30;
+            /** @description Effective gate.readiness_ttl in seconds; default 30. */
+            ttl_seconds: number;
             /** Format: date-time */
             valid_until: string;
             g2_admission: boolean;
@@ -5291,6 +5299,7 @@ export interface components {
             };
         };
         FabricCollectionReport: {
+            project_id?: string;
             issue_links: components["schemas"]["FabricIssueLink"][];
             id?: string;
             package_id: string;

@@ -1,0 +1,178 @@
+{
+  "schema": "keel.h17.ns5/v1",
+  "item": "H-17",
+  "scope": "N-S5",
+  "status": "NOT_RUN",
+  "environment": "REPLACE_WITH_CONTROLLED_ENVIRONMENT",
+  "approval_ref": "REPLACE_WITH_APPROVED_POC_WINDOW",
+  "project_id": "REPLACE_WITH_32_HEX_PROJECT_ID",
+  "platform_commit": "REPLACE_WITH_40_HEX_COMMIT",
+  "started_at": null,
+  "finished_at": null,
+  "equipment": {
+    "switches": [
+      {
+        "serial": "REPLACE_SWITCH_1",
+        "model": "",
+        "nos": ""
+      },
+      {
+        "serial": "REPLACE_SWITCH_2",
+        "model": "",
+        "nos": ""
+      }
+    ],
+    "hosts": [
+      {
+        "serial": "REPLACE_HOST_1"
+      },
+      {
+        "serial": "REPLACE_HOST_2"
+      },
+      {
+        "serial": "REPLACE_HOST_3"
+      },
+      {
+        "serial": "REPLACE_HOST_4"
+      },
+      {
+        "serial": "REPLACE_HOST_5"
+      },
+      {
+        "serial": "REPLACE_HOST_6"
+      },
+      {
+        "serial": "REPLACE_HOST_7"
+      },
+      {
+        "serial": "REPLACE_HOST_8"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "switch-link-up",
+      "artifact": {
+        "path": "evidence/switch-link-up.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "raw_device_artifact": {
+        "path": "evidence/switch-link-up-nos.txt",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "cable_id": "REPLACE_WITH_STABLE_CABLE_UID"
+    },
+    {
+      "name": "uninstalled-host",
+      "artifact": {
+        "path": "evidence/uninstalled-host.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "raw_device_artifact": {
+        "path": "evidence/uninstalled-host-nos.txt",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "cable_id": "REPLACE_WITH_STABLE_CABLE_UID"
+    },
+    {
+      "name": "no-light",
+      "artifact": {
+        "path": "evidence/no-light.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "raw_device_artifact": {
+        "path": "evidence/no-light-nos.txt",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "cable_id": "REPLACE_WITH_STABLE_CABLE_UID"
+    },
+    {
+      "name": "wrong-port",
+      "artifact": {
+        "path": "evidence/wrong-port.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "raw_device_artifact": {
+        "path": "evidence/wrong-port-nos.txt",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "cable_id": "REPLACE_WITH_STABLE_CABLE_UID"
+    },
+    {
+      "name": "missing-side",
+      "artifact": {
+        "path": "evidence/missing-side.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "raw_device_artifact": {
+        "path": "evidence/missing-side-nos.txt",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "cable_id": "REPLACE_WITH_STABLE_CABLE_UID"
+    },
+    {
+      "name": "optics-overlimit",
+      "artifact": {
+        "path": "evidence/optics-overlimit.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "raw_device_artifact": {
+        "path": "evidence/optics-overlimit-nos.txt",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "port": "REPLACE_WITH_MODELED_SWITCH_PORT"
+    },
+    {
+      "name": "wrong-rail",
+      "artifact": {
+        "path": "evidence/wrong-rail.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "raw_device_artifact": {
+        "path": "evidence/wrong-rail-nos.txt",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "port": "REPLACE_WITH_MODELED_SWITCH_PORT"
+    },
+    {
+      "name": "physical-crc",
+      "artifact": {
+        "path": "evidence/physical-crc.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "raw_device_artifact": {
+        "path": "evidence/physical-crc-nos.txt",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "port": "REPLACE_WITH_MODELED_SWITCH_PORT"
+    },
+    {
+      "name": "configuration-mismatch",
+      "artifact": {
+        "path": "evidence/configuration-mismatch.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "raw_device_artifact": {
+        "path": "evidence/configuration-mismatch-nos.txt",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "port": "REPLACE_WITH_MODELED_SWITCH_PORT"
+    }
+  ],
+  "repair": {
+    "issue_id": "REPLACE_WITH_ORIGINAL_FABRIC_ISSUE_ID",
+    "issue_artifact": {
+      "path": "evidence/repaired-issue.json",
+      "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+    },
+    "verification_artifact": {
+      "path": "evidence/verification-page.json",
+      "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+    },
+    "execution_artifact": {
+      "path": "evidence/verification-execution.json",
+      "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+    }
+  },
+  "g2_followup": "NOT_RUN: G2 three-source confirmation and PortModel evidence are a later implementation/PoC step; N-S5 cannot satisfy them."
+}
