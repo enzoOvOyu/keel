@@ -4158,6 +4158,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/monitor/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["monitorPolicies"];
+        put?: never;
+        post: operations["saveMonitorPolicy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/monitor/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["monitorAlerts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/monitor/alerts/{alertId}/suppress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["suppressMonitorAlert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/monitor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["monitorSnapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/monitor/trends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["monitorTrend"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/assets/{assetId}/mapping/preview": {
         parameters: {
             query?: never;
@@ -4373,6 +4453,173 @@ export interface components {
         };
         MappingExcludedPort: {
             plan: components["schemas"]["MappingPortPlan"];
+            reason: string;
+        };
+        MonitorPolicy: {
+            stage: string;
+            intervals: {
+                [key: string]: number;
+            };
+            freshness_multiplier: number;
+            steady_bytes_per_second: number;
+            window_bytes_per_second: number;
+            agentless_seconds: number;
+            raw_retention_days: number;
+            hourly_retention_days: number;
+        };
+        MonitorAssignment: {
+            base_policy_id: string;
+            /** Format: date-time */
+            valid_until: string;
+            version: string;
+            policy_id: string;
+            policy: components["schemas"]["MonitorPolicy"];
+            execution_id: string;
+            /** Format: date-time */
+            window_until: string | null;
+            payload_bytes_per_second: number;
+            burst_bytes: number;
+            initial_jitter_millis: number;
+        };
+        MonitorSample: {
+            key: string;
+            entity: string;
+            value: number | null;
+            state: string;
+            quality: string;
+            /** Format: date-time */
+            observed_at: string;
+            interface?: string;
+            permanent_mac?: string;
+            bdf?: string;
+        };
+        MonitorPolicyRevision: {
+            id: string;
+            version: number;
+            policy: components["schemas"]["MonitorPolicy"];
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            reason: string;
+        };
+        MonitorPolicyInput: {
+            expected_version: number;
+            policy: components["schemas"]["MonitorPolicy"];
+            reason: string;
+        };
+        MonitorPolicies: {
+            enabled: boolean;
+            items: components["schemas"]["MonitorPolicyRevision"][];
+            active_devices: number;
+            payload_share_bytes_per_second: number;
+            global_bytes_per_second: number;
+        };
+        MonitorObservation: {
+            sequence: number;
+            dtype: string;
+            source: string;
+            method: string;
+            origin: string;
+            unit: string;
+            sample: components["schemas"]["MonitorSample"];
+            /** Format: date-time */
+            received_at: string;
+            policy_id: string;
+            interval_seconds: number;
+            stale_after_seconds: number;
+            freshness: string;
+            physical_port_id: string;
+            mapping_revision_id: string;
+        };
+        MonitorGap: {
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            ended_at: string;
+            reason: string;
+            source: string;
+            method: string;
+        };
+        MonitorSnapshot: {
+            collection_enabled: boolean;
+            project_id: string;
+            asset_id: string;
+            machine_id: string;
+            stage: string;
+            /** Format: date-time */
+            as_of: string;
+            cursor: number;
+            resync_required: boolean;
+            agent_state: string;
+            /** Format: date-time */
+            last_heartbeat: string | null;
+            items: components["schemas"]["MonitorObservation"][];
+            gaps: components["schemas"]["MonitorGap"][];
+        };
+        MonitorTrendBucket: {
+            /** Format: date-time */
+            at: string;
+            samples: number;
+            good_samples: number;
+            expected_samples: number;
+            coverage: number;
+            minimum: number | null;
+            maximum: number | null;
+            average: number | null;
+            up_samples: number;
+            down_samples: number;
+            unknown_samples: number;
+        };
+        MonitorTrend: {
+            key: string;
+            entity: string;
+            source: string;
+            method: string;
+            origin: string;
+            unit: string;
+            window: string;
+            bucket_seconds: number;
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            items: components["schemas"]["MonitorTrendBucket"][];
+        };
+        MonitorAlert: {
+            id: string;
+            machine_id: string;
+            physical_port_id: string;
+            mapping_revision_id: string;
+            source: string;
+            method: string;
+            origin: string;
+            entity: string;
+            dtype: string;
+            rule_id: string;
+            rule_version: string;
+            severity: string;
+            state: string;
+            /** Format: date-time */
+            first_at: string;
+            /** Format: date-time */
+            last_at: string;
+            count: number;
+            version: number;
+            sample_sequence: number | null;
+            issue_id: string;
+            context: {
+                [key: string]: unknown;
+            };
+        };
+        MonitorAlertPage: {
+            items: components["schemas"]["MonitorAlert"][];
+            total: number;
+            page: number;
+            page_size: number;
+            firing_critical: number;
+        };
+        MonitorSuppressInput: {
+            expected_version: number;
             reason: string;
         };
         MappingCandidate: {
@@ -19592,6 +19839,202 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MappingCorrection"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    monitorPolicies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitorPolicies"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    saveMonitorPolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MonitorPolicyInput"];
+            };
+        };
+        responses: {
+            /** @description Immutable Step 1 and current four-step timeline. A fresh exact handshake is consumed once; later LLDP execution requires separate admission and dispatch readiness. No automatic G2 or NP-3. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitorPolicyRevision"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    monitorAlerts: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                state?: string;
+                severity?: string;
+                dtype?: string;
+                machine_id?: string;
+                source?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitorAlertPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    suppressMonitorAlert: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                alertId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MonitorSuppressInput"];
+            };
+        };
+        responses: {
+            /** @description Immutable Step 1 and current four-step timeline. A fresh exact handshake is consumed once; later LLDP execution requires separate admission and dispatch readiness. No automatic G2 or NP-3. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitorAlert"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    monitorSnapshot: {
+        parameters: {
+            query?: {
+                cursor?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitorSnapshot"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    monitorTrend: {
+        parameters: {
+            query?: {
+                key?: string;
+                entity?: string;
+                source?: string;
+                method?: string;
+                origin?: string;
+                window?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitorTrend"];
                 };
             };
             400: components["responses"]["InvalidRequest"];

@@ -32,6 +32,7 @@ import { Route as PProjectIdHealthRouteImport } from './routes/p_.$projectId.hea
 import { Route as PProjectIdMediaRouteImport } from './routes/p_.$projectId.media'
 import { Route as PProjectIdMembersRouteImport } from './routes/p_.$projectId.members'
 import { Route as PProjectIdModelsRouteImport } from './routes/p_.$projectId.models'
+import { Route as PProjectIdMonitorRouteImport } from './routes/p_.$projectId.monitor'
 import { Route as PProjectIdParamsRouteImport } from './routes/p_.$projectId.params'
 import { Route as PProjectIdRulesRouteImport } from './routes/p_.$projectId.rules'
 import { Route as PProjectIdZtpRouteImport } from './routes/p_.$projectId.ztp'
@@ -152,6 +153,11 @@ const PProjectIdModelsRoute = PProjectIdModelsRouteImport.update({
   path: '/p/$projectId/models',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PProjectIdMonitorRoute = PProjectIdMonitorRouteImport.update({
+  id: '/p_/$projectId/monitor',
+  path: '/p/$projectId/monitor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PProjectIdParamsRoute = PProjectIdParamsRouteImport.update({
   id: '/p_/$projectId/params',
   path: '/p/$projectId/params',
@@ -198,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/p/$projectId/media': typeof PProjectIdMediaRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
   '/p/$projectId/models': typeof PProjectIdModelsRoute
+  '/p/$projectId/monitor': typeof PProjectIdMonitorRoute
   '/p/$projectId/params': typeof PProjectIdParamsRoute
   '/p/$projectId/rules': typeof PProjectIdRulesRoute
   '/p/$projectId/ztp': typeof PProjectIdZtpRoute
@@ -227,6 +234,7 @@ export interface FileRoutesByTo {
   '/p/$projectId/media': typeof PProjectIdMediaRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
   '/p/$projectId/models': typeof PProjectIdModelsRoute
+  '/p/$projectId/monitor': typeof PProjectIdMonitorRoute
   '/p/$projectId/params': typeof PProjectIdParamsRoute
   '/p/$projectId/rules': typeof PProjectIdRulesRoute
   '/p/$projectId/ztp': typeof PProjectIdZtpRoute
@@ -257,6 +265,7 @@ export interface FileRoutesById {
   '/p_/$projectId/media': typeof PProjectIdMediaRoute
   '/p_/$projectId/members': typeof PProjectIdMembersRoute
   '/p_/$projectId/models': typeof PProjectIdModelsRoute
+  '/p_/$projectId/monitor': typeof PProjectIdMonitorRoute
   '/p_/$projectId/params': typeof PProjectIdParamsRoute
   '/p_/$projectId/rules': typeof PProjectIdRulesRoute
   '/p_/$projectId/ztp': typeof PProjectIdZtpRoute
@@ -288,6 +297,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/media'
     | '/p/$projectId/members'
     | '/p/$projectId/models'
+    | '/p/$projectId/monitor'
     | '/p/$projectId/params'
     | '/p/$projectId/rules'
     | '/p/$projectId/ztp'
@@ -317,6 +327,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/media'
     | '/p/$projectId/members'
     | '/p/$projectId/models'
+    | '/p/$projectId/monitor'
     | '/p/$projectId/params'
     | '/p/$projectId/rules'
     | '/p/$projectId/ztp'
@@ -346,6 +357,7 @@ export interface FileRouteTypes {
     | '/p_/$projectId/media'
     | '/p_/$projectId/members'
     | '/p_/$projectId/models'
+    | '/p_/$projectId/monitor'
     | '/p_/$projectId/params'
     | '/p_/$projectId/rules'
     | '/p_/$projectId/ztp'
@@ -376,6 +388,7 @@ export interface RootRouteChildren {
   PProjectIdMediaRoute: typeof PProjectIdMediaRoute
   PProjectIdMembersRoute: typeof PProjectIdMembersRoute
   PProjectIdModelsRoute: typeof PProjectIdModelsRoute
+  PProjectIdMonitorRoute: typeof PProjectIdMonitorRoute
   PProjectIdParamsRoute: typeof PProjectIdParamsRoute
   PProjectIdRulesRoute: typeof PProjectIdRulesRoute
   PProjectIdZtpRoute: typeof PProjectIdZtpRoute
@@ -545,6 +558,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectIdModelsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p_/$projectId/monitor': {
+      id: '/p_/$projectId/monitor'
+      path: '/p/$projectId/monitor'
+      fullPath: '/p/$projectId/monitor'
+      preLoaderRoute: typeof PProjectIdMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p_/$projectId/params': {
       id: '/p_/$projectId/params'
       path: '/p/$projectId/params'
@@ -600,6 +620,7 @@ const rootRouteChildren: RootRouteChildren = {
   PProjectIdMediaRoute: PProjectIdMediaRoute,
   PProjectIdMembersRoute: PProjectIdMembersRoute,
   PProjectIdModelsRoute: PProjectIdModelsRoute,
+  PProjectIdMonitorRoute: PProjectIdMonitorRoute,
   PProjectIdParamsRoute: PProjectIdParamsRoute,
   PProjectIdRulesRoute: PProjectIdRulesRoute,
   PProjectIdZtpRoute: PProjectIdZtpRoute,

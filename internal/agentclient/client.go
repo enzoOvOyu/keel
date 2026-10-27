@@ -21,12 +21,14 @@ import (
 	"github.com/enzoOvOyu/keel/internal/agentinventory"
 	"github.com/enzoOvOyu/keel/internal/agentpki"
 	pb "github.com/enzoOvOyu/keel/internal/agentproto"
+	"github.com/enzoOvOyu/keel/internal/monitor"
 	"github.com/enzoOvOyu/keel/internal/taskrunner"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
 type Config struct {
+	MonitorEnabled           bool   `json:"monitor_enabled"`
 	ArtifactTransfersEnabled bool   `json:"artifact_transfers_enabled"`
 	MediaCacheEnabled        bool   `json:"media_cache_enabled"`
 	CacheInventoryEnabled    bool   `json:"cache_inventory_enabled"`
@@ -69,7 +71,7 @@ func Load(path string) (Config, error) {
 	return c, c.Validate()
 }
 func (c Config) Validate() error {
-	if c.ArtifactTransfersEnabled && !c.TasksEnabled || c.MediaCacheEnabled && !c.ScriptsEnabled || c.CacheInventoryEnabled && !c.TasksEnabled || c.ScriptsEnabled && !c.TasksEnabled || (c.TasksEnabled || c.NetworkInventoryEnabled) && os.Geteuid() == 0 {
+	if c.ArtifactTransfersEnabled && !c.TasksEnabled || c.MediaCacheEnabled && !c.ScriptsEnabled || c.CacheInventoryEnabled && !c.TasksEnabled || c.ScriptsEnabled && !c.TasksEnabled || (c.TasksEnabled || c.NetworkInventoryEnabled || c.MonitorEnabled) && os.Geteuid() == 0 {
 		return ErrIdentity
 	}
 	host, port, e := net.SplitHostPort(c.Endpoint)
@@ -269,6 +271,12 @@ func Stream(ctx context.Context, c Config, version string, observe func(*pb.Hear
 			}
 			message.CacheInventoryJson = raw
 		}
+		if c.MonitorEnabled {
+			message.TelemetryJson, e = monitorQueuePeek(c)
+			if e != nil {
+				return e
+			}
+		}
 		if e = stream.Send(message); e != nil {
 			return e
 		}
@@ -278,6 +286,22 @@ func Stream(ctx context.Context, c Config, version string, observe func(*pb.Hear
 		}
 		if ack.GetSequence() != sequence || !identityID.MatchString(ack.GetConnectionId()) || ack.GetNextHeartbeatSeconds() < 1 || ack.GetNextHeartbeatSeconds() > 10 {
 			return ErrIdentity
+		}
+		if c.MonitorEnabled {
+			if len(message.TelemetryJson) > 0 {
+				if e = monitorQueueAck(c, message.TelemetryJson, ack.GetTelemetryFrameId()); e != nil {
+					return e
+				}
+			}
+			if len(ack.GetCollectPolicyJson()) > 0 {
+				var assignment monitor.Assignment
+				if json.Unmarshal(ack.GetCollectPolicyJson(), &assignment) != nil {
+					return ErrIdentity
+				}
+				if e = monitorSaveAssignment(c, assignment); e != nil {
+					return e
+				}
+			}
 		}
 		networkBaseline = nextBaseline
 		if c.TasksEnabled && !tasksStarted {

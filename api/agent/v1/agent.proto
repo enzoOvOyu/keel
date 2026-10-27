@@ -43,12 +43,18 @@ message Heartbeat {
   bytes network_inventory_json = 7;
   // Optional complete ownership-index observation; does not verify file bytes.
   bytes cache_inventory_json = 8;
+  // Optional strict keel.monitor/v1 frame, max 8192 bytes. ACK is durable ingest.
+  bytes telemetry_json = 9;
 }
 message HeartbeatAck {
   string connection_id = 1;
   uint64 sequence = 2;
   string received_at = 3;
   uint32 next_heartbeat_seconds = 4;
+  // Versioned policy, payload share and sampling assignment; never task authority.
+  bytes collect_policy_json = 5;
+  // Present only after the original telemetry frame committed successfully.
+  string telemetry_frame_id = 6;
 }
 
 // First report is an empty hello carrying the active heartbeat connection_id.

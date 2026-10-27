@@ -26,7 +26,7 @@ const Schema = "keel.webhook-sinks/v1"
 
 var identity = regexp.MustCompile(`^[a-f0-9]{32}$`)
 var sinkIdentity = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
-var eventTypes = map[string]bool{"execution.state_changed": true, "execution.circuit_breaker": true, "execution.authorization_blocked": true, "issue.escalated": true}
+var eventTypes = map[string]bool{"execution.state_changed": true, "execution.circuit_breaker": true, "execution.authorization_blocked": true, "issue.escalated": true, "monitor.alert": true}
 
 type Sink struct {
 	ID             string            `json:"id"`

@@ -62,6 +62,7 @@ func main() {
 	store.FabricIssueVerificationEnabled = os.Getenv("KEEL_FABRIC_ISSUE_VERIFY_ENABLED") == "true"
 	store.PrecollectEnabled = os.Getenv("KEEL_PRECOLLECT_ENABLED") == "true"
 	store.WiringEnabled = os.Getenv("KEEL_WIRING_ENABLED") == "true"
+	store.MonitorEnabled = os.Getenv("KEEL_MONITOR_ENABLED") == "true"
 	store.BMCInventoryEnabled = os.Getenv("KEEL_BMC_INVENTORY_ENABLED") == "true"
 	if err := store.ConfigureBMCInventory(os.Getenv("KEEL_BMC_INVENTORY_FILE"), os.Getenv("KEEL_DEVICE_CREDENTIAL_MASTER_KEY_FILE")); err != nil {
 		slog.Error("BMC inventory configuration rejected")
@@ -196,6 +197,9 @@ func main() {
 	lastBeat := time.Time{}
 	lastBMCPolicyTick := time.Time{}
 	lastPrecollectTick := time.Time{}
+	lastMonitorTick := time.Time{}
+	lastMonitorHistory := time.Time{}
+	monitorOK := true
 	precollectOK := true
 	bmcPolicyOK := true
 	queueMode := "postgresql-only"
@@ -251,7 +255,27 @@ loop:
 					slog.Error("precollection evidence finalization failed")
 				}
 			}
-			cycleOK := queueOK && bmcPolicyOK && precollectOK
+			if store.MonitorEnabled && time.Since(lastMonitorTick) >= 10*time.Second {
+				lastMonitorTick = time.Now()
+				work, cancel := context.WithTimeout(ctx, 3*time.Second)
+				monitorErr := store.TickMonitorFreshness(work)
+				cancel()
+				monitorOK = monitorErr == nil
+				if monitorErr != nil {
+					slog.Error("monitor freshness scan failed")
+				}
+			}
+			if store.MonitorEnabled && time.Since(lastMonitorHistory) >= time.Minute {
+				lastMonitorHistory = time.Now()
+				work, cancel := context.WithTimeout(ctx, 3*time.Second)
+				monitorErr := store.MaintainMonitorHistory(work)
+				cancel()
+				if monitorErr != nil {
+					monitorOK = false
+					slog.Error("monitor history maintenance failed")
+				}
+			}
+			cycleOK := queueOK && bmcPolicyOK && precollectOK && monitorOK
 			for int(active.Load()) < concurrency {
 				claim, err := service.Claim(ctx, id, lease)
 				if err != nil {

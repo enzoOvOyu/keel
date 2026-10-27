@@ -64,9 +64,11 @@ func (d *WebhookDispatcher) Enqueue(ctx context.Context, s *webhook.Sink) (int, 
 	defer tx.Rollback()
 	// JSON arrays avoid constructing SQL from configured event-type strings.
 	types, _ := json.Marshal(s.EventTypes)
-	rows, err := tx.QueryContext(ctx, `SELECT o.id,o.sequence,o.execution_id,o.aggregate_version,o.event_type,o.payload->>'state',o.created_at,coalesce(o.payload->>'issue_id','')
- FROM exec_outbox o JOIN exec_executions e ON e.id=o.execution_id
- WHERE e.project_id=$1 AND o.created_at >= $2 AND o.event_type IN(SELECT jsonb_array_elements_text($3::jsonb))
+	rows, err := tx.QueryContext(ctx, `WITH events AS(
+ SELECT o.id,o.sequence,o.execution_id,o.aggregate_version,o.event_type,o.payload->>'state' AS state,o.created_at,coalesce(o.payload->>'issue_id','') AS issue_id,''::text AS alert_id,''::text AS severity,''::text AS observation_source,e.project_id FROM exec_outbox o JOIN exec_executions e ON e.id=o.execution_id
+ UNION ALL SELECT id,sequence,'',aggregate_version,event_type,NULL,created_at,coalesce(issue_id,''),alert_id,severity,source,project_id FROM monitor_notification_outbox
+ )SELECT o.id,o.sequence,o.execution_id,o.aggregate_version,o.event_type,o.state,o.created_at,o.issue_id,o.alert_id,o.severity,o.observation_source FROM events o
+ WHERE o.project_id=$1 AND o.created_at >= $2 AND o.event_type IN(SELECT jsonb_array_elements_text($3::jsonb))
  AND NOT EXISTS(SELECT 1 FROM notification_webhook_deliveries n WHERE n.sink_id=$4 AND n.event_id=o.id)
  ORDER BY o.sequence LIMIT 100`, s.ProjectID, s.NotBefore, types, s.ID)
 	if err != nil {
@@ -79,11 +81,11 @@ func (d *WebhookDispatcher) Enqueue(ctx context.Context, s *webhook.Sink) (int, 
 	}
 	list := []pending{}
 	for rows.Next() {
-		var id, eid, kind, issueID string
+		var id, eid, kind, issueID, alertID, severity, observationSource string
 		var sequence, version int64
 		var state sql.NullString
 		var at time.Time
-		if err = rows.Scan(&id, &sequence, &eid, &version, &kind, &state, &at, &issueID); err != nil {
+		if err = rows.Scan(&id, &sequence, &eid, &version, &kind, &state, &at, &issueID, &alertID, &severity, &observationSource); err != nil {
 			rows.Close()
 			return 0, err
 		}
@@ -99,6 +101,13 @@ func (d *WebhookDispatcher) Enqueue(ctx context.Context, s *webhook.Sink) (int, 
 			data["issue_id"] = issueID
 			data["failed_verifications"] = 2
 			subject = "issue/" + issueID
+		}
+		if kind == "monitor.alert" {
+			data["alert_id"] = alertID
+			data["severity"] = severity
+			data["observation_source"] = observationSource
+			data["issue_id"] = issueID
+			subject = "alert/" + alertID
 		}
 		body, e := json.Marshal(map[string]any{"specversion": "1.0", "id": id, "source": "urn:keel:project:" + s.ProjectID, "type": kind, "subject": subject, "time": at.UTC(), "datacontenttype": "application/json", "data": data})
 		if e != nil {

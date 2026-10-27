@@ -44,6 +44,8 @@ DO $keel$ BEGIN
   IF to_regclass('public.network_address_plans') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON network_address_plans,network_address_plan_approvals FROM keel_app; END IF;
   IF to_regclass('public.asset_view_revisions') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON asset_view_revisions FROM keel_app; REVOKE DELETE,TRUNCATE ON asset_views FROM keel_app; END IF;
   IF to_regclass('public.pci_topology_snapshots') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON pci_topology_snapshots,topology_diffs,topology_issue_bindings FROM keel_app; END IF;
+  IF to_regclass('public.monitor_alert_events') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON monitor_alert_events,monitor_notification_outbox FROM keel_app; END IF;
+  IF to_regclass('public.monitor_policies') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON monitor_policies,monitor_ingest_receipts,monitor_assignment_versions FROM keel_app; END IF;
   IF to_regclass('public.mapping_corrections') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON mapping_corrections,mapping_correction_decisions FROM keel_app; END IF;
   IF to_regclass('public.mapping_assessments') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON mapping_assessments,mapping_revisions FROM keel_app; END IF;
   IF to_regclass('public.validation_wiring_coverage_snapshots') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON validation_wiring_port_evidence,validation_wiring_coverage_snapshots FROM keel_app; END IF;

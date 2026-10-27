@@ -230,8 +230,10 @@ type Heartbeat struct {
 	NetworkInventoryJson []byte `protobuf:"bytes,7,opt,name=network_inventory_json,json=networkInventoryJson,proto3" json:"network_inventory_json,omitempty"`
 	// Optional complete ownership-index observation; does not verify file bytes.
 	CacheInventoryJson []byte `protobuf:"bytes,8,opt,name=cache_inventory_json,json=cacheInventoryJson,proto3" json:"cache_inventory_json,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Optional strict keel.monitor/v1 frame, max 8192 bytes. ACK is durable ingest.
+	TelemetryJson []byte `protobuf:"bytes,9,opt,name=telemetry_json,json=telemetryJson,proto3" json:"telemetry_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Heartbeat) Reset() {
@@ -320,14 +322,25 @@ func (x *Heartbeat) GetCacheInventoryJson() []byte {
 	return nil
 }
 
+func (x *Heartbeat) GetTelemetryJson() []byte {
+	if x != nil {
+		return x.TelemetryJson
+	}
+	return nil
+}
+
 type HeartbeatAck struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	ConnectionId         string                 `protobuf:"bytes,1,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
 	Sequence             uint64                 `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
 	ReceivedAt           string                 `protobuf:"bytes,3,opt,name=received_at,json=receivedAt,proto3" json:"received_at,omitempty"`
 	NextHeartbeatSeconds uint32                 `protobuf:"varint,4,opt,name=next_heartbeat_seconds,json=nextHeartbeatSeconds,proto3" json:"next_heartbeat_seconds,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Versioned policy, payload share and sampling assignment; never task authority.
+	CollectPolicyJson []byte `protobuf:"bytes,5,opt,name=collect_policy_json,json=collectPolicyJson,proto3" json:"collect_policy_json,omitempty"`
+	// Present only after the original telemetry frame committed successfully.
+	TelemetryFrameId string `protobuf:"bytes,6,opt,name=telemetry_frame_id,json=telemetryFrameId,proto3" json:"telemetry_frame_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *HeartbeatAck) Reset() {
@@ -386,6 +399,20 @@ func (x *HeartbeatAck) GetNextHeartbeatSeconds() uint32 {
 		return x.NextHeartbeatSeconds
 	}
 	return 0
+}
+
+func (x *HeartbeatAck) GetCollectPolicyJson() []byte {
+	if x != nil {
+		return x.CollectPolicyJson
+	}
+	return nil
+}
+
+func (x *HeartbeatAck) GetTelemetryFrameId() string {
+	if x != nil {
+		return x.TelemetryFrameId
+	}
+	return ""
 }
 
 // First report is an empty hello carrying the active heartbeat connection_id.
@@ -540,7 +567,7 @@ const file_api_agent_v1_agent_proto_rawDesc = "" +
 	"\x0fcertificate_pem\x18\x02 \x01(\fR\x0ecertificatePem\x12,\n" +
 	"\x12ca_certificate_pem\x18\x03 \x01(\fR\x10caCertificatePem\x12\x1d\n" +
 	"\n" +
-	"expires_at\x18\x04 \x01(\tR\texpiresAt\"\xb0\x02\n" +
+	"expires_at\x18\x04 \x01(\tR\texpiresAt\"\xd7\x02\n" +
 	"\tHeartbeat\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1d\n" +
@@ -551,13 +578,16 @@ const file_api_agent_v1_agent_proto_rawDesc = "" +
 	"\aboot_id\x18\x05 \x01(\tR\x06bootId\x12\x1a\n" +
 	"\bsequence\x18\x06 \x01(\x04R\bsequence\x124\n" +
 	"\x16network_inventory_json\x18\a \x01(\fR\x14networkInventoryJson\x120\n" +
-	"\x14cache_inventory_json\x18\b \x01(\fR\x12cacheInventoryJson\"\xa6\x01\n" +
+	"\x14cache_inventory_json\x18\b \x01(\fR\x12cacheInventoryJson\x12%\n" +
+	"\x0etelemetry_json\x18\t \x01(\fR\rtelemetryJson\"\x84\x02\n" +
 	"\fHeartbeatAck\x12#\n" +
 	"\rconnection_id\x18\x01 \x01(\tR\fconnectionId\x12\x1a\n" +
 	"\bsequence\x18\x02 \x01(\x04R\bsequence\x12\x1f\n" +
 	"\vreceived_at\x18\x03 \x01(\tR\n" +
 	"receivedAt\x124\n" +
-	"\x16next_heartbeat_seconds\x18\x04 \x01(\rR\x14nextHeartbeatSeconds\"\x82\x01\n" +
+	"\x16next_heartbeat_seconds\x18\x04 \x01(\rR\x14nextHeartbeatSeconds\x12.\n" +
+	"\x13collect_policy_json\x18\x05 \x01(\fR\x11collectPolicyJson\x12,\n" +
+	"\x12telemetry_frame_id\x18\x06 \x01(\tR\x10telemetryFrameId\"\x82\x01\n" +
 	"\vTaskRequest\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12!\n" +

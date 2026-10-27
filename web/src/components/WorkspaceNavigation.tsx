@@ -6,7 +6,7 @@ import type { Project, Session } from '../lib/api'
 import { useSession } from '../lib/session'
 import { Icon, type IconName } from './Icon'
 
-type ProjectPage = '/p/$projectId/deploy/provision' | '/p/$projectId/delivery' | '/p/$projectId/flows' | '/p/$projectId/health' | '/p/$projectId/configuration' | '/p/$projectId/fabric' | '/p/$projectId' | '/p/$projectId/members' | '/p/$projectId/audits' | '/p/$projectId/assets' | '/p/$projectId/ztp' | '/p/$projectId/executions' | '/p/$projectId/models' | '/p/$projectId/media' | '/p/$projectId/params'
+type ProjectPage = '/p/$projectId/monitor' | '/p/$projectId/deploy/provision' | '/p/$projectId/delivery' | '/p/$projectId/flows' | '/p/$projectId/health' | '/p/$projectId/configuration' | '/p/$projectId/fabric' | '/p/$projectId' | '/p/$projectId/members' | '/p/$projectId/audits' | '/p/$projectId/assets' | '/p/$projectId/ztp' | '/p/$projectId/executions' | '/p/$projectId/models' | '/p/$projectId/media' | '/p/$projectId/params'
 type Item = { to: ProjectPage; label: string; icon: IconName; permission?: string; admin?: boolean; roles?: string[] }
 const deployment: Item[] = [
   { to: '/p/$projectId/deploy/provision',label:'provisionTitle',icon:'play',roles:['Admin','DE','DL','SRE'] },
@@ -14,6 +14,7 @@ const deployment: Item[] = [
   { to: '/p/$projectId/assets', label: 'bomTab', icon: 'box', permission: 'model:read' },
 ]
 const operations: Item[] = [
+ {to:'/p/$projectId/monitor',label:'monitorTitle',icon:'network'},
   { to: '/p/$projectId/delivery', label: 'networkDeliveryTitle', icon: 'archive', permission: 'fabric:read' },
  {to:'/p/$projectId/flows',label:'flowWorkbenchTitle',icon:'play',permission:'execution:read'},
  {to:'/p/$projectId/health',label:'networkHealthTitle',icon:'network',permission:'fabric:read'},

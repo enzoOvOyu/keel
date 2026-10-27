@@ -13,6 +13,7 @@ import (
 
 	"github.com/enzoOvOyu/keel/internal/agentinventory"
 	"github.com/enzoOvOyu/keel/internal/agentpki"
+	"github.com/enzoOvOyu/keel/internal/monitor"
 )
 
 // ErrAgentConnectionBusy preserves the existing live connection until its lease expires.
@@ -49,6 +50,15 @@ func agentTarget(ctx context.Context, tx *sql.Tx, project, machine string) (stri
 	return agentTargetTx(ctx, tx, project, machine, true)
 }
 
+// Identity remains valid as the same installed asset progresses through
+// delivery. Gate and operation authority are still checked by each consumer.
+func agentMonitoringStage(state string) bool {
+	switch state {
+	case "provisioned", "lldp", "mapped", "configured", "netverified", "tested":
+		return true
+	}
+	return false
+}
 func agentTargetTx(ctx context.Context, tx *sql.Tx, project, machine string, pin bool) (string, int64, error) {
 	var serial, state, assetState string
 	var version int64
@@ -63,7 +73,7 @@ func agentTargetTx(ctx context.Context, tx *sql.Tx, project, machine string, pin
 	if e != nil {
 		return "", 0, e
 	}
-	if state == "delivered" || state == "archived" || assetState != "provisioned" {
+	if state == "delivered" || state == "archived" || !agentMonitoringStage(assetState) {
 		return "", 0, ErrAgentDenied
 	}
 	return serial, version, nil
@@ -283,36 +293,59 @@ func (s *Store) AgentHeartbeatInventory(ctx context.Context, cert *x509.Certific
 }
 
 func (s *Store) AgentHeartbeatObservations(ctx context.Context, cert *x509.Certificate, authority, connection string, sequence uint64, inventory *agentinventory.NetworkFrame, cache *agentinventory.CacheFrame) error {
+	_, e := s.AgentHeartbeatTelemetry(ctx, cert, authority, connection, sequence, inventory, cache, nil)
+	return e
+}
+
+type AgentMonitorAck struct {
+	Assignment *monitor.Assignment `json:"assignment"`
+	FrameID    string              `json:"frame_id"`
+}
+
+func (s *Store) AgentHeartbeatTelemetry(ctx context.Context, cert *x509.Certificate, authority, connection string, sequence uint64, inventory *agentinventory.NetworkFrame, cache *agentinventory.CacheFrame, telemetry []byte) (*AgentMonitorAck, error) {
 	if sequence == 0 || sequence > 1<<62 {
-		return ErrAgentDenied
+		return nil, ErrAgentDenied
 	}
 	tx, e := s.DB.BeginTx(ctx, nil)
 	if e != nil {
-		return e
+		return nil, e
 	}
 	defer tx.Rollback()
 	out, e := agentCredential(ctx, tx, cert, authority)
 	if e != nil {
-		return e
+		return nil, e
 	}
 	result, e := tx.ExecContext(ctx, `UPDATE agent_connections SET sequence=$3,last_seen_at=now() WHERE id=$1 AND credential_id=$2 AND certificate_hash=$4 AND disconnected_at IS NULL AND sequence=$3-1 AND last_seen_at>now()-interval '30 seconds'`, connection, out.ID, int64(sequence), agentpki.Hash(cert.Raw))
 	if e != nil {
-		return e
+		return nil, e
 	}
 	n, e := result.RowsAffected()
 	if e != nil || n != 1 {
-		return ErrAgentDenied
+		return nil, ErrAgentDenied
 	}
 	if e = s.recordAgentNetworkInventoryTx(ctx, tx, out, connection, agentpki.Hash(cert.Raw), sequence, inventory); e != nil {
-		return e
+		return nil, e
 	}
 	if !s.TaskCacheInventoryEnabled {
 		cache = nil
 	}
 	if e = s.recordAgentCacheInventoryTx(ctx, tx, out, connection, agentpki.Hash(cert.Raw), sequence, cache); e != nil {
-		return e
+		return nil, e
 	}
-	return tx.Commit()
+	ack := &AgentMonitorAck{}
+	if s.MonitorEnabled {
+		ack.FrameID, e = s.ingestAgentMonitorTx(ctx, tx, out, connection, telemetry)
+		if e != nil {
+			return nil, e
+		}
+		ack.Assignment, e = s.monitorAssignmentTx(ctx, tx, out, connection)
+		if e != nil {
+			return nil, e
+		}
+	} else if len(telemetry) > 0 {
+		return nil, ErrAgentDenied
+	}
+	return ack, tx.Commit()
 }
 func (s *Store) CloseAgentConnection(ctx context.Context, id string) error {
 	_, e := s.DB.ExecContext(ctx, `UPDATE agent_connections SET disconnected_at=now() WHERE id=$1 AND disconnected_at IS NULL`, id)

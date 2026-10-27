@@ -115,6 +115,9 @@ type providerEvent struct {
 	Time        time.Time `json:"time"`
 	Data        struct {
 		ProjectID           string `json:"project_id"`
+		AlertID             string `json:"alert_id,omitempty"`
+		Severity            string `json:"severity,omitempty"`
+		ObservationSource   string `json:"observation_source,omitempty"`
 		ExecutionID         string `json:"execution_id"`
 		IssueID             string `json:"issue_id,omitempty"`
 		FailedVerifications int    `json:"failed_verifications,omitempty"`
@@ -127,10 +130,16 @@ func providerText(s *Sink, eventID string, body []byte) (string, string, error) 
 	var event providerEvent
 	decoder := json.NewDecoder(bytes.NewReader(body))
 	decoder.DisallowUnknownFields()
-	if len(body) > 64<<10 || decoder.Decode(&event) != nil || decoder.Decode(new(any)) != io.EOF || event.SpecVersion != "1.0" || event.ID != eventID || event.Data.ProjectID != s.ProjectID || event.Source != "urn:keel:project:"+s.ProjectID || !identity.MatchString(event.Data.ExecutionID) || event.ContentType != "application/json" || event.Time.IsZero() || event.Data.Version < 1 || !eventTypes[event.Type] {
+	if len(body) > 64<<10 || decoder.Decode(&event) != nil || decoder.Decode(new(any)) != io.EOF || event.SpecVersion != "1.0" || event.ID != eventID || event.Data.ProjectID != s.ProjectID || event.Source != "urn:keel:project:"+s.ProjectID || (event.Type != "monitor.alert" && !identity.MatchString(event.Data.ExecutionID)) || event.ContentType != "application/json" || event.Time.IsZero() || event.Data.Version < 1 || !eventTypes[event.Type] {
 		return "", "", errors.New("invalid public notification event")
 	}
-	if event.Type == "issue.escalated" {
+	if event.Type == "monitor.alert" {
+		if !identity.MatchString(event.Data.AlertID) || event.Subject != "alert/"+event.Data.AlertID || event.Data.ExecutionID != "" || event.Data.State != "" || event.Data.FailedVerifications != 0 || (event.Data.IssueID != "" && !identity.MatchString(event.Data.IssueID)) || (event.Data.Severity != "info" && event.Data.Severity != "warning" && event.Data.Severity != "critical") || (event.Data.ObservationSource != "host" && event.Data.ObservationSource != "switch" && event.Data.ObservationSource != "bmc") {
+			return "", "", errors.New("invalid monitoring event projection")
+		}
+	} else if event.Data.AlertID != "" || event.Data.Severity != "" || event.Data.ObservationSource != "" {
+		return "", "", errors.New("monitor fields on execution event")
+	} else if event.Type == "issue.escalated" {
 		if !identity.MatchString(event.Data.IssueID) || event.Data.FailedVerifications != 2 || event.Subject != "issue/"+event.Data.IssueID {
 			return "", "", errors.New("invalid issue escalation projection")
 		}
@@ -166,6 +175,12 @@ func providerText(s *Sink, eventID string, body []byte) (string, string, error) 
 	}
 	if event.Type == "issue.escalated" {
 		text += "\nIssue: " + event.Data.IssueID + "\nTwo scoped verifications failed. DL review and evidence-based replacement assessment required."
+	}
+	if event.Type == "monitor.alert" {
+		text += "\nAlert: " + event.Data.AlertID + "\nSeverity: " + event.Data.Severity + "\nSource: " + event.Data.ObservationSource
+		if event.Data.IssueID != "" {
+			text += "\nIssue: " + event.Data.IssueID
+		}
 	}
 	return subject, text, nil
 }

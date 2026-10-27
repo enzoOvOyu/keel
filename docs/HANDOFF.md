@@ -2249,3 +2249,14 @@ ReadWiringCapture重新打开固定版本对象、核对SHA256/大小、重建�
 - OOB NIC沿用完整G2五元组，GPU关联明确标不适用；unused端口保留BOM不适用记录及历史导出，不进入启用端口分母。未知角色仍阻断，未为非NIC的BMC物理接口编造OS/BDF映射。
 - 重大G3检查：独立keel_test_agent_mapping_*库运行`go test ./internal/platform -run TestMapping -count=1 -timeout=90s -v`通过，包含全99条源码迁移、缺证据不发布/不可假审批/跨项目/幂等/历史不可变、映射规则和修正仅影响名称；前端`tsc --noEmit`通过。证据`/tmp/keel-mapping-milestone-70yzlyq8/`，临时库已删。未覆盖真实G2正向全链、完整审批正向DB链、浏览器或硬件PoC，不能作为P2验收完成。
 - 3000保持7afda32、运行64条迁移/067；068～102未迁移到运行库，未构建/发布/push/操作设备。原两份fabric_precheck草稿及netbom.xlsx保留。下一步WP-2.10 mon-svc统一策略/ingest/delta/ACK/告警/预算及趋势，再portmon/豁免KPI/五标签抽屉与完整P2集中验证。
+
+
+## 206. 统一监控基础、持久 ACK 与集中软件检查
+
+- 工作区/分支保持 `/opt/keel` / `dev/p2-validation`，接续4f48f54。新增103～105监控策略版本、原始/最新/小时样本、缺口、告警及通知不可变来源。M1～M4及维护态策略、服务端签发历史策略、Execution运行目标限定提频窗口、全局payload预算与每设备令牌桶已接；监控不授予门禁PASS或任务权限。
+- mTLS心跳携带严格受限telemetry帧，事务提交后返回精确frame ACK；重复ID必须字节一致，delta必须引用已提交baseline。Agent私有有界持久队列在ACK前保留原帧，溢出记录缺口；策略租约到期停采、维护态停带内、指数退避/抖动。本机D1～D6只读采样已接，CPU利用率/部分协商及RDMA适配、agentless SSH仍需补齐，不把unknown当健康。
+- 同一证书在provisioned/lldp/mapped/configured/netverified/tested阶段保持身份校验；资产版本/serial/项目/撤销仍严格核对。当前原始入库固定host/agent/real；switch/BMC独立来源契约已留，实际桥接尚未完成。维护期调度按WP-4.8后置，不提前宣称实现。
+- 已接当前有效G3下的角色感知链路/光功率/flapping/PFC规则和GPU ECC增长，来源分别计数；critical端口异常复用工单，维修中抑制重复开单，恢复不自动关闭工单，过期为unknown。监控通知复用现有Webhook/IM投递并保留独立原事件外键。Agent失联专用告警及portmon维修重验仍待补齐。
+- 新增监控策略编辑器/告警中心及详情组件，活动页轮询、隐藏页停订阅；快照/三种窗口趋势保留来源、单位、具体TTL、样本覆盖率和缺口。详情组件尚待五标签抽屉接入，不宣称WP-2.11完成。
+- 本次重大软件检查：隔离临时库运行 `go test ./internal/monitor ./internal/agentclient ./internal/agentidentity ./internal/platform ./internal/webhook ./internal/httpapi ./cmd/keel-agent ./cmd/keel-worker ./cmd/keel-api -run TestMonitor -count=1 -timeout=90s -v` PASS；包含全102条源码迁移、队列/规则/预算、真实软件mTLS入库与精确ACK/去重、策略幂等和历史帧、阶段切换、趋势读取、变造重复帧拒绝。其余包该命令只编译，并非全包业务测试；通知投递/动态窗口正向链等仍未验。前端 `tsc --noEmit` PASS。日志 `/tmp/keel-monitor-milestone-9s0zf1p_/`，自建临时库已删；未跑硬件/浏览器/镜像/性能负载验证。
+- 运行服务和数据库未更新：3000仍7afda32，运行64条迁移/067，068～105未应用。原fabric_precheck两份草稿及netbom.xlsx保留，未push/部署。继续监控缺项与WP-2.6 portmon，再豁免/KPI、五标签抽屉和P2集中收口。

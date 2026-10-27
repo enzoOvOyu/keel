@@ -1,5 +1,5 @@
 // Package agentidentity exposes an opt-in, isolated Agent identity listener.
-// It does not register browser APIs, task runners, telemetry or remote commands.
+// It exposes authenticated bounded task transport and opt-in monitoring ingest.
 package agentidentity
 
 import (
@@ -264,6 +264,7 @@ func (s *Server) Heartbeats(stream grpc.BidiStreamingServer[pb.Heartbeat, pb.Hea
 				return denied
 			}
 			in := incoming.message
+			var monitorAck *platform.AgentMonitorAck
 			if in.GetSequence() != sequence+1 {
 				return denied
 			}
@@ -291,7 +292,7 @@ func (s *Server) Heartbeats(stream grpc.BidiStreamingServer[pb.Heartbeat, pb.Hea
 					e = platform.ErrAgentDenied
 				}
 				if e == nil {
-					e = s.store.AgentHeartbeatObservations(work, cert, s.authority.ID, connection, in.GetSequence(), inventory, cache)
+					monitorAck, e = s.store.AgentHeartbeatTelemetry(work, cert, s.authority.ID, connection, in.GetSequence(), inventory, cache, in.GetTelemetryJson())
 				} else {
 					e = platform.ErrAgentDenied
 				}
@@ -301,9 +302,17 @@ func (s *Server) Heartbeats(stream grpc.BidiStreamingServer[pb.Heartbeat, pb.Hea
 				return storeError(e)
 			}
 			sequence = in.GetSequence()
+			var policy []byte
+			var frameID string
+			if monitorAck != nil {
+				frameID = monitorAck.FrameID
+				if monitorAck.Assignment != nil {
+					policy, _ = json.Marshal(monitorAck.Assignment)
+				}
+			}
 			sent := make(chan error, 1)
 			go func() {
-				sent <- stream.Send(&pb.HeartbeatAck{ConnectionId: connection, Sequence: sequence, ReceivedAt: time.Now().UTC().Format(time.RFC3339Nano), NextHeartbeatSeconds: 10})
+				sent <- stream.Send(&pb.HeartbeatAck{ConnectionId: connection, Sequence: sequence, ReceivedAt: time.Now().UTC().Format(time.RFC3339Nano), NextHeartbeatSeconds: 10, CollectPolicyJson: policy, TelemetryFrameId: frameID})
 			}()
 			select {
 			case e = <-sent:

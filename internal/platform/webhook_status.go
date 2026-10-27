@@ -90,9 +90,8 @@ func readWebhookDeliveriesTx(ctx context.Context, tx *sql.Tx, project string, li
 	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM notification_webhook_deliveries d JOIN notification_webhook_policies p ON p.sink_id=d.sink_id WHERE p.project_id=$1", project).Scan(&out.Total); err != nil {
 		return nil, err
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT p.delivery_format,d.sink_id,o.execution_id,o.event_type,d.event_id,d.state,d.attempts,d.http_status,d.last_error,d.next_attempt_at,d.delivered_at,d.updated_at
+	rows, err := tx.QueryContext(ctx, `SELECT p.delivery_format,d.sink_id,coalesce(d.payload#>>'{data,execution_id}',''),d.payload->>'type',d.event_id,d.state,d.attempts,d.http_status,d.last_error,d.next_attempt_at,d.delivered_at,d.updated_at
  FROM notification_webhook_deliveries d JOIN notification_webhook_policies p ON p.sink_id=d.sink_id
- JOIN exec_outbox o ON o.id=d.event_id
  WHERE p.project_id=$1 ORDER BY d.updated_at DESC,d.sink_id,d.event_id LIMIT $2 OFFSET $3`, project, limit, offset)
 	if err != nil {
 		return nil, err

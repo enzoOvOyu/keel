@@ -30,6 +30,7 @@ type MediaObjectStore interface {
 }
 
 type Store struct {
+	MonitorEnabled                 bool
 	PrecollectEnabled              bool
 	WiringEnabled                  bool
 	BMCInventoryEnabled            bool

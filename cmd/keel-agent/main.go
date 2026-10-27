@@ -14,6 +14,7 @@ import (
 
 	"github.com/enzoOvOyu/keel/internal/agentclient"
 	"github.com/enzoOvOyu/keel/internal/agentproto"
+	"github.com/enzoOvOyu/keel/internal/monitor"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -28,7 +29,7 @@ func main() {
 }
 func run(args []string) error {
 	if len(args) == 1 && args[0] == "version" {
-		return json.NewEncoder(os.Stdout).Encode(map[string]any{"version": version, "capabilities": []string{"enrollment", "mtls-heartbeat", "readonly-tasks", "approved-script-helper", "network-inventory-deltas", "owned-cache-inventory", "mtls-renewal"}})
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"version": version, "capabilities": []string{"enrollment", "mtls-heartbeat", "readonly-tasks", "approved-script-helper", "network-inventory-deltas", "owned-cache-inventory", "mtls-renewal", "monitor-policy-delta-durable-ack"}})
 	}
 	if len(args) == 0 || (args[0] != "enroll" && args[0] != "run" && args[0] != "renew") {
 		return agentclient.ErrIdentity
@@ -52,7 +53,17 @@ func run(args []string) error {
 		}
 		return json.NewEncoder(os.Stdout).Encode(map[string]string{"status": "enrolled", "credential_id": identity.CredentialID})
 	}
-	delay := time.Second
+	monitorErrors := make(chan error, 1)
+	if args[0] == "run" && config.MonitorEnabled {
+		go func() {
+			err := agentclient.RunMonitorCollector(ctx, config)
+			if err != nil {
+				monitorErrors <- err
+				stop()
+			}
+		}()
+	}
+	attempt := 0
 	for {
 		received := false
 		if config.RenewalEnabled || args[0] == "renew" {
@@ -69,15 +80,20 @@ func run(args []string) error {
 			e = agentclient.Stream(ctx, config, version, func(_ *agentproto.HeartbeatAck) { received = true })
 		}
 		if received {
-			delay = time.Second
+			attempt = 0
 		}
 		if ctx.Err() != nil {
+			select {
+			case err := <-monitorErrors:
+				return err
+			default:
+			}
 			return nil
 		}
 		if status.Code(e) != codes.Unavailable && status.Code(e) != codes.DeadlineExceeded && status.Code(e) != codes.ResourceExhausted && !errors.Is(e, context.DeadlineExceeded) {
 			return e
 		}
-		timer := time.NewTimer(delay)
+		timer := time.NewTimer(monitor.Backoff(attempt, config.MachineID))
 		select {
 		case <-ctx.Done():
 			timer.Stop()
@@ -85,8 +101,8 @@ func run(args []string) error {
 		case <-timer.C:
 		}
 		e = nil
-		if delay < 30*time.Second {
-			delay *= 2
+		if attempt < 6 {
+			attempt++
 		}
 	}
 }
