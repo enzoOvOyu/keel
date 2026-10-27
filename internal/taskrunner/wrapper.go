@@ -17,6 +17,7 @@ import (
 // Wrapper is a per-invocation helper, not a persistent agent. StateDirectory is
 // provisioned by the operator for keel-ctrl, mode0700. Never use a shared /tmp.
 type Wrapper struct {
+	MonitorEnabled           bool
 	PrecollectEnabled        bool
 	ArtifactTransfersEnabled bool
 	ScriptMediaCacheEnabled  bool
@@ -128,6 +129,9 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 	if r.Action == "run" && r.Command.Operation == "host.artifact.inventory" && !w.ArtifactTransfersEnabled {
 		return zero, ErrRejected
 	}
+	if r.Action == "run" && r.Command.Operation == "host.monitor" && !w.MonitorEnabled {
+		return zero, ErrRejected
+	}
 	if r.Action == "run" && r.Command.Operation == "host.precollect" && !w.PrecollectEnabled {
 		return zero, ErrRejected
 	}
@@ -148,6 +152,9 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 	}
 	if privateDirectory(dir) != nil {
 		return zero, ErrUnknown
+	}
+	if r.Action == "read" && r.Command.Operation == "host.monitor" {
+		return readCapturedChunk(ctx, dir, r, "host.monitor", "monitor")
 	}
 	if r.Action == "read" && r.Command.Operation == "host.precollect" {
 		return readPrecollectChunk(ctx, dir, r)
@@ -225,7 +232,7 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 	}
 	work, cancel := context.WithTimeout(ctx, time.Duration(r.Command.TimeoutMS)*time.Millisecond)
 	defer cancel()
-	if r.Command.Operation == "host.precollect" || r.Command.Operation == "trust.install" || r.Command.Operation == "script.run" {
+	if r.Command.Operation == "host.monitor" || r.Command.Operation == "host.precollect" || r.Command.Operation == "trust.install" || r.Command.Operation == "script.run" {
 		var stop context.CancelFunc
 		work, stop = context.WithDeadline(work, time.UnixMicro(r.Command.AuthorizationExpiresAt))
 		defer stop()
@@ -256,6 +263,15 @@ func (w Wrapper) Handle(ctx context.Context, r Request) (Observation, error) {
 		o.Output, result, reason, scriptErr = executeScriptProcess(work, dir, r.Command, r.Script, w.ScriptMediaCacheEnabled, r.UseCachedScript)
 		if scriptErr != nil {
 			return zero, ErrUnknown
+		}
+	} else if r.Command.Operation == "host.monitor" {
+		var captureErr error
+		o.Output, reason, captureErr = captureMonitor(work, dir, r.Command.MonitorNetworkOnly)
+		if captureErr != nil {
+			return zero, captureErr
+		}
+		if reason != "monitor_observed" {
+			result = "failed"
 		}
 	} else if r.Command.Operation == "host.precollect" {
 		var captureErr error

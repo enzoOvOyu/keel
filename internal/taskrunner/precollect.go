@@ -63,23 +63,27 @@ func capturePrecollect(ctx context.Context, dir string) (map[string]any, string,
 	return map[string]any{"stopped": true, "precollect_version": precollect.Version, "precollect_sha256": precollect.Hash(raw), "precollect_size": len(raw)}, "precollect_observed", nil
 }
 func readPrecollectChunk(ctx context.Context, dir string, r Request) (Observation, error) {
+	return readCapturedChunk(ctx, dir, r, "host.precollect", "precollect")
+}
+
+func readCapturedChunk(ctx context.Context, dir string, r Request, operation, prefix string) (Observation, error) {
 	var zero Observation
-	if ctx.Err() != nil || r.Command.Operation != "host.precollect" || r.Action != "read" {
+	if ctx.Err() != nil || r.Command.Operation != operation || r.Action != "read" {
 		return zero, ErrRejected
 	}
 	receipt, e := readObservation(filepath.Join(dir, "receipt.json"))
-	if e != nil || receipt.Validate(r.Command) != nil || receipt.State != "success" || receipt.Output["precollect_sha256"] != r.ChunkSHA256 {
+	if e != nil || receipt.Validate(r.Command) != nil || receipt.State != "success" || receipt.Output[prefix+"_sha256"] != r.ChunkSHA256 {
 		return zero, ErrRejected
 	}
-	size, ok := scriptOutputInteger(receipt.Output["precollect_size"])
+	size, ok := scriptOutputInteger(receipt.Output[prefix+"_size"])
 	if !ok || r.ChunkOffset >= size {
 		return zero, ErrRejected
 	}
-	fd, e := unix.Open(filepath.Join(dir, "precollect.json"), unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, 0)
+	fd, e := unix.Open(filepath.Join(dir, prefix+".json"), unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, 0)
 	if e != nil {
 		return zero, ErrUnknown
 	}
-	file := os.NewFile(uintptr(fd), "precollect.json")
+	file := os.NewFile(uintptr(fd), prefix+".json")
 	defer file.Close()
 	info, e := file.Stat()
 	if e != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 || info.Size() != size {
@@ -95,5 +99,5 @@ func readPrecollectChunk(ctx context.Context, dir string, r Request) (Observatio
 	if _, e = io.ReadFull(io.NewSectionReader(file, r.ChunkOffset, int64(len(chunk))), chunk); e != nil {
 		return zero, ErrUnknown
 	}
-	return Observation{Command: r.Command, State: "accepted", Output: map[string]any{"precollect_chunk_offset": r.ChunkOffset, "precollect_size": size, "precollect_sha256": r.ChunkSHA256, "chunk_sha256": precollect.Hash(chunk), "chunk": base64.StdEncoding.EncodeToString(chunk)}}, nil
+	return Observation{Command: r.Command, State: "accepted", Output: map[string]any{prefix + "_chunk_offset": r.ChunkOffset, prefix + "_size": size, prefix + "_sha256": r.ChunkSHA256, "chunk_sha256": precollect.Hash(chunk), "chunk": base64.StdEncoding.EncodeToString(chunk)}}, nil
 }

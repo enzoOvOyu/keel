@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/enzoOvOyu/keel/internal/monitor"
 	"github.com/enzoOvOyu/keel/internal/precollect"
 	"regexp"
 	"time"
@@ -21,6 +22,7 @@ var idPattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
 const APIVersion = "keel.task/v1"
 
 type TaskCommand struct {
+	MonitorNetworkOnly     bool   `json:"monitor_network_only,omitempty"`
 	ArtifactMediaID        string `json:"artifact_media_id,omitempty"`
 	ArtifactObjectVersion  string `json:"artifact_object_version,omitempty"`
 	ArtifactSHA256         string `json:"artifact_sha256,omitempty"`
@@ -51,7 +53,7 @@ func (c TaskCommand) Validate() error {
 	if c.APIVersion != APIVersion || !idPattern.MatchString(c.ProjectID) || !idPattern.MatchString(c.MachineID) || !idPattern.MatchString(c.CommandID) || !idPattern.MatchString(c.AttemptID) || c.FencingToken < 1 || c.TimeoutMS < 100 || c.TimeoutMS > 30000 {
 		return ErrRejected
 	}
-	if c.Operation != "host.precollect" && c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "trust.verify" && c.Operation != "trust.install" && c.Operation != "script.run" && c.Operation != "host.cache.inventory" && c.Operation != "host.artifact.inventory" && c.Operation != "media.stage" && c.Operation != "media.fetch" {
+	if c.Operation != "host.monitor" && c.Operation != "host.precollect" && c.Operation != "host.identity" && c.Operation != "host.wait" && c.Operation != "trust.verify" && c.Operation != "trust.install" && c.Operation != "script.run" && c.Operation != "host.cache.inventory" && c.Operation != "host.artifact.inventory" && c.Operation != "media.stage" && c.Operation != "media.fetch" {
 		return ErrRejected
 	}
 	if c.Operation == "media.stage" || c.Operation == "media.fetch" {
@@ -79,10 +81,13 @@ func (c TaskCommand) Validate() error {
 		if _, err := installPublicIdentity(c.PublicKey, c.ProjectID); err != nil || c.AuthorizationExpiresAt < 1 {
 			return ErrRejected
 		}
-	} else if c.PublicKey != "" || c.Operation != "host.precollect" && c.Operation != "script.run" && c.Operation != "media.stage" && c.Operation != "media.fetch" && c.AuthorizationExpiresAt != 0 {
+	} else if c.PublicKey != "" || c.Operation != "host.monitor" && c.Operation != "host.precollect" && c.Operation != "script.run" && c.Operation != "media.stage" && c.Operation != "media.fetch" && c.AuthorizationExpiresAt != 0 {
 		return ErrRejected
 	}
-	if c.Operation == "host.precollect" && c.AuthorizationExpiresAt < 1 {
+	if (c.Operation == "host.precollect" || c.Operation == "host.monitor") && c.AuthorizationExpiresAt < 1 {
+		return ErrRejected
+	}
+	if c.MonitorNetworkOnly && c.Operation != "host.monitor" {
 		return ErrRejected
 	}
 	if (c.Operation != "host.wait" && c.WaitMS != 0) || c.WaitMS < 0 || c.WaitMS > 30000 {
@@ -115,8 +120,12 @@ func (r Request) Validate() error {
 		return ErrRejected
 	}
 	if r.Action == "read" {
-		if r.Command.Operation == "host.precollect" {
-			if len(r.Script) != 0 || r.UseCachedScript || len(r.Chunk) != 0 || !scriptDigestPattern.MatchString(r.ChunkSHA256) || r.ChunkOffset < 0 || r.ChunkOffset >= precollect.MaxBundleBytes || r.ChunkOffset%precollect.ChunkBytes != 0 {
+		if r.Command.Operation == "host.precollect" || r.Command.Operation == "host.monitor" {
+			limit := int64(precollect.MaxBundleBytes)
+			if r.Command.Operation == "host.monitor" {
+				limit = monitor.MaxHostSnapshotBytes
+			}
+			if len(r.Script) != 0 || r.UseCachedScript || len(r.Chunk) != 0 || !scriptDigestPattern.MatchString(r.ChunkSHA256) || r.ChunkOffset < 0 || r.ChunkOffset >= limit || r.ChunkOffset%precollect.ChunkBytes != 0 {
 				return ErrRejected
 			}
 			return nil
@@ -173,6 +182,9 @@ func (o Observation) Terminal() bool {
 
 func (o Observation) Validate(c TaskCommand) error {
 	if o.Command != c || (o.State != "accepted" && o.State != "running" && !o.Terminal()) {
+		return ErrRejected
+	}
+	if c.Operation == "host.monitor" && o.Terminal() && validateMonitorObservation(o) != nil {
 		return ErrRejected
 	}
 	if c.Operation == "host.precollect" && o.Terminal() && validatePrecollectObservation(o) != nil {

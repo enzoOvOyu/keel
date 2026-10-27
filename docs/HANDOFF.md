@@ -2317,3 +2317,11 @@ ReadWiringCapture重新打开固定版本对象、核对SHA256/大小、重建�
 - 离线检查器复用有界/no-follow/哈希读取，核对8台完整范围、真实来源标签、部分平台原字段、期限与同工单原命令重验/关闭版本；READY_FOR_REVIEW仍hardware_acceptance=UNVERIFIED。人工原文真实性、TLV/DOM逐字段一致、硬件和操作授权不由离线脚本代签。
 - §211增量与本包合并集中检查通过：`go test ./internal/platform -run TestPortMonitor -count=1 -timeout=90s -v`、隔离keel_test_agent_panel_*库`go test ./internal/agentidentity -run TestMonitorPostgres -count=1 -timeout=90s -v`、`python3 -m unittest discover -s poc/p2 -p test_validate.py -v`四个合成检查及前端`tsc --noEmit`。证据`/tmp/keel-p2-panel-poc-milestone-t8pfbwq0/`，临时库已删；随后修正材料须引用G2 wiring-retests而非fabric通用verification列表，并补同工单/关闭版本检查，定向重跑四个Python检查通过。
 - 布局/抽屉仅软件和类型检查，不含浏览器；没有真实PoC、G1/G2/G3正向全链或portmon维修正向链验收。源码105条迁移/108，运行仍64/067、3000为7afda32。下一步继续Agentless降级和portmon领域维修闭环；不强行启动WP-3.12/4.8。原草稿/netbom.xlsx未动。
+
+
+## 213. Agentless共享采样与固定SSH快照协议底层（源码）
+
+- 将既有Linux只读指标采样及CPU增量语义移至internal/hostmetrics，Agent沿用原策略/持久ACK队列。共享D6不假定Agent运行；Agent自身采样路径另保留其确实运行的进程状态。未复制另一套sysfs/ethtool/GPU解析。
+- 新增严格有界HostSnapshot契约与固定host.monitor操作，原命令/attempt/fence、授权到期、网络限定D1/D2、全快照D1～D6、明确截断与unknown；不支持BMC指标混入。独立helper开关KEEL_SSH_MONITOR_ENABLED默认关闭，不更改现有环境。
+- 原始快照写入私有目录、fsync后回执；共享既有只读分块回读，绑定原摘要与原命令，恢复不再采样；拒绝命令载荷、重复JSON键及越界窗口。无Agent时不会产生虚假心跳或实时翻转告警。
+- 当前只是底层，服务端领域准入/原文回收/统一入库、按需UI与5～15分钟调度尚在接线，不能声明FR-13.4完成。新增检查NOT_RUN，按用户要求待完整Agentless里程碑集中运行；仅gofmt和差异检查。运行版/数据库/原草稿保持原状，继续开发。
