@@ -15,12 +15,13 @@ import (
 )
 
 type WiringCaptureRecord struct {
-	CommandID   string        `json:"command_id"`
-	RawSHA256   string        `json:"raw_sha256"`
-	RawSize     int64         `json:"raw_size"`
-	CollectedAt *time.Time    `json:"collected_at"`
-	StoppedAt   time.Time     `json:"stopped_at"`
-	Evaluation  wiring.Result `json:"evaluation"`
+	PortEvaluations map[string]wiring.Result `json:"port_evaluations"`
+	CommandID       string                   `json:"command_id"`
+	RawSHA256       string                   `json:"raw_sha256"`
+	RawSize         int64                    `json:"raw_size"`
+	CollectedAt     *time.Time               `json:"collected_at"`
+	StoppedAt       time.Time                `json:"stopped_at"`
+	Evaluation      wiring.Result            `json:"evaluation"`
 }
 
 // RecordWiringCapture is an execution-owned consumer; there is no upload route.
@@ -56,7 +57,7 @@ func (s *Store) RecordWiringCapture(ctx context.Context, binding wiring.Readback
 		tx.Rollback()
 		return nil, e
 	}
-	archive, evaluation, e := wiring.EvaluateArchive(raw, command.Expectation, binding, command.HostOrigin)
+	archive, evaluation, ports, e := wiring.EvaluateArchivePorts(raw, command.Expectation, binding, command.HostOrigin)
 	if e != nil {
 		tx.Rollback()
 		return nil, e
@@ -73,7 +74,7 @@ func (s *Store) RecordWiringCapture(ctx context.Context, binding wiring.Readback
 		return nil, e
 	}
 	sha := wiring.Hash(raw)
-	out := &WiringCaptureRecord{CommandID: binding.CommandID, RawSHA256: sha, RawSize: int64(len(raw)), StoppedAt: archive.Capture.AdvertisingStoppedAt, Evaluation: evaluation}
+	out := &WiringCaptureRecord{CommandID: binding.CommandID, RawSHA256: sha, RawSize: int64(len(raw)), StoppedAt: archive.Capture.AdvertisingStoppedAt, Evaluation: evaluation, PortEvaluations: ports}
 	if !archive.Capture.CollectedAt.IsZero() {
 		at := archive.Capture.CollectedAt
 		out.CollectedAt = &at
@@ -115,7 +116,7 @@ func (s *Store) RecordWiringCapture(ctx context.Context, binding wiring.Readback
 	if e != nil {
 		return nil, e
 	}
-	_, e = tx.ExecContext(ctx, `INSERT INTO validation_wiring_capture_records(command_id,origin,collected_at,stopped_at,raw_key,raw_version,raw_sha256,raw_size,evaluation,host_evidence_hash,received_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,statement_timestamp())`, binding.CommandID, archive.Capture.Origin, out.CollectedAt, out.StoppedAt, key, version, sha, len(raw), networkJSON(evaluation), hostHash)
+	_, e = tx.ExecContext(ctx, `INSERT INTO validation_wiring_capture_records(command_id,origin,collected_at,stopped_at,raw_key,raw_version,raw_sha256,raw_size,evaluation,host_evidence_hash,port_evaluations,received_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,statement_timestamp())`, binding.CommandID, archive.Capture.Origin, out.CollectedAt, out.StoppedAt, key, version, sha, len(raw), networkJSON(evaluation), hostHash, networkJSON(ports))
 	if e != nil {
 		return nil, e
 	}
@@ -190,10 +191,10 @@ func (s *Store) ReadWiringCapture(ctx context.Context, binding wiring.ReadbackBi
 		return nil, nil, e
 	}
 	var key, version string
-	var evaluationRaw []byte
+	var evaluationRaw, portsRaw []byte
 	out := &WiringCaptureRecord{CommandID: binding.CommandID}
 	var collected sql.NullTime
-	e = tx.QueryRowContext(ctx, `SELECT raw_key,raw_version,raw_sha256,raw_size,collected_at,stopped_at,evaluation FROM validation_wiring_capture_records WHERE command_id=$1`, binding.CommandID).Scan(&key, &version, &out.RawSHA256, &out.RawSize, &collected, &out.StoppedAt, &evaluationRaw)
+	e = tx.QueryRowContext(ctx, `SELECT raw_key,raw_version,raw_sha256,raw_size,collected_at,stopped_at,evaluation,port_evaluations FROM validation_wiring_capture_records WHERE command_id=$1`, binding.CommandID).Scan(&key, &version, &out.RawSHA256, &out.RawSize, &collected, &out.StoppedAt, &evaluationRaw, &portsRaw)
 	if e != nil {
 		return nil, nil, e
 	}
@@ -213,7 +214,7 @@ func (s *Store) ReadWiringCapture(ctx context.Context, binding wiring.ReadbackBi
 	if e != nil {
 		return nil, nil, e
 	}
-	archive, evaluation, e := wiring.EvaluateArchive(raw, command.Expectation, binding, command.HostOrigin)
+	archive, evaluation, ports, e := wiring.EvaluateArchivePorts(raw, command.Expectation, binding, command.HostOrigin)
 	if e != nil {
 		return nil, nil, e
 	}
@@ -232,6 +233,11 @@ func (s *Store) ReadWiringCapture(ctx context.Context, binding wiring.ReadbackBi
 	if e = tx.Commit(); e != nil {
 		return nil, nil, e
 	}
+	var retainedPorts map[string]wiring.Result
+	if json.Unmarshal(portsRaw, &retainedPorts) != nil || string(networkJSON(retainedPorts)) != string(networkJSON(ports)) {
+		return nil, nil, wiring.ErrCaptureRejected
+	}
+	out.PortEvaluations = ports
 	out.Evaluation = evaluation
 	return out, archive, nil
 }
