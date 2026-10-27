@@ -3984,6 +3984,7 @@ export interface components {
             code: string;
             ssh_host_key: string;
             ssh_binding_hash: string;
+            collector_version: string;
         };
         PrecollectCreateInput: {
             targets: {
@@ -4059,6 +4060,7 @@ export interface components {
             temperature_c: number | null;
             rx_power_dbm: number | null;
             tx_power_dbm: number | null;
+            driver_version: string;
         };
         PrecollectReport: {
             config_unchanged: boolean;

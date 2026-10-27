@@ -235,7 +235,7 @@
         "internal/precollect/gate_test.go",
         "internal/taskrunner/precollect_test.go",
         "internal/execution/precollect_test.go",
-        "docs/HANDOFF.md#184"
+        "docs/HANDOFF.md"
       ]
     },
     {

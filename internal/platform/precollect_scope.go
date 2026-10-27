@@ -36,6 +36,7 @@ type PrecollectScope struct {
 	ModelVersion       string                 `json:"model_version_id"`
 	ModelContentHash   string                 `json:"model_content_hash"`
 	BOMPackageID       string                 `json:"bom_package_id"`
+	CollectorVersion   string                 `json:"collector_version"`
 	RuleVersion        string                 `json:"rule_version"`
 	CatalogFingerprint string                 `json:"catalog_fingerprint"`
 	GateTTLSeconds     int64                  `json:"gate_ttl_seconds"`
@@ -59,7 +60,7 @@ func PrecollectAssetState(state string) bool {
 // original pins the historical BMC source; a newer inventory capture does not
 // invalidate unchanged, still-fresh evidence merely by existing.
 func (s *Store) PreparePrecollectScopeTx(ctx context.Context, tx *sql.Tx, project, asset string, original *PrecollectScope, lock bool) (*PrecollectScope, error) {
-	out := &PrecollectScope{ProjectID: project, AssetID: asset, RuleVersion: precollect.RuleVersion, GateTTLSeconds: 86400, AssetTTLSeconds: 86400, Components: []PrecollectComponent{}, Expectation: precollect.Expectation{Ports: []precollect.ExpectedPort{}}, Ready: true, Code: "PRECOLLECT_READY"}
+	out := &PrecollectScope{CollectorVersion: precollect.Version, ProjectID: project, AssetID: asset, RuleVersion: precollect.RuleVersion, GateTTLSeconds: 86400, AssetTTLSeconds: 86400, Components: []PrecollectComponent{}, Expectation: precollect.Expectation{Ports: []precollect.ExpectedPort{}}, Ready: true, Code: "PRECOLLECT_READY"}
 	block := func(code string) {
 		out.Ready = false
 		if out.Code == "PRECOLLECT_READY" {

@@ -80,6 +80,7 @@ type NIC struct {
 	Link            string   `json:"link"`
 	SpeedMbps       *int64   `json:"speed_mbps"`
 	Driver          string   `json:"driver"`
+	DriverVersion   string   `json:"driver_version"`
 	Firmware        string   `json:"firmware"`
 	RDMALinks       []string `json:"rdma_links"`
 	DOMState        string   `json:"dom_state"`
@@ -180,7 +181,7 @@ func Decode(raw []byte, now time.Time) (*Bundle, error) {
 		}
 	}
 	for _, config := range [][]NetConfig{b.ConfigBefore, b.ConfigAfter} {
-		if len(config) == 0 || len(config) > 2048 {
+		if len(config) > 2048 {
 			return nil, ErrInvalid
 		}
 		seen := map[string]bool{}
@@ -254,7 +255,8 @@ func Normalize(b *Bundle) (*Report, error) {
 		csvReader.FieldsPerRecord = 5
 		rows, e := csvReader.ReadAll()
 		if e != nil || len(rows) > 256 {
-			return nil, ErrInvalid
+			r.Missing = append(r.Missing, "gpu_inventory_format_invalid")
+			rows = nil
 		}
 		seen := map[string]bool{}
 		bdfs := map[string]bool{}
@@ -262,20 +264,22 @@ func Normalize(b *Bundle) (*Report, error) {
 			uuid := strings.TrimSpace(row[0])
 			bdf := CanonicalBDF(row[1])
 			if !gpuUUID.MatchString(uuid) || bdf == "" || seen[uuid] || bdfs[bdf] {
-				return nil, ErrInvalid
+				r.Missing = append(r.Missing, "gpu_inventory_identity_invalid")
+				continue
 			}
 			seen[uuid] = true
 			bdfs[bdf] = true
-			driver := strings.TrimSpace(row[3])
+			driver := observedText(strings.TrimSpace(row[3]))
 			if len(driver) > 120 {
-				return nil, ErrInvalid
+				driver = ""
+				r.Missing = append(r.Missing, "gpu_driver_version_invalid")
 			}
 			r.GPUs = append(r.GPUs, GPU{UUID: uuid, BDF: bdf, MemoryMiB: decimal(row[2]), DriverVersion: driver, UncorrectedECC: decimal(row[4]), Present: true})
 		}
 	}
-	r.NVLinkStatus = ready("nvlink", "")
-	r.PCITopology = ready("pci_topology", "")
-	r.GPUTopology = ready("gpu_topology", "")
+	r.NVLinkStatus = observedText(ready("nvlink", ""))
+	r.PCITopology = observedText(ready("pci_topology", ""))
+	r.GPUTopology = observedText(ready("gpu_topology", ""))
 	var rdma []struct {
 		Ifname string `json:"ifname"`
 		Netdev string `json:"netdev"`
@@ -305,7 +309,8 @@ func Normalize(b *Bundle) (*Report, error) {
 		speed := strings.TrimSuffix(field(link, "Speed"), "Mb/s")
 		n.SpeedMbps = decimal(speed)
 		driver := ready("nic_driver", n.Name)
-		n.Driver = field(driver, "driver")
+		n.Driver = observedText(field(driver, "driver"))
+		n.DriverVersion = observedText(field(driver, "version"))
 		n.Firmware = field(driver, "firmware-version")
 		if bdf := CanonicalBDF(field(driver, "bus-info")); bdf != "" && bdf != n.BDF {
 			r.Missing = append(r.Missing, "nic_driver_bdf_mismatch:"+n.Name)
@@ -333,4 +338,20 @@ func Normalize(b *Bundle) (*Report, error) {
 		r.NICs = append(r.NICs, n)
 	}
 	return r, nil
+}
+
+// Successful process exit is insufficient when the vendor reports an unknown
+// or unsupported observation in-band. Preserve the original bytes in the bundle.
+func observedText(value string) string {
+	value = strings.TrimSpace(value)
+	lower := strings.ToLower(value)
+	if lower == "n/a" || lower == "[n/a]" || lower == "unknown" || lower == "not available" {
+		return ""
+	}
+	for _, marker := range []string{"not supported", "unsupported", "unable to", "failed to", "no devices were found", "couldn't communicate"} {
+		if strings.Contains(lower, marker) {
+			return ""
+		}
+	}
+	return value
 }

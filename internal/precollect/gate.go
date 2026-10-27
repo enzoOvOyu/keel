@@ -153,6 +153,7 @@ func Evaluate(r *Report, expected Expectation, bmcObserved bool, now time.Time, 
 		require(n.Link == "yes" || n.Link == "no", "nic.link", n.Name)
 		require(n.SpeedMbps != nil, "nic.speed", n.Name)
 		require(n.Driver != "", "nic.driver", n.Name)
+		require(n.DriverVersion != "", "nic.driver_version", n.Name)
 		require(len(n.RDMALinks) > 0, "nic.rdma_links", n.Name)
 		require(len(r.RDMADevices) > 0, "nic.rdma_devices", n.Name)
 		require(n.DOMState == "ready" && n.ModulePresent != nil && n.TemperatureC != nil && n.RxPowerDBm != nil && n.TxPowerDBm != nil, "nic.dom", n.Name)
@@ -163,7 +164,7 @@ func Evaluate(r *Report, expected Expectation, bmcObserved bool, now time.Time, 
 	for mac, p := range expectedMACs {
 		require(seen[mac], "bom.permanent_mac", p.ID)
 		if !seen[mac] {
-			for _, field := range []string{"nic.permanent_mac", "nic.bdf", "nic.interface", "nic.link", "nic.speed", "nic.driver", "nic.rdma_links", "nic.rdma_devices", "nic.dom"} {
+			for _, field := range []string{"nic.permanent_mac", "nic.bdf", "nic.interface", "nic.link", "nic.speed", "nic.driver", "nic.driver_version", "nic.rdma_links", "nic.rdma_devices", "nic.dom"} {
 				require(false, field, p.ID)
 			}
 		}

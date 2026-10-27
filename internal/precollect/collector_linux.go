@@ -39,6 +39,10 @@ func Collect(parent context.Context) (*Bundle, error) {
 		b.Serial, _ = readHostFile("/sys/firmware/devicetree/base/serial-number", 256)
 	}
 	b.Serial = strings.TrimSpace(strings.TrimRight(b.Serial, "\x00"))
+	if len(b.Serial) > 120 {
+		b.Serial = ""
+		missing("system_serial_format_unsupported")
+	}
 	if b.Serial == "" {
 		missing("system_serial_unavailable")
 	}

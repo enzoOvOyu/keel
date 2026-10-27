@@ -11,7 +11,7 @@ import (
 func pointer[T any](v T) *T { return &v }
 func completeReport(gpuCount int, arch string, now time.Time) (*Report, Expectation) {
 	e := Expectation{Serial: "POC-UNVERIFIED", Arch: arch, GPUCount: pointer(gpuCount), NICCount: pointer(1), Ports: []ExpectedPort{{ID: strings.Repeat("a", 32), ComponentID: strings.Repeat("b", 32), MAC: "02:00:00:00:00:01", PortIndex: "1"}}}
-	r := &Report{Version: Version, Origin: "real", Serial: e.Serial, Arch: arch, OSRelease: "ID=fixture", CollectedAt: now.Add(-time.Minute), ConfigUnchanged: true, PCITopology: "retained PCI tree", GPUTopology: "retained GPU matrix", NVLinkStatus: "retained NVLink state", RDMADevices: []string{"mlx5_0"}, GPUs: []GPU{}, NICs: []NIC{{Name: "enp1s0", BDF: "0000:01:00.0", PermanentMAC: e.Ports[0].MAC, Link: "yes", SpeedMbps: pointer(int64(100000)), Driver: "mlx5_core", RDMALinks: []string{"mlx5_0/1"}, DOMState: "ready", ModulePresent: pointer(true), TemperatureC: pointer(35.0), RxPowerDBm: pointer(-2.0), TxPowerDBm: pointer(-1.0)}}}
+	r := &Report{Version: Version, Origin: "real", Serial: e.Serial, Arch: arch, OSRelease: "ID=fixture", CollectedAt: now.Add(-time.Minute), ConfigUnchanged: true, PCITopology: "retained PCI tree", GPUTopology: "retained GPU matrix", NVLinkStatus: "retained NVLink state", RDMADevices: []string{"mlx5_0"}, GPUs: []GPU{}, NICs: []NIC{{Name: "enp1s0", BDF: "0000:01:00.0", PermanentMAC: e.Ports[0].MAC, Link: "yes", SpeedMbps: pointer(int64(100000)), Driver: "mlx5_core", DriverVersion: "fixture-driver", RDMALinks: []string{"mlx5_0/1"}, DOMState: "ready", ModulePresent: pointer(true), TemperatureC: pointer(35.0), RxPowerDBm: pointer(-2.0), TxPowerDBm: pointer(-1.0)}}}
 	for i := 0; i < gpuCount; i++ {
 		r.GPUs = append(r.GPUs, GPU{UUID: fmt.Sprintf("GPU-00000000-0000-0000-0000-%012d", i), BDF: fmt.Sprintf("0000:%02x:00.0", i+2), MemoryMiB: pointer(int64(81920)), UncorrectedECC: pointer(int64(0)), DriverVersion: "fixture-only", Present: true})
 	}
@@ -79,7 +79,7 @@ func TestRawDecodeAndFixedParserEvidence(t *testing.T) {
 		{Kind: "gpu", State: "ready", Stdout: "GPU-00000000-0000-0000-0000-000000000001, 00000000:02:00.0, 81920, fixture, 0\n"},
 		{Kind: "nic_permanent", Target: "eth0", State: "ready", Stdout: "Permanent address: 02:00:00:00:00:01\n"},
 		{Kind: "nic_link", Target: "eth0", State: "ready", Stdout: "Speed: 100000Mb/s\nLink detected: yes\n"},
-		{Kind: "nic_driver", Target: "eth0", State: "ready", Stdout: "driver: mlx5_core\nbus-info: 0000:01:00.0\nfirmware-version: fixture\n"},
+		{Kind: "nic_driver", Target: "eth0", State: "ready", Stdout: "driver: mlx5_core\nversion: fixture-driver\nbus-info: 0000:01:00.0\nfirmware-version: fixture\n"},
 		{Kind: "nic_dom", Target: "eth0", State: "ready", Stdout: "Module temperature: 35.00 degrees C\nReceiver signal average optical power: 1.0 mW / -2.0 dBm\nLaser output power: 1.0 mW / -1.0 dBm\n"},
 		{Kind: "rdma_links", State: "ready", Stdout: `[{"ifname":"mlx5_0","netdev":"eth0","port":1,"state":"ACTIVE"}]`},
 		{Kind: "ibv_devices", State: "ready", Stdout: "mlx5_0 0000000000000001\n"},
@@ -108,5 +108,31 @@ func TestRawDecodeAndFixedParserEvidence(t *testing.T) {
 	}
 	if _, err = Decode(append(raw, []byte(` {}`)...), now); err == nil {
 		t.Fatal("trailing document accepted")
+	}
+}
+
+func TestUnsupportedAndMalformedProbeStillRetainsStoppedReport(t *testing.T) {
+	now := time.Now().UTC()
+	b := &Bundle{Version: Version, Origin: "real", StartedAt: now.Add(-time.Second), CollectedAt: now, Serial: "fixture", Arch: "amd64", OSRelease: "ID=fixture", Probes: []Probe{{Kind: "gpu", State: "ready", Stdout: "vendor returned an unsupported format"}, {Kind: "nvlink", State: "ready", Stdout: "NVML: Not Supported"}, {Kind: "gpu_topology", State: "ready", Stdout: "Unable to query topology"}}}
+	raw, _ := json.Marshal(b)
+	decoded, e := Decode(raw, now)
+	if e != nil {
+		t.Fatal("missing optional observations rejected stopped raw bundle", e)
+	}
+	report, e := Normalize(decoded)
+	if e != nil {
+		t.Fatal("malformed tool output should be an explicit missing fact", e)
+	}
+	if len(report.GPUs) != 0 || report.NVLinkStatus != "" || report.GPUTopology != "" || len(report.Missing) == 0 || report.ConfigUnchanged {
+		t.Fatal("unsupported output became complete facts", report)
+	}
+	if string(raw) == "" || b.Probes[1].Stdout != "NVML: Not Supported" {
+		t.Fatal("original vendor bytes were lost")
+	}
+	r, expected := completeReport(2, "amd64", now)
+	r.NICs[0].DriverVersion = ""
+	result := Evaluate(r, expected, true, now, time.Hour)
+	if result.Verdict != "BLOCKED" || result.CompletenessPercent >= 100 {
+		t.Fatal("NIC driver version omission passed", result)
 	}
 }

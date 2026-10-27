@@ -173,7 +173,7 @@ func (s *Store) ReconcilePrecollect(ctx context.Context, limit int) (int, error)
 	if limit < 1 || limit > 20 {
 		limit = 10
 	}
-	rows, e := s.DB.QueryContext(ctx, `SELECT r.id FROM validation_precollect_records r JOIN validation_precollect_requests q ON q.id=r.id JOIN exec_executions x ON x.id=q.execution_id WHERE x.state IN('success','failed') AND NOT EXISTS(SELECT 1 FROM validation_gate_evidence g WHERE g.precollect_id=r.id) ORDER BY r.received_at,r.id LIMIT $1`, limit)
+	rows, e := s.DB.QueryContext(ctx, `SELECT r.id FROM validation_precollect_records r JOIN validation_precollect_requests q ON q.id=r.id JOIN exec_executions x ON x.id=q.execution_id JOIN exec_task_attempts a ON a.id=r.attempt_id AND a.state='success' JOIN exec_runner_receipts receipt ON receipt.attempt_id=a.id AND receipt.command_id=r.command_id AND receipt.fencing_token=r.fencing_token AND receipt.result=a.state WHERE x.state IN('success','failed') AND x.desired_state='running' AND receipt.payload#>>'{output,precollect_record_id}'=r.id AND receipt.payload#>>'{output,evidence_hash}'=r.raw_sha256 AND receipt.payload#>>'{output,stopped}'='true' AND NOT EXISTS(SELECT 1 FROM validation_gate_evidence g WHERE g.precollect_id=r.id) ORDER BY r.received_at,r.id LIMIT $1`, limit)
 	if e != nil {
 		return 0, e
 	}

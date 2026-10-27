@@ -15,7 +15,7 @@
 Linux helper 使用固定参数向量，无 shell、用户命令或任意路径输入：
 
 - DMI/设备树 SN、OS release、运行架构；`nvidia-smi` GPU UUID、PCI BDF、显存容量、驱动与未纠正 ECC 观测、NVLink 状态、拓扑摘要。
-- sysfs 接口与 PCI PF/VF 关系，`ethtool -P`/链路/`-i`/`-m`，RDMA sysfs、`ibv_devices`、`rdma -j link show` 交叉关联。
+- sysfs 接口与 PCI PF/VF 关系，`ethtool -P`/链路/`-i`（名称及版本）/`-m`，RDMA sysfs、`ibv_devices`、`rdma -j link show` 交叉关联。
 - `lspci -D -tv` 摘要；采集前后比较接口 MAC、MTU、管理 up 状态。该比较没有声称覆盖完整 PFC/ECN/RoCE 配置；这些配置及完整无变更 PoC 留后续环节。
 - 固定工具候选必须由 root 拥有且不可被组/其他人写入；无自动安装、sudo、网卡 up、lldpd 启动或正式 GPUrail/RoCE 修改。当前非 root 账号对 DMI/模块读取的权限需 PoC 提供。
 
@@ -49,3 +49,10 @@ DOM不可读目前保留降级/阻断原因，不提供伪造豁免；DL备注�
 已写但未运行：amd64/arm64及不同GPU数量、MAC/DOM/ECC/陈旧/模拟/配置变化、缺GPU分母、固定原始解析、额外/重复输入、只读块边界、原fence/摘要绑定、软链接拒绝、已有原回执不重采、通用准入/重跑封闭及隔离PG缺前置/越项目读取用例。真实DMI权限、NVIDIA/ethtool/RDMA输出兼容、模块和硬件状态、200台规模与传输性能均待用户安排PoC/重大里程碑集中验证；没有测试PASS结论。
 
 工具协议参考：[NVIDIA nvidia-smi](https://docs.nvidia.com/deploy/nvidia-smi/)；实际工具/驱动版本须随PoC记录，不能用本文代替兼容性验证。
+
+
+收尾源码补充：范围摘要显式包含collector_version，NIC驱动版本单独纳入完整率；工具退出0但正文报告N/A/Not Supported/Unable to时保持缺失。GPU CSV格式/身份异常保留原始包并形成明确缺失项，不因可解析之外的输出而把已停止任务永久挂在unknown；接口配置不可读也归为不完整证据。最终化扫描先筛原成功停止回执，未具备原证明的条目不占据有限批次前列。相关补充用例NOT_RUN。
+
+当前初始采集规则对纳入范围的PF要求RDMA关联和DOM可读；非RDMA管理口、铜口/特殊模块的型号级适用性仍须在PoC前明确，缺失时阻断，不能自行填“无需检查”或绕过审批。当前纯逻辑模型支持不同GPU数量/架构，不等于已经验证无NVIDIA工具的机型。未知硬件适用性不应由观测反推，应接入独立发布型号/明确审批后再扩展规则。
+
+型号适用性接续入口：优先沿用PRD附录A已定义的`capability_matrix.ports[port_index].sub_type`及光模块`media_type`/`speed`/型号能力，消费BOM已保存的派生来源；不要凭接口名称猜管理口，也不要未经设计核对就新增硬编码的RDMA/DOM豁免布尔值。RDMA适用性无法由现有独立型号确定时仍保持未知，等待明确型号或审批依据。
