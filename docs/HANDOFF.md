@@ -2382,3 +2382,10 @@ ReadWiringCapture重新打开固定版本对象、核对SHA256/大小、重建�
 - 实际管理员登录3000后资产/门禁/监控/配置/网络/工单页PASS、无JS/HTTP 5xx、JetBrains Mono本地字体、退出后私有API拒绝访问PASS；`runtime-browser.log` / `runtime-browser-result.json`。worker日志无ERROR。快速切换页面期间API保留一条无SQLSTATE通用存储错误日志，浏览器未观察到5xx；与隔离UI中快速切换的同类现象一并留原证据，原因未签署、不称性能问题，后续可定向完善取消请求日志分类，不重跑本次业务检查。
 - development显式启用P2 BMC/预收集/布线/监控/工单重验、固件模拟和任务介质能力；目标SSH/Agent/collector/BMC适配凭据及真实helper未自动配置，固定真实写通道不开启。缺硬件配置、原证据或当前门禁时仍阻断/unknown，固件动作仅sim；运行库没有新增模拟资产或虚假PASS。
 - P2软件开发与本轮主要业务链集中验证/发布完成。真实H-2～H-5/H-13/H-17及设备适配PoC由用户安排，硬件验收仍UNVERIFIED；P1-001与200台整批验证继续按既定决定保留，没有新增已确认性能问题。两份原fabric_precheck草稿和netbom.xlsx保留未跟踪且被Docker精确隔离。下一阶段入口按实施计划P3依赖执行，不把未完成真实PoC写成硬件PASS。
+
+
+## 220. P2已同步GitHub main
+
+- 用户明确授权推送至main。核对GitHub SSH连接、远端变化和55个本地提交差异后，将本地main由1a96897快进至5dbe4ee并成功推送；远端refs/heads/main已读回确认一致。包含P2功能提交939af18和发布交接5dbe4ee，无强制推送或历史改写。
+- 当前工作区仍为/opt/keel，开发分支切至main；原dev/p2-validation保留。两份原fabric_precheck草稿和netbom.xlsx保持未跟踪，未进入提交。
+- 3000继续运行939af18，API/worker与110条迁移状态不变；本次仅Git同步及交接更新，未重复测试或重建镜像。GitHub CI结果未核验，不能把推送成功等同CI通过。后续从main按实施计划P3前置依赖接续。
