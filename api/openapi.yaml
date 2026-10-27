@@ -4359,6 +4359,14 @@ components:
         level: { type: string, enum: [L1, L2, L3] }
         expected_asset_version: { type: integer, format: int64, minimum: 1 }
         reason: { type: string, minLength: 3, maxLength: 1000 }
+    BMCFallbackInfo:
+      type: object
+      required: [protocol, reason, parser_version, resource_count]
+      properties:
+        protocol: { type: string, enum: [ipmi] }
+        reason: { type: string, enum: [redfish_timeout, redfish_unsupported, redfish_unavailable] }
+        parser_version: { type: string, enum: [ipmi-inventory/v1] }
+        resource_count: { type: integer, minimum: 0, maximum: 4 }
     BMCResource:
       type: object
       required: [path, type, data_sha256, source, received_at, raw, data]
@@ -4391,6 +4399,7 @@ components:
             capabilities: { $ref: '#/components/schemas/BMCInventorySnapshot/properties/capabilities' }
             failures: { $ref: '#/components/schemas/BMCInventorySnapshot/properties/failures' }
             degraded: { type: boolean }
+            fallback: { $ref: '#/components/schemas/BMCFallbackInfo' }
     BMCResourceSummary:
       type: object
       required: [path, type, source, received_at, data_sha256, raw]
@@ -4491,6 +4500,7 @@ components:
               retryable: { type: boolean }
         capabilities: { type: object, additionalProperties: { type: string, enum: [unknown, advertised, collected, partial, unsupported, not_requested] } }
         degraded: { type: boolean }
+        fallback: { $ref: '#/components/schemas/BMCFallbackInfo' }
     NetworkDeviceConfiguration:
       type: object
       required: [version, project_id, switch_id, serial, read_at, latest_production, latest_plan]

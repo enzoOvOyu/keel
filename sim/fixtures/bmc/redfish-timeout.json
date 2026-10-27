@@ -1,0 +1,12 @@
+{
+  "schema": "keel.redfish-fixture/v1",
+  "documents": {},
+  "failures": {
+    "/redfish/v1/": {
+      "path": "/redfish/v1/",
+      "class": "timeout",
+      "code": "request_timeout",
+      "retryable": true
+    }
+  }
+}

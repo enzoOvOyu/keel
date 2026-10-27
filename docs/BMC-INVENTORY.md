@@ -24,6 +24,18 @@ API与worker均需显式 `KEEL_BMC_INVENTORY_ENABLED=true` 和 `KEEL_BMC_INVENTO
 
 `origin=sim` 且无endpoint时使用只有明确序列号的身份fixture，L2/L3缺硬件能力保持partial，不补造健康/CPU/GPU/NIC。协议mock可提供HTTPS `endpoint`和受控`ca_file`，仍必须标sim。real必须固定HTTPS来源，验证证书和主机名；读取不使用环境代理、不跟重定向、不允许跨源/任意查询/动作链接。可用的Machine BMC地址与固定来源独立比对。配置/CA指纹变化会阻断旧任务，不静默切换目标。
 
+## IPMI 兼容回退（源码，PoC 待执行）
+
+只有Redfish根服务超时、连接不可达、5xx或版本/资源不支持才尝试已显式配置的IPMI；401/403、凭据过期与TLS验证失败不会降级绕过。仍使用当前Execution原命令、同一个BMC独占租约、冻结批次版本和15分钟总期限，不另起设备执行器或重放unknown。
+
+每个目标可追加 `ipmi:{"address":"<same-literal-BMC-IP>","tool_path":"/usr/bin/ipmitool","tool_sha256":"<exact-binary-SHA256>"}`。IPMI地址必须与HTTPS固定来源为同一字面量IP；端口固定623，传输固定lanplus/cipher17/USER，不接受浏览器命令、OEM raw、电源或配置操作。工具必须为root/当前属主、不可组/全局写的常规可执行文件，每次调用重新验证摘要并从固定文件描述符执行。密码经封印匿名memfd传给`-f`，不进入argv/环境/临时磁盘文件；超时杀进程组并等待退出后才有停止回执。支持的IPMI口令格式为1～20字节、用户名1～16字节，无换行/NUL，不支持的格式保留unsupported，不截断。
+
+固定读取清单只有Device ID、System GUID、Chassis Status和FRU0二进制读取。回复字节以JSON envelope保留hex、解析版本和已解析字段，与Redfish同样进入版本化对象库/JSONB；`/ipmi/v2/inventory/...`仅是固定证据标识，HTTPS客户端不能请求这些路径。FRU先验证公共头、区域边界/校验和和字段长度，只有Product Serial Number可确认服务器身份，Board SN不代用。`ipmitool fru read`的exit0不足以证明成功，二进制仍须独立解析校验。IPMI不会补造Processors/Memory/网卡能力，降级报告保持partial/failed，并在manifest/UI保留原Redfish原因和IPMI数量。
+
+镜像源码增加固定Debian bookworm `ipmitool=1.8.19-4+deb12u2`；当前未构建或安装。未来镜像实际工具摘要仍由配置明确固定，无自动探测/启用。开发sim可使用属主0600的`redfish_fixture_file`（schema`keel.redfish-fixture/v1`）与`ipmi.fixture_file`（schema`ipmi-inventory/v1`）；样本在`sim/fixtures/bmc/`，复制为受保护文件后必须匹配其明确的模拟SN。fixture内容摘要进入adapter binding，真实来源拒绝fixture。协议HTTPS mock与结构化sim共用收集/原始证据/失败/执行消费链。
+
+协议依据：[ipmitool手册](https://github.com/ipmitool/ipmitool/blob/master/doc/ipmitool.1.in)、[FRU读取实现及exit状态限制](https://github.com/ipmitool/ipmitool/blob/master/lib/ipmi_fru.c)、[Intel FRU区域格式](https://www.intel.com/content/dam/www/public/us/en/documents/specification-updates/ipmi-platform-mgt-fru-info-storage-def-v1-0-rev-1-3-spec-update.pdf)、[Debian包版本](https://packages.debian.org/bookworm/ipmitool)。本节为实施契约，不是已完成硬件适配/安全PoC证据。
+
 ## 凭据批次
 
 复用BOM的 `credential_batches.csv` 引用与scope，实际设备口令由服务器所有者通过CLI导入加密库，禁止明文进入BOM/Git/argv/审计。设备密码使用独立 `KEEL_DEVICE_CREDENTIAL_MASTER_KEY_FILE`，与SSH域钥主密钥维护分离。密钥可由已有 `credential-master-keygen --output <new-protected-path>` 独占生成；没有自动创建或覆盖。
@@ -46,6 +58,6 @@ worker启用BMC后每5秒有界扫描（每批20条、3秒上下文），创建�
 
 ## 后续与验证
 
-手动执行、证据查询、cron/事件/有限重试及UI已有源码；IPMI回退、批次轮换全量复验、完整型号硬件覆盖及WP-2.2 JSONPath视图/导出待开发。G1、拓扑、四步G2和G3仍属其各自WP，不以接口存在冒充完成。
+手动执行、证据查询、cron/事件/有限重试、受限IPMI回退及UI已有源码；批次轮换全量复验、完整型号硬件覆盖及WP-2.2 JSONPath视图/导出待开发。G1、拓扑、四步G2和G3仍属其各自WP，不以接口存在冒充完成。
 
 新增纯逻辑、HTTPS、加密、PostgreSQL租约/作用域/回执/凭据轮换用例均仅编写、NOT_RUN。按用户要求，重大里程碑集中测试；源码格式化和API生成成功不算测试通过。真实H-2/硬件结果NOT_RUN。

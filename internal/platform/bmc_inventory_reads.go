@@ -154,8 +154,8 @@ func (s *Store) GetBMCCollection(ctx context.Context, a *AuthSession, p *Project
 	return out, nil
 }
 func (s *Store) OpenBMCRaw(ctx context.Context, a *AuthSession, p *ProjectSummary, asset, id, path string) (io.ReadSeekCloser, error) {
-	if _, e := bmc.CanonicalPath("/redfish/v1/", path); e != nil {
-		return nil, apiError(400, "BMC_RESOURCE_PATH_INVALID", "Select an exact stored Redfish resource path")
+	if _, e := bmc.InventoryPath(path); e != nil {
+		return nil, apiError(400, "BMC_RESOURCE_PATH_INVALID", "Select an exact stored inventory resource path")
 	}
 	tx, e := s.beginControlRead(ctx, a)
 	if e != nil {

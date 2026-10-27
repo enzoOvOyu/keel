@@ -1,8 +1,13 @@
 package bmc
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"io"
 	"strings"
 	"time"
 )
@@ -62,4 +67,41 @@ func NewSimReader(target Target) (*FixtureReader, error) {
 	}
 	add("/redfish/v1/Systems/sim", map[string]any{"@odata.id": "/redfish/v1/Systems/sim", "@odata.type": "#ComputerSystem.v1_0_0.ComputerSystem", "Id": "sim", "SerialNumber": target.Serial})
 	return NewFixtureReader(documents, nil), nil
+}
+
+func loadInventoryFixture(path string) (*FixtureReader, string, error) {
+	raw, e := ReadOwnedFile(path, 2<<20)
+	if e != nil {
+		return nil, "", e
+	}
+	var source struct {
+		Schema    string                     `json:"schema"`
+		Documents map[string]json.RawMessage `json:"documents"`
+		Failures  map[string]Failure         `json:"failures"`
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	var extra any
+	if decoder.Decode(&source) != nil || decoder.Decode(&extra) != io.EOF || source.Schema != "keel.redfish-fixture/v1" || len(source.Documents)+len(source.Failures) > 4096 {
+		return nil, "", errors.New("invalid bounded Redfish fixture")
+	}
+	documents := map[string][]byte{}
+	for p, v := range source.Documents {
+		if canonical, e := CanonicalPath("/redfish/v1/", p); e != nil || canonical != p || len(v) > MaxResourceBytes {
+			return nil, "", errors.New("invalid fixture resource path or size")
+		}
+		documents[p] = v
+	}
+	for p, f := range source.Failures {
+		if canonical, e := CanonicalPath("/redfish/v1/", p); e != nil || canonical != p || len(f.Code) == 0 || len(f.Code) > 120 {
+			return nil, "", errors.New("invalid fixture failure")
+		}
+		switch f.Class {
+		case "authentication_failed", "timeout", "version_unsupported", "partial_failure":
+		default:
+			return nil, "", errors.New("unknown fixture failure classification")
+		}
+	}
+	sum := sha256.Sum256(raw)
+	return NewFixtureReader(documents, source.Failures), hex.EncodeToString(sum[:]), nil
 }

@@ -3,6 +3,7 @@ package execution
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"os"
@@ -197,5 +198,76 @@ func TestBMCSharedExecutionBindingFenceAndReceiptPostgres(t *testing.T) {
 func TestBMCResourceModesKeepSharedMachineAndExclusiveChannel(t *testing.T) {
 	if hostResourceLeaseMode("bmc", "device:machine:asset", "shared") != "shared" || hostResourceLeaseMode("bmc", "bmc:machine:asset", "shared") != "exclusive" {
 		t.Fatal("BMC reader conflicts with read-only machine work or overlaps its own channel")
+	}
+}
+func TestBMCFallbackPersistsScopedRawEvidenceOnSharedExecutionPostgres(t *testing.T) {
+	f, asset := bmcExecutionFixture(t)
+	ctx := context.Background()
+	var batch, serial string
+	mustAgent(t, f.store.DB.QueryRowContext(ctx, `SELECT b.credential_batch_ref,m.serial_number FROM bom_credential_batches b JOIN machines m ON m.id=$2 WHERE b.project_id=$1 AND b.scope='bmc'`, f.project, f.machine).Scan(&batch, &serial))
+	area := []byte{1, 0, 0}
+	for _, value := range []string{"Fixture", "Fixture System", "PART-001", "v1", serial, "fixture-tag", "fixture-file"} {
+		area = append(area, 0xc0|byte(len(value)))
+		area = append(area, []byte(value)...)
+	}
+	area = append(area, 0xc1)
+	for (len(area)+1)%8 != 0 {
+		area = append(area, 0)
+	}
+	area = append(area, 0)
+	area[1] = byte(len(area) / 8)
+	var checksum byte
+	for _, v := range area {
+		checksum += v
+	}
+	area[len(area)-1] -= checksum
+	header := []byte{1, 0, 0, 0, 1, 0, 0, 254}
+	fru := append(header, area...)
+	dir := t.TempDir()
+	primaryPath := filepath.Join(dir, "redfish.json")
+	fallbackPath := filepath.Join(dir, "ipmi.json")
+	suitePath := filepath.Join(dir, "suite.json")
+	primary, _ := json.Marshal(map[string]any{"schema": "keel.redfish-fixture/v1", "documents": map[string]any{}, "failures": map[string]bmc.Failure{"/redfish/v1/": {Class: "timeout", Code: "request_timeout", Retryable: true}}})
+	mustAgent(t, os.WriteFile(primaryPath, primary, 0600))
+	fallback, _ := json.Marshal(map[string]any{"schema": bmc.IPMIParserVersion, "replies": map[string]string{"fru-0": hex.EncodeToString(fru)}})
+	mustAgent(t, os.WriteFile(fallbackPath, fallback, 0600))
+	config := bmc.SuiteConfig{Schema: "keel.bmc-inventory/v1", TimeoutSeconds: 5, Targets: []bmc.TargetConfig{{ProjectID: f.project, MachineID: f.machine, Origin: "sim", CredentialBatchRef: batch, RedfishFixtureFile: primaryPath, IPMI: &bmc.IPMIConfig{FixtureFile: fallbackPath}}}}
+	raw, _ := json.Marshal(config)
+	mustAgent(t, os.WriteFile(suitePath, raw, 0600))
+	mustAgent(t, f.store.ConfigureBMCInventory(suitePath, ""))
+	x, e := f.service.CreateBMCCollection(ctx, f.actor, f.project, asset, platform.BMCCollectionInput{Level: "L3", ExpectedAssetVersion: 1, Reason: "Fallback fixture"}, platform.RandomID(), "fixture")
+	mustAgent(t, e)
+	claim := claimBMC(t, f, x.ID)
+	if claim == nil {
+		t.Fatal("fallback execution was not claimable")
+	}
+	mustAgent(t, f.service.RunClaim(ctx, claim))
+	page, e := f.store.ListBMCCollections(ctx, f.actor, &platform.ProjectSummary{ID: f.project}, asset, platform.Pagination{Page: 1, PageSize: 20})
+	mustAgent(t, e)
+	if page.Total != 1 || page.Items[0].State != "partial" || !page.Items[0].IdentityMatched {
+		t.Fatal("fallback outcome invented complete Redfish capabilities")
+	}
+	record := page.Items[0]
+	manifest, e := f.store.GetBMCCollectionManifest(ctx, f.actor, &platform.ProjectSummary{ID: f.project}, asset, record.ID)
+	mustAgent(t, e)
+	if manifest.Fallback == nil || manifest.Fallback.Reason != "redfish_timeout" || manifest.Fallback.ResourceCount != 1 {
+		t.Fatal("fallback reason missing from manifest")
+	}
+	path := "/ipmi/v2/inventory/fru-0"
+	resource, e := f.store.GetBMCResource(ctx, f.actor, &platform.ProjectSummary{ID: f.project}, asset, record.ID, path)
+	mustAgent(t, e)
+	if resource.Type != "#IPMI.Inventory.v1" {
+		t.Fatal("IPMI provenance lost")
+	}
+	body, e := f.store.OpenBMCRaw(ctx, f.actor, &platform.ProjectSummary{ID: f.project}, asset, record.ID, path)
+	mustAgent(t, e)
+	retained, e := io.ReadAll(body)
+	body.Close()
+	mustAgent(t, e)
+	if bmc.CanonicalDigest(retained) != resource.DataSHA256 {
+		t.Fatal("retained fallback bytes differ from JSONB")
+	}
+	if _, e = f.store.OpenBMCRaw(ctx, f.actor, &platform.ProjectSummary{ID: f.project}, platform.RandomID(), record.ID, path); e == nil {
+		t.Fatal("cross-asset fallback raw exposed")
 	}
 }

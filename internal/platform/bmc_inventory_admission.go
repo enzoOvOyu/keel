@@ -212,6 +212,10 @@ func (s *Store) RunBMCCollection(ctx context.Context, request, execution, attemp
 	if closer, ok := reader.(io.Closer); ok {
 		defer closer.Close()
 	}
-	collector := bmc.Collector{Reader: reader, Raw: s.BMCInventoryRawSink(), Config: bmc.DefaultConfig()}
+	fallback, e := s.BMCInventory.Fallback(admission.Target)
+	if e != nil {
+		return nil, apiError(409, "BMC_BINDING_CHANGED", "BMC fallback binding is unavailable")
+	}
+	collector := bmc.Collector{Reader: reader, Fallback: fallback, Raw: s.BMCInventoryRawSink(), Config: bmc.DefaultConfig()}
 	return collector.Collect(work, admission.Target, admission.Level)
 }

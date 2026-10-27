@@ -88,6 +88,7 @@ type Resource struct {
 	Data       json.RawMessage `json:"data"`
 }
 type Snapshot struct {
+	Fallback        *FallbackInfo     `json:"fallback,omitempty"`
 	Version         string            `json:"version"`
 	Target          Target            `json:"target"`
 	Level           string            `json:"level"`

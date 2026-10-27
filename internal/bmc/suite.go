@@ -22,12 +22,14 @@ import (
 )
 
 type TargetConfig struct {
-	ProjectID          string `json:"project_id"`
-	MachineID          string `json:"machine_id"`
-	Origin             string `json:"origin"`
-	Endpoint           string `json:"endpoint,omitempty"`
-	CAFile             string `json:"ca_file,omitempty"`
-	CredentialBatchRef string `json:"credential_batch_ref"`
+	RedfishFixtureFile string      `json:"redfish_fixture_file,omitempty"`
+	IPMI               *IPMIConfig `json:"ipmi,omitempty"`
+	ProjectID          string      `json:"project_id"`
+	MachineID          string      `json:"machine_id"`
+	Origin             string      `json:"origin"`
+	Endpoint           string      `json:"endpoint,omitempty"`
+	CAFile             string      `json:"ca_file,omitempty"`
+	CredentialBatchRef string      `json:"credential_batch_ref"`
 }
 type SuiteConfig struct {
 	Schema         string         `json:"schema"`
@@ -36,6 +38,8 @@ type SuiteConfig struct {
 }
 type Selection struct{ Origin, CredentialBatchRef, BindingHash, Hostname string }
 type inventoryEndpoint struct {
+	fixture   *FixtureReader
+	fallback  *ipmiTool
 	config    TargetConfig
 	selection Selection
 	transport *http.Transport
@@ -124,11 +128,32 @@ func LoadSuite(path string, provider CredentialProvider) (*Suite, error) {
 			ep.selection.Hostname = strings.ToLower(root.Hostname())
 			ep.transport = &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}).DialContext, TLSClientConfig: tlsConfig, TLSHandshakeTimeout: 5 * time.Second, ResponseHeaderTimeout: suite.timeout, MaxResponseHeaderBytes: 64 << 10, MaxIdleConnsPerHost: 2, IdleConnTimeout: 30 * time.Second}
 		}
+		fixtureHash, ipmiHash := "", ""
+		if target.RedfishFixtureFile != "" {
+			if target.Origin != "sim" || target.Endpoint != "" {
+				return nil, errors.New("Redfish fixture requires a distinct sim binding")
+			}
+			ep.fixture, fixtureHash, e = loadInventoryFixture(target.RedfishFixtureFile)
+			if e != nil {
+				return nil, e
+			}
+		}
+		if target.IPMI != nil {
+			ep.fallback, ipmiHash, e = newIPMITool(*target.IPMI, target.Origin, provider, suite.timeout)
+			if e != nil {
+				return nil, e
+			}
+			if ep.fallback.fixture == nil && !net.ParseIP(target.IPMI.Address).Equal(net.ParseIP(ep.selection.Hostname)) {
+				return nil, errors.New("IPMI and HTTPS bindings require the same literal BMC address")
+			}
+		}
 		encoded, _ := json.Marshal(struct {
-			Target  TargetConfig
-			CAHash  string
-			Timeout int
-		}{target, caHash, config.TimeoutSeconds})
+			Target      TargetConfig
+			CAHash      string
+			Timeout     int
+			FixtureHash string `json:"FixtureHash,omitempty"`
+			IPMIHash    string `json:"IPMIHash,omitempty"`
+		}{target, caHash, config.TimeoutSeconds, fixtureHash, ipmiHash})
 		h := sha256.Sum256(encoded)
 		ep.selection.BindingHash = hex.EncodeToString(h[:])
 		suite.targets[key] = ep
@@ -153,6 +178,9 @@ func (s *Suite) Reader(target Target) (Reader, error) {
 	if !ok || target.AdapterBindingHash != ep.selection.BindingHash || target.CredentialBatchRef != ep.selection.CredentialBatchRef {
 		return nil, errors.New("BMC adapter binding changed")
 	}
+	if ep.fixture != nil {
+		return NewFixtureReader(ep.fixture.documents, ep.fixture.failures), nil
+	}
 	if ep.config.Endpoint == "" {
 		return NewSimReader(target)
 	}
@@ -166,4 +194,18 @@ func (s *Suite) Close() {
 			}
 		}
 	}
+}
+
+func (s *Suite) Fallback(target Target) (IPMIReader, error) {
+	if s == nil || target.Validate() != nil {
+		return nil, errors.New("invalid BMC fallback binding")
+	}
+	ep, ok := s.targets[target.ProjectID+":"+target.MachineID]
+	if !ok || target.AdapterBindingHash != ep.selection.BindingHash || target.CredentialBatchRef != ep.selection.CredentialBatchRef {
+		return nil, errors.New("BMC fallback binding changed")
+	}
+	if ep.fallback == nil {
+		return nil, nil
+	}
+	return ep.fallback, nil
 }

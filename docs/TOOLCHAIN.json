@@ -72,5 +72,13 @@
     "license": "SIL OFL 1.1",
     "assets": "web/public/fonts/jetbrains-mono",
     "delivery": "bundled WOFF2; no external font CDN; shared Chinese fallback stack"
+  },
+  "ipmi_inventory": {
+    "checked_at": "2026-10-27",
+    "package": "Debian bookworm ipmitool=1.8.19-4+deb12u2",
+    "source": "https://packages.debian.org/bookworm/ipmitool",
+    "runtime_pin": "operator-owned BMC suite tool_path plus exact executable SHA-256; no ambient PATH lookup",
+    "transport": "lanplus cipher suite17, USER privilege, fixed literal BMC IP and port623",
+    "scope": "opt-in read-only fallback; no device/config/power writes, no enabled runtime configuration"
   }
 }

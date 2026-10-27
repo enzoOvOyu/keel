@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 go build -trim
  && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${APP_VERSION}" -o /keel-agent ./cmd/keel-agent
 
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl ipmitool=1.8.19-4+deb12u2 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=backend /keel-api /app/keel-api
 COPY --from=backend /keel-admin /app/keel-admin

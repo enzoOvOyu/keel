@@ -5561,6 +5561,15 @@ export interface components {
             expected_asset_version: number;
             reason: string;
         };
+        BMCFallbackInfo: {
+            /** @enum {string} */
+            protocol: "ipmi";
+            /** @enum {string} */
+            reason: "redfish_timeout" | "redfish_unsupported" | "redfish_unavailable";
+            /** @enum {string} */
+            parser_version: "ipmi-inventory/v1";
+            resource_count: number;
+        };
         BMCResource: {
             path: string;
             type: string;
@@ -5591,6 +5600,7 @@ export interface components {
             capabilities: components["schemas"]["BMCInventorySnapshot"]["capabilities"];
             failures: components["schemas"]["BMCInventorySnapshot"]["failures"];
             degraded: boolean;
+            fallback?: components["schemas"]["BMCFallbackInfo"];
         };
         BMCResourceSummary: {
             path: string;
@@ -5687,6 +5697,7 @@ export interface components {
                 [key: string]: "unknown" | "advertised" | "collected" | "partial" | "unsupported" | "not_requested";
             };
             degraded: boolean;
+            fallback?: components["schemas"]["BMCFallbackInfo"];
         };
         NetworkDeviceConfiguration: {
             /** @enum {string} */

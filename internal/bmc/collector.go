@@ -16,9 +16,10 @@ import (
 )
 
 type Collector struct {
-	Reader Reader
-	Raw    RawSink
-	Config Config
+	Fallback IPMIReader
+	Reader   Reader
+	Raw      RawSink
+	Config   Config
 }
 type pendingResource struct {
 	path, feature string
@@ -250,6 +251,7 @@ func (c *Collector) Collect(ctx context.Context, target Target, level string) (*
 		}
 		links(data)
 	}
+	c.collectIPMISupplement(ctx, out, &total)
 	out.CollectedAt = time.Now().UTC()
 	if !out.IdentityMatched {
 		addFailure(*failure("/redfish/v1/Systems", "partial_failure", "target_serial_unconfirmed", false))
@@ -403,8 +405,20 @@ func (s Snapshot) Validate() error {
 		if !sha256Pattern.MatchString(r.Raw.SHA256) || r.Raw.Key != RawKey(s.Target, r.Path, r.Raw.SHA256) || (r.Raw.Version == "" || r.Raw.Version == "null") || r.Raw.Size < 1 || r.Raw.Size > MaxResourceBytes || r.Source != "bmc" || r.ReceivedAt.IsZero() || r.ReceivedAt.Before(s.StartedAt.Add(-5*time.Second)) || r.ReceivedAt.After(s.CollectedAt) || seen[r.Path] || r.DataSHA256 == "" || CanonicalDigest(r.Data) != r.DataSHA256 {
 			return fmt.Errorf("BMC resource has no valid durable raw/structured evidence: %s", r.Path)
 		}
-		if _, e := CanonicalPath("/redfish/v1/", r.Path); e != nil {
+		if canonical, e := InventoryPath(r.Path); e != nil || canonical != r.Path {
 			return errors.New("invalid BMC resource path")
+		}
+		if strings.HasPrefix(r.Path, "/ipmi/") {
+			matched, e := validateIPMIResource(r, s.Target)
+			if e != nil {
+				return e
+			}
+			if matched {
+				identityMatched = true
+			}
+			seen[r.Path] = true
+			total += r.Raw.Size
+			continue
 		}
 		var object map[string]json.RawMessage
 		if json.Unmarshal(r.Data, &object) != nil || object == nil {
@@ -421,6 +435,23 @@ func (s Snapshot) Validate() error {
 		}
 		seen[r.Path] = true
 		total += r.Raw.Size
+	}
+	if s.Fallback != nil {
+		count := 0
+		for _, r := range s.Resources {
+			if strings.HasPrefix(r.Path, "/ipmi/") {
+				count++
+			}
+		}
+		if s.Fallback.Protocol != "ipmi" || s.Fallback.ParserVersion != IPMIParserVersion || s.Fallback.Reason != fallbackReason(&s) || s.Fallback.Reason == "" || s.Fallback.ResourceCount != count || !s.Degraded {
+			return errors.New("invalid IPMI degradation metadata")
+		}
+	} else {
+		for _, r := range s.Resources {
+			if strings.HasPrefix(r.Path, "/ipmi/") {
+				return errors.New("IPMI evidence lacks its degradation reason")
+			}
+		}
 	}
 	if s.IdentityMatched != identityMatched {
 		return errors.New("BMC identity assertion does not match retained evidence")

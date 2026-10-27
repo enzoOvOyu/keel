@@ -11,6 +11,7 @@ import (
 )
 
 type BMCCollectionManifest struct {
+	Fallback *bmc.FallbackInfo `json:"fallback,omitempty"`
 	BMCCollectionSummary
 	Source             string            `json:"source"`
 	StartedAt          time.Time         `json:"started_at"`
@@ -48,8 +49,8 @@ func (s *Store) GetBMCCollectionManifest(ctx context.Context, a *AuthSession, p 
 		return nil, e
 	}
 	out := &BMCCollectionManifest{BMCCollectionSummary: *summary}
-	var capabilities, failures []byte
-	e = tx.QueryRowContext(ctx, `SELECT report->>'source',(report->>'started_at')::timestamptz,report#>>'{target,credential_batch_ref}',report#>>'{target,credential_version}',coalesce(report#>>'{target,adapter_binding_hash}',''),report->'capabilities',report->'failures',(report->>'degraded')::boolean FROM bmc_collection_records WHERE id=$1 AND project_id=$2 AND asset_id=$3`, id, p.ID, asset).Scan(&out.Source, &out.StartedAt, &out.CredentialBatchRef, &out.CredentialVersion, &out.AdapterBindingHash, &capabilities, &failures, &out.Degraded)
+	var capabilities, failures, fallback []byte
+	e = tx.QueryRowContext(ctx, `SELECT report->>'source',(report->>'started_at')::timestamptz,report#>>'{target,credential_batch_ref}',report#>>'{target,credential_version}',coalesce(report#>>'{target,adapter_binding_hash}',''),report->'capabilities',report->'failures',(report->>'degraded')::boolean,coalesce(report->'fallback','null'::jsonb) FROM bmc_collection_records WHERE id=$1 AND project_id=$2 AND asset_id=$3`, id, p.ID, asset).Scan(&out.Source, &out.StartedAt, &out.CredentialBatchRef, &out.CredentialVersion, &out.AdapterBindingHash, &capabilities, &failures, &out.Degraded, &fallback)
 	if e != nil {
 		return nil, e
 	}
@@ -57,6 +58,9 @@ func (s *Store) GetBMCCollectionManifest(ctx context.Context, a *AuthSession, p 
 		return nil, e
 	}
 	if e = json.Unmarshal(failures, &out.Failures); e != nil {
+		return nil, e
+	}
+	if e = json.Unmarshal(fallback, &out.Fallback); e != nil {
 		return nil, e
 	}
 	return out, nil
@@ -100,7 +104,7 @@ func (s *Store) ListBMCResources(ctx context.Context, a *AuthSession, p *Project
 	return out, rows.Err()
 }
 func (s *Store) GetBMCResource(ctx context.Context, a *AuthSession, p *ProjectSummary, asset, id, path string) (*bmc.Resource, error) {
-	canonical, e := bmc.CanonicalPath("/redfish/v1/", path)
+	canonical, e := bmc.InventoryPath(path)
 	if e != nil || canonical != path {
 		return nil, apiError(400, "BMC_RESOURCE_PATH_INVALID", "Select an exact stored resource path")
 	}

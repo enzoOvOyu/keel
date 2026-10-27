@@ -166,12 +166,20 @@ func (c *Client) Read(ctx context.Context, reference string) (Document, error) {
 	req.SetBasicAuth(credentials.Username, credentials.Password)
 	response, e := c.http.Do(req)
 	if e != nil {
+		var certificate *tls.CertificateVerificationError
+		if errors.As(e, &certificate) {
+			return empty, failure(resource, "partial_failure", "transport_or_tls_failed", false)
+		}
 		var timeout net.Error
 		if errors.Is(e, context.DeadlineExceeded) || errors.As(e, &timeout) && timeout.Timeout() {
 			return empty, failure(resource, "timeout", "request_timeout", true)
 		}
 		if errors.Is(e, context.Canceled) {
 			return empty, failure(resource, "partial_failure", "cancelled", false)
+		}
+		var connection *net.OpError
+		if errors.As(e, &connection) && connection.Op == "dial" {
+			return empty, failure(resource, "partial_failure", "transport_unavailable", true)
 		}
 		return empty, failure(resource, "partial_failure", "transport_or_tls_failed", true)
 	}

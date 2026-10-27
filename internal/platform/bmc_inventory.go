@@ -21,7 +21,7 @@ func (s *bmcRawSink) StoreRaw(ctx context.Context, target bmc.Target, path strin
 	if target.Validate() != nil || len(body) == 0 || len(body) > bmc.MaxResourceBytes || s.objects == nil {
 		return empty, errors.New("BMC raw storage unavailable")
 	}
-	if _, e := bmc.CanonicalPath("/redfish/v1/", path); e != nil {
+	if _, e := bmc.InventoryPath(path); e != nil {
 		return empty, e
 	}
 	digest := sha256.Sum256(body)
