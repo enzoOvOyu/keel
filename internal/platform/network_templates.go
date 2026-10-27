@@ -44,17 +44,19 @@ type NetworkPlanInput struct {
 	BatchRef           string `json:"batch_ref"`
 }
 type NetworkPlannedDevice struct {
-	CatalogSelections  []CatalogSelection `json:"catalog_selections,omitempty"`
-	ApprovedVariables  map[string]any     `json:"approved_variables"`
-	IntendedID         string             `json:"intended_id"`
-	ID                 string             `json:"id"`
-	Serial             string             `json:"serial"`
-	Hostname           string             `json:"hostname"`
-	Address            string             `json:"management_ip"`
-	ModelVersionID     string             `json:"model_version_id"`
-	CredentialBatchRef string             `json:"credential_batch_ref"`
-	Intended           json.RawMessage    `json:"-"`
-	IntendedHash       string             `json:"intended_hash"`
+	AddressPlanID      string                          `json:"address_plan_id,omitempty"`
+	Addresses          []netbaseline.AddressAssignment `json:"addresses,omitempty"`
+	CatalogSelections  []CatalogSelection              `json:"catalog_selections,omitempty"`
+	ApprovedVariables  map[string]any                  `json:"approved_variables"`
+	IntendedID         string                          `json:"intended_id"`
+	ID                 string                          `json:"id"`
+	Serial             string                          `json:"serial"`
+	Hostname           string                          `json:"hostname"`
+	Address            string                          `json:"management_ip"`
+	ModelVersionID     string                          `json:"model_version_id"`
+	CredentialBatchRef string                          `json:"credential_batch_ref"`
+	Intended           json.RawMessage                 `json:"-"`
+	IntendedHash       string                          `json:"intended_hash"`
 }
 type NetworkTemplateReport struct {
 	ID             string                        `json:"id"`
@@ -167,6 +169,17 @@ func networkTemplateFactsTx(ctx context.Context, tx *sql.Tx, project string, inp
 	if e = json.Unmarshal(raw, &limits); e != nil {
 		return nil, "", nil, e
 	}
+	var addressPlan *NetworkAddressPlan
+	addressesBySwitch := map[string][]netbaseline.AddressAssignment{}
+	if limits.AddressPlanning != nil {
+		addressPlan, e = currentNetworkAddressPlanTx(ctx, tx, project, plan.BaselineID, plan.ID)
+		if e != nil {
+			return nil, "", nil, e
+		}
+		for _, assignment := range addressPlan.Assignments {
+			addressesBySwitch[assignment.OwnerSwitchID] = append(addressesBySwitch[assignment.OwnerSwitchID], assignment)
+		}
+	}
 	catalog, e := newNetworkVariableCatalogTx(ctx, tx, project, template.Definition, lockCatalog)
 	if e != nil {
 		return nil, "", nil, e
@@ -190,6 +203,12 @@ func networkTemplateFactsTx(ctx context.Context, tx *sql.Tx, project string, inp
 			return nil, "", nil, e
 		}
 		device := map[string]any{"id": d.ID, "serial": d.Serial, "hostname": d.Hostname, "management_ip": d.Address, "gateway": binding.Gateway, "management_cidr": plan.Rules.CIDR, "model_version_id": d.ModelVersionID}
+		if addressPlan != nil {
+			d.AddressPlanID = addressPlan.ID
+			d.Addresses = append([]netbaseline.AddressAssignment{}, addressesBySwitch[d.ID]...)
+			device["address_plan"] = d.Addresses
+			device["address_plan_id"] = d.AddressPlanID
+		}
 		approved, resolved, selections, err := catalog.resolve(ctx, tx, project, template.Definition, variables, d.ModelVersionID, lockCatalog)
 		if err != nil {
 			return nil, "", nil, err
@@ -271,9 +290,12 @@ func (s *Store) TestNetworkTemplate(ctx context.Context, a *AuthSession, p *Proj
 		go func(i int, d NetworkPlannedDevice) {
 			defer wg.Done()
 			defer func() { <-slots }()
-			result, err := client.Do(work, netbaseline.Operation{ID: RandomID(), Phase: "template-test", ProjectID: p.ID, DeviceID: d.ID, Serial: d.Serial, BaselineID: baseline, TemplateHash: template.ContentHash, Intended: d.Intended, ApprovedVariables: d.ApprovedVariables})
+			result, err := client.Do(work, netbaseline.Operation{ID: RandomID(), Phase: "template-test", ProjectID: p.ID, DeviceID: d.ID, Serial: d.Serial, BaselineID: baseline, TemplateHash: template.ContentHash, Intended: d.Intended, ApprovedVariables: d.ApprovedVariables, AddressPlanID: d.AddressPlanID, Addresses: d.Addresses})
 			if err == nil {
 				err = netbaseline.RequireGates(result, "syntax", "semantic", "consistency", "rehearsal", "golden")
+			}
+			if err == nil && len(d.Addresses) > 0 {
+				err = netbaseline.RequireGates(result, "address-planning")
 			}
 			if err == nil && (len(result.Running) == 0 || result.RunningHash != d.IntendedHash) {
 				err = errors.New("Golden test readback must match the rendered configuration")

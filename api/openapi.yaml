@@ -2643,6 +2643,93 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/FabricDeviceEvidence' }
 
+  /api/v1/projects/{id}/fabric/address-plans:
+    get:
+      operationId: listNetworkAddressPlans
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: Latest 30 immutable allocation plan summaries and current-facts status; full assignments are read separately.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [plans]
+                properties:
+                  plans: { type: array, items: { $ref: '#/components/schemas/NetworkAddressPlanSummary' } }
+    post:
+      operationId: saveNetworkAddressPlan
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NetworkAddressPlanInput' }
+      responses:
+        '201':
+          description: Frozen proposed allocation matching the reviewed preview; independent approval is still required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkAddressPlan' }
+  /api/v1/projects/{id}/fabric/address-plans/preview:
+    post:
+      operationId: previewNetworkAddressPlan
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NetworkAddressPlanInput' }
+      responses:
+        '200':
+          description: Applies imported approved pool/index/peer rules and validates adjustments against current stable BOM and management identities. Does not allocate DHCP or write devices.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkAddressPlan' }
+  /api/v1/projects/{id}/fabric/address-plans/{planId}:
+    get:
+      operationId: getNetworkAddressPlan
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: planId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Frozen allocation detail with current fact assessment; historical content is not rewritten.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkAddressPlan' }
+  /api/v1/projects/{id}/fabric/address-plans/{planId}/approve:
+    post:
+      operationId: approveNetworkAddressPlan
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: planId, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_hash, reason]
+              properties:
+                expected_hash: { type: string }
+                reason: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        '200':
+          description: Independent NH/Admin approval after exact current-facts recheck, retained as immutable evidence.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkAddressPlan' }
   /api/v1/projects/{id}/fabric/template-changes:
     get:
       operationId: networkTemplateChanges
@@ -4253,6 +4340,8 @@ components:
       type: object
       required: [intended_id, id, serial, hostname, management_ip, model_version_id, credential_batch_ref, intended_hash]
       properties:
+        address_plan_id: { type: string }
+        addresses: { type: array, items: { $ref: '#/components/schemas/NetworkAddressAssignment' } }
         catalog_selections: { type: array, items: { $ref: '#/components/schemas/CatalogSelection' }, description: Immutable catalog/media identities pinned into plan and approval facts. }
         approved_variables: { type: object, additionalProperties: true }
         intended_id: { type: string }
@@ -4887,11 +4976,118 @@ components:
         source_hash: { type: string }
         content_hash: { type: string }
         created_at: { type: string, format: date-time }
+    NetworkAddressPlanning:
+      type: object
+      additionalProperties: false
+      required: [management_vrf, pools, rules]
+      properties:
+        management_vrf: { type: string, maxLength: 63 }
+        pools:
+          type: array
+          minItems: 1
+          maxItems: 128
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, scope, cidr, unit_prefix, vrf]
+            properties:
+              id: { type: string, maxLength: 80 }
+              scope: { type: string, enum: [loopback, p2p, bgp_peer] }
+              cidr: { type: string, description: Canonical approved IPv4 or IPv6 pool prefix. }
+              unit_prefix: { type: integer, minimum: 0, maximum: 128, description: Customer-approved allocation block size. Loopbacks allocate host prefixes. }
+              vrf: { type: string, maxLength: 63 }
+              reserved: { type: array, maxItems: 128, items: { type: string }, description: Canonical reserved subprefixes within this pool. }
+        rules:
+          type: array
+          minItems: 1
+          maxItems: 5000
+          items:
+            type: object
+            additionalProperties: false
+            required: [object_uid, pool_ref, unit_index, host_offset]
+            properties:
+              object_uid: { type: string, pattern: '^[a-f0-9]{32}$' }
+              pool_ref: { type: string }
+              unit_index: { type: integer, minimum: 0, maximum: 4294967295 }
+              host_offset: { type: integer, minimum: 0, maximum: 4294967295 }
+              peer_uid: { type: string, description: Explicit reciprocal peer for p2p; optional reciprocal BGP identity. }
+    NetworkAddressOverride:
+      type: object
+      additionalProperties: false
+      required: [object_uid, pool_ref, address]
+      properties:
+        object_uid: { type: string }
+        pool_ref: { type: string }
+        address: { type: string, description: Canonical host address inside the same approved pool. }
+    NetworkAddressAssignment:
+      type: object
+      required: [object_uid, pool_ref, scope, vrf, address, cidr, unit_cidr, adjusted]
+      properties:
+        object_uid: { type: string }
+        owner_switch_id: { type: string }
+        serial: { type: string }
+        batch_ref: { type: string }
+        port_name: { type: string }
+        pool_ref: { type: string }
+        scope: { type: string, enum: [loopback, p2p, bgp_peer] }
+        vrf: { type: string }
+        address: { type: string }
+        cidr: { type: string }
+        unit_cidr: { type: string }
+        peer_uid: { type: string }
+        peer_address: { type: string }
+        adjusted: { type: boolean }
+    NetworkAddressPlanInput:
+      type: object
+      additionalProperties: false
+      required: [baseline_ref, reason]
+      properties:
+        baseline_ref: { type: string }
+        overrides: { type: array, maxItems: 5000, items: { $ref: '#/components/schemas/NetworkAddressOverride' } }
+        reason: { type: string, maxLength: 1000, description: Required nonempty when manual adjustments are provided. }
+        expected_hash: { type: string, description: Required when saving a reviewed preview. }
+    NetworkAddressPlan:
+      type: object
+      required: [project_id, baseline_id, baseline_ref, management_plan_id, package_id, state, input, source_hash, content_hash, assignments, current]
+      properties:
+        id: { type: string }
+        project_id: { type: string }
+        baseline_id: { type: string }
+        baseline_ref: { type: string }
+        management_plan_id: { type: string }
+        package_id: { type: string }
+        state: { type: string, enum: [preview, draft, approved] }
+        input: { $ref: '#/components/schemas/NetworkAddressPlanInput' }
+        source_hash: { type: string }
+        content_hash: { type: string }
+        assignments: { type: array, items: { $ref: '#/components/schemas/NetworkAddressAssignment' } }
+        current: { type: boolean }
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+        approval_reason: { type: string }
+        approved_by: { type: string }
+        approved_at: { type: string, format: date-time }
+    NetworkAddressPlanSummary:
+      type: object
+      required: [id, baseline_ref, state, current, assignment_count, adjustment_count, content_hash, created_by, created_at]
+      properties:
+        id: { type: string }
+        baseline_ref: { type: string }
+        state: { type: string, enum: [draft, approved] }
+        current: { type: boolean }
+        assignment_count: { type: integer }
+        adjustment_count: { type: integer }
+        content_hash: { type: string }
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+        approved_by: { type: string }
+        approved_at: { type: string, format: date-time }
     NetworkEngineeringLimits:
       type: object
       additionalProperties: false
       required: [switch_bandwidth_ratio_limits]
       properties:
+        address_planning: { $ref: '#/components/schemas/NetworkAddressPlanning' }
         configuration_variables:
           type: object
           additionalProperties: { type: object, additionalProperties: true }

@@ -9,6 +9,7 @@ import (
 )
 
 func (a *authAPI) registerNetworkTemplates(r *gin.Engine) {
+	a.registerNetworkAddressPlans(r)
 	base := "/api/v1/projects/:id/fabric/templates"
 	r.GET("/api/v1/projects/:id/fabric/template-changes", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)

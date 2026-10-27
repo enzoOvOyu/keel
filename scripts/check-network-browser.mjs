@@ -156,6 +156,49 @@ try{
  await reviewer.screenshot({path:process.env.KEEL_WORKSPACE_EVIDENCE_DIR+'/template-deprecated.png',fullPage:true})
  assert.deepEqual(errors,[]);await reviewer.close()
  console.log('PASS template deprecation confirmation/reason, NH authority, CSRF and cross-scope denial; immutable content/test and historical jobs retained, repeat transition audited once; new jobs and existing prepare/dispatch blocked')
+ // Extended planning is added after the legacy push scenarios so their
+ // retained facts continue to exercise compatibility without this extension.
+ const addressBaseline=structuredClone(baseline)
+ addressBaseline.version_ref='extended-address-v1'
+ addressBaseline.source_ref='fixture:customer-approved-address-pools'
+ addressBaseline.engineering_limits.address_planning={management_vrf:'mgmt',pools:[{id:'loopback',scope:'loopback',cidr:'198.51.100.0/24',unit_prefix:32,vrf:'default'}],rules:plan.assignments.map((v,i)=>({object_uid:v.switch_id,pool_ref:'loopback',unit_index:i+10,host_offset:0}))}
+ await post(base+'/network-baselines',addressBaseline,201)
+ await post(base+'/network-baselines/'+addressBaseline.version_ref+'/approve',{customer_approval_ref:'fixture:address-customer',network_approval_ref:'fixture:address-engineer'})
+ const managementPreview=await post(base+'/ztp/management-plan/preview',{baseline_ref:addressBaseline.version_ref})
+ await post(base+'/ztp/management-plan/commit',{baseline_ref:addressBaseline.version_ref,expected_hash:managementPreview.content_hash})
+ const addressTemplate=await post(base+'/fabric/templates',{name:'Approved extended address configuration',source_ref:'fixture:address-aware',definition:{variables:{asn:{type:'integer',required:true}},source:'{"hostname":{{device.hostname|keeljson}},"management":{"address":{{device.management_ip|keeljson}},"gateway":{{device.gateway|keeljson}}},"asn":{{asn|keeljson}},"network_addresses":{{device.address_plan|keeljson}}}'}},201)
+ const addressTestInput={baseline_ref:addressBaseline.version_ref,batch_ref:batch},addressTestPath=base+'/fabric/templates/'+addressTemplate.id+'/test'
+ assert.equal((await post(addressTestPath,addressTestInput,409)).code,'NETWORK_ADDRESS_APPROVAL_REQUIRED')
+ const allocationInput={baseline_ref:addressBaseline.version_ref,reason:'Customer approved loopback adjustment',overrides:[{object_uid:plan.assignments[0].switch_id,pool_ref:'loopback',address:'198.51.100.30'}]}
+ const allocationPreview=await post(base+'/fabric/address-plans/preview',allocationInput)
+ await asRole('NE',base+'/fabric/address-plans',{...allocationInput,expected_hash:allocationPreview.content_hash},403)
+ const allocation=await post(base+'/fabric/address-plans',{...allocationInput,expected_hash:allocationPreview.content_hash},201)
+ const allocationApproval={expected_hash:allocation.content_hash,reason:'Reviewed current BOM and pool addresses'}
+ assert.equal((await post(base+'/fabric/address-plans/'+allocation.id+'/approve',allocationApproval,409)).code,'NETWORK_ADDRESS_SELF_APPROVAL')
+ await asRole('Viewer',base+'/fabric/address-plans/'+allocation.id+'/approve',allocationApproval,403)
+ await asRole('NH',base+'/fabric/address-plans/'+allocation.id+'/approve',allocationApproval)
+ await writeFile(c.fault_file,'network-address-plan-mismatch')
+ try{assert.equal((await post(addressTestPath,addressTestInput,409)).code,'NETWORK_TEMPLATE_TEST_BLOCKED')}finally{await writeFile(c.fault_file,'')}
+ const addressTested=await post(addressTestPath,addressTestInput)
+ assert(addressTested.test_report.checks.every(v=>v.gates.some(g=>g.id==='address-planning'&&g.state==='PASS')))
+ assert(addressTested.test_report.devices.every(d=>d.address_plan_id===allocation.id&&d.addresses.length===1))
+ // Another approved adjustment invalidates the tested template before release.
+ allocationInput.overrides[0].address='198.51.100.40';allocationInput.reason='Second customer-approved loopback adjustment'
+ const freshPreview=await post(base+'/fabric/address-plans/preview',allocationInput)
+ const freshAllocation=await post(base+'/fabric/address-plans',{...allocationInput,expected_hash:freshPreview.content_hash},201)
+ await asRole('NH',base+'/fabric/address-plans/'+freshAllocation.id+'/approve',{expected_hash:freshAllocation.content_hash,reason:'Independent review of revised allocation'})
+ await asRole('NH',base+'/fabric/templates/'+addressTemplate.id+'/release',undefined,409)
+ const scopedHistory=await context.request.get('/api/v1/projects/'+other.id+'/fabric/address-plans/'+allocation.id)
+ assert.equal(scopedHistory.status(),404)
+ const allocationReviewer=await roles.NH.context.newPage();allocationReviewer.on('pageerror',e=>errors.push(e.message))
+ await allocationReviewer.goto(`/p/${c.management_project_id}/configuration`)
+ const allocationPanel=allocationReviewer.getByRole('region',{name:'扩展地址规划与审核'})
+ await allocationPanel.getByRole('heading',{name:'最近保存的规划'}).waitFor()
+ assert(await allocationPanel.getByRole('button',{name:'查看完整规划',exact:true}).count()>=2)
+ await allocationPanel.getByRole('button',{name:'查看完整规划',exact:true}).first().click()
+ await allocationPanel.getByText('198.51.100.40/32',{exact:true}).waitFor()
+ await allocationReviewer.close()
+ console.log('PASS approved pool allocation, adjustment review, role/scope denial, adapter address gates and changed-plan release fencing; hardware unverified')
  // A retirement in the actual catalog page must block the next ZTP preview/commit.
  const batchPolicyResponse=await context.request.put(base+'/params',{headers,data:{key:'fabric.batch_size',value_type:'enum',options:['100','200'],default_value:'100',create_only:true}})
  assert.equal(batchPolicyResponse.status(),201)

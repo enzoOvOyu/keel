@@ -122,6 +122,12 @@ class KeaFixture:
      running=fixture.network_running.setdefault(key,{**intended,'asn':65001,'description':'before'})
      gates=['syntax','semantic','consistency','rehearsal','golden'] if phase=='template-test' else ['syntax','semantic','consistency','reachability','credentials','system','ports','neighbors','configuration','services','batfish','assertions','rehearsal'] if phase=='prepare' else ['applied'] if phase=='apply' else ['restored'] if phase=='rollback' else ['connectivity','bgp','nvue','hardware','lossless']
      result={'version':'network-operation/v1','operation_id':op['operation_id'],'project_id':op['project_id'],'device_id':op['device_id'],'serial':op['serial'],'input_sha256':hashlib.sha256(raw).hexdigest(),'fencing_token':op['fencing_token'],'state':'completed','code':'','evidence_source':'protocol_fixture','provider':'protocol-fixture/v1','observed_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'gates':[{'id':gate,'state':'PASS','location':gate,'code':'fixture','evidence_sha256':hashof([gate,intended])} for gate in gates],'exit_code':0,'duration_ms':1,'snapshot_ref':'fixture:snapshot:'+hashof(running)}
+     if op.get('addresses') and phase in ('template-test','prepare'):
+      # This fixture's normalized JSON profile places allocations in this field.
+      # Other NOS adapters must validate their own mapping of the same approved
+      # addresses; unknown support must not return a fixed PASS.
+      matches=intended.get('network_addresses')==op['addresses'] and fault!='network-address-plan-mismatch'
+      result['gates'].append({'id':'address-planning','state':'PASS' if matches else 'FAIL','location':'network_addresses','code':'fixture_address_binding' if matches else 'fixture_address_binding_mismatch','evidence_sha256':hashof([op['address_plan_id'],op['addresses'],intended.get('network_addresses')])})
      if phase=='template-test':running=intended
      if phase=='prepare' and fault=='network-precheck-fail':result['gates'][0]['state']='FAIL'
      if phase=='apply':

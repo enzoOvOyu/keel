@@ -8,6 +8,7 @@ import { ActionDialog } from '../../components/Management'
 import { PushJobs } from './PushJobs'
 import { TemplateImpact } from './TemplateImpact'
 import { TemplateChanges } from './TemplateChanges'
+import { AddressPlanning } from './AddressPlanning'
 import { useState } from 'react'
 import { useQuery,useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -30,7 +31,7 @@ function Studio(){
  async function deprecate(event:import('react').FormEvent<HTMLFormElement>){event.preventDefault();if(!retiring||retiring.projectId!==p.id||!reason.trim())return;const frozen=retiring;const result=await action.run(()=>deprecateNetworkTemplate(frozen.projectId,frozen.template.id,frozen.template.content_hash,reason,session.csrf_token));if(result.ok){setRetiring(null);setReason('');await client.invalidateQueries({queryKey:key})}}
  async function rollback(event:import('react').FormEvent<HTMLFormElement>){event.preventDefault();if(!restoring||restoring.projectId!==p.id||!rollbackReason.trim())return;const frozen=restoring;const result=await action.run(()=>rollbackNetworkTemplate(frozen.projectId,frozen.template.id,frozen.head,rollbackReason,session.csrf_token));if(result.ok){setRestoring(null);setRollbackReason('');await client.invalidateQueries({queryKey:key})}}
  const familyHead=(template:NetworkTemplate)=>(catalog.data?.templates??[]).filter(v=>v.name===template.name).reduce((head,v)=>v.version>head.version?v:head,template)
- return <div><h1>{t('networkConfiguration')}</h1><section className="management-planning panel" aria-label={t('networkTemplates')}><h2>{t('networkTemplates')}</h2><p>{t('networkTemplateIntro')}</p><p>{t('networkTemplateIndependent')}</p>
+ return <div><h1>{t('networkConfiguration')}</h1><AddressPlanning key={p.id+(plan.data?.baseline_ref??'')} baseline={plan.data?.baseline_ref??''}/><section className="management-planning panel" aria-label={t('networkTemplates')}><h2>{t('networkTemplates')}</h2><p>{t('networkTemplateIntro')}</p><p>{t('networkTemplateIndependent')}</p>
  <details><summary>{t('networkTemplateImport')}</summary><div className="management-plan-controls"><div className="field"><Label className="ui:block ui:leading-normal" htmlFor="network-template-file">{t('networkTemplateFile')}</Label><Input id="network-template-file" type="file" accept="application/json,.json" disabled={!canEdit||action.busy} onChange={e=>setFile(e.target.files?.[0]??null)}/></div><Button variant="outline" className="secondary-button" disabled={!canEdit||!file||action.busy} onClick={()=>void upload()}>{t('networkTemplateDraft')}</Button></div></details>
  {localError&&<p role="alert">{t('networkTemplateFileInvalid')}</p>}{(action.error||catalog.error)&&<p role="alert">{t('networkTemplateFailed')}{action.error&&` · ${action.error.code}: ${action.error.message}`}</p>}
  {!catalog.data?.adapter_configured&&<p role="status">{t('networkTemplateNoAdapter')}</p>}{!plan.data&&<p>{t('networkTemplateNoPlan')}</p>}

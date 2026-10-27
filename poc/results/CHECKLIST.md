@@ -45,3 +45,13 @@
 - [ ] 对一个T1/T2交换机互联案例按分派→处置登记→范围确认→定向复验→NE/DL确认关闭执行。保存`GET /api/v1/issues/{issue}`、完整`GET /api/v1/issues/{issue}/verifications?page=1&page_size=100`和`GET /api/v1/projects/{project}/executions/{execution}`原文；范围摘要、request/evidence/command/fence、设备来源、关闭版本和有效期应一致。完整页不能截取成功记录。
 - [ ] 所有文件相对manifest路径，逐文件计算真实SHA256；检查器复用有界/no-follow读取，不连接设备、不执行命令、不自动更新ACCEPTANCE。输出READY_FOR_REVIEW也保留hardware_acceptance=UNVERIFIED、完整H-17/G2=NOT_RUN，需所有者另审日志真实性与故障注入。
 - [ ] T3/T4/T6完整关闭仍需对应连通性/配置重验消费者；未交付时保留BLOCKED，不能用T1/T2的LLDP通过代替。服务器G2/NP-3、PortModel关系和完整8+2真机签署按后续实施依赖补齐。
+
+
+## 步骤 E 扩展地址规划材料（软件与真机分开记录）
+
+- [ ] 保存客户批准地址池/用途/VRF/分配前缀/保留区与显式稳定对象索引；管理地址引用原管理规划，不由平台臆造网络方案。
+- [ ] 保存预览hash、微调原因、规划ID与独立审核人/原因；核对当前BOM物理端口、线缆对端、两端子网及无容量/保留/VRF冲突。IPv4与IPv6样本分别记录。
+- [ ] 保存模板验证和准备阶段address-planning门控、实际NOS归一化映射/原始输出及回读摘要。协议桩network_addresses字段的PASS只属于模拟证据，不能代替NOS正确性或真机签署。
+- [ ] 证明新批准规划使旧测试/PushJob事实失效；未审核草稿不改变当前批准事实。拒绝自批、错误角色、跨项目和过期hash，保留原始响应。
+
+本批用例/材料尚未执行，不据此提升F-0.8/F-0.9或H-17状态。

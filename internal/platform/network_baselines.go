@@ -15,9 +15,10 @@ import (
 )
 
 type NetworkEngineeringLimits struct {
-	ConfigurationVariables     map[string]map[string]any   `json:"configuration_variables,omitempty"`
-	Management                 *fabricboot.ManagementRules `json:"management,omitempty"`
-	SwitchBandwidthRatioLimits map[string]float64          `json:"switch_bandwidth_ratio_limits"`
+	AddressPlanning            *netbaseline.AddressPlanning `json:"address_planning,omitempty"`
+	ConfigurationVariables     map[string]map[string]any    `json:"configuration_variables,omitempty"`
+	Management                 *fabricboot.ManagementRules  `json:"management,omitempty"`
+	SwitchBandwidthRatioLimits map[string]float64           `json:"switch_bandwidth_ratio_limits"`
 }
 
 type NetworkBaselineVersion struct {
@@ -45,6 +46,11 @@ type ApproveNetworkBaselineInput struct {
 }
 
 func validateNetworkEngineeringLimits(limits NetworkEngineeringLimits) error {
+	if limits.AddressPlanning != nil {
+		if _, e := netbaseline.BuildAddressPlan(*limits.AddressPlanning, nil); e != nil {
+			return apiError(400, "NETWORK_ADDRESS_RULES_INVALID", e.Error())
+		}
+	}
 	if len(limits.ConfigurationVariables) > 5000 {
 		return apiError(400, "NETWORK_CONFIGURATION_LIMIT", "Too many per-device baseline variable sets")
 	}

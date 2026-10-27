@@ -26,19 +26,21 @@ type Gate struct {
 	EvidenceSHA256 string `json:"evidence_sha256"`
 }
 type Operation struct {
-	ApprovedVariables   map[string]any  `json:"approved_variables,omitempty"`
-	ID                  string          `json:"operation_id"`
-	Phase               string          `json:"phase"`
-	ProjectID           string          `json:"project_id"`
-	DeviceID            string          `json:"device_id"`
-	Serial              string          `json:"serial"`
-	FencingToken        int64           `json:"fencing_token"`
-	CredentialBatchRef  string          `json:"credential_batch_ref"`
-	BaselineID          string          `json:"baseline_id"`
-	TemplateHash        string          `json:"template_hash"`
-	Intended            json.RawMessage `json:"intended"`
-	ExpectedRunningHash string          `json:"expected_running_hash,omitempty"`
-	RollbackRef         string          `json:"rollback_ref,omitempty"`
+	AddressPlanID       string              `json:"address_plan_id,omitempty"`
+	Addresses           []AddressAssignment `json:"addresses,omitempty"`
+	ApprovedVariables   map[string]any      `json:"approved_variables,omitempty"`
+	ID                  string              `json:"operation_id"`
+	Phase               string              `json:"phase"`
+	ProjectID           string              `json:"project_id"`
+	DeviceID            string              `json:"device_id"`
+	Serial              string              `json:"serial"`
+	FencingToken        int64               `json:"fencing_token"`
+	CredentialBatchRef  string              `json:"credential_batch_ref"`
+	BaselineID          string              `json:"baseline_id"`
+	TemplateHash        string              `json:"template_hash"`
+	Intended            json.RawMessage     `json:"intended"`
+	ExpectedRunningHash string              `json:"expected_running_hash,omitempty"`
+	RollbackRef         string              `json:"rollback_ref,omitempty"`
 }
 type OperationResult struct {
 	Version        string          `json:"version"`
@@ -152,6 +154,17 @@ func ValidateConfiguration(raw json.RawMessage) error {
 func (c *Client) Do(ctx context.Context, input Operation) (*OperationResult, error) {
 	if c == nil || !ref.MatchString(input.ProjectID) || !ref.MatchString(input.DeviceID) || !ref.MatchString(input.ID) {
 		return nil, errors.New("invalid network adapter operation scope")
+	}
+	if input.AddressPlanID != "" && !ref.MatchString(input.AddressPlanID) || len(input.Addresses) > 5000 {
+		return nil, errors.New("invalid approved address plan identity or size")
+	}
+	if len(input.Addresses) > 0 && input.AddressPlanID == "" {
+		return nil, errors.New("address assignments require an approved plan identity")
+	}
+	for _, assignment := range input.Addresses {
+		if assignment.OwnerSwitchID != input.DeviceID || assignment.Serial != input.Serial || !ref.MatchString(assignment.ObjectUID) {
+			return nil, errors.New("approved address assignment differs from operation device scope")
+		}
 	}
 	mutating := false
 	switch input.Phase {

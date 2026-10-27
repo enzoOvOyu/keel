@@ -2360,6 +2360,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/fabric/address-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listNetworkAddressPlans"];
+        put?: never;
+        post: operations["saveNetworkAddressPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/address-plans/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewNetworkAddressPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/address-plans/{planId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNetworkAddressPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/address-plans/{planId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approveNetworkAddressPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/fabric/template-changes": {
         parameters: {
             query?: never;
@@ -5372,6 +5436,8 @@ export interface components {
             created_at: string;
         };
         NetworkPlannedDevice: {
+            address_plan_id?: string;
+            addresses?: components["schemas"]["NetworkAddressAssignment"][];
             /** @description Immutable catalog/media identities pinned into plan and approval facts. */
             catalog_selections?: components["schemas"]["CatalogSelection"][];
             approved_variables?: {
@@ -6031,7 +6097,100 @@ export interface components {
             /** Format: date-time */
             created_at?: string;
         } | null;
+        NetworkAddressPlanning: {
+            management_vrf: string;
+            pools: {
+                id: string;
+                /** @enum {string} */
+                scope: "loopback" | "p2p" | "bgp_peer";
+                /** @description Canonical approved IPv4 or IPv6 pool prefix. */
+                cidr: string;
+                /** @description Customer-approved allocation block size. Loopbacks allocate host prefixes. */
+                unit_prefix: number;
+                vrf: string;
+                /** @description Canonical reserved subprefixes within this pool. */
+                reserved?: string[];
+            }[];
+            rules: {
+                object_uid: string;
+                pool_ref: string;
+                unit_index: number;
+                host_offset: number;
+                /** @description Explicit reciprocal peer for p2p; optional reciprocal BGP identity. */
+                peer_uid?: string;
+            }[];
+        };
+        NetworkAddressOverride: {
+            object_uid: string;
+            pool_ref: string;
+            /** @description Canonical host address inside the same approved pool. */
+            address: string;
+        };
+        NetworkAddressAssignment: {
+            object_uid: string;
+            owner_switch_id?: string;
+            serial?: string;
+            batch_ref?: string;
+            port_name?: string;
+            pool_ref: string;
+            /** @enum {string} */
+            scope: "loopback" | "p2p" | "bgp_peer";
+            vrf: string;
+            address: string;
+            cidr: string;
+            unit_cidr: string;
+            peer_uid?: string;
+            peer_address?: string;
+            adjusted: boolean;
+        };
+        NetworkAddressPlanInput: {
+            baseline_ref: string;
+            overrides?: components["schemas"]["NetworkAddressOverride"][];
+            /** @description Required nonempty when manual adjustments are provided. */
+            reason: string;
+            /** @description Required when saving a reviewed preview. */
+            expected_hash?: string;
+        };
+        NetworkAddressPlan: {
+            id?: string;
+            project_id: string;
+            baseline_id: string;
+            baseline_ref: string;
+            management_plan_id: string;
+            package_id: string;
+            /** @enum {string} */
+            state: "preview" | "draft" | "approved";
+            input: components["schemas"]["NetworkAddressPlanInput"];
+            source_hash: string;
+            content_hash: string;
+            assignments: components["schemas"]["NetworkAddressAssignment"][];
+            current: boolean;
+            created_by?: string;
+            /** Format: date-time */
+            created_at?: string;
+            approval_reason?: string;
+            approved_by?: string;
+            /** Format: date-time */
+            approved_at?: string;
+        };
+        NetworkAddressPlanSummary: {
+            id: string;
+            baseline_ref: string;
+            /** @enum {string} */
+            state: "draft" | "approved";
+            current: boolean;
+            assignment_count: number;
+            adjustment_count: number;
+            content_hash: string;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            approved_by?: string;
+            /** Format: date-time */
+            approved_at?: string;
+        };
         NetworkEngineeringLimits: {
+            address_planning?: components["schemas"]["NetworkAddressPlanning"];
             configuration_variables?: {
                 [key: string]: {
                     [key: string]: unknown;
@@ -13141,6 +13300,144 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FabricDeviceEvidence"];
+                };
+            };
+        };
+    };
+    listNetworkAddressPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest 30 immutable allocation plan summaries and current-facts status; full assignments are read separately. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        plans: components["schemas"]["NetworkAddressPlanSummary"][];
+                    };
+                };
+            };
+        };
+    };
+    saveNetworkAddressPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NetworkAddressPlanInput"];
+            };
+        };
+        responses: {
+            /** @description Frozen proposed allocation matching the reviewed preview; independent approval is still required. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkAddressPlan"];
+                };
+            };
+        };
+    };
+    previewNetworkAddressPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NetworkAddressPlanInput"];
+            };
+        };
+        responses: {
+            /** @description Applies imported approved pool/index/peer rules and validates adjustments against current stable BOM and management identities. Does not allocate DHCP or write devices. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkAddressPlan"];
+                };
+            };
+        };
+    };
+    getNetworkAddressPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Frozen allocation detail with current fact assessment; historical content is not rewritten. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkAddressPlan"];
+                };
+            };
+        };
+    };
+    approveNetworkAddressPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    expected_hash: string;
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Independent NH/Admin approval after exact current-facts recheck, retained as immutable evidence. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkAddressPlan"];
                 };
             };
         };

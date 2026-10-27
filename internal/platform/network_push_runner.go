@@ -55,12 +55,15 @@ func (s *Store) RunNetworkTarget(ctx context.Context, project, jobID, deviceID, 
 	if e != nil {
 		return nil, e
 	}
-	op := netbaseline.Operation{ID: commandID, Phase: "prepare", ProjectID: project, DeviceID: deviceID, Serial: d.Device.Serial, FencingToken: fence, CredentialBatchRef: d.Device.CredentialBatchRef, BaselineID: j.BaselineID, TemplateHash: templateHash, Intended: intended, ApprovedVariables: d.Device.ApprovedVariables}
+	op := netbaseline.Operation{ID: commandID, Phase: "prepare", ProjectID: project, DeviceID: deviceID, Serial: d.Device.Serial, FencingToken: fence, CredentialBatchRef: d.Device.CredentialBatchRef, BaselineID: j.BaselineID, TemplateHash: templateHash, Intended: intended, ApprovedVariables: d.Device.ApprovedVariables, AddressPlanID: d.Device.AddressPlanID, Addresses: d.Device.Addresses}
 	if phase == "prepare" {
 		evidence, err := client.Do(ctx, op)
 		state, code := "PREPARED", ""
 		if err == nil {
 			err = netbaseline.RequireGates(evidence, networkPrepareGates...)
+		}
+		if err == nil && len(d.Device.Addresses) > 0 {
+			err = netbaseline.RequireGates(evidence, "address-planning")
 		}
 		if err == nil && (len(evidence.Running) == 0 || evidence.SnapshotRef == "" || len(evidence.SnapshotRef) > 500) {
 			err = errors.New("A normalized running snapshot and durable backup reference are required")
