@@ -44,16 +44,17 @@ type NetworkPlanInput struct {
 	BatchRef           string `json:"batch_ref"`
 }
 type NetworkPlannedDevice struct {
-	ApprovedVariables  map[string]any  `json:"approved_variables"`
-	IntendedID         string          `json:"intended_id"`
-	ID                 string          `json:"id"`
-	Serial             string          `json:"serial"`
-	Hostname           string          `json:"hostname"`
-	Address            string          `json:"management_ip"`
-	ModelVersionID     string          `json:"model_version_id"`
-	CredentialBatchRef string          `json:"credential_batch_ref"`
-	Intended           json.RawMessage `json:"-"`
-	IntendedHash       string          `json:"intended_hash"`
+	CatalogSelections  []CatalogSelection `json:"catalog_selections,omitempty"`
+	ApprovedVariables  map[string]any     `json:"approved_variables"`
+	IntendedID         string             `json:"intended_id"`
+	ID                 string             `json:"id"`
+	Serial             string             `json:"serial"`
+	Hostname           string             `json:"hostname"`
+	Address            string             `json:"management_ip"`
+	ModelVersionID     string             `json:"model_version_id"`
+	CredentialBatchRef string             `json:"credential_batch_ref"`
+	Intended           json.RawMessage    `json:"-"`
+	IntendedHash       string             `json:"intended_hash"`
 }
 type NetworkTemplateReport struct {
 	ID             string                        `json:"id"`
@@ -139,7 +140,7 @@ func (s *Store) CreateNetworkTemplate(ctx context.Context, a *AuthSession, p *Pr
 	return v, tx.Commit()
 }
 
-func networkTemplateFactsTx(ctx context.Context, tx *sql.Tx, project string, input NetworkPlanInput) (*NetworkTemplateVersion, string, []NetworkPlannedDevice, error) {
+func networkTemplateFactsTx(ctx context.Context, tx *sql.Tx, project string, input NetworkPlanInput, lockCatalog bool) (*NetworkTemplateVersion, string, []NetworkPlannedDevice, error) {
 	if !bootRouteRef.MatchString(input.BatchRef) || !bomProfileVersionPattern.MatchString(input.BaselineRef) {
 		return nil, "", nil, apiError(400, "NETWORK_PLAN_INVALID", "Select an approved baseline and current batch")
 	}
@@ -166,6 +167,10 @@ func networkTemplateFactsTx(ctx context.Context, tx *sql.Tx, project string, inp
 	if e = json.Unmarshal(raw, &limits); e != nil {
 		return nil, "", nil, e
 	}
+	catalog, e := newNetworkVariableCatalogTx(ctx, tx, project, template.Definition, lockCatalog)
+	if e != nil {
+		return nil, "", nil, e
+	}
 	devices := []NetworkPlannedDevice{}
 	renderedBytes := 0
 	for _, binding := range plan.Assignments {
@@ -177,7 +182,6 @@ func networkTemplateFactsTx(ctx context.Context, tx *sql.Tx, project string, inp
 			return nil, "", nil, apiError(409, "NETWORK_CONFIGURATION_BASELINE_REQUIRED", "Approved baseline must include configuration_variables for every target serial")
 		}
 		var d NetworkPlannedDevice
-		d.ApprovedVariables = variables
 		d.ID = binding.SwitchID
 		d.Serial = binding.Serial
 		d.Hostname = binding.Hostname
@@ -186,7 +190,13 @@ func networkTemplateFactsTx(ctx context.Context, tx *sql.Tx, project string, inp
 			return nil, "", nil, e
 		}
 		device := map[string]any{"id": d.ID, "serial": d.Serial, "hostname": d.Hostname, "management_ip": d.Address, "gateway": binding.Gateway, "management_cidr": plan.Rules.CIDR, "model_version_id": d.ModelVersionID}
-		d.Intended, e = template.Definition.Render(ctx, variables, device)
+		approved, resolved, selections, err := catalog.resolve(ctx, tx, project, template.Definition, variables, d.ModelVersionID, lockCatalog)
+		if err != nil {
+			return nil, "", nil, err
+		}
+		d.ApprovedVariables = resolved
+		d.CatalogSelections = selections
+		d.Intended, e = template.Definition.RenderWithCatalog(ctx, variables, device, approved)
 		if e != nil {
 			return nil, "", nil, apiError(409, "NETWORK_RENDER_FAILED", e.Error())
 		}
@@ -225,7 +235,7 @@ func (s *Store) TestNetworkTemplate(ctx context.Context, a *AuthSession, p *Proj
 		tx.Rollback()
 		return nil, e
 	}
-	template, baseline, devices, e := networkTemplateFactsTx(ctx, tx, p.ID, input)
+	template, baseline, devices, e := networkTemplateFactsTx(ctx, tx, p.ID, input, false)
 	tx.Rollback()
 	if e != nil {
 		return nil, e
@@ -305,7 +315,7 @@ func (s *Store) TestNetworkTemplate(ctx context.Context, a *AuthSession, p *Proj
 	if e = requireFabricPermission(ctx, tx, a, p.ID, "fabric:template:edit"); e != nil {
 		return nil, e
 	}
-	current, base, latest, e := networkTemplateFactsTx(ctx, tx, p.ID, input)
+	current, base, latest, e := networkTemplateFactsTx(ctx, tx, p.ID, input, true)
 	if e != nil {
 		return nil, e
 	}
@@ -356,7 +366,7 @@ func (s *Store) ReleaseNetworkTemplate(ctx context.Context, a *AuthSession, p *P
 		return nil, apiError(409, "NETWORK_TEMPLATE_TEST_REQUIRED", "A complete tested template is required")
 	}
 	report := template.TestReport
-	_, baseline, devices, e := networkTemplateFactsTx(ctx, tx, p.ID, NetworkPlanInput{TemplateID: id, BaselineRef: report.BaselineRef, BatchRef: report.BatchRef})
+	_, baseline, devices, e := networkTemplateFactsTx(ctx, tx, p.ID, NetworkPlanInput{TemplateID: id, BaselineRef: report.BaselineRef, BatchRef: report.BatchRef}, true)
 	if e != nil {
 		return nil, e
 	}

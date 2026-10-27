@@ -5244,11 +5244,27 @@ export interface components {
             variables: {
                 [key: string]: {
                     /** @enum {string} */
-                    type: "string" | "number" | "integer" | "boolean" | "array" | "object";
+                    type: "string" | "version" | "number" | "integer" | "boolean" | "array" | "object";
                     required?: boolean;
                     enum?: string[];
+                    /** @description Inclusive exact JSON numeric bound; bounded decimal exponent. */
+                    minimum?: number;
+                    /** @description Inclusive exact JSON numeric bound; bounded decimal exponent. */
+                    maximum?: number;
+                    min_length?: number;
+                    max_length?: number;
+                    /** @description Go RE2 syntax */
+                    pattern?: string;
+                    /** @description Required for version type. Approved baseline value must be a param_key/value reference; literals are rejected. */
+                    catalog_key?: string;
                 };
             };
+        };
+        NetworkCatalogReference: {
+            /** @description Exact catalog_key declared by the template schema. */
+            param_key: string;
+            /** @description Explicit approved catalog option; version keys must resolve to one compatible approved stored media artifact. */
+            value: string;
         };
         NetworkTemplateInput: {
             /** @description Optional reviewed family head; requires expected_parent_hash. */
@@ -5356,6 +5372,8 @@ export interface components {
             created_at: string;
         };
         NetworkPlannedDevice: {
+            /** @description Immutable catalog/media identities pinned into plan and approval facts. */
+            catalog_selections?: components["schemas"]["CatalogSelection"][];
             approved_variables?: {
                 [key: string]: unknown;
             };

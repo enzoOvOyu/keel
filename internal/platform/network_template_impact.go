@@ -164,7 +164,7 @@ func evaluateNetworkTemplateImpactTx(ctx context.Context, tx *sql.Tx, project st
 		b, ok := batches[key]
 		if !ok {
 			input.TemplateID = candidate.ID
-			_, _, devices, err := networkTemplateFactsTx(ctx, tx, project, input)
+			_, _, devices, err := networkTemplateFactsTx(ctx, tx, project, input, false)
 			b = batch{devices: map[string]NetworkPlannedDevice{}, factsHash: netbaseline.ContentHash(devices), count: len(devices)}
 			if err != nil {
 				var business *Error

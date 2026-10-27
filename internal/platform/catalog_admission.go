@@ -186,6 +186,12 @@ func catalogMediaOptions(ctx context.Context, tx *sql.Tx, scope, mediaType, arch
 // through execution insertion, so retirement/upsert cannot race snapshot creation.
 // Unknown parameters remain owned by the Flow; registered retired keys fail closed.
 func ValidateCatalogTx(ctx context.Context, tx *sql.Tx, projectID string, values map[string]any) (CatalogValidation, error) {
+	return validateCatalogSelectionsTx(ctx, tx, projectID, values, true)
+}
+
+// Pure metadata/dependency validation is shared with read-only network previews.
+// Existing execution admission always calls the locking public wrapper above.
+func validateCatalogSelectionsTx(ctx context.Context, tx *sql.Tx, projectID string, values map[string]any, lock bool) (CatalogValidation, error) {
 	out := CatalogValidation{Valid: true, Issues: []CatalogIssue{}, Selections: []CatalogSelection{}}
 	if len(values) > 256 {
 		return out, apiError(400, "VALIDATION_ERROR", "At most 256 parameters are allowed")
@@ -212,8 +218,12 @@ func ValidateCatalogTx(ctx context.Context, tx *sql.Tx, projectID string, values
 		return out, apiError(400, "VALIDATION_ERROR", "Invalid parameter selection")
 	}
 	scope := "project:" + projectID
-	rows, e := tx.QueryContext(ctx, `SELECT id,scope_key,key,value_type,options,default_value,source_media_type,deps,state,created_at,updated_at FROM param_keys
- WHERE scope_key IN('global',$1) AND key IN(SELECT jsonb_object_keys($2::jsonb)) ORDER BY key,scope_key FOR SHARE`, scope, raw)
+	query := `SELECT id,scope_key,key,value_type,options,default_value,source_media_type,deps,state,created_at,updated_at FROM param_keys
+ WHERE scope_key IN('global',$1) AND key IN(SELECT jsonb_object_keys($2::jsonb)) ORDER BY key,scope_key`
+	if lock {
+		query += " FOR SHARE"
+	}
+	rows, e := tx.QueryContext(ctx, query, scope, raw)
 	if e != nil {
 		return out, e
 	}
@@ -297,7 +307,7 @@ func ValidateCatalogTx(ctx context.Context, tx *sql.Tx, projectID string, values
 				issue(key, "PARAM_ARCH_REQUIRED", "Select cpu.arch (amd64, arm64 or noarch) for a media version")
 				continue
 			}
-			candidates, err := catalogMediaOptions(ctx, tx, scope, k.SourceMediaType, arch, true)
+			candidates, err := catalogMediaOptions(ctx, tx, scope, k.SourceMediaType, arch, lock)
 			if err != nil {
 				return out, err
 			}
@@ -315,7 +325,7 @@ func ValidateCatalogTx(ctx context.Context, tx *sql.Tx, projectID string, values
 				issue(key, "PARAM_MEDIA_AMBIGUOUS", "Multiple artifacts share this version; give media distinct version labels before selection")
 				continue
 			}
-			if dependencyError := checkPinnedMediaDependencies(ctx, tx, matches[0].ID, nil); dependencyError != nil {
+			if dependencyError := checkPinnedMediaDependenciesWithLock(ctx, tx, matches[0].ID, nil, lock); dependencyError != nil {
 				var validation *Error
 				if !errors.As(dependencyError, &validation) {
 					return out, dependencyError

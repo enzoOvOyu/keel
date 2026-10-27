@@ -4125,9 +4125,22 @@ components:
             type: object
             required: [type]
             properties:
-              type: { type: string, enum: [string, number, integer, boolean, array, object] }
+              type: { type: string, enum: [string, version, number, integer, boolean, array, object] }
               required: { type: boolean }
-              enum: { type: array, items: { type: string } }
+              enum: { type: array, maxItems: 256, items: { type: string } }
+              minimum: { type: number, description: Inclusive exact JSON numeric bound; bounded decimal exponent. }
+              maximum: { type: number, description: Inclusive exact JSON numeric bound; bounded decimal exponent. }
+              min_length: { type: integer, minimum: 0, maximum: 65536 }
+              max_length: { type: integer, minimum: 0, maximum: 65536 }
+              pattern: { type: string, maxLength: 512, description: Go RE2 syntax, applied to Unicode strings. }
+              catalog_key: { type: string, maxLength: 119, description: Required for version type. Approved baseline value must be a param_key/value reference; literals are rejected. }
+    NetworkCatalogReference:
+      type: object
+      additionalProperties: false
+      required: [param_key, value]
+      properties:
+        param_key: { type: string, description: Exact catalog_key declared by the template schema. }
+        value: { type: string, description: Explicit approved catalog option; version keys must resolve to one compatible approved stored media artifact. }
     NetworkTemplateInput:
       type: object
       required: [name, source_ref, definition]
@@ -4240,6 +4253,7 @@ components:
       type: object
       required: [intended_id, id, serial, hostname, management_ip, model_version_id, credential_batch_ref, intended_hash]
       properties:
+        catalog_selections: { type: array, items: { $ref: '#/components/schemas/CatalogSelection' }, description: Immutable catalog/media identities pinned into plan and approval facts. }
         approved_variables: { type: object, additionalProperties: true }
         intended_id: { type: string }
         id: { type: string }

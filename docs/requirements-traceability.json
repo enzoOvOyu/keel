@@ -2653,7 +2653,7 @@
         "F-0.9"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Existing approved baseline rendering, sandbox templates, three-layer checks, independent release and shared PushJob are extended in the 2026-10-27 P2 increment with immutable template lineage, reviewed-head rollback into a new untested draft, paginated upgrade impact and a durable release assessment/remediation queue. Latest production attempts and current approved whole-batch facts bind queue-created ordinary PushJobs; stale previews, unknown evidence and missing approvals do not permit writes. Only matching candidate execution/readback and current facts resolve the queue. New source, migrations073/074 and authored PG/browser scenarios are not run or deployed; full FR-0.2 planning/schema and work-package acceptance remain incomplete.",
+      "implementation_notes": "Existing approved baseline rendering, sandbox templates, three-layer checks, independent release and shared PushJob are extended in the 2026-10-27 P2 increment with immutable template lineage, reviewed-head rollback into a new untested draft, paginated upgrade impact and a durable release assessment/remediation queue. Latest production attempts and current approved whole-batch facts bind queue-created ordinary PushJobs; stale previews, unknown evidence and missing approvals do not permit writes. Only matching candidate execution/readback and current facts resolve the queue. New source, migrations073/074 and authored PG/browser scenarios are not run or deployed; full FR-0.2 planning/schema and work-package acceptance remain incomplete. Variable schemas now include exact bounded numeric and Unicode/pattern constraints; version variables require explicit catalog references with current approved media, model architecture and compatibility. Catalog/media identities freeze into plan facts and actual pinned bytes are checked at execution admission. Read-only previews share validation with locking admission; new cases remain authored, not executed.",
       "evidence_refs": [
         "docs/HANDOFF.md",
         "internal/platform/network_template_lineage.go",
@@ -2662,7 +2662,10 @@
         "internal/platform/network_template_lineage_integration_test.go",
         "scripts/check-network-browser.mjs",
         "web/src/features/network/TemplateImpact.tsx",
-        "web/src/features/network/TemplateChanges.tsx"
+        "web/src/features/network/TemplateChanges.tsx",
+        "internal/platform/network_template_catalog.go",
+        "internal/platform/network_template_catalog_integration_test.go",
+        "internal/netbaseline/variable_schema_test.go"
       ]
     },
     {

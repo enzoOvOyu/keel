@@ -10,9 +10,12 @@ import (
 	"fmt"
 	"github.com/flosch/pongo2/v6"
 	"io"
+	"math/big"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 const MaxRenderedBytes = 1 << 20
@@ -20,6 +23,8 @@ const MaxRenderedBytes = 1 << 20
 var tagPattern = regexp.MustCompile(`(?s)\{%\s*([a-zA-Z_]+).*?%\}`)
 var filterPattern = regexp.MustCompile(`\|\s*([a-zA-Z_][a-zA-Z0-9_]*)`)
 var variableName = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
+var networkCatalogKey = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,118}$`)
+var boundedJSONNumber = regexp.MustCompile(`^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$`)
 
 type deniedLoader struct{}
 
@@ -40,9 +45,15 @@ func init() {
 }
 
 type Variable struct {
-	Type     string   `json:"type"`
-	Required bool     `json:"required"`
-	Enum     []string `json:"enum,omitempty"`
+	Type       string       `json:"type"`
+	Required   bool         `json:"required"`
+	Enum       []string     `json:"enum,omitempty"`
+	Minimum    *json.Number `json:"minimum,omitempty"`
+	Maximum    *json.Number `json:"maximum,omitempty"`
+	MinLength  *int         `json:"min_length,omitempty"`
+	MaxLength  *int         `json:"max_length,omitempty"`
+	Pattern    string       `json:"pattern,omitempty"`
+	CatalogKey string       `json:"catalog_key,omitempty"`
 }
 type Template struct {
 	Source    string              `json:"source"`
@@ -82,9 +93,12 @@ func (t Template) Validate() error {
 			return errors.New("invalid or reserved template variable")
 		}
 		switch v.Type {
-		case "string", "number", "integer", "boolean", "array", "object":
+		case "string", "version", "number", "integer", "boolean", "array", "object":
 		default:
 			return fmt.Errorf("unsupported variable type for %s", name)
+		}
+		if e := validateVariableSchema(v); e != nil {
+			return fmt.Errorf("variable %s: %w", name, e)
 		}
 		if len(v.Enum) > 256 {
 			return errors.New("template enum exceeds limit")
@@ -133,7 +147,7 @@ func finiteJSON(value any, depth int, nodes *int) error {
 func checkVariable(name string, schema Variable, value any) error {
 	ok := false
 	switch schema.Type {
-	case "string":
+	case "string", "version":
 		_, ok = value.(string)
 	case "boolean":
 		_, ok = value.(bool)
@@ -153,6 +167,9 @@ func checkVariable(name string, schema Variable, value any) error {
 	if !ok {
 		return fmt.Errorf("variable %s has the wrong type", name)
 	}
+	if e := checkVariableRange(name, schema, value); e != nil {
+		return e
+	}
 	if len(schema.Enum) > 0 {
 		allowed := false
 		for _, v := range schema.Enum {
@@ -162,6 +179,98 @@ func checkVariable(name string, schema Variable, value any) error {
 		}
 		if !allowed {
 			return fmt.Errorf("variable %s is outside its approved enum", name)
+		}
+	}
+	return nil
+}
+
+func boundedRational(raw string) (*big.Rat, error) {
+	if len(raw) > 128 || !boundedJSONNumber.MatchString(raw) {
+		return nil, errors.New("invalid or oversized JSON numeric bound")
+	}
+	if at := strings.IndexAny(raw, "eE"); at >= 0 {
+		exponent, e := strconv.Atoi(raw[at+1:])
+		if e != nil || exponent < -256 || exponent > 256 {
+			return nil, errors.New("numeric exponent exceeds bounded precision")
+		}
+	}
+	number, ok := new(big.Rat).SetString(raw)
+	if !ok {
+		return nil, errors.New("invalid numeric bound")
+	}
+	return number, nil
+}
+func schemaNumber(value *json.Number) (*big.Rat, error) {
+	if value == nil {
+		return nil, nil
+	}
+	return boundedRational(value.String())
+}
+
+func validateVariableSchema(v Variable) error {
+	if v.CatalogKey != "" && (!networkCatalogKey.MatchString(v.CatalogKey) || (v.Type != "string" && v.Type != "version")) {
+		return errors.New("catalog references require a string/version type and registered key name")
+	}
+	if v.Type == "version" && v.CatalogKey == "" {
+		return errors.New("version variables require catalog_key")
+	}
+	minimum, e := schemaNumber(v.Minimum)
+	if e != nil {
+		return e
+	}
+	maximum, e := schemaNumber(v.Maximum)
+	if e != nil {
+		return e
+	}
+	if (minimum != nil || maximum != nil) && v.Type != "number" && v.Type != "integer" {
+		return errors.New("numeric bounds require number/integer type")
+	}
+	if minimum != nil && maximum != nil && minimum.Cmp(maximum) > 0 {
+		return errors.New("minimum exceeds maximum")
+	}
+	if (v.MinLength != nil || v.MaxLength != nil || v.Pattern != "") && v.Type != "string" && v.Type != "version" {
+		return errors.New("string constraints require string/version type")
+	}
+	for _, bound := range []*int{v.MinLength, v.MaxLength} {
+		if bound != nil && (*bound < 0 || *bound > 65536) {
+			return errors.New("string length bound exceeds 0..65536")
+		}
+	}
+	if v.MinLength != nil && v.MaxLength != nil && *v.MinLength > *v.MaxLength {
+		return errors.New("min_length exceeds max_length")
+	}
+	if len(v.Pattern) > 512 {
+		return errors.New("string pattern exceeds 512 bytes")
+	}
+	if v.Pattern != "" {
+		if _, e = regexp.Compile(v.Pattern); e != nil {
+			return errors.New("invalid string pattern")
+		}
+	}
+	return nil
+}
+func checkVariableRange(name string, schema Variable, value any) error {
+	if n, ok := value.(json.Number); ok && (schema.Minimum != nil || schema.Maximum != nil) {
+		if len(n.String()) > 128 {
+			return fmt.Errorf("variable %s exceeds numeric length limit", name)
+		}
+		actual, numericError := boundedRational(n.String())
+		if numericError != nil {
+			return fmt.Errorf("variable %s is not finite numeric JSON", name)
+		}
+		low, _ := schemaNumber(schema.Minimum)
+		high, _ := schemaNumber(schema.Maximum)
+		if low != nil && actual.Cmp(low) < 0 || high != nil && actual.Cmp(high) > 0 {
+			return fmt.Errorf("variable %s exceeds approved numeric bounds", name)
+		}
+	}
+	if text, ok := value.(string); ok {
+		length := utf8.RuneCountInString(text)
+		if schema.MinLength != nil && length < *schema.MinLength || schema.MaxLength != nil && length > *schema.MaxLength {
+			return fmt.Errorf("variable %s exceeds approved string length", name)
+		}
+		if schema.Pattern != "" && !regexp.MustCompile(schema.Pattern).MatchString(text) {
+			return fmt.Errorf("variable %s does not match approved pattern", name)
 		}
 	}
 	return nil
@@ -183,6 +292,12 @@ func (w *boundedWriter) Write(p []byte) (int, error) {
 }
 func (w *boundedWriter) WriteString(s string) (int, error) { return w.Write([]byte(s)) }
 func (t Template) Render(ctx context.Context, variables map[string]any, device map[string]any) (json.RawMessage, error) {
+	return t.RenderWithCatalog(ctx, variables, device, nil)
+}
+
+// Catalog approvals are resolved by the platform in the current transaction.
+// Plain Render cannot resolve catalog placeholders or accept version literals.
+func (t Template) RenderWithCatalog(ctx context.Context, variables map[string]any, device map[string]any, approved map[string]string) (json.RawMessage, error) {
 	if e := t.Validate(); e != nil {
 		return nil, e
 	}
@@ -216,6 +331,16 @@ func (t Template) Render(ctx context.Context, variables map[string]any, device m
 		schema, ok := t.Variables[name]
 		if !ok {
 			return nil, fmt.Errorf("variable %s is not declared by the template", name)
+		}
+		if schema.CatalogKey != "" {
+			ref, yes := value.(map[string]any)
+			key, keyOK := ref["param_key"].(string)
+			selected, valueOK := ref["value"].(string)
+			actual, allowed := approved[key]
+			if !yes || len(ref) != 2 || !keyOK || !valueOK || key != schema.CatalogKey || !allowed || actual != selected {
+				return nil, fmt.Errorf("variable %s requires a validated catalog reference", name)
+			}
+			value = actual
 		}
 		if e = checkVariable(name, schema, value); e != nil {
 			return nil, e

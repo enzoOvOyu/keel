@@ -42,10 +42,17 @@ func mediaArtifactDependencies(raw json.RawMessage) ([]MediaArtifactDependency, 
 }
 
 func mediaDependencyRecord(ctx context.Context, tx *sql.Tx, id string) (MediaItemSummary, error) {
+	return mediaDependencyRecordWithLock(ctx, tx, id, true)
+}
+func mediaDependencyRecordWithLock(ctx context.Context, tx *sql.Tx, id string, lock bool) (MediaItemSummary, error) {
 	var out MediaItemSummary
-	err := tx.QueryRowContext(ctx, `SELECT id,scope_key,type,name,version,sha256,size,arch,deps,state,coalesce(approved_by,''),updated_at,
+	query := `SELECT id,scope_key,type,name,version,sha256,size,arch,deps,state,coalesce(approved_by,''),updated_at,
  EXISTS(SELECT 1 FROM media_artifacts a WHERE a.media_id=m.id),EXISTS(SELECT 1 FROM media_artifact_integrity mi WHERE mi.media_id=m.id AND mi.quarantined_at IS NOT NULL)
- FROM media_items m WHERE id=$1 FOR SHARE`, id).Scan(&out.ID, &out.ScopeKey, &out.Type, &out.Name, &out.Version, &out.Sha256, &out.Size, &out.Arch, &out.Deps, &out.State, &out.ApprovedBy, &out.UpdatedAt, &out.ArtifactStored, &out.ArtifactQuarantined)
+ FROM media_items m WHERE id=$1`
+	if lock {
+		query += " FOR SHARE"
+	}
+	err := tx.QueryRowContext(ctx, query, id).Scan(&out.ID, &out.ScopeKey, &out.Type, &out.Name, &out.Version, &out.Sha256, &out.Size, &out.Arch, &out.Deps, &out.State, &out.ApprovedBy, &out.UpdatedAt, &out.ArtifactStored, &out.ArtifactQuarantined)
 	if errors.Is(err, sql.ErrNoRows) {
 		return out, apiError(422, "MEDIA_DEPENDENCY_UNAVAILABLE", "A pinned media dependency is unavailable")
 	}
@@ -56,6 +63,12 @@ func mediaDependencyRecord(ctx context.Context, tx *sql.Tx, id string) (MediaIte
 // already registered, approved identities. Bounds/cycle checks also reject
 // malformed historical data without recursively trusting it.
 func mediaDependencyClosure(ctx context.Context, tx *sql.Tx, root *MediaItemSummary, reader *Store) ([]MediaItemSummary, error) {
+	return mediaDependencyClosureWithLock(ctx, tx, root, reader, true)
+}
+
+// Snapshot previews share all dependency checks, while execution admission keeps
+// the original row locks. Read-only transactions never attempt FOR SHARE.
+func mediaDependencyClosureWithLock(ctx context.Context, tx *sql.Tx, root *MediaItemSummary, reader *Store, lock bool) ([]MediaItemSummary, error) {
 	records := map[string]MediaItemSummary{root.ID: *root}
 	visiting := map[string]bool{}
 	complete := map[string]bool{}
@@ -85,7 +98,7 @@ func mediaDependencyClosure(ctx context.Context, tx *sql.Tx, root *MediaItemSumm
 				if len(records) >= 129 {
 					return apiError(422, "MEDIA_DEPENDENCY_LIMIT", "Artifact dependency closure exceeds 128 dependencies")
 				}
-				child, err = mediaDependencyRecord(ctx, tx, ref.MediaID)
+				child, err = mediaDependencyRecordWithLock(ctx, tx, ref.MediaID, lock)
 				if err != nil {
 					return err
 				}
@@ -145,11 +158,15 @@ func validateMediaDependencyTree(ctx context.Context, tx *sql.Tx, root *MediaIte
 }
 
 func checkPinnedMediaDependencies(ctx context.Context, tx *sql.Tx, id string, reader *Store) error {
-	root, err := mediaDependencyRecord(ctx, tx, id)
-	if err != nil {
-		return err
+	return checkPinnedMediaDependenciesWithLock(ctx, tx, id, reader, true)
+}
+func checkPinnedMediaDependenciesWithLock(ctx context.Context, tx *sql.Tx, id string, reader *Store, lock bool) error {
+	root, e := mediaDependencyRecordWithLock(ctx, tx, id, lock)
+	if e != nil {
+		return e
 	}
-	return validateMediaDependencyTree(ctx, tx, &root, reader)
+	_, e = mediaDependencyClosureWithLock(ctx, tx, &root, reader, lock)
+	return e
 }
 
 func canonicalMediaDependencies(ctx context.Context, tx *sql.Tx, m *MediaItemSummary) error {

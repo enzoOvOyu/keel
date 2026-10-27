@@ -131,7 +131,7 @@ func (s *Store) CreateNetworkPush(ctx context.Context, a *AuthSession, p *Projec
 	if e = requireFabricPermission(ctx, tx, a, p.ID, "fabric:plan"); e != nil {
 		return nil, e
 	}
-	template, baseline, devices, e := networkTemplateFactsTx(ctx, tx, p.ID, input)
+	template, baseline, devices, e := networkTemplateFactsTx(ctx, tx, p.ID, input, true)
 	if e != nil {
 		return nil, e
 	}
@@ -231,7 +231,7 @@ func (s *Store) ListNetworkPush(ctx context.Context, a *AuthSession, p *ProjectS
 	return out, nil
 }
 func (s *Store) reviewNetworkPushFacts(ctx context.Context, tx *sql.Tx, j *NetworkPushJob) error {
-	template, base, devices, e := networkTemplateFactsTx(ctx, tx, j.ProjectID, j.Input)
+	template, base, devices, e := networkTemplateFactsTx(ctx, tx, j.ProjectID, j.Input, true)
 	if e != nil {
 		return e
 	}
@@ -268,6 +268,13 @@ func (s *Store) QueueNetworkPushTx(ctx context.Context, tx *sql.Tx, a *AuthSessi
 		return nil, apiError(409, "NETWORK_PUSH_EXECUTOR_CHANGED", "The plan owner must queue its execution")
 	}
 	if e = s.reviewNetworkPushFacts(ctx, tx, j); e != nil {
+		return nil, e
+	}
+	selections := []CatalogSelection{}
+	for _, device := range j.Devices {
+		selections = append(selections, device.Device.CatalogSelections...)
+	}
+	if e = s.VerifyCatalogArtifactsTx(ctx, tx, selections); e != nil {
 		return nil, e
 	}
 	switch phase {
