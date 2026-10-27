@@ -188,6 +188,17 @@ func CaptureWithReadback(parent context.Context, expected Expectation, commandID
 	}
 	raw, e := json.Marshal(archive)
 	if e != nil || len(raw) > MaxCaptureBytes {
+		// Preserve positive host cleanup even when duplicated readback projections
+		// exceed the archive bound. Original switch exchanges remain in the ledger.
+		hostOnly := *archive
+		hostOnly.Readback = nil
+		partial, projectErr := projectArchive(&hostOnly)
+		if projectErr == nil {
+			bounded, marshalErr := json.Marshal(partial)
+			if marshalErr == nil && len(bounded) <= MaxCaptureBytes {
+				return nil, &UnknownCapture{HostStopped: partial}
+			}
+		}
 		return nil, ErrOutcomeUnknown
 	}
 	if errors.Is(readbackErr, ErrOutcomeUnknown) {

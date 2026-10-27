@@ -155,3 +155,68 @@ func TestReadbackProjectionRetainsIndependentPhysicalFactsInOriginalOnly(t *test
 		t.Fatal("narrow LLDP projection lost originals or contradicted capabilities", e)
 	}
 }
+
+func TestOversizeAggregateRetainsBoundedOriginalHostStop(t *testing.T) {
+	raw, expected := fixtureDocument(t, "dual-ended")
+	document, e := decodeFixture(raw)
+	if e != nil {
+		t.Fatal(e)
+	}
+	for i := range document.Switches {
+		document.Switches[i].Ports[0].Neighbor.Sysdesc = strings.Repeat("s", 600<<10)
+	}
+	raw, e = json.Marshal(document)
+	if e != nil {
+		t.Fatal(e)
+	}
+	driver, e := NewFixtureDriver(raw)
+	if e != nil {
+		t.Fatal(e)
+	}
+	binding := recollectBinding(strings.Repeat("d", 32))
+	ledger := newRecollectLedger()
+	callback := func(ctx context.Context, scope ReadbackScope) (*Readback, error) {
+		client, e := NewFixtureCollector(raw, binding, scope)
+		if e != nil {
+			return nil, e
+		}
+		return NewRecollector(binding, client, ledger)(ctx, scope)
+	}
+	_, captureErr := CaptureWithReadback(context.Background(), expected, binding.CommandID, driver, callback)
+	var unknown *UnknownCapture
+	if !errors.As(captureErr, &unknown) || unknown.HostStopped == nil || unknown.HostStopped.Readback != nil || !unknown.HostStopped.Capture.Stopped {
+		t.Fatal("aggregate size limit erased the independent host stop proof", captureErr)
+	}
+	bounded, e := json.Marshal(unknown.HostStopped)
+	if e != nil || len(bounded) > MaxCaptureBytes || len(ledger.results) != 2 {
+		t.Fatal("original child results or bounded host evidence lost")
+	}
+	if _, e = DecodeArchive(bounded); e != nil {
+		t.Fatal(e)
+	}
+}
+func TestMissingFixtureSourceCreatesAnOriginalRejectionTombstone(t *testing.T) {
+	raw, _ := fixtureDocument(t, "dual-ended")
+	document, e := decodeFixture(raw)
+	if e != nil {
+		t.Fatal(e)
+	}
+	document.Switches = nil
+	raw, e = json.Marshal(document)
+	if e != nil {
+		t.Fatal(e)
+	}
+	binding, scope := recollectScope()
+	client, e := NewFixtureCollector(raw, binding, scope)
+	if e != nil {
+		t.Fatal(e)
+	}
+	ledger := newRecollectLedger()
+	run := NewRecollector(binding, client, ledger)
+	if _, e = run(context.Background(), scope); !errors.Is(e, ErrOutcomeUnknown) {
+		t.Fatal("first rejected response should require original proof", e)
+	}
+	if _, e = run(context.Background(), scope); !errors.Is(e, ErrCaptureRejected) || ledger.observations != 1 {
+		t.Fatal("missing source was treated as an empty neighbor or unproven absence", e)
+	}
+}

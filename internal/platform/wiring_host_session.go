@@ -390,5 +390,17 @@ func (s *Store) QueryWiringCommand(ctx context.Context, binding wiring.ReadbackB
 	if e != nil {
 		return nil, e
 	}
+	if len(raw) > wiring.MaxCaptureBytes {
+		// All sessions are terminal, but a bounded complete aggregate is missing.
+		// Keep original host proof and BLOCKED diagnostics; do not re-run devices.
+		archive, e = wiring.AttachOriginalReadback(host, binding, nil)
+		if e != nil {
+			return nil, wiring.ErrOutcomeUnknown
+		}
+		raw, e = json.Marshal(archive)
+		if e != nil {
+			return nil, e
+		}
+	}
 	return s.RecordWiringCapture(work, binding, raw)
 }
