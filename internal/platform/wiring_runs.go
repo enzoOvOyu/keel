@@ -117,7 +117,7 @@ func (s *Store) PrepareWiringRunTx(ctx context.Context, tx *sql.Tx, a *AuthSessi
 			return nil, err
 		}
 		expected.ScopeHash = t.Expectation.ScopeHash
-		if string(networkJSON(expected)) != string(networkJSON(t.Expectation)) {
+		if !wiringExpectationWithin(t.Expectation, expected) {
 			return nil, apiError(409, "WIRING_SCOPE_CHANGED", "Physical identities differ from Step 1")
 		}
 		var parent string
@@ -132,7 +132,7 @@ func (s *Store) PrepareWiringRunTx(ctx context.Context, tx *sql.Tx, a *AuthSessi
 		if parent == "" {
 			return nil, apiError(409, "WIRING_STEP1_REQUIRED", "Current passing Step 1 required")
 		}
-		scopes = append(scopes, WiringRunScope{ProjectID: project, BatchID: in.BatchID, AssetID: t.AssetID, MachineID: t.MachineID, ParentID: parent, TopologyID: t.TopologyID, IdentityHash: wiringIdentityHash(host), Expectation: t.Expectation, PolicyHash: policy, GateTTLSeconds: int64(duration / time.Second)})
+		scopes = append(scopes, WiringRunScope{ProjectID: project, BatchID: in.BatchID, AssetID: t.AssetID, MachineID: t.MachineID, ParentID: parent, TopologyID: t.TopologyID, IdentityHash: wiringIdentityHash(host), Expectation: expected, PolicyHash: policy, GateTTLSeconds: int64(duration / time.Second)})
 	}
 	if len(scopes) != len(current.Targets) {
 		return nil, apiError(409, "WIRING_SCOPE_CHANGED", "Selected hosts must belong to the existing Step 1 batch")

@@ -16,7 +16,7 @@ import { createPrecollect, currentG1, downloadPrecollect, getPrecollect, listPre
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 
 export default function PrecollectDialog({ asset, onClose }: { asset: ProjectAsset; onClose: () => void }) {
- const { t } = useTranslation(), { session } = useSession(), project = useProject(), navigate = useNavigate(), action = useAction()
+ const { t } = useTranslation(), session = useSession(), project = useProject(), navigate = useNavigate(), action = useAction()
  const [now, setNow] = useState(Date.now())
  const [page, setPage] = useState(1), [selected, setSelected] = useState(''), [reason, setReason] = useState(''), [validation, setValidation] = useState('')
  const mounted = useRef(true), attempt = useRef({ body: '', key: '' })

@@ -18,7 +18,7 @@ import PcieTopologyView from './PcieTopologyView'
 import WiringDialog from './WiringDialog'
 
 export default function TopologyDialog({ asset, onClose }: { asset: Pick<ProjectAsset, 'id' | 'hostname'>; onClose: () => void }) {
- const { t } = useTranslation(), { session } = useSession(), { project } = useProject(), action = useAction(), queries = useQueryClient()
+ const { t } = useTranslation(), session = useSession(), project = useProject(), action = useAction(), queries = useQueryClient()
  const [page, setPage] = useState(1), [selected, setSelected] = useState(''), [reason, setReason] = useState(''), [validation, setValidation] = useState(''), [now, setNow] = useState(Date.now())
  const [showWiring, setShowWiring] = useState(false)
  const mounted = useRef(true), attempt = useRef({ body: '', key: '' })

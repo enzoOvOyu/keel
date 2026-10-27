@@ -25,6 +25,34 @@ func fixtureDocument(t *testing.T, name string) ([]byte, Expectation) {
 	}
 	return raw, expected
 }
+
+func TestFixtureCaptureFiltersSelectedOriginalPort(t *testing.T) {
+	raw, full := fixtureDocument(t, "dual-ended")
+	expected := full
+	expected.Ports = append([]ExpectedPort{}, full.Ports[1])
+	driver, e := NewFixtureDriver(raw)
+	if e != nil {
+		t.Fatal(e)
+	}
+	archive, e := CaptureWithDriver(context.Background(), expected, strings.Repeat("f", 32), driver)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if len(archive.Before) != 1 || len(archive.After) != 1 || len(archive.Capture.Ports) != 1 || len(archive.Probes) != 2 || archive.Before[0].PhysicalPortID != expected.Ports[0].PhysicalPortID {
+		t.Fatal("partial fixture leaked other ports or invented selected observations")
+	}
+	archive.After[0].MTU++
+	if archive.Before[0].MTU == archive.After[0].MTU {
+		t.Fatal("original restoration snapshots share mutable memory")
+	}
+	bytes, e := json.Marshal(archive)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = DecodeArchive(bytes); e == nil {
+		t.Fatal("changed restoration snapshot remained valid")
+	}
+}
 func TestIndependentLLDPFixturesRetainSourceAndRuleDifferences(t *testing.T) {
 	cases := []struct{ name, step2, step3 string }{{"dual-ended", "PASS", "PASS"}, {"link-down", "FAIL", "BLOCKED"}, {"readable-empty", "FAIL", "BLOCKED"}, {"unreadable", "BLOCKED", "BLOCKED"}, {"wrong-peer", "PASS", "FAIL"}}
 	for _, test := range cases {

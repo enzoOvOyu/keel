@@ -68,7 +68,7 @@ func (s *Store) wiringConfirmableTx(ctx context.Context, tx *sql.Tx, project, ba
 	if three == nil || three.ID != report || three.EffectiveVerdict != "PASS" || three.ValidUntil == nil || !three.ValidUntil.After(time.Now()) {
 		return nil, nil, nil, nil, apiError(409, "WIRING_STEP3_REQUIRED", "Current passing Step 2/3 chain required")
 	}
-	c, facts, e := s.wiringObservedScopeTx(ctx, tx, project, three.Detail.CommandID)
+	c, facts, e := s.wiringReportScopeTx(ctx, tx, project, three, false)
 	if e != nil {
 		return nil, nil, nil, nil, e
 	}
@@ -146,22 +146,14 @@ func (s *Store) ConfirmWiring(ctx context.Context, a *AuthSession, project, batc
 	if e != nil {
 		return nil, e
 	}
-	var handshakeRaw []byte
-	if e = tx.QueryRowContext(ctx, `SELECT facts FROM validation_wiring_handshakes WHERE id=$1`, c.HandshakeID).Scan(&handshakeRaw); e != nil {
-		return nil, e
-	}
-	var original WiringFacts
-	if e = json.Unmarshal(handshakeRaw, &original); e != nil {
-		return nil, e
-	}
-	peers := map[string]string{}
-	for _, h := range original.Targets {
-		for _, p := range h.Ports {
-			peers[p.PhysicalPortID] = p.SwitchPortID
-		}
-	}
+	// Each endpoint keeps the handshake of its own original observation.
 	for _, p := range c.Expectation.Ports {
-		if _, e = tx.ExecContext(ctx, `INSERT INTO validation_wiring_confirmed_ports(confirmation_id,physical_port_id,switch_port_id,cable_id,expected) VALUES($1,$2,$3,$4,$5)`, out.ID, p.PhysicalPortID, peers[p.PhysicalPortID], p.CableID, networkJSON(p)); e != nil {
+		var peer string
+		e = tx.QueryRowContext(ctx, `SELECT port->>'switch_port_id' FROM validation_wiring_commands source JOIN validation_wiring_handshakes h ON h.id=source.handshake_id CROSS JOIN LATERAL jsonb_array_elements(h.facts#>'{targets,0,ports}') port WHERE source.command_id=coalesce((SELECT proof->>'command_id' FROM validation_wiring_coverage_snapshots coverage CROSS JOIN LATERAL jsonb_array_elements(coverage.coverage->'proofs') proof WHERE coverage.id=$1 AND proof->>'physical_port_id'=$2),$3) AND port->>'physical_port_id'=$2`, three.Detail.CoverageID, p.PhysicalPortID, c.Binding.CommandID).Scan(&peer)
+		if e != nil {
+			return nil, e
+		}
+		if _, e = tx.ExecContext(ctx, `INSERT INTO validation_wiring_confirmed_ports(confirmation_id,physical_port_id,switch_port_id,cable_id,expected) VALUES($1,$2,$3,$4,$5)`, out.ID, p.PhysicalPortID, peer, p.CableID, networkJSON(p)); e != nil {
 			return nil, e
 		}
 	}

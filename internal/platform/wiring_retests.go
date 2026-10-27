@@ -103,7 +103,7 @@ func (s *Store) wiringRetestScopeTx(ctx context.Context, tx *sql.Tx, item *Issue
 	if superseded {
 		block("WIRING_REPAIR_SCOPE_CHANGED")
 	}
-	e = tx.QueryRowContext(ctx, `SELECT r.id,r.batch_id,c.command_id,c.execution_id FROM validation_wiring_commands c JOIN validation_wiring_capture_records p ON p.command_id=c.command_id JOIN validation_wiring_step_reports r ON r.detail->>'command_id'=c.command_id JOIN exec_task_attempts a ON a.id=c.attempt_id WHERE c.project_id=$1 AND c.asset_id=$2 AND c.command->>'host_origin'=$3 AND c.origin=$4 AND c.created_at>$5 AND a.state IN('success','failed') AND a.command_id=c.command_id AND a.fencing_token=c.fencing_token AND EXISTS(SELECT 1 FROM jsonb_array_elements(c.command#>'{expectation,ports}') port WHERE port->>'physical_port_id'=$6) AND r.step IN(2,3) ORDER BY p.stopped_at DESC,c.command_id DESC,r.step DESC,r.version DESC LIMIT 1`, item.ProjectID, out.AssetID, hostOrigin, switchOrigin, out.RepairedAt, out.PhysicalPortID).Scan(&out.ReportID, &out.BatchID, &out.CommandID, &out.ExecutionID)
+	e = tx.QueryRowContext(ctx, `SELECT r.id,r.batch_id,c.command_id,c.execution_id FROM validation_wiring_commands c JOIN validation_wiring_capture_records p ON p.command_id=c.command_id JOIN validation_wiring_step_reports r ON (NOT (r.detail ? 'coverage_id') AND r.detail->>'command_id'=c.command_id) OR EXISTS(SELECT 1 FROM validation_wiring_coverage_snapshots coverage CROSS JOIN LATERAL jsonb_array_elements(coverage.coverage->'proofs') proof WHERE coverage.id=r.detail->>'coverage_id' AND proof->>'command_id'=c.command_id AND proof->>'physical_port_id'=$6) JOIN exec_task_attempts a ON a.id=c.attempt_id WHERE c.project_id=$1 AND c.asset_id=$2 AND c.command->>'host_origin'=$3 AND c.origin=$4 AND c.created_at>$5 AND a.state IN('success','failed') AND a.command_id=c.command_id AND a.fencing_token=c.fencing_token AND EXISTS(SELECT 1 FROM jsonb_array_elements(c.command#>'{expectation,ports}') port WHERE port->>'physical_port_id'=$6) AND r.step IN(2,3) ORDER BY p.stopped_at DESC,c.command_id DESC,r.step DESC,r.version DESC LIMIT 1`, item.ProjectID, out.AssetID, hostOrigin, switchOrigin, out.RepairedAt, out.PhysicalPortID).Scan(&out.ReportID, &out.BatchID, &out.CommandID, &out.ExecutionID)
 	if errors.Is(e, sql.ErrNoRows) {
 		block("WIRING_POST_REPAIR_CAPTURE_REQUIRED")
 		return out, nil
@@ -131,6 +131,20 @@ func (s *Store) wiringRetestScopeTx(ctx context.Context, tx *sql.Tx, item *Issue
 		return out, nil
 	}
 	out.Verdict = found.Verdict
+	if found.Detail.CoverageID != "" {
+		var two, three string
+		if e = tx.QueryRowContext(ctx, `SELECT proof->>'step2',proof->>'step3' FROM validation_wiring_coverage_snapshots coverage CROSS JOIN LATERAL jsonb_array_elements(coverage.coverage->'proofs') proof WHERE coverage.id=$1 AND proof->>'physical_port_id'=$2 AND proof->>'command_id'=$3`, found.Detail.CoverageID, out.PhysicalPortID, out.CommandID).Scan(&two, &three); e != nil {
+			return nil, e
+		}
+		verdict := two
+		if found.Step == 3 {
+			verdict = three
+		}
+		if verdict != found.Verdict {
+			out.Verdict = "BLOCKED"
+			block("WIRING_RETEST_OTHER_PORTS_BLOCKED")
+		}
+	}
 	if found.EffectiveVerdict != found.Verdict {
 		block("WIRING_RETEST_NOT_CURRENT")
 	}
@@ -138,7 +152,7 @@ func (s *Store) wiringRetestScopeTx(ctx context.Context, tx *sql.Tx, item *Issue
 		if found.Step != 3 {
 			block("WIRING_STEP3_REQUIRED")
 		} else {
-			_, _, scopeErr := s.wiringObservedScopeCheckTx(ctx, tx, item.ProjectID, out.CommandID, true)
+			_, _, scopeErr := s.wiringReportScopeTx(ctx, tx, item.ProjectID, found, true)
 			if scopeErr != nil {
 				var domain *Error
 				if errors.As(scopeErr, &domain) && domain.Status == 409 {
@@ -296,7 +310,7 @@ func (s *Store) wiringCloseEvidenceTx(ctx context.Context, tx *sql.Tx, item *Iss
 	if latest == nil || latest.ID != retest.ReportID || latest.EffectiveVerdict != "PASS" {
 		return nil, apiError(409, "WIRING_RETEST_NOT_CURRENT", "The post-repair three-source report is no longer current")
 	}
-	c, _, e := s.wiringObservedScopeCheckTx(ctx, tx, item.ProjectID, retest.CommandID, true)
+	c, _, e := s.wiringReportScopeTx(ctx, tx, item.ProjectID, latest, true)
 	if e != nil {
 		return nil, e
 	}

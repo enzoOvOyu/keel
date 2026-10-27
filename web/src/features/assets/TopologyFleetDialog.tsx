@@ -13,7 +13,7 @@ import { listTopologyFleet } from '../../lib/topology'
 import TopologyDialog from './TopologyDialog'
 
 export default function TopologyFleetDialog({ onClose }: { onClose: () => void }) {
- const { t } = useTranslation(), { session } = useSession(), { project } = useProject()
+ const { t } = useTranslation(), session = useSession(), project = useProject()
  const [verdict, setVerdict] = useState(''), [page, setPage] = useState(1), [now, setNow] = useState(Date.now()), [target, setTarget] = useState<{ id: string; hostname: string } | null>(null)
  const query = useQuery({ queryKey: ['private', session.user.id, 'project', project.id, 'topology-fleet', verdict, page], queryFn: ({ signal }) => listTopologyFleet(project.id, verdict, page, signal), retry: false, refetchOnWindowFocus: false })
  useExpireOnUnauthorized(query.error)

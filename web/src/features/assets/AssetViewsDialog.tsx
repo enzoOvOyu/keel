@@ -17,7 +17,7 @@ import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 const initialDefinition = (): AssetViewDefinition => ({ columns: [{ id: 'hostname', title: 'Hostname', source: 'asset', path: '$.hostname' }, { id: 'firmware', title: 'BIOS', source: 'redfish', path: '$.resources[*].data.BiosVersion' }, { id: 'nos', title: 'NOS', source: 'network', path: '$.nos' }], sort_column: 'hostname', sort_direction: 'asc', group_column: '' })
 const text = (cell: AssetViewCell | undefined) => !cell || !cell.values.length ? '—' : cell.values.map(v => typeof v === 'string' ? v : JSON.stringify(v)).join(' · ')
 export default function AssetViewsDialog({ onClose }: { onClose: () => void }) {
- const { t } = useTranslation(), { session } = useSession(), project = useProject(), action = useAction()
+ const { t } = useTranslation(), session = useSession(), project = useProject(), action = useAction()
  const [now, setNow] = useState(Date.now())
  const [listPage, setListPage] = useState(1), [page, setPage] = useState(1), [selected, setSelected] = useState<AssetView | null>(null)
  const [name, setName] = useState(''), [visibility, setVisibility] = useState<'personal' | 'team'>('personal'), [reason, setReason] = useState(''), [definition, setDefinition] = useState(initialDefinition), [validation, setValidation] = useState('')

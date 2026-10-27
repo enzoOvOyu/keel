@@ -11,7 +11,7 @@ import (
 
 // Missing, unreadable and unknown observations remain BLOCKED. Only concrete
 // evaluator failures create a physical-port issue, before any G3 mapping exists.
-func recordWiringIssuesTx(ctx context.Context, tx *sql.Tx, c *WiringCommand, result wiring.Result, owner string, observed time.Time, sha string) error {
+func recordWiringIssuesTx(ctx context.Context, tx *sql.Tx, c *WiringCommand, result wiring.Result, owner string, observed time.Time, sha string, reports map[int]string) error {
 	actor := &AuthSession{User: UserSummary{ID: owner}}
 	ports := map[string]wiring.ExpectedPort{}
 	for _, p := range c.Expectation.Ports {
@@ -25,10 +25,10 @@ func recordWiringIssuesTx(ctx context.Context, tx *sql.Tx, c *WiringCommand, res
 		if !ok || finding.CableID != port.CableID {
 			return wiring.ErrCaptureRejected
 		}
-		var report string
-		if e := tx.QueryRowContext(ctx, `SELECT id FROM validation_wiring_step_reports WHERE detail->>'command_id'=$1 AND step=$2`, c.Binding.CommandID, finding.Step).Scan(&report); e != nil {
-			return e
-		}
+		report := reports[finding.Step]
+		if report == "" {
+			continue
+		} // Step 3 remains blocked until all Step 2 ports pass.
 		key := "wiring-issue:" + c.Binding.ProjectID + ":" + c.AssetID + ":" + port.PhysicalPortID + ":" + finding.Category + ":" + c.HostOrigin + ":" + c.Binding.Origin
 		if e := lockKey(ctx, tx, key); e != nil {
 			return e

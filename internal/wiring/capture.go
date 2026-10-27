@@ -131,11 +131,12 @@ func CaptureWithReadback(parent context.Context, expected Expectation, commandID
 		return nil, ErrCaptureRejected
 	}
 	before, e := driver.Inspect(ctx, expected)
+	before = cloneLocalStates(before)
 	if e != nil || validateLocalState(expected, before, true) != nil {
 		return nil, ErrCaptureRejected
 	}
 	started := time.Now().UTC()
-	session, e := driver.Begin(ctx, *plan, before)
+	session, e := driver.Begin(ctx, *plan, cloneLocalStates(before))
 	if e != nil || session == nil {
 		// A failed Begin may already have brought an interface up. A returned
 		// session must still prove cleanup; a nil session provides no such proof.
@@ -155,6 +156,12 @@ func CaptureWithReadback(parent context.Context, expected Expectation, commandID
 		}
 	}()
 	observed, observeErr := session.Observe(ctx)
+	if observed != nil {
+		copy := *observed
+		copy.States = cloneLocalStates(observed.States)
+		copy.Probes = slices.Clone(observed.Probes)
+		observed = &copy
+	}
 	var readback *Readback
 	var readbackErr error
 	if observeErr == nil && observed != nil && observed.PlanDigest == plan.Digest && !observed.AdvertisingAt.Before(started) && !observed.CollectedAt.Before(observed.AdvertisingAt) && !observed.CollectedAt.After(time.Now().Add(5*time.Second)) && recollect != nil {
@@ -167,6 +174,7 @@ func CaptureWithReadback(parent context.Context, expected Expectation, commandID
 	var after []LocalState
 	if stopErr == nil && stopped.Stopped && stopped.Restored && stopped.PlanDigest == plan.Digest {
 		after, e = driver.Inspect(cleanup, expected)
+		after = cloneLocalStates(after)
 	} else {
 		e = ErrOutcomeUnknown
 	}
@@ -344,6 +352,21 @@ func validateLocalState(expected Expectation, states []LocalState, before bool) 
 	}
 	return nil
 }
+
+// Adapters may reuse their buffers across Inspect/Begin/Observe/Stop. Retained
+// before/after snapshots must never alias those buffers or each other.
+func cloneLocalStates(states []LocalState) []LocalState {
+	out := slices.Clone(states)
+	for i := range out {
+		out[i].Addresses = slices.Clone(states[i].Addresses)
+		if states[i].LinkUp != nil {
+			up := *states[i].LinkUp
+			out[i].LinkUp = &up
+		}
+	}
+	return out
+}
+
 func localConfigurationEqual(before, after []LocalState) bool {
 	normalize := func(states []LocalState) []LocalState {
 		out := slices.Clone(states)

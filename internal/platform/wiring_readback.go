@@ -50,6 +50,14 @@ func (s *Store) RegisterWiringCommandTx(ctx context.Context, tx *sql.Tx, batch, 
 	if e = json.Unmarshal(expectedRaw, &out.Expectation); e != nil || out.Expectation.Validate() != nil {
 		return nil, wiring.ErrCaptureRejected
 	}
+	if scope, err := loadWiringRunScopeTx(ctx, tx, binding.ExecutionID, out.Expectation.MachineID); err == nil {
+		if scope.BatchID != batch || scope.AssetID != asset || scope.ParentID != out.ParentID || !wiringExpectationWithin(out.Expectation, scope.Expectation) {
+			return nil, wiring.ErrCaptureRejected
+		}
+		out.Expectation = scope.Expectation
+	} else if !errors.Is(err, ErrNotFound) {
+		return nil, err
+	}
 	lease, e := s.wiringHandshakeTx(ctx, tx, binding.ProjectID, handshake, true)
 	if e != nil {
 		return nil, e

@@ -13,7 +13,7 @@ import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 import { createTopologyRetest, listTopologyRetests, previewTopologyRetest } from '../../lib/topology'
 
 export default function TopologyRetestPanel({ issue }: { issue: Issue }) {
- const { t } = useTranslation(), { session } = useSession(), client = useQueryClient(), action = useAction()
+ const { t } = useTranslation(), session = useSession(), client = useQueryClient(), action = useAction()
  const [page, setPage] = useState(1), [reason, setReason] = useState(''), [validation, setValidation] = useState('')
  const mounted = useRef(true), attempt = useRef({ body: '', key: '' })
  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])

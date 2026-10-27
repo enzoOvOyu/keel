@@ -4130,6 +4130,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        WiringPortSource: {
+            physical_port_id: string;
+            command_id: string;
+            raw_sha256: string;
+            step2: string;
+            step3: string;
+            /** Format: date-time */
+            observed_at: string;
+            /** Format: date-time */
+            valid_until: string;
+        };
         WiringExpectedPort: {
             physical_port_id: string;
             component_id: string;
@@ -4248,6 +4259,9 @@ export interface components {
             switch_origin?: string;
             findings?: components["schemas"]["WiringFinding"][] | null;
             confirmation_id?: string;
+            coverage_id?: string;
+            port_sources?: components["schemas"]["WiringPortSource"][];
+            missing_port_ids?: string[];
         };
         WiringExpectation: {
             version: string;
@@ -6606,6 +6620,10 @@ export interface components {
             collected_at: string | null;
             /** Format: date-time */
             valid_until: string;
+            evidence_scope: string;
+            verification_request_id?: string;
+            execution_id?: string;
+            issue_id?: string;
         };
         NetworkCablePage: {
             /** @enum {string} */

@@ -90,16 +90,21 @@ func NewFixtureDriver(raw []byte) (Driver, error) {
 	return &fixtureDriver{document: *document}, nil
 }
 func (d *fixtureDriver) Origin() string { return "sim" }
-func (d *fixtureDriver) Inspect(ctx context.Context, _ Expectation) ([]LocalState, error) {
+func (d *fixtureDriver) Inspect(ctx context.Context, expected Expectation) ([]LocalState, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	states := d.document.Before
 	if d.stopped {
-		return fixtureClone(d.document.After), nil
+		states = d.document.After
 	}
-	return fixtureClone(d.document.Before), nil
+	selected := map[string]bool{}
+	for _, p := range expected.Ports {
+		selected[p.PhysicalPortID] = true
+	}
+	return selectFixtureStates(states, selected), nil
 }
 func (d *fixtureDriver) Begin(ctx context.Context, plan Plan, before []LocalState) (Session, error) {
 	if ctx.Err() != nil {
@@ -130,7 +135,17 @@ func (s *fixtureSession) Observe(ctx context.Context) (*Observation, error) {
 	if d.stopped || d.document.HostFault == "observe_failed" {
 		return nil, errors.New("simulated observation unavailable")
 	}
-	return &Observation{PlanDigest: s.plan.Digest, AdvertisingAt: s.startedAt, CollectedAt: time.Now().UTC(), WindowComplete: d.document.WindowComplete, States: fixtureClone(d.document.During), Probes: fixtureClone(d.document.Probes)}, nil
+	selected := map[string]bool{}
+	for _, p := range s.plan.Ports {
+		selected[p.PhysicalPortID] = true
+	}
+	probes := []RawProbe{}
+	for _, p := range d.document.Probes {
+		if selected[p.PhysicalPortID] {
+			probes = append(probes, p)
+		}
+	}
+	return &Observation{PlanDigest: s.plan.Digest, AdvertisingAt: s.startedAt, CollectedAt: time.Now().UTC(), WindowComplete: d.document.WindowComplete, States: selectFixtureStates(d.document.During, selected), Probes: probes}, nil
 }
 func (s *fixtureSession) Stop(ctx context.Context) (StopProof, error) {
 	if ctx.Err() != nil {
@@ -271,4 +286,16 @@ func (c *fixtureCollector) reject(request fabricboot.CollectorRecollectRequest) 
 	at := time.Now().UTC()
 	c.receipts[request.CommandID] = fabricboot.CollectorRecollectObservation{Version: "fabric-recollect-status/v1", ProjectID: request.ProjectID, ExecutionID: request.ExecutionID, CommandID: request.CommandID, FencingToken: request.FencingToken, ScopeHash: request.ScopeHash, RequestHash: netbaseline.ContentHash(request), EvidenceSource: "protocol_fixture", State: "rejected", FinishedAt: &at}
 	return nil, ErrOutcomeUnknown
+}
+
+// Selection filters independently recorded observations; it never creates or
+// rewrites a fixture to match an expected physical identity or peer.
+func selectFixtureStates(states []LocalState, selected map[string]bool) []LocalState {
+	out := []LocalState{}
+	for _, state := range states {
+		if selected[state.PhysicalPortID] {
+			out = append(out, state)
+		}
+	}
+	return cloneLocalStates(out)
 }

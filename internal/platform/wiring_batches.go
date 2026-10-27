@@ -39,7 +39,19 @@ type WiringBatchTarget struct {
 	Relations   *TopologyRelationTable `json:"relations"`
 	Reports     []WiringStepReport     `json:"reports"`
 }
+type WiringPortSource struct {
+	PhysicalPortID string    `json:"physical_port_id"`
+	CommandID      string    `json:"command_id"`
+	RawSHA256      string    `json:"raw_sha256"`
+	ObservedAt     time.Time `json:"observed_at"`
+	ValidUntil     time.Time `json:"valid_until"`
+	Step2          string    `json:"step2"`
+	Step3          string    `json:"step3"`
+}
 type WiringStepDetail struct {
+	PortSources    []WiringPortSource     `json:"port_sources,omitempty"`
+	MissingPortIDs []string               `json:"missing_port_ids,omitempty"`
+	CoverageID     string                 `json:"coverage_id,omitempty"`
 	ConfirmationID string                 `json:"confirmation_id,omitempty"`
 	CommandID      string                 `json:"command_id,omitempty"`
 	RawSHA256      string                 `json:"raw_sha256,omitempty"`
@@ -241,7 +253,7 @@ func (s *Store) wiringBatchTx(ctx context.Context, tx *sql.Tx, project, id strin
 				report.InvalidationReason = "WIRING_EVIDENCE_EXPIRED_OR_CHANGED"
 			}
 			if report.Step == 4 && report.EffectiveVerdict == "PASS" {
-				_, _, scopeErr := s.wiringObservedScopeTx(ctx, tx, project, report.Detail.CommandID)
+				_, _, scopeErr := s.wiringReportScopeTx(ctx, tx, project, report, false)
 				if scopeErr != nil {
 					var domain *Error
 					if errors.As(scopeErr, &domain) && (domain.Status == 409 || domain.Status == 404) {
