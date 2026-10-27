@@ -1,12 +1,14 @@
 # 当前开发状态
 
-更新：2026-10-27；当前集中测试结果见 [P1验证记录](P1-VALIDATION-2026-10-27.md) 与§160～162，性能待复验项见 [P1-001](issues/P1-001-test-host-resource-timeouts.md)。用户发布后决定P1带遗留项收口、允许进入P2（§164）；main已合并并推送至`1a96897`，当前P2分支`dev/p2-validation`接续§190；3000现为`7afda32`、数据库64条迁移（最后067），发布证据见§163。后续编号章节保留历史快照；操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-27；当前集中测试结果见 [P1验证记录](P1-VALIDATION-2026-10-27.md) 与§160～162，性能待复验项见 [P1-001](issues/P1-001-test-host-resource-timeouts.md)。用户发布后决定P1带遗留项收口、允许进入P2（§164）；main已合并并推送至`1a96897`，当前P2分支`dev/p2-validation`接续§191；3000现为`7afda32`、数据库64条迁移（最后067），发布证据见§163。后续编号章节保留历史快照；操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-27，集中测试检查点）
 
 当前P1逻辑设备扇出按200台。本轮执行容量200/200成功（8.235秒，sim），完整12组控制/恢复/权限检查通过；200逻辑ZTP仍因整包超时待复验。原2,000台后续优化，成功率/介质完整性/权限/恢复要求保留。
 
-### 低Token接续入口（2026-10-27，接续§190）
+### 低Token接续入口（2026-10-27，接续§191）
+
+- §191接续9b1ed3d：LLDP json0严格身份解析、固定逐端口计划、Step2阻断后续的双端证据/Step3三方比对核心及用例已编写，全部NOT_RUN。真实特权临时up/隔离进程和共享Execution接线未完成；继续至11:05:21 UTC，当前下一块Step1/StepReport版本化持久管道。
 
 - §190接续1553049：WP-2.4目标级G1/拓扑/BOM与NP-1/2/4握手、固定采集器在线检查、30秒不可变凭证与资产端口入口已接源码；不依赖NP-3/5/6，未接LLDP执行或G2。084待应用，源81条/运行64条；新用例NOT_RUN。继续本窗口至11:05:21 UTC，下一块固定LLDP协议与共享Execution。
 
@@ -2106,3 +2108,9 @@ API及生成类型、共享UI入口与工单内分页诊断历史已接入，页
 API契约/类型、拓扑关系页端口选择与握手历史、CSRF/工程角色/幂等/审计、迁移084及只读证据授权脚本源码已接；KEEL_WIRING_ENABLED默认false，真实环境未改。编写范围规范化、缺G1/跨项目/拒绝不留证据、采集器检查不依赖引导服务的用例，全部NOT_RUN。只执行gofmt、API类型生成和源码审查；生成日志/tmp/keel-wiring-api-generation.log，不算测试通过。
 
 迁移源81条（排除原026），068～084未应用；运行64条/最后067、3000仍7afda32。未编译、测试、浏览器、镜像构建、迁移、发布或推送，原两份草稿未动。设计细节及未实现执行绑定见WIRING-VALIDATION.md。下一块固定LLDP双端协议/共享Execution与四步StepReport；P2保持partial。
+
+## 191. LLDP双端证据与三方比对核心（2026-10-27，进行中检查点）
+
+接续9b1ed3d，新增internal/wiring纯判据、json0严格解析和固定逐物理端口lldpd计划；稳定交换机MAC绑定加入握手事实摘要，模型/BOM期望不从邻居反推。Step2全选中端口和双端证据完整后才比较Step3，不以缺测/多邻居/旧快照/sim输出通过。ChassisID、物理PortID、hostname、精确SN/rail/port描述逐项核对；独立实例避免多NIC共用全局身份。缺少停止、原接口恢复和配置保留证明也不能PASS。详细约束/官方来源见WIRING-VALIDATION.md。
+
+已编写协议/纯逻辑用例，全部NOT_RUN。仅gofmt与定向源码审查；没有编译、测试、真实LLDP/特权动作或服务变更。现有SSH wrapper必须保持非root，真实lldpd/临时up仍需受控特权适配器及共享Execution接线，不自动sudo/安装/启动。源81条迁移、运行64条/最后067、3000仍7afda32；窗口继续至11:05:21 UTC。下一块Step1与StepReport持久化，不冒称LLDP执行或G2闭环。

@@ -22,18 +22,19 @@ type WiringHandshakeInput struct {
 	Reason  string              `json:"reason"`
 }
 type WiringPort struct {
-	PhysicalPortID string `json:"physical_port_id"`
-	ComponentID    string `json:"component_id"`
-	PortIndex      string `json:"port_index"`
-	Interface      string `json:"interface"`
-	PermanentMAC   string `json:"permanent_mac"`
-	BDF            string `json:"bdf"`
-	CableID        string `json:"cable_id"`
-	SwitchID       string `json:"switch_id"`
-	SwitchSerial   string `json:"switch_serial"`
-	SwitchPortID   string `json:"switch_port_id"`
-	SwitchPort     string `json:"switch_port"`
-	Rail           string `json:"rail"`
+	PhysicalPortID   string   `json:"physical_port_id"`
+	ComponentID      string   `json:"component_id"`
+	PortIndex        string   `json:"port_index"`
+	Interface        string   `json:"interface"`
+	PermanentMAC     string   `json:"permanent_mac"`
+	BDF              string   `json:"bdf"`
+	CableID          string   `json:"cable_id"`
+	SwitchID         string   `json:"switch_id"`
+	SwitchSerial     string   `json:"switch_serial"`
+	SwitchChassisIDs []string `json:"switch_chassis_ids"`
+	SwitchPortID     string   `json:"switch_port_id"`
+	SwitchPort       string   `json:"switch_port"`
+	Rail             string   `json:"rail"`
 }
 type WiringHost struct {
 	AssetID           string       `json:"asset_id"`
@@ -250,6 +251,11 @@ func (s *Store) wiringFactsTx(ctx context.Context, tx *sql.Tx, project string, t
 			}
 			p.CableID = c.UID
 			p.SwitchSerial = peer.Serial
+			p.SwitchChassisIDs = slices.Clone(peer.ChassisIDs)
+			sort.Strings(p.SwitchChassisIDs)
+			if p.SwitchChassisIDs == nil {
+				p.SwitchChassisIDs = []string{}
+			}
 			p.SwitchPortID = peer.UID
 			p.SwitchPort = peer.Port
 			e = tx.QueryRowContext(ctx, `SELECT s.id,coalesce(i.rail,'') FROM physical_ports p JOIN switches s ON s.id=p.switch_id JOIN bom_items i ON i.item_uid=p.id AND i.parent_uid=s.id AND i.status<>'retired' JOIN bom_item_revisions r ON r.item_uid=p.id AND r.project_id=$1 AND r.package_id=$2 WHERE p.id=$3 AND s.serial_number=$4`, project, out.NetworkPackageID, peer.UID, peer.Serial).Scan(&p.SwitchID, &p.Rail)

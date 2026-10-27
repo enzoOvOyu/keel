@@ -4040,6 +4040,7 @@ export interface components {
             switch_port_id: string;
             switch_port: string;
             rail: string;
+            switch_chassis_ids: string[];
         };
         WiringHost: {
             asset_id: string;

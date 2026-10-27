@@ -19,3 +19,11 @@
 下一步复用共享Execution、稳定物理端口身份、任务回执与unknown恢复，实现固定lldpd配置/双端读取和原始证据归档，再接版本化四步StepReport。整批必须在30秒窗口内接纳；初次凭证未来应绑定唯一Execution，不能复用于另一批。超过30秒的整批排队不应靠延长凭证或要求原凭证在每个后续主机开始时仍有效：派发应重新核对当前范围及在线证明，原凭证只证明最初接纳。该执行绑定与逐主机检查当前**尚未实现**。
 
 硬件工具、型号特性、真实LLDP和PoC由后续受控环境独立取证，不能将fixture、配置存在或源码生成标成硬件通过。统一豁免账本尚未实现，不以unknown或不适用猜测绕过门禁。
+
+## 双端证据与三方判据源码
+
+`internal/wiring`增加有界json0邻居/本地广播身份解析、原始JSON重复键拒绝，以及逐端口的Step2→Step3纯逻辑。Step2要求本地BDF/永久MAC与冻结身份相同、当前MAC与永久MAC一致、链路和观察窗口明确、广告TLV正确，并有广告启动之后的真实交换机端口回读；失败或缺测阻断Step3。Step3通过独立交换机MAC绑定核对服务器看到的ChassisID/端口，并检查交换机读到的服务器永久MAC/物理端口稳定ID/hostname/SN+rail+端口字段。不用sysname或SN前缀代替身份。断链/明确空邻居为T1、确定错线为T2，本地MAC/广告配置冲突为T6；不可读/多邻居/缺可信身份为BLOCKED，不猜测NIC硬件损坏。T3/T4/完整T5/交换机T6继续复用已有fabric诊断，不在LLDP核心重写。
+
+固定计划为每个物理端口生成独立lldpd实例、独立socket/PID/配置，避免全局ChassisID/sysdesc错误复用于多个NIC；只给明确选中接口，保留全部邻居而非随机选一个，不读写客户全局配置。实现依据[lldpd官方手册](https://lldpd.github.io/usage.html)与[上游json0结构测试](https://github.com/lldpd/lldpd/blob/master/tests/integration/test_lldpcli.py)；启动配置先于自动resume的语义依据[官方daemon源码](https://github.com/lldpd/lldpd/blob/master/src/daemon/lldpd.c)。命令计划只是可审查数据，未执行或注册到普通任意命令入口。
+
+现有SSH wrapper为非root；真实临时interface-up、隔离lldpd及停止/恢复证明还需受控特权适配器，不能直接在该wrapper中偷偷加sudo或启用系统lldpd。共享Execution派发/停止回收接线尚未完成，页面仍不提供LLDP执行。新增单元场景覆盖完整双端、缺测、不可读、空邻居、多邻居、旧/fixture交换机、错线、序列号前缀和sim隔离；均NOT_RUN。
