@@ -29,7 +29,7 @@ import {
 import { useAction } from "../../lib/management";
 import { useProject } from "../../components/ProjectWorkspace";
 import { useSession, useExpireOnUnauthorized } from "../../lib/session";
-import { controlExecution, reconcileAttempt } from "../../lib/execution";
+import { controlExecution, reconcileAttempt, fetchIssueVerificationReceipt } from "../../lib/execution";
 import { ApiError } from "../../lib/api";
 import {
   downloadOutput,
@@ -369,6 +369,8 @@ function AttemptDrawer({
         getAttempt(projectId, executionId, attempt, signal),
       retry: false,
     });
+  const [queryConfirm,setQueryConfirm] = useState(false)
+  const querySubmission=useRef({version:0,key:''})
   const [evidence, setEvidence] = useState(''), [denied, setDenied] = useState<ApiError | null>(null)
   const submission = useRef({ body: '', key: '' })
   const mounted = useRef(true)
@@ -383,6 +385,18 @@ function AttemptDrawer({
   const proof = query.data?.attempt.receipt
   const currentAttempt = query.data?.attempt
   const matchingProof = proof && currentAttempt && proof.attempt_id === currentAttempt.id && proof.command_id === currentAttempt.command_id && proof.fencing_token === currentAttempt.fencing_token
+  async function queryOriginalRecollection(event:FormEvent<HTMLFormElement>){
+    event.preventDefault()
+    if(!currentAttempt || currentAttempt.state!=='unknown' || !canReconcile || denied)return
+    if(querySubmission.current.version!==currentAttempt.state_version)querySubmission.current={version:currentAttempt.state_version,key:crypto.randomUUID()}
+    const result=await action.run(()=>fetchIssueVerificationReceipt(projectId,executionId,attempt,currentAttempt.state_version,session.csrf_token,querySubmission.current.key))
+    if(result.ok && mounted.current){
+      setQueryConfirm(false)
+      await client.invalidateQueries({queryKey:['private',session.user.id,'project',projectId]})
+      await client.invalidateQueries({queryKey:['private',session.user.id,'issue-verifications']})
+      if(mounted.current)onClose()
+    }
+  }
   async function reconcile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!currentAttempt || !matchingProof || !proof || currentAttempt.state !== 'unknown' || !canReconcile || denied || evidence.trim().length < 10 || evidence.length > 2000) return
@@ -454,6 +468,10 @@ function AttemptDrawer({
             <h3>{t('executionReconcileTitle')}</h3>
             <p className="impact-notice">{t(matchingProof ? 'executionReconcileDescription' : 'executionReconcilePending')}</p>
             <Button type="button" variant="outline" disabled={action.busy || query.isFetching} onClick={() => void query.refetch()}>{t('executionReconcileRefresh')}</Button>
+            {canReconcile && !matchingProof && query.data.mode==='fabric' && query.data.task.type==='issue.verify' && !denied && !['archived','delivered'].includes(project.state) && <>
+              <Button type="button" variant="outline" disabled={action.busy||query.isFetching} onClick={()=>setQueryConfirm(true)}>{t('issueVerificationQueryTitle')}</Button>
+              {queryConfirm&&<ActionDialog title={t('issueVerificationQueryTitle')} description={t('issueVerificationQueryDescription')} confirm={t('issueVerificationQueryTitle')} busy={action.busy} onSubmit={event=>void queryOriginalRecollection(event)} onClose={()=>setQueryConfirm(false)}><ActionError error={action.error}/></ActionDialog>}
+            </>}
             {canReconcile && !matchingProof && (query.data.task.script || query.data.task.artifact) && ['ssh', 'agent'].includes(query.data.mode) && !denied && !['archived', 'delivered'].includes(project.state) && <ScriptNonstartProof artifact={!!query.data.task.artifact} key={`${attempt}:${currentAttempt.state_version}`} projectId={projectId} executionId={executionId} attemptId={attempt} version={currentAttempt.state_version} onDenied={error => setDenied(error)} onRequested={() => { void query.refetch() }} />}
             {canReconcile && matchingProof && proof && !['archived', 'delivered'].includes(project.state) && <form onSubmit={event => void reconcile(event)} aria-busy={action.busy}>
               <p>{t('executionReconcileResult')}: <strong>{t('attempt_state_' + proof.result)}</strong></p>

@@ -12,18 +12,23 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/fabricmon"
+	"github.com/enzoOvOyu/keel/internal/netbaseline"
 	"github.com/enzoOvOyu/keel/internal/platform"
 )
 
 // P2 milestone cases are authored here but run only in the concentrated batch.
 // The collector is explicitly a protocol fixture, never hardware evidence.
 type issueVerificationFixture struct {
+	queryPending   atomic.Bool
+	queryMu        sync.Mutex
+	terminal       *fabricboot.CollectorRecollectObservation
 	store          *platform.Store
 	service        *Service
 	root, engineer *Actor
@@ -74,6 +79,17 @@ func issueVerificationKernel(t *testing.T) *issueVerificationFixture {
 	f.service.IssueStore = store
 	store.FabricIssueVerificationEnabled = true
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Method == "GET" && strings.HasPrefix(r.URL.Path, "/v1/projects/"+project.ID+"/recollections/") {
+			f.queryMu.Lock()
+			defer f.queryMu.Unlock()
+			if f.queryPending.Load() || f.terminal == nil {
+				w.WriteHeader(404)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(f.terminal)
+			return
+		}
 		if r.Method != "POST" || r.URL.Path != "/v1/projects/"+project.ID+"/recollections" {
 			w.WriteHeader(404)
 			return
@@ -82,10 +98,6 @@ func issueVerificationKernel(t *testing.T) *issueVerificationFixture {
 		var request fabricboot.CollectorRecollectRequest
 		if json.NewDecoder(r.Body).Decode(&request) != nil || request.Validate() != nil {
 			w.WriteHeader(400)
-			return
-		}
-		if f.lost.Load() {
-			w.WriteHeader(503)
 			return
 		}
 		out := fabricboot.CollectorRecollectResponse{Version: request.Version, ProjectID: request.ProjectID, ExecutionID: request.ExecutionID, CommandID: request.CommandID, FencingToken: request.FencingToken, ScopeHash: request.ScopeHash, EvidenceSource: "protocol_fixture"}
@@ -97,6 +109,14 @@ func issueVerificationKernel(t *testing.T) *issueVerificationFixture {
 				sample.Ports = append(sample.Ports, fabricmon.Port{Name: port, LinkUp: &up, LLDPReadable: true, Neighbor: &fabricmon.Neighbor{Serial: remote.Serial, PortID: remote.Ports[0]}})
 			}
 			out.Devices = append(out.Devices, sample)
+		}
+		finished := time.Now().UTC()
+		f.queryMu.Lock()
+		f.terminal = &fabricboot.CollectorRecollectObservation{Version: "fabric-recollect-status/v1", ProjectID: request.ProjectID, ExecutionID: request.ExecutionID, CommandID: request.CommandID, FencingToken: request.FencingToken, ScopeHash: request.ScopeHash, RequestHash: netbaseline.ContentHash(request), EvidenceSource: request.EvidenceSource, State: "completed", FinishedAt: &finished, Result: &out}
+		f.queryMu.Unlock()
+		if f.lost.Load() {
+			w.WriteHeader(503)
+			return
 		}
 		_ = json.NewEncoder(w).Encode(out)
 	}))
@@ -266,5 +286,58 @@ func TestIssueVerificationUnknownNeverRepostsOrUnlocksPostgres(t *testing.T) {
 	mustAgent(t, e)
 	if _, e = f.store.ActOnIssue(ctx, f.engineer, f.issue, "repair", platform.IssueActionInput{Version: detail.Issue.Version, Reason: "Do not bypass active quarantine", RepairAction: "reseat"}, "test"); e == nil {
 		t.Fatal("repair bypassed unknown resource quarantine")
+	}
+	var version int64
+	mustAgent(t, f.store.DB.QueryRowContext(ctx, "SELECT state_version FROM exec_task_attempts WHERE id=$1", claim.Attempt.ID).Scan(&version))
+	f.queryPending.Store(true)
+	if _, e = f.service.FetchIssueVerificationReceipt(ctx, f.root, f.project, claim.Attempt.ExecutionID, claim.Attempt.ID, version, platform.RandomID(), "test"); e == nil {
+		t.Fatal("missing collector proof released quarantine")
+	}
+	mustAgent(t, f.store.DB.QueryRowContext(ctx, "SELECT count(*) FROM exec_resource_leases WHERE attempt_id=$1 AND state='reconciling'", claim.Attempt.ID).Scan(&pinned))
+	if pinned != 2 {
+		t.Fatal("query without proof released switch resources")
+	}
+	f.queryPending.Store(false)
+	key := platform.RandomID()
+	recovered, e := f.service.FetchIssueVerificationReceipt(ctx, f.root, f.project, claim.Attempt.ExecutionID, claim.Attempt.ID, version, key, "test")
+	mustAgent(t, e)
+	if recovered.State != "success" || f.posts.Load() != 1 {
+		t.Fatalf("recovery redispatched or failed: %+v posts=%d", recovered, f.posts.Load())
+	}
+	replay, e := f.service.FetchIssueVerificationReceipt(ctx, f.root, f.project, claim.Attempt.ExecutionID, claim.Attempt.ID, version, key, "test")
+	mustAgent(t, e)
+	if replay.ID != recovered.ID || f.posts.Load() != 1 {
+		t.Fatal("replayed recovery changed the execution")
+	}
+	mustAgent(t, f.store.DB.QueryRowContext(ctx, "SELECT count(*) FROM exec_resource_leases WHERE attempt_id=$1 AND state='reconciling'", claim.Attempt.ID).Scan(&pinned))
+	if pinned != 0 {
+		t.Fatal("terminal proof did not release quarantined resources")
+	}
+}
+
+func TestIssueVerificationLocalUndispatchedRecoveryPostgres(t *testing.T) {
+	f := issueVerificationKernel(t)
+	ctx := context.Background()
+	claim := f.claim(t)
+	// Crash after Claim and before committing the first collector dispatch.
+	_, e := f.store.DB.ExecContext(ctx, "UPDATE exec_task_attempts SET lease_until=now()-interval '1 second' WHERE id=$1", claim.Attempt.ID)
+	mustAgent(t, e)
+	_, e = f.service.ReapExpired(ctx)
+	mustAgent(t, e)
+	var version int64
+	mustAgent(t, f.store.DB.QueryRowContext(ctx, "SELECT state_version FROM exec_task_attempts WHERE id=$1", claim.Attempt.ID).Scan(&version))
+	x, e := f.service.FetchIssueVerificationReceipt(ctx, f.root, f.project, claim.Attempt.ExecutionID, claim.Attempt.ID, version, platform.RandomID(), "test")
+	mustAgent(t, e)
+	if x.State != "failed" || f.posts.Load() != 0 {
+		t.Fatal("undispatched recovery fabricated a successful sample or contacted the collector")
+	}
+	history, e := f.store.IssueVerifications(ctx, f.root, f.issue, platform.Pagination{Page: 1, PageSize: 10})
+	mustAgent(t, e)
+	if len(history.Items) != 1 || history.Items[0].Verdict != "BLOCKED" || history.Items[0].CanClose {
+		t.Fatalf("local nonstart became successful verification: %+v", history.Items)
+	}
+	// The original worker must not POST after the explicit no-dispatch proof.
+	if f.service.RunClaim(ctx, claim) == nil || f.posts.Load() != 0 {
+		t.Fatal("late worker dispatched an already reconciled command")
 	}
 }

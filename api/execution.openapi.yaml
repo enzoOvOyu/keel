@@ -3362,6 +3362,106 @@
           }
         }
       }
+    },
+    "/api/v1/projects/{id}/executions/{executionId}/attempts/{attemptId}/issue-verification-receipt": {
+      "post": {
+        "operationId": "fetchIssueVerificationReceipt",
+        "tags": [
+          "Issue verification"
+        ],
+        "x-permission": "execution:reconcile",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "attemptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Original collector receipt recorded and existing versioned execution reconciliation applied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Execution"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Explicit authorized query of the original frozen mTLS collector command and reconciliation of its authenticated terminal proof. Never POSTs recollection or retries the task. Running, unknown, missing or invalid proof retains both quarantined switch resources. Historical samples keep their original expiry; changed scope cannot close the issue.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SSHReceiptInput"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3639,8 +3739,10 @@
               "media.stage",
               "media.fetch",
               "kv.get",
-              "kv.put"
-            ]
+              "kv.put",
+              "issue.verify"
+            ],
+            "description": "issue.verify is domain-owned and can only be admitted by the scoped issue verification endpoint."
           },
           "depends_on": {
             "type": "array",

@@ -194,6 +194,9 @@ func (s *Store) RunIssueVerification(ctx context.Context, id, execution, command
 	if e = op.Validate(); e != nil {
 		return nil, nil, e
 	}
+	if e = persistIssueVerificationDispatchTx(ctx, tx, request.ID, op); e != nil {
+		return nil, nil, e
+	}
 	if e = tx.Commit(); e != nil {
 		return nil, nil, e
 	}
@@ -203,6 +206,9 @@ func (s *Store) RunIssueVerification(ctx context.Context, id, execution, command
 
 // PersistIssueVerificationEvidenceTx is atomic with the kernel's durable receipt.
 func (s *Store) PersistIssueVerificationEvidenceTx(ctx context.Context, tx *sql.Tx, id, execution, command string, fence int64, request *fabricboot.CollectorRecollectRequest, response *fabricboot.CollectorRecollectResponse, code string) (string, string, error) {
+	return s.persistIssueVerificationEvidenceTx(ctx, tx, id, execution, command, fence, request, response, code, "", time.Now().UTC())
+}
+func (s *Store) persistIssueVerificationEvidenceTx(ctx context.Context, tx *sql.Tx, id, execution, command string, fence int64, request *fabricboot.CollectorRecollectRequest, response *fabricboot.CollectorRecollectResponse, code, queryID string, validationAt time.Time) (string, string, error) {
 	if request == nil {
 		return "", "", apiError(409, "ISSUE_VERIFICATION_PROOF_REQUIRED", "No issued recollection request")
 	}
@@ -214,7 +220,7 @@ func (s *Store) PersistIssueVerificationEvidenceTx(ctx context.Context, tx *sql.
 		return "", "", apiError(409, "ISSUE_VERIFICATION_PROOF_MISMATCH", "Recollection proof differs from frozen admission")
 	}
 	if response != nil {
-		if e = response.Validate(*request, time.Now().UTC()); e != nil {
+		if e = response.Validate(*request, validationAt); e != nil {
 			return "", "", e
 		}
 	} else if code == "" {
@@ -230,7 +236,7 @@ func (s *Store) PersistIssueVerificationEvidenceTx(ctx context.Context, tx *sql.
 	}
 	proofID := RandomID()
 	hash := netbaseline.ContentHash([]any{request, response, code})
-	_, e = tx.ExecContext(ctx, `INSERT INTO issue_verification_evidence(id,request_id,command_id,fencing_token,request,response,content_hash,code,recorded_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,now())`, proofID, id, command, fence, rawRequest, rawResponse, hash, code)
+	_, e = tx.ExecContext(ctx, `INSERT INTO issue_verification_evidence(id,request_id,command_id,fencing_token,request,response,content_hash,code,recorded_at,query_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,now(),nullif($9,''))`, proofID, id, command, fence, rawRequest, rawResponse, hash, code, queryID)
 	return proofID, hash, e
 }
 
@@ -240,35 +246,22 @@ func (s *Store) ApplyIssueVerificationEvidenceTx(ctx context.Context, tx *sql.Tx
 	if e != nil {
 		return e
 	}
-	var prior bool
-	if e = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM issue_verification_results WHERE request_id=$1)", id).Scan(&prior); e != nil {
-		return e
-	}
-	if prior {
-		return nil
-	}
-	var rawRequest, rawResponse []byte
-	var hash, code string
-	var recorded time.Time
-	e = tx.QueryRowContext(ctx, `SELECT request,response,content_hash,code,recorded_at FROM issue_verification_evidence WHERE id=$1 AND request_id=$2 AND command_id=$3 AND fencing_token=$4`, proofID, id, command, fence).Scan(&rawRequest, &rawResponse, &hash, &code, &recorded)
+	proof, e := loadIssueVerificationProofTx(ctx, tx, id, execution, command, fence, proofID, proofHash)
 	if e != nil {
 		return e
 	}
-	if hash != proofHash {
-		return apiError(409, "ISSUE_VERIFICATION_PROOF_MISMATCH", "Receipt proof digest mismatch")
+	var prior string
+	e = tx.QueryRowContext(ctx, "SELECT evidence_id FROM issue_verification_results WHERE request_id=$1", id).Scan(&prior)
+	if e == nil {
+		if prior != proofID {
+			return apiError(409, "ISSUE_VERIFICATION_PROOF_MISMATCH", "Verification already consumed another proof")
+		}
+		return nil
 	}
-	var op fabricboot.CollectorRecollectRequest
-	var response *fabricboot.CollectorRecollectResponse
-	if e = json.Unmarshal(rawRequest, &op); e != nil {
+	if !errors.Is(e, sql.ErrNoRows) {
 		return e
 	}
-	if e = json.Unmarshal(rawResponse, &response); e != nil {
-		return e
-	}
-	if netbaseline.ContentHash([]any{&op, response, code}) != hash {
-		return apiError(409, "ISSUE_VERIFICATION_PROOF_MISMATCH", "Stored proof digest mismatch")
-	}
-	verdict, code, expiry, finding, e := s.assessIssueVerificationTx(ctx, tx, request, op, response, recorded, code)
+	verdict, code, expiry, finding, e := s.assessIssueVerificationTx(ctx, tx, request, proof.Operation, proof.Response, proof.RecordedAt, proof.ValidationAt, proof.Code)
 	if e != nil {
 		return e
 	}
@@ -305,7 +298,7 @@ func (s *Store) ApplyIssueVerificationEvidenceTx(ctx context.Context, tx *sql.Tx
 	return e
 }
 
-func (s *Store) assessIssueVerificationTx(ctx context.Context, tx *sql.Tx, request *IssueVerificationRequest, op fabricboot.CollectorRecollectRequest, response *fabricboot.CollectorRecollectResponse, recorded time.Time, code string) (string, string, time.Time, *fabricmon.Finding, error) {
+func (s *Store) assessIssueVerificationTx(ctx context.Context, tx *sql.Tx, request *IssueVerificationRequest, op fabricboot.CollectorRecollectRequest, response *fabricboot.CollectorRecollectResponse, recorded, validationAt time.Time, code string) (string, string, time.Time, *fabricmon.Finding, error) {
 	_, current, e := s.VerificationCurrentTx(ctx, tx, request.ID, request.ExecutionID)
 	if e != nil {
 		return "", "", time.Time{}, nil, e
@@ -316,7 +309,7 @@ func (s *Store) assessIssueVerificationTx(ctx context.Context, tx *sql.Tx, reque
 	if !current {
 		code = "ISSUE_VERIFICATION_SCOPE_CHANGED"
 	} else if response != nil {
-		if e = response.Validate(op, recorded); e != nil {
+		if e = response.Validate(op, validationAt); e != nil {
 			return "", "", time.Time{}, nil, e
 		}
 		expiry = recorded.Add(5 * time.Minute)
@@ -362,11 +355,42 @@ func (s *Store) assessIssueVerificationTx(ctx context.Context, tx *sql.Tx, reque
 	return verdict, code, expiry, finding, nil
 }
 
-func (s *Store) IssueVerificationReceiptVerdictTx(ctx context.Context, tx *sql.Tx, id, execution string, op fabricboot.CollectorRecollectRequest, response *fabricboot.CollectorRecollectResponse, code string) (string, error) {
+func (s *Store) IssueVerificationReceiptVerdictTx(ctx context.Context, tx *sql.Tx, id, execution, command string, fence int64, proofID, proofHash string) (string, error) {
 	request, e := loadIssueVerificationTx(ctx, tx, id, execution)
 	if e != nil {
 		return "", e
 	}
-	verdict, _, _, _, e := s.assessIssueVerificationTx(ctx, tx, request, op, response, time.Now().UTC(), code)
+	proof, e := loadIssueVerificationProofTx(ctx, tx, id, execution, command, fence, proofID, proofHash)
+	if e != nil {
+		return "", e
+	}
+	verdict, _, _, _, e := s.assessIssueVerificationTx(ctx, tx, request, proof.Operation, proof.Response, proof.RecordedAt, proof.ValidationAt, proof.Code)
 	return verdict, e
+}
+
+type issueVerificationProof struct {
+	Operation                fabricboot.CollectorRecollectRequest
+	Response                 *fabricboot.CollectorRecollectResponse
+	Code                     string
+	RecordedAt, ValidationAt time.Time
+}
+
+func loadIssueVerificationProofTx(ctx context.Context, tx *sql.Tx, id, execution, command string, fence int64, proofID, proofHash string) (*issueVerificationProof, error) {
+	out := &issueVerificationProof{}
+	var rawRequest, rawResponse []byte
+	var hash string
+	e := tx.QueryRowContext(ctx, `SELECT p.request,p.response,p.content_hash,p.code,p.recorded_at,coalesce((SELECT (o.observation->>'finished_at')::timestamptz FROM issue_verification_queries o WHERE o.id=p.query_id),p.recorded_at) FROM issue_verification_evidence p JOIN issue_verification_requests q ON q.id=p.request_id WHERE p.id=$1 AND p.request_id=$2 AND p.command_id=$3 AND p.fencing_token=$4 AND q.execution_id=$5`, proofID, id, command, fence, execution).Scan(&rawRequest, &rawResponse, &hash, &out.Code, &out.RecordedAt, &out.ValidationAt)
+	if e != nil {
+		return nil, e
+	}
+	if e = json.Unmarshal(rawRequest, &out.Operation); e != nil {
+		return nil, e
+	}
+	if e = json.Unmarshal(rawResponse, &out.Response); e != nil {
+		return nil, e
+	}
+	if hash != proofHash || netbaseline.ContentHash([]any{&out.Operation, out.Response, out.Code}) != hash {
+		return nil, apiError(409, "ISSUE_VERIFICATION_PROOF_MISMATCH", "Stored proof does not match the receipt digest")
+	}
+	return out, nil
 }

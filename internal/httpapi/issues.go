@@ -7,6 +7,27 @@ import (
 )
 
 func (a *authAPI) registerIssues(r *gin.Engine) {
+	r.POST("/api/v1/projects/:id/executions/:executionId/attempts/:attemptId/issue-verification-receipt", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok || !a.writeAllowed(c) {
+			return
+		}
+		var in struct {
+			ExpectedVersion int64 `json:"expected_version"`
+		}
+		if !decodeBody(c, &in) {
+			return
+		}
+		service := execution.New(a.store.DB)
+		service.IssueStore = a.store
+		out, e := service.FetchIssueVerificationReceipt(c.Request.Context(), actor, c.Param("id"), c.Param("executionId"), c.Param("attemptId"), in.ExpectedVersion, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
+
 	r.GET("/api/v1/issue-escalations", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {

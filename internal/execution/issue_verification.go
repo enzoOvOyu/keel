@@ -155,7 +155,7 @@ func (s *Service) runIssueVerificationClaim(ctx context.Context, c *Claim) error
 	if e != nil {
 		return e
 	}
-	verdict, e := s.IssueStore.IssueVerificationReceiptVerdictTx(finish, tx, id, c.Attempt.ExecutionID, *op, response, code)
+	verdict, e := s.IssueStore.IssueVerificationReceiptVerdictTx(finish, tx, id, c.Attempt.ExecutionID, c.Attempt.CommandID, c.Attempt.FencingToken, proof, digest)
 	if e != nil {
 		return e
 	}
@@ -191,6 +191,9 @@ func (s *Service) applyIssueVerificationReceipt(ctx context.Context, tx *sql.Tx,
 func lockIssueVerificationExecutionTx(ctx context.Context, tx *sql.Tx, id string) error {
 	var issue bool
 	if e := tx.QueryRowContext(ctx, `SELECT parameters ? 'issue_verification_id' FROM exec_executions WHERE id=$1`, id).Scan(&issue); e != nil {
+		if errors.Is(e, sql.ErrNoRows) {
+			return platform.ErrNotFound
+		}
 		return e
 	}
 	if issue {

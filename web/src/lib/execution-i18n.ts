@@ -1,5 +1,7 @@
 export const executionTranslations = {
   "zh": {
+    "issueVerificationQueryTitle":"查询原复采并对账",
+    "issueVerificationQueryDescription":"仅查询原命令，不重新复采。取得可信完成或停止证明后，对账并释放两端隔离锁；过期或范围变化的证据不能关闭工单。",
     "executionsTab": "执行",
     "executionsTitle": "执行",
     "executionsIntro": "查看与发起执行。按每条记录的通道、冻结快照和实际回执核对结果；模拟结果不能作为硬件验收依据。",
@@ -78,6 +80,8 @@ export const executionTranslations = {
     "attempt_state_skipped": "已跳过"
   },
   "en": {
+    "issueVerificationQueryTitle":"Query original recollection and reconcile",
+    "issueVerificationQueryDescription":"Queries the original command without recollecting. Authenticated completion or stop proof permits reconciliation and release of both quarantined resources. Expired or changed-scope evidence cannot close the issue.",
     "executionsTab": "Executions",
     "executionsTitle": "Executions",
     "executionsIntro": "Review and start executions. Check each record's channel, frozen snapshot and actual receipts; simulation results are not hardware acceptance.",

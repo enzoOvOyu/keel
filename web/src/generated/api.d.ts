@@ -6531,8 +6531,11 @@ export interface components {
         /** @description Acyclic dependency graph. keel.sim/v1 retains simulation-only machine resources and retry rules. keel.host/v1 allows identity/wait or approved media script/stage/fetch; no inputs, retries or embedded frozen artifacts. Device and selected transport leases apply. Media side effects are non-idempotent; fetch requires one target. keel.control/v1 supports only bounded project KV get/put, no media/inputs/retries; writes require CAS. */
         FlowTask: {
             id: string;
-            /** @enum {string} */
-            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare" | "script.run" | "media.stage" | "media.fetch" | "kv.get" | "kv.put";
+            /**
+             * @description issue.verify is domain-owned and can only be admitted by the scoped issue verification endpoint.
+             * @enum {string}
+             */
+            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare" | "script.run" | "media.stage" | "media.fetch" | "kv.get" | "kv.put" | "issue.verify";
             depends_on?: string[];
             retry: number;
             idempotent: boolean;

@@ -712,6 +712,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/executions/{executionId}/attempts/{attemptId}/issue-verification-receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Explicit authorized query of the original frozen mTLS collector command and reconciliation of its authenticated terminal proof. Never POSTs recollection or retries the task. Running, unknown, missing or invalid proof retains both quarantined switch resources. Historical samples keep their original expiry; changed scope cannot close the issue. */
+        post: operations["fetchIssueVerificationReceipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -737,8 +754,11 @@ export interface components {
         /** @description Acyclic dependency graph. keel.sim/v1 retains simulation-only machine resources and retry rules. keel.host/v1 allows identity/wait or approved media script/stage/fetch; no inputs, retries or embedded frozen artifacts. Device and selected transport leases apply. Media side effects are non-idempotent; fetch requires one target. keel.control/v1 supports only bounded project KV get/put, no media/inputs/retries; writes require CAS. */
         FlowTask: {
             id: string;
-            /** @enum {string} */
-            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare" | "script.run" | "media.stage" | "media.fetch" | "kv.get" | "kv.put";
+            /**
+             * @description issue.verify is domain-owned and can only be admitted by the scoped issue verification endpoint.
+             * @enum {string}
+             */
+            type: "sim.read" | "sim.write" | "kea.apply" | "fabric.prepare" | "fabric.push" | "host.identity" | "host.wait" | "trust.verify" | "provision.prepare" | "script.run" | "media.stage" | "media.fetch" | "kv.get" | "kv.put" | "issue.verify";
             depends_on?: string[];
             retry: number;
             idempotent: boolean;
@@ -3310,6 +3330,49 @@ export interface operations {
         responses: {
             /** @description Created versioned issue verification execution */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    fetchIssueVerificationReceipt: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+                executionId: string;
+                attemptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SSHReceiptInput"];
+            };
+        };
+        responses: {
+            /** @description Original collector receipt recorded and existing versioned execution reconciliation applied */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
