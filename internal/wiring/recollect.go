@@ -181,7 +181,7 @@ func projectReadback(binding ReadbackBinding, scope ReadbackScope, exchanges []R
 		for _, sample := range exchange.Response.Devices {
 			prior := samples[sample.Serial]
 			if prior == nil {
-				copy := fabricmon.Snapshot{Version: sample.Version, Source: sample.Source, Provider: sample.Provider, Serial: sample.Serial, NOS: sample.NOS, CollectedAt: sample.CollectedAt, Capabilities: map[string]bool{"lldp": sample.Capabilities["lldp"], "interfaces": sample.Capabilities["interfaces"]}, Ports: slices.Clone(sample.Ports)}
+				copy := fabricmon.Snapshot{Version: sample.Version, Source: sample.Source, Provider: sample.Provider, Serial: sample.Serial, NOS: sample.NOS, CollectedAt: sample.CollectedAt, Capabilities: map[string]bool{"lldp": sample.Capabilities["lldp"], "interfaces": sample.Capabilities["interfaces"]}, Ports: projectWirePorts(sample.Ports)}
 				samples[sample.Serial] = &copy
 			} else {
 				if prior.Version != sample.Version || prior.Source != sample.Source || prior.Provider != sample.Provider || prior.NOS != sample.NOS {
@@ -192,7 +192,7 @@ func projectReadback(binding ReadbackBinding, scope ReadbackScope, exchanges []R
 				if sample.CollectedAt.Before(prior.CollectedAt) {
 					prior.CollectedAt = sample.CollectedAt
 				}
-				prior.Ports = append(prior.Ports, sample.Ports...)
+				prior.Ports = append(prior.Ports, projectWirePorts(sample.Ports)...)
 			}
 		}
 	}
@@ -211,4 +211,24 @@ func projectReadback(binding ReadbackBinding, scope ReadbackScope, exchanges []R
 		out = append(out, *sample)
 	}
 	return out, nil
+}
+
+// Preserve only the interface/LLDP fields this projection declares readable.
+// The full original response retains DOM/counters for its own diagnostics; those
+// facts must not contradict the deliberately narrower projected capability set.
+func projectWirePorts(ports []fabricmon.Port) []fabricmon.Port {
+	out := make([]fabricmon.Port, 0, len(ports))
+	for _, port := range ports {
+		projected := fabricmon.Port{Name: port.Name, LLDPReadable: port.LLDPReadable}
+		if port.LinkUp != nil {
+			up := *port.LinkUp
+			projected.LinkUp = &up
+		}
+		if port.Neighbor != nil {
+			neighbor := *port.Neighbor
+			projected.Neighbor = &neighbor
+		}
+		out = append(out, projected)
+	}
+	return out
 }

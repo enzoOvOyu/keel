@@ -1,0 +1,173 @@
+{
+  "version": "keel.lldp-fixture/v1",
+  "before": [
+    {
+      "physical_port_id": "44444444444444444444444444444444",
+      "interface": "eth1",
+      "bdf": "0000:41:00.0",
+      "permanent_mac": "02:00:00:00:01:01",
+      "current_mac": "02:00:00:00:01:01",
+      "admin_up": false,
+      "mtu": 1500,
+      "addresses": [],
+      "master": "",
+      "virtual_function": false,
+      "existing_lldp": false,
+      "link_up": true
+    },
+    {
+      "physical_port_id": "88888888888888888888888888888888",
+      "interface": "eth2",
+      "bdf": "0000:42:00.0",
+      "permanent_mac": "02:00:00:00:01:02",
+      "current_mac": "02:00:00:00:01:02",
+      "admin_up": false,
+      "mtu": 1500,
+      "addresses": [],
+      "master": "",
+      "virtual_function": false,
+      "existing_lldp": false,
+      "link_up": true
+    }
+  ],
+  "during": [
+    {
+      "physical_port_id": "44444444444444444444444444444444",
+      "interface": "eth1",
+      "bdf": "0000:41:00.0",
+      "permanent_mac": "02:00:00:00:01:01",
+      "current_mac": "02:00:00:00:01:01",
+      "admin_up": true,
+      "mtu": 1500,
+      "addresses": [],
+      "master": "",
+      "virtual_function": false,
+      "existing_lldp": false,
+      "link_up": true
+    },
+    {
+      "physical_port_id": "88888888888888888888888888888888",
+      "interface": "eth2",
+      "bdf": "0000:42:00.0",
+      "permanent_mac": "02:00:00:00:01:02",
+      "current_mac": "02:00:00:00:01:02",
+      "admin_up": true,
+      "mtu": 1500,
+      "addresses": [],
+      "master": "",
+      "virtual_function": false,
+      "existing_lldp": false,
+      "link_up": true
+    }
+  ],
+  "after": [
+    {
+      "physical_port_id": "44444444444444444444444444444444",
+      "interface": "eth1",
+      "bdf": "0000:41:00.0",
+      "permanent_mac": "02:00:00:00:01:01",
+      "current_mac": "02:00:00:00:01:01",
+      "admin_up": false,
+      "mtu": 1500,
+      "addresses": [],
+      "master": "",
+      "virtual_function": false,
+      "existing_lldp": false,
+      "link_up": true
+    },
+    {
+      "physical_port_id": "88888888888888888888888888888888",
+      "interface": "eth2",
+      "bdf": "0000:42:00.0",
+      "permanent_mac": "02:00:00:00:01:02",
+      "current_mac": "02:00:00:00:01:02",
+      "admin_up": false,
+      "mtu": 1500,
+      "addresses": [],
+      "master": "",
+      "virtual_function": false,
+      "existing_lldp": false,
+      "link_up": true
+    }
+  ],
+  "probes": [
+    {
+      "physical_port_id": "44444444444444444444444444444444",
+      "kind": "local",
+      "state": "success",
+      "stdout": "{\"lldp\":[{\"interface\":[{\"name\":\"eth1\",\"via\":\"LLDP\",\"chassis\":[{\"id\":[{\"type\":\"local\",\"value\":\"02:00:00:00:01:01\"}],\"name\":[{\"value\":\"host-1.example.test\"}],\"descr\":[{\"value\":\"{\\\"sn\\\":\\\"host-sn\\\",\\\"rail\\\":\\\"rail-1\\\",\\\"port\\\":\\\"1\\\"}\"}]}],\"port\":[{\"id\":[{\"type\":\"local\",\"value\":\"44444444444444444444444444444444\"}]}]}]}]}",
+      "stderr": ""
+    },
+    {
+      "physical_port_id": "44444444444444444444444444444444",
+      "kind": "neighbors",
+      "state": "failed",
+      "stdout": "",
+      "stderr": "synthetic read error"
+    },
+    {
+      "physical_port_id": "88888888888888888888888888888888",
+      "kind": "local",
+      "state": "success",
+      "stdout": "{\"lldp\":[{\"interface\":[{\"name\":\"eth2\",\"via\":\"LLDP\",\"chassis\":[{\"id\":[{\"type\":\"local\",\"value\":\"02:00:00:00:01:02\"}],\"name\":[{\"value\":\"host-1.example.test\"}],\"descr\":[{\"value\":\"{\\\"sn\\\":\\\"host-sn\\\",\\\"rail\\\":\\\"rail-2\\\",\\\"port\\\":\\\"2\\\"}\"}]}],\"port\":[{\"id\":[{\"type\":\"local\",\"value\":\"88888888888888888888888888888888\"}]}]}]}]}",
+      "stderr": ""
+    },
+    {
+      "physical_port_id": "88888888888888888888888888888888",
+      "kind": "neighbors",
+      "state": "success",
+      "stdout": "{\"lldp\":[{\"interface\":[{\"name\":\"eth2\",\"via\":\"LLDP\",\"chassis\":[{\"id\":[{\"type\":\"local\",\"value\":\"02:00:00:00:02:02\"}],\"name\":[{\"value\":\"leaf-2-sn\"}],\"descr\":[{\"value\":\"synthetic leaf\"}]}],\"port\":[{\"id\":[{\"type\":\"local\",\"value\":\"swp2\"}]}]}]}]}",
+      "stderr": ""
+    }
+  ],
+  "switches": [
+    {
+      "version": "fabric-snapshot/v1",
+      "source": "switch",
+      "provider": "synthetic-lldp-fixture",
+      "serial": "leaf-1-sn",
+      "nos": "synthetic",
+      "collected_at": "2026-10-27T00:00:00Z",
+      "capabilities": {
+        "lldp": true,
+        "interfaces": true
+      },
+      "ports": [
+        {
+          "name": "swp1",
+          "link_up": true,
+          "lldp_readable": false,
+          "neighbor": null
+        }
+      ]
+    },
+    {
+      "version": "fabric-snapshot/v1",
+      "source": "switch",
+      "provider": "synthetic-lldp-fixture",
+      "serial": "leaf-2-sn",
+      "nos": "synthetic",
+      "collected_at": "2026-10-27T00:00:00Z",
+      "capabilities": {
+        "lldp": true,
+        "interfaces": true
+      },
+      "ports": [
+        {
+          "name": "swp2",
+          "link_up": true,
+          "lldp_readable": true,
+          "neighbor": {
+            "chassis_id": "02:00:00:00:01:02",
+            "port_id": "88888888888888888888888888888888",
+            "sysname": "host-1.example.test",
+            "sysdesc": "{\"sn\":\"host-sn\",\"rail\":\"rail-2\",\"port\":\"2\"}"
+          }
+        }
+      ]
+    }
+  ],
+  "window_complete": true,
+  "host_fault": "",
+  "collector_fault": ""
+}

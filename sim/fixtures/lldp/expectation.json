@@ -1,0 +1,43 @@
+{
+  "version": "keel.wiring/v1",
+  "project_id": "11111111111111111111111111111111",
+  "asset_id": "22222222222222222222222222222222",
+  "machine_id": "33333333333333333333333333333333",
+  "serial": "host-sn",
+  "hostname": "host-1.example.test",
+  "scope_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "ports": [
+    {
+      "physical_port_id": "44444444444444444444444444444444",
+      "component_id": "55555555555555555555555555555555",
+      "port_index": "1",
+      "interface": "eth1",
+      "permanent_mac": "02:00:00:00:01:01",
+      "bdf": "0000:41:00.0",
+      "rail": "rail-1",
+      "cable_id": "66666666666666666666666666666666",
+      "switch_id": "77777777777777777777777777777777",
+      "switch_serial": "leaf-1-sn",
+      "switch_chassis_ids": [
+        "02:00:00:00:02:01"
+      ],
+      "switch_port": "swp1"
+    },
+    {
+      "physical_port_id": "88888888888888888888888888888888",
+      "component_id": "99999999999999999999999999999999",
+      "port_index": "2",
+      "interface": "eth2",
+      "permanent_mac": "02:00:00:00:01:02",
+      "bdf": "0000:42:00.0",
+      "rail": "rail-2",
+      "cable_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "switch_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "switch_serial": "leaf-2-sn",
+      "switch_chassis_ids": [
+        "02:00:00:00:02:02"
+      ],
+      "switch_port": "swp2"
+    }
+  ]
+}

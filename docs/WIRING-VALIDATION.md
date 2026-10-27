@@ -51,3 +51,7 @@ StepReport具备step/version/parent/source_hash/verdict/detail及历史、当前
 ## 原始停止归档（源码，NOT_RUN）
 
 087增加不可变原命令终态查询和停止capture。查询`completed/stopped/rejected`须绑定原请求摘要和原终态时间；保存失败仍unknown。内部RecordWiringCapture接受受控执行消费者传来的原文，核对注册HostOrigin/冻结期望/命令、每块已保存响应和无未决会话；版本对象写入后反读SHA256/大小，原文冲突不覆盖。ReadWiringCapture反向解析固定版本，并在原停止时刻重算历史判据；不续期、不宣称当前G2。原始缺测不造时间、不转PASS。无上传API，后续步骤仍须原共享runner已完成回执与当前范围校验才能开放；087未应用，新用例NOT_RUN。
+
+## 独立模拟适配器（源码，NOT_RUN）
+
+sim/fixtures/lldp包含独立两张NIC/两台交换机的冻结期望、接口前/中/后状态、json0原文及交换机观察，另含断链/空邻居/不可读/错口/unknown变体。模拟Driver/Collector不能访问真实设备、写网络状态或覆写来源；查询返回原命令固定终态，不能伪装新鲜硬件。规则单元输入与真实门禁判据分开，运行模拟适配器所得归档始终sim/protocol_fixture且不能PASS。测试均NOT_RUN，未接实际执行派发或安装helper。
