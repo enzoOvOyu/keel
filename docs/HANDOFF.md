@@ -1794,3 +1794,5 @@ P1当前按IMPLEMENTATION-PLAN§2退出判据继续收口：认证与项目隔�
 基础全仓go test -race通过；前端build/typecheck与设计/PoC材料单元已通过。实际PG首批暴露确定性错误：缓存/网口只读事务错误调用FOR SHARE身份helper，已共享有锁准入/无锁授权快照两条查询；旧JSON BOM提交漏保存model_version_id，现与model_id同事务锁定并冻结最新已发布项目型号，保留原作用域；Webhook投递状态复用参数推断varchar/text冲突，现显式类型。修正测试夹具的多次首管理员初始化、umask下0644负例、审计DBA篡改需显式禁用并恢复触发器、ZTP历史缺映射版本引用。没有放松真实审批、审计追加、身份绑定或unknown约束。
 
 Agent/Redis/PXE初批与lifecycle首批失败不记通过，保留原日志；之后仅对实际修复和资源明确的失败项定向复测，尚未迁移或更新3000。
+
+首轮定向复测（589702b）已通过OS引导组成、PXE预览/请求生命周期/重装序列号/验证期间失效、ZTP身份历史及受保护webhook配置。审计与webhook实际CLI主要断言通过后，受限角色连接夹具仍失败：PG报告`unrecognized configuration parameter "+role"`，将启动参数改为无空格的`-crole=...`，保留受限角色负例。P1-001补录整包预算耗尽及浏览器期限终止，未把局部成功当整项通过。

@@ -370,7 +370,7 @@ func TestWebhookDurableOutboxDeliveryAndIsolation(t *testing.T) {
 		t.Fatal(err)
 	}
 	query := parsed.Query()
-	query.Set("options", "-c role="+role)
+	query.Set("options", "-crole="+role)
 	parsed.RawQuery = query.Encode()
 	restricted, err := Open(ctx, parsed.String())
 	if err != nil {
