@@ -2372,3 +2372,13 @@ ReadWiringCapture重新打开固定版本对象、核对SHA256/大小、重建�
 - 四个完整P2正向软件用例最终合批PASS，证据 `/home/ubuntu/.local/state/keel/evidence/p2/postgres-52b7431c3e/positive-g1-topology.log`。包括G1/独立拓扑、限定豁免与撤销、T7获批固件模拟至新采集复测关闭、原管理/Golden/G2/G3至端口维修人工关闭和两次失败一次DL升级。原单元/隔离PG/mTLS/Go vet/设计/TS/生产bundle/PoC离线检查证据见§216～217，不重复全仓重测。
 - 真实API/业务备份库浏览器最终PASS：`.../postgres-52b7431c3e/ui-0159998a/`。五标签切换、720/960宽切换、历史React Flow、未保存修改取消/丢弃、网络/工单页面，无JS或HTTP 5xx。此前宽度动画即时断言和未选择快照的测试脚本问题已修正；恢复自身成功测试库只复验UI，没有重跑业务测试。8GPU×8NIC组件生产渲染60.2ms记录不变。
 - 110条/113隔离恢复迁移演练与原业务行数保持已通过，备份见§217；运行库尚未升级。源码提交后只构建一次新镜像，再迁移/受限授权/3000和共享开发worker发布及依赖/版本/页面冒烟。运行库当前无Execution/attempt/held租约、无既有worker进程，启动开发worker不会接续未授权积压任务。真实硬件/SSH/helper写通道仍默认禁用，新增测试不作为PoC签署。
+
+
+## 219. P2软件版本已发布3000（当前运行事实）
+
+- 运行源码提交 `939af18e332018443030668a4167bdb5f862fbd0`（dev/p2-validation），镜像 `keel:939af18e332018443030668a4167bdb5f862fbd0`，一次构建PASS。API `keel-api-1` / worker `keel-worker-1` 均健康，3000继续绑定127.0.0.1；既有PostgreSQL/Redis/MinIO和其他项目5173/8080服务保持。未push/合并P2到main。
+- 运行库由64条/067迁移至110条/113，源码与运行匹配，原026草稿不参与。受限keel_app读取新映射表正常，portmon来源绑定、固件回执和G1豁免账本无UPDATE/DELETE/TRUNCATE权限。旧镜像保留；旧镜像与新schema不兼容，不能只切旧镜像回滚，应使用已验证备份恢复方案或保留数据修复前进。
+- 备份、恢复迁移演练、一次构建、正式迁移/授权/Compose发布、HTTP版本和实际浏览器冒烟证据：`/home/ubuntu/.local/state/keel/evidence/p2/release-f53ce0d128/`，实际发布结果 `published.json`；原备份 `.../backups/p2-before-20261027T234853Z-9fefdb.dump`。私有部署前.env备份保留600权限，未进入Git。
+- 实际管理员登录3000后资产/门禁/监控/配置/网络/工单页PASS、无JS/HTTP 5xx、JetBrains Mono本地字体、退出后私有API拒绝访问PASS；`runtime-browser.log` / `runtime-browser-result.json`。worker日志无ERROR。快速切换页面期间API保留一条无SQLSTATE通用存储错误日志，浏览器未观察到5xx；与隔离UI中快速切换的同类现象一并留原证据，原因未签署、不称性能问题，后续可定向完善取消请求日志分类，不重跑本次业务检查。
+- development显式启用P2 BMC/预收集/布线/监控/工单重验、固件模拟和任务介质能力；目标SSH/Agent/collector/BMC适配凭据及真实helper未自动配置，固定真实写通道不开启。缺硬件配置、原证据或当前门禁时仍阻断/unknown，固件动作仅sim；运行库没有新增模拟资产或虚假PASS。
+- P2软件开发与本轮主要业务链集中验证/发布完成。真实H-2～H-5/H-13/H-17及设备适配PoC由用户安排，硬件验收仍UNVERIFIED；P1-001与200台整批验证继续按既定决定保留，没有新增已确认性能问题。两份原fabric_precheck草稿和netbom.xlsx保留未跟踪且被Docker精确隔离。下一阶段入口按实施计划P3依赖执行，不把未完成真实PoC写成硬件PASS。
