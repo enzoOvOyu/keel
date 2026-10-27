@@ -64,7 +64,7 @@ func (d *WebhookDispatcher) Enqueue(ctx context.Context, s *webhook.Sink) (int, 
 	defer tx.Rollback()
 	// JSON arrays avoid constructing SQL from configured event-type strings.
 	types, _ := json.Marshal(s.EventTypes)
-	rows, err := tx.QueryContext(ctx, `SELECT o.id,o.sequence,o.execution_id,o.aggregate_version,o.event_type,o.payload->>'state',o.created_at
+	rows, err := tx.QueryContext(ctx, `SELECT o.id,o.sequence,o.execution_id,o.aggregate_version,o.event_type,o.payload->>'state',o.created_at,coalesce(o.payload->>'issue_id','')
  FROM exec_outbox o JOIN exec_executions e ON e.id=o.execution_id
  WHERE e.project_id=$1 AND o.created_at >= $2 AND o.event_type IN(SELECT jsonb_array_elements_text($3::jsonb))
  AND NOT EXISTS(SELECT 1 FROM notification_webhook_deliveries n WHERE n.sink_id=$4 AND n.event_id=o.id)
@@ -79,11 +79,11 @@ func (d *WebhookDispatcher) Enqueue(ctx context.Context, s *webhook.Sink) (int, 
 	}
 	list := []pending{}
 	for rows.Next() {
-		var id, eid, kind string
+		var id, eid, kind, issueID string
 		var sequence, version int64
 		var state sql.NullString
 		var at time.Time
-		if err = rows.Scan(&id, &sequence, &eid, &version, &kind, &state, &at); err != nil {
+		if err = rows.Scan(&id, &sequence, &eid, &version, &kind, &state, &at, &issueID); err != nil {
 			rows.Close()
 			return 0, err
 		}
@@ -94,7 +94,13 @@ func (d *WebhookDispatcher) Enqueue(ctx context.Context, s *webhook.Sink) (int, 
 				data["state"] = state.String
 			}
 		}
-		body, e := json.Marshal(map[string]any{"specversion": "1.0", "id": id, "source": "urn:keel:project:" + s.ProjectID, "type": kind, "subject": "execution/" + eid, "time": at.UTC(), "datacontenttype": "application/json", "data": data})
+		subject := "execution/" + eid
+		if kind == "issue.escalated" {
+			data["issue_id"] = issueID
+			data["failed_verifications"] = 2
+			subject = "issue/" + issueID
+		}
+		body, e := json.Marshal(map[string]any{"specversion": "1.0", "id": id, "source": "urn:keel:project:" + s.ProjectID, "type": kind, "subject": subject, "time": at.UTC(), "datacontenttype": "application/json", "data": data})
 		if e != nil {
 			rows.Close()
 			return 0, e

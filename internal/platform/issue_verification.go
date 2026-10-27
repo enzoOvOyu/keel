@@ -1,0 +1,372 @@
+package platform
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"slices"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	"github.com/enzoOvOyu/keel/internal/fabricboot"
+	"github.com/enzoOvOyu/keel/internal/fabricmon"
+	"github.com/enzoOvOyu/keel/internal/netbaseline"
+)
+
+type IssueVerificationInput struct {
+	Version   int    `json:"version"`
+	ScopeHash string `json:"scope_hash"`
+	Reason    string `json:"reason"`
+}
+type IssueVerificationRequest struct {
+	ID           string                 `json:"id"`
+	IssueID      string                 `json:"issue_id"`
+	ProjectID    string                 `json:"project_id"`
+	ExecutionID  string                 `json:"execution_id"`
+	IssueVersion int                    `json:"issue_version"`
+	ScopeHash    string                 `json:"scope_hash"`
+	Snapshot     IssueVerificationScope `json:"snapshot"`
+	Reason       string                 `json:"reason"`
+	CreatedBy    string                 `json:"created_by"`
+	CreatedAt    time.Time              `json:"created_at"`
+}
+
+const issueVerificationRequestColumns = "id,issue_id,project_id,execution_id,issue_version,scope_hash,snapshot,reason,created_by,created_at"
+
+func loadIssueVerificationTx(ctx context.Context, tx *sql.Tx, id, execution string) (*IssueVerificationRequest, error) {
+	var out IssueVerificationRequest
+	var raw []byte
+	e := tx.QueryRowContext(ctx, "SELECT "+issueVerificationRequestColumns+" FROM issue_verification_requests WHERE id=$1 AND execution_id=$2", id, execution).Scan(&out.ID, &out.IssueID, &out.ProjectID, &out.ExecutionID, &out.IssueVersion, &out.ScopeHash, &raw, &out.Reason, &out.CreatedBy, &out.CreatedAt)
+	if errors.Is(e, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if e != nil {
+		return nil, e
+	}
+	if e = json.Unmarshal(raw, &out.Snapshot); e != nil {
+		return nil, e
+	}
+	return &out, nil
+}
+func (s *Store) PrepareIssueVerificationTx(ctx context.Context, tx *sql.Tx, a *AuthSession, project, id string, in IssueVerificationInput) (*IssueVerificationScope, error) {
+	if in.Version < 1 || len(in.ScopeHash) != 64 || strings.TrimSpace(in.Reason) == "" || utf8.RuneCountInString(in.Reason) > 2000 {
+		return nil, apiError(400, "VALIDATION_ERROR", "Current issue version, scope digest and reason are required")
+	}
+	item, e := scanIssue(tx.QueryRowContext(ctx, "SELECT "+issueColumns+" FROM issues WHERE id=$1 AND project_id=$2 FOR UPDATE", id, project))
+	if errors.Is(e, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if e != nil {
+		return nil, e
+	}
+	role, e := issueRoleTx(ctx, tx, a, project)
+	if e != nil {
+		return nil, e
+	}
+	if !slices.Contains([]string{"Admin", "DL", "NE"}, role) || role == "NE" && item.AssigneeID != a.User.ID {
+		return nil, ErrForbidden
+	}
+	if item.Version != in.Version {
+		return nil, errVersion
+	}
+	scope, e := s.issueVerificationScopeTx(ctx, tx, a, item, role)
+	if e != nil {
+		return nil, e
+	}
+	if scope.ScopeHash != in.ScopeHash {
+		return nil, apiError(409, "ISSUE_VERIFICATION_SCOPE_CHANGED", "Refresh the current issue verification scope")
+	}
+	if !scope.ExecutionAvailable {
+		return nil, apiError(409, "ISSUE_VERIFICATION_BLOCKED", "Required scoped verification inputs are unavailable")
+	}
+	return scope, nil
+}
+func (s *Store) AttachIssueVerificationTx(ctx context.Context, tx *sql.Tx, a *AuthSession, id, execution string, scope *IssueVerificationScope, in IssueVerificationInput, trace string) error {
+	if !scope.ValidUntil.After(time.Now()) {
+		return apiError(409, "ISSUE_VERIFICATION_SCOPE_EXPIRED", "Refresh the verification scope")
+	}
+	item, e := scanIssue(tx.QueryRowContext(ctx, `UPDATE issues SET state='verify',version=version+1,updated_at=now() WHERE id=$1 AND version=$2 AND state='in_repair' RETURNING `+issueColumns, scope.IssueID, scope.IssueVersion))
+	if e != nil {
+		return e
+	}
+	raw, e := json.Marshal(scope)
+	if e != nil {
+		return e
+	}
+	if _, e = tx.ExecContext(ctx, `INSERT INTO issue_verification_requests(id,issue_id,project_id,execution_id,issue_version,scope_hash,snapshot,reason,created_by,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,now())`, id, item.ID, item.ProjectID, execution, scope.IssueVersion, scope.ScopeHash, raw, in.Reason, a.User.ID); e != nil {
+		return e
+	}
+	return issueEventTx(ctx, tx, a, item, "verify", trace, map[string]any{"request_id": id, "execution_id": execution, "scope_hash": scope.ScopeHash, "repair_version": scope.RepairVersion, "reason": in.Reason})
+}
+
+// VerificationCurrentTx must be called under the existing control advisory lock.
+// Only this issue's fault is exempted; identity, scope, authority and versions remain current.
+func (s *Store) VerificationCurrentTx(ctx context.Context, tx *sql.Tx, id, execution string) (*IssueVerificationRequest, bool, error) {
+	request, e := loadIssueVerificationTx(ctx, tx, id, execution)
+	if e != nil {
+		return nil, false, e
+	}
+	item, e := scanIssue(tx.QueryRowContext(ctx, "SELECT "+issueColumns+" FROM issues WHERE id=$1", request.IssueID))
+	if e != nil {
+		return nil, false, e
+	}
+	if item.Version != request.IssueVersion+1 || item.State != "verify" {
+		return request, false, nil
+	}
+	current, e := s.issueVerificationScopeMatchesTx(ctx, tx, request, item)
+	return request, current, e
+}
+func (s *Store) issueVerificationScopeMatchesTx(ctx context.Context, tx *sql.Tx, request *IssueVerificationRequest, item *Issue) (bool, error) {
+	var enabled, admin bool
+	if e := tx.QueryRowContext(ctx, "SELECT enabled,is_admin FROM users WHERE id=$1", request.CreatedBy).Scan(&enabled, &admin); e != nil {
+		return false, e
+	}
+	if !enabled || time.Since(request.CreatedAt) > 15*time.Minute {
+		return false, nil
+	}
+	actor := &AuthSession{User: UserSummary{ID: request.CreatedBy, IsAdmin: admin}}
+	role, e := issueRoleTx(ctx, tx, actor, item.ProjectID)
+	if errors.Is(e, ErrNotFound) {
+		return false, nil
+	}
+	if e != nil {
+		return false, e
+	}
+	copyIssue := *item
+	copyIssue.Version = request.IssueVersion
+	copyIssue.State = "in_repair"
+	current, e := s.issueVerificationScopeTx(ctx, tx, actor, &copyIssue, role)
+	if e != nil {
+		var business *Error
+		if errors.As(e, &business) && business.Status == 409 {
+			return false, nil
+		}
+		return false, e
+	}
+	return current.ExecutionAvailable && current.ScopeHash == request.ScopeHash, nil
+}
+func (s *Store) IssueVerificationResourcesTx(ctx context.Context, tx *sql.Tx, id, execution string) ([]string, error) {
+	request, ok, e := s.VerificationCurrentTx(ctx, tx, id, execution)
+	if e != nil {
+		return nil, e
+	}
+	if !ok {
+		return nil, apiError(409, "ISSUE_VERIFICATION_SCOPE_CHANGED", "Verification admission is no longer current")
+	}
+	resources := []string{}
+	for _, target := range request.Snapshot.Targets {
+		resources = append(resources, "ssh:switch:"+target.SwitchID)
+	}
+	slices.Sort(resources)
+	return slices.Compact(resources), nil
+}
+func (s *Store) RunIssueVerification(ctx context.Context, id, execution, command string, fence int64) (*fabricboot.CollectorRecollectRequest, *fabricboot.CollectorRecollectResponse, error) {
+	tx, e := s.DB.BeginTx(ctx, nil)
+	if e != nil {
+		return nil, nil, e
+	}
+	defer tx.Rollback()
+	if e = lockKey(ctx, tx, "keel-admin-initialization"); e != nil {
+		return nil, nil, e
+	}
+	request, e := loadIssueVerificationTx(ctx, tx, id, execution)
+	if e != nil {
+		return nil, nil, e
+	}
+	op := &fabricboot.CollectorRecollectRequest{Version: "fabric-recollect/v1", ProjectID: request.ProjectID, ExecutionID: execution, CommandID: command, FencingToken: fence, ScopeHash: request.ScopeHash, EvidenceSource: request.Snapshot.EvidenceOrigin, NotBefore: time.Now().UTC(), Targets: request.Snapshot.Targets}
+	_, ok, e := s.VerificationCurrentTx(ctx, tx, id, execution)
+	if e != nil {
+		return op, nil, e
+	}
+	if !ok {
+		return op, nil, apiError(409, "ISSUE_VERIFICATION_SCOPE_CHANGED", "Verification admission changed before recollection")
+	}
+	var held bool
+	if e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM exec_task_attempts a JOIN exec_executions x ON x.id=a.execution_id WHERE a.execution_id=$1 AND a.command_id=$2 AND a.fencing_token=$3 AND a.state='running' AND a.lease_until>now() AND x.desired_state='running')`, execution, command, fence).Scan(&held); e != nil {
+		return nil, nil, e
+	}
+	if !held {
+		return nil, nil, apiError(409, "STALE_FENCE", "A current execution lease is required")
+	}
+
+	if e = op.Validate(); e != nil {
+		return nil, nil, e
+	}
+	if e = tx.Commit(); e != nil {
+		return nil, nil, e
+	}
+	response, e := s.FabricProbes.RecollectPorts(ctx, *op)
+	return op, response, e
+}
+
+// PersistIssueVerificationEvidenceTx is atomic with the kernel's durable receipt.
+func (s *Store) PersistIssueVerificationEvidenceTx(ctx context.Context, tx *sql.Tx, id, execution, command string, fence int64, request *fabricboot.CollectorRecollectRequest, response *fabricboot.CollectorRecollectResponse, code string) (string, string, error) {
+	if request == nil {
+		return "", "", apiError(409, "ISSUE_VERIFICATION_PROOF_REQUIRED", "No issued recollection request")
+	}
+	frozen, e := loadIssueVerificationTx(ctx, tx, id, execution)
+	if e != nil {
+		return "", "", e
+	}
+	if request.ScopeHash != frozen.ScopeHash || request.ProjectID != frozen.ProjectID || request.CommandID != command || request.ExecutionID != execution || request.FencingToken != fence || request.EvidenceSource != frozen.Snapshot.EvidenceOrigin || netbaseline.ContentHash(request.Targets) != netbaseline.ContentHash(frozen.Snapshot.Targets) {
+		return "", "", apiError(409, "ISSUE_VERIFICATION_PROOF_MISMATCH", "Recollection proof differs from frozen admission")
+	}
+	if response != nil {
+		if e = response.Validate(*request, time.Now().UTC()); e != nil {
+			return "", "", e
+		}
+	} else if code == "" {
+		return "", "", apiError(409, "ISSUE_VERIFICATION_PROOF_REQUIRED", "A bounded completion proof is required")
+	}
+	rawRequest, e := json.Marshal(request)
+	if e != nil {
+		return "", "", e
+	}
+	rawResponse, e := json.Marshal(response)
+	if e != nil {
+		return "", "", e
+	}
+	proofID := RandomID()
+	hash := netbaseline.ContentHash([]any{request, response, code})
+	_, e = tx.ExecContext(ctx, `INSERT INTO issue_verification_evidence(id,request_id,command_id,fencing_token,request,response,content_hash,code,recorded_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,now())`, proofID, id, command, fence, rawRequest, rawResponse, hash, code)
+	return proofID, hash, e
+}
+
+// ApplyIssueVerificationEvidenceTx is called only by fenced completion/reconciliation.
+func (s *Store) ApplyIssueVerificationEvidenceTx(ctx context.Context, tx *sql.Tx, id, execution, command string, fence int64, proofID, proofHash string) error {
+	request, e := loadIssueVerificationTx(ctx, tx, id, execution)
+	if e != nil {
+		return e
+	}
+	var prior bool
+	if e = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM issue_verification_results WHERE request_id=$1)", id).Scan(&prior); e != nil {
+		return e
+	}
+	if prior {
+		return nil
+	}
+	var rawRequest, rawResponse []byte
+	var hash, code string
+	var recorded time.Time
+	e = tx.QueryRowContext(ctx, `SELECT request,response,content_hash,code,recorded_at FROM issue_verification_evidence WHERE id=$1 AND request_id=$2 AND command_id=$3 AND fencing_token=$4`, proofID, id, command, fence).Scan(&rawRequest, &rawResponse, &hash, &code, &recorded)
+	if e != nil {
+		return e
+	}
+	if hash != proofHash {
+		return apiError(409, "ISSUE_VERIFICATION_PROOF_MISMATCH", "Receipt proof digest mismatch")
+	}
+	var op fabricboot.CollectorRecollectRequest
+	var response *fabricboot.CollectorRecollectResponse
+	if e = json.Unmarshal(rawRequest, &op); e != nil {
+		return e
+	}
+	if e = json.Unmarshal(rawResponse, &response); e != nil {
+		return e
+	}
+	if netbaseline.ContentHash([]any{&op, response, code}) != hash {
+		return apiError(409, "ISSUE_VERIFICATION_PROOF_MISMATCH", "Stored proof digest mismatch")
+	}
+	verdict, code, expiry, finding, e := s.assessIssueVerificationTx(ctx, tx, request, op, response, recorded, code)
+	if e != nil {
+		return e
+	}
+	var applied *int
+	item, e := scanIssue(tx.QueryRowContext(ctx, "SELECT "+issueColumns+" FROM issues WHERE id=$1 FOR UPDATE", request.IssueID))
+	if e != nil {
+		return e
+	}
+	if item.Version == request.IssueVersion+1 && item.State == "verify" {
+		state := "in_repair"
+		if verdict == "PASS" {
+			state = "verify"
+		} else if verdict == "FAIL" {
+			state = "reopened"
+		}
+		item, e = scanIssue(tx.QueryRowContext(ctx, `UPDATE issues SET state=$2,version=version+1,updated_at=now() WHERE id=$1 RETURNING `+issueColumns, item.ID, state))
+		if e != nil {
+			return e
+		}
+		applied = &item.Version
+		actor := &AuthSession{User: UserSummary{ID: request.CreatedBy}}
+		if e = issueEventTx(ctx, tx, actor, item, "verification_result", "worker", map[string]any{"request_id": id, "execution_id": execution, "verdict": verdict, "code": code, "evidence_id": proofID, "scope_hash": request.ScopeHash}); e != nil {
+			return e
+		}
+	}
+	rawFinding, e := json.Marshal(finding)
+	if e != nil {
+		return e
+	}
+	_, e = tx.ExecContext(ctx, `INSERT INTO issue_verification_results(request_id,evidence_id,verdict,finding,code,valid_until,applied_issue_version,evaluated_at) VALUES($1,$2,$3,$4,$5,$6,$7,now())`, id, proofID, verdict, rawFinding, code, expiry, applied)
+	if e == nil && verdict == "FAIL" {
+		e = issueVerificationEscalationTx(ctx, tx, request)
+	}
+	return e
+}
+
+func (s *Store) assessIssueVerificationTx(ctx context.Context, tx *sql.Tx, request *IssueVerificationRequest, op fabricboot.CollectorRecollectRequest, response *fabricboot.CollectorRecollectResponse, recorded time.Time, code string) (string, string, time.Time, *fabricmon.Finding, error) {
+	_, current, e := s.VerificationCurrentTx(ctx, tx, request.ID, request.ExecutionID)
+	if e != nil {
+		return "", "", time.Time{}, nil, e
+	}
+	verdict := "BLOCKED"
+	expiry := recorded
+	var finding *fabricmon.Finding
+	if !current {
+		code = "ISSUE_VERIFICATION_SCOPE_CHANGED"
+	} else if response != nil {
+		if e = response.Validate(op, recorded); e != nil {
+			return "", "", time.Time{}, nil, e
+		}
+		expiry = recorded.Add(5 * time.Minute)
+		samples := map[string]fabricmon.Snapshot{}
+		for _, sample := range response.Devices {
+			samples[sample.Serial] = sample
+			if v := sample.CollectedAt.Add(5 * time.Minute); v.Before(expiry) {
+				expiry = v
+			}
+		}
+		_, _, cables, err := fabricInventoryTx(ctx, tx, request.ProjectID)
+		if err != nil {
+			return "", "", time.Time{}, nil, err
+		}
+		for _, cable := range cables {
+			if cable.UID == request.Snapshot.CableUID {
+				f := fabricmon.EvaluateCable(cable, samples)
+				finding = &f
+				break
+			}
+		}
+		if finding != nil {
+			switch finding.Verdict {
+			case "precheck_pass":
+				verdict = "PASS"
+				code = "SCOPED_LINK_VERIFIED"
+			case "anomaly":
+				verdict = "FAIL"
+				code = "SCOPED_LINK_FAILED"
+			default:
+				code = "SCOPED_LINK_EVIDENCE_INCOMPLETE"
+			}
+		}
+		if finding != nil && finding.RuleRef != request.Snapshot.RuleRef {
+			verdict = "BLOCKED"
+			code = "ISSUE_VERIFICATION_RULE_CHANGED"
+		}
+		if !expiry.After(time.Now()) {
+			verdict = "BLOCKED"
+			code = "ISSUE_VERIFICATION_EVIDENCE_EXPIRED"
+		}
+	}
+	return verdict, code, expiry, finding, nil
+}
+
+func (s *Store) IssueVerificationReceiptVerdictTx(ctx context.Context, tx *sql.Tx, id, execution string, op fabricboot.CollectorRecollectRequest, response *fabricboot.CollectorRecollectResponse, code string) (string, error) {
+	request, e := loadIssueVerificationTx(ctx, tx, id, execution)
+	if e != nil {
+		return "", e
+	}
+	verdict, _, _, _, e := s.assessIssueVerificationTx(ctx, tx, request, op, response, time.Now().UTC(), code)
+	return verdict, e
+}

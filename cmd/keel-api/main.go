@@ -57,6 +57,7 @@ func main() {
 		store = opened
 		defer store.Close()
 		store.AgentTasksEnabled = os.Getenv("KEEL_AGENT_TASKS_ENABLED") == "true"
+		store.FabricIssueVerificationEnabled = os.Getenv("KEEL_FABRIC_ISSUE_VERIFY_ENABLED") == "true"
 		store.ProvisionPrepareEnabled = os.Getenv("KEEL_PROVISION_PREPARE_ENABLED") == "true"
 		if err = store.ConfigureProvisionInstall(os.Getenv("KEEL_PROVISION_INSTALL_ENABLED") == "true", os.Getenv("KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE")); err != nil {
 			slog.Error("provision installer public trust configuration rejected")

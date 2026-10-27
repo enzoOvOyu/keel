@@ -15,12 +15,13 @@ import (
 // A scope preview is not an execution or successful verification. Its digest
 // identifies current business facts; admission must reproduce them atomically.
 type IssueVerificationScope struct {
+	ManagementHash     string                       `json:"management_hash"`
 	RuleRef            string                       `json:"rule_ref"`
 	Version            string                       `json:"version"`
 	IssueID            string                       `json:"issue_id"`
 	ProjectID          string                       `json:"project_id"`
-	IssueVersion       int64                        `json:"issue_version"`
-	RepairVersion      int64                        `json:"repair_version"`
+	IssueVersion       int                          `json:"issue_version"`
+	RepairVersion      int                          `json:"repair_version"`
 	Category           string                       `json:"category"`
 	PackageID          string                       `json:"package_id"`
 	EvidenceOrigin     string                       `json:"evidence_origin"`
@@ -90,7 +91,7 @@ func (s *Store) issueVerificationScopeTx(ctx context.Context, tx *sql.Tx, a *Aut
 	if e := tx.QueryRowContext(ctx, "SELECT coalesce(max(version),0) FROM issue_events WHERE issue_id=$1 AND action='repair'", item.ID).Scan(&out.RepairVersion); e != nil {
 		return nil, e
 	}
-	var assignmentVersion int64
+	var assignmentVersion int
 	if e := tx.QueryRowContext(ctx, "SELECT coalesce(max(version),0) FROM issue_events WHERE issue_id=$1 AND action IN('assign','reopen')", item.ID).Scan(&assignmentVersion); e != nil {
 		return nil, e
 	}
@@ -212,9 +213,27 @@ func (s *Store) issueVerificationScopeTx(ctx context.Context, tx *sql.Tx, a *Aut
 	if !s.FabricProbes.CollectorConfigured() {
 		block("trusted_collector_required")
 	}
-	// This preview deliberately cannot dispatch. The shared execution admission
-	// and result consumer must be connected before the UI offers submission.
-	block("targeted_execution_adapter_pending")
+	management, e := s.issueVerificationManagementHashTx(ctx, tx, out)
+	if e != nil {
+		var business *Error
+		if errors.As(e, &business) && business.Status == 409 {
+			block("current_switch_management_required")
+		} else {
+			return nil, e
+		}
+	} else {
+		out.ManagementHash = management
+	}
+	if out.CableUID != "" && out.RuleRef != fabricmon.CableComparisonRuleRef {
+		block("current_link_rule_required")
+	}
+	if out.CableUID == "" || !slices.Contains([]string{"T1", "T2"}, item.Category) {
+		block("source_verification_adapter_pending")
+	}
+	if !s.FabricIssueVerificationEnabled {
+		block("targeted_execution_disabled")
+	}
+	out.ExecutionAvailable = len(out.Blockers) == 0
 	return finishIssueVerificationScope(out), nil
 }
 func finishIssueVerificationScope(out *IssueVerificationScope) *IssueVerificationScope {

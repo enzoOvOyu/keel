@@ -695,6 +695,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/issues/{issueId}/verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Opt-in scoped switch-to-switch N-S5 T1/T2 verification. Recomputes current scope and repair, owns both switch resources, and uses the fixed mTLS recollection contract. No auto retry or G2/NP-3 claim; transport uncertainty keeps resources quarantined. Execution success requires a domain PASS. Closure still requires current evidence and NE/DL confirmation. */
+        post: operations["createIssueVerification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1635,6 +1652,12 @@ export interface components {
             kernel_release: string;
             /** @constant */
             command_line: "root=PARTLABEL=keel-root rootfstype=ext4 rw rootwait";
+        };
+        IssueVerificationInput: {
+            /** Format: int64 */
+            version: number;
+            scope_hash: string;
+            reason: string;
         };
     };
     responses: {
@@ -3244,6 +3267,48 @@ export interface operations {
         };
         responses: {
             /** @description Created immutable native host workflow execution with frozen approved media when referenced */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createIssueVerification: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+                issueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueVerificationInput"];
+            };
+        };
+        responses: {
+            /** @description Created versioned issue verification execution */
             201: {
                 headers: {
                     [name: string]: unknown;

@@ -197,6 +197,9 @@ type Cable struct {
 	A   Endpoint
 	B   Endpoint
 }
+
+const CableComparisonRuleRef = "PRECHECK-LLDP@1"
+
 type Finding struct {
 	CableUID  string `json:"cable_uid"`
 	A         string `json:"endpoint_a_uid"`
@@ -226,7 +229,7 @@ func EvaluateCables(cables []Cable, samples map[string]Snapshot) []Finding {
 	return out
 }
 func evaluateIndexedCable(c Cable, samples map[string]Snapshot, ports map[string]map[string]Port) Finding {
-	f := Finding{CableUID: c.UID, A: c.A.UID, B: c.B.UID, Verdict: "pending", Reason: "server_side_pending", Source: "switch", RuleRef: "PRECHECK-LLDP@1"}
+	f := Finding{CableUID: c.UID, A: c.A.UID, B: c.B.UID, Verdict: "pending", Reason: "server_side_pending", Source: "switch", RuleRef: CableComparisonRuleRef}
 	if !c.A.Switch || !c.B.Switch {
 		return f
 	}

@@ -3271,6 +3271,97 @@
         },
         "summary": "Run a published public project KV workflow"
       }
+    },
+    "/api/v1/projects/{id}/issues/{issueId}/verifications": {
+      "post": {
+        "operationId": "createIssueVerification",
+        "tags": [
+          "Issue verification"
+        ],
+        "x-permission": "issue:verify",
+        "x-scope": "project",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "issueId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created versioned issue verification execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Execution"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "description": "Opt-in scoped switch-to-switch N-S5 T1/T2 verification. Recomputes current scope and repair, owns both switch resources, and uses the fixed mTLS recollection contract. No auto retry or G2/NP-3 claim; transport uncertainty keeps resources quarantined. Execution success requires a domain PASS. Closure still requires current evidence and NE/DL confirmation.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueVerificationInput"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7181,6 +7272,9 @@
             "const": "root=PARTLABEL=keel-root rootfstype=ext4 rw rootwait"
           }
         }
+      },
+      "IssueVerificationInput": {
+        "$ref": "./openapi.yaml#/components/schemas/IssueVerificationInput"
       }
     }
   }

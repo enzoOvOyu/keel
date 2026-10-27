@@ -29,11 +29,12 @@ type MediaObjectStore interface {
 }
 
 type Store struct {
-	ArtifactTransfersEnabled     bool
-	TaskCacheInventoryEnabled    bool
-	AgentNetworkInventoryEnabled bool
-	SSHScriptsEnabled            bool
-	AgentScriptsEnabled          bool
+	FabricIssueVerificationEnabled bool
+	ArtifactTransfersEnabled       bool
+	TaskCacheInventoryEnabled      bool
+	AgentNetworkInventoryEnabled   bool
+	SSHScriptsEnabled              bool
+	AgentScriptsEnabled            bool
 	// AgentTasksEnabled admits HTTP read-only tasks; no task transport or CA is
 	// loaded by this switch. Dispatch remains exclusively worker-owned.
 	AgentTasksEnabled       bool

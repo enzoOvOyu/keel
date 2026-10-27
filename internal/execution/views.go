@@ -466,7 +466,11 @@ func (s *Service) Relations(ctx context.Context, project, id string) (*Execution
 	if x.Mode == "kea" {
 		e = tx.QueryRowContext(ctx, `SELECT id FROM ztp_kea_deployments WHERE project_id=$1 AND execution_id=$2`, project, id).Scan(&out.KeaDeploymentID)
 	}
-	if x.Mode == "fabric" {
+	if issue, _ := x.Parameters["issue_id"].(string); issue != "" {
+		out.IssueIDs = []string{issue}
+		out.Warnings = []string{}
+	}
+	if x.Mode == "fabric" && x.Parameters["issue_verification_id"] == nil {
 		e = tx.QueryRowContext(ctx, `SELECT id FROM network_push_jobs WHERE project_id=$1 AND (prepare_execution_id=$2 OR push_execution_id=$2)`, project, id).Scan(&out.PushJobID)
 	}
 	if e != nil && !errors.Is(e, sql.ErrNoRows) {

@@ -21,6 +21,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/issues/{issueId}/verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Current membership-scoped immutable verification requests and domain outcomes. Execution task success means recollection completion; only current scoped PASS can propose closure. Unknown transport retains quarantined resources. */
+        get: operations["listIssueVerifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/issue-escalations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Durable escalation notices for enabled DL recipients selected when two verifications failed, subject to current project DL membership; platform admins may read all. Recorded notices do not prove external mail delivery. */
+        get: operations["listIssueEscalationInbox"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/issues/{issueId}/verification-scope": {
         parameters: {
             query?: never;
@@ -28,7 +62,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Read-only current scoped revalidation preflight. Resolves trusted discovery, latest repair, network BOM, stable switch/port identities, origin, policy/intent and required category checks. No execution is created; execution_available remains false until the shared execution consumer is connected. scope_hash excludes read time; submission must recompute scope and permissions. Never closure evidence. */
+        /** @description Read-only current scoped revalidation preflight. Resolves trusted discovery, latest repair, network BOM, stable switch/port identities, origin, policy/intent and required category checks. No execution is created; execution_available requires the opt-in switch, current repair and scope, and an implemented domain consumer. scope_hash excludes read time; submission must recompute scope and permissions. Never closure evidence. */
         get: operations["getIssueVerificationScope"];
         put?: never;
         post?: never;
@@ -3324,8 +3358,77 @@ export interface components {
             }[];
             /** Format: date-time */
             valid_until: string;
-            /** @enum {boolean} */
-            execution_available: false;
+            execution_available: boolean;
+            management_hash: string;
+        };
+        IssueVerificationRequest: {
+            id: string;
+            issue_id: string;
+            project_id: string;
+            execution_id: string;
+            scope_hash: string;
+            reason: string;
+            created_by: string;
+            /** Format: int64 */
+            issue_version: number;
+            snapshot: components["schemas"]["IssueVerificationScope"];
+            /** Format: date-time */
+            created_at: string;
+        };
+        IssueVerificationStatus: {
+            request: components["schemas"]["IssueVerificationRequest"];
+            execution_state: string;
+            code: string;
+            evidence_id: string;
+            /** @enum {string} */
+            verdict: "" | "PASS" | "FAIL" | "BLOCKED";
+            finding: {
+                cable_uid: string;
+                endpoint_a_uid: string;
+                endpoint_b_uid: string;
+                /** @enum {string} */
+                verdict: "pending" | "anomaly" | "precheck_pass";
+                issue_type?: string;
+                reason: string;
+                /** @enum {string} */
+                source: "switch";
+                rule_ref: string;
+            } | null;
+            /** Format: date-time */
+            valid_until: string | null;
+            /** Format: int64 */
+            applied_issue_version: number | null;
+            stale: boolean;
+            can_close: boolean;
+            escalated: boolean;
+            recipient_ids: string[];
+        };
+        IssueVerificationPage: {
+            items: components["schemas"]["IssueVerificationStatus"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        IssueVerificationInput: {
+            /** Format: int64 */
+            version: number;
+            scope_hash: string;
+            reason: string;
+        };
+        IssueEscalationNotice: {
+            request_id: string;
+            issue_id: string;
+            project_id: string;
+            execution_id: string;
+            title: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        IssueEscalationPage: {
+            items: components["schemas"]["IssueEscalationNotice"][];
+            total: number;
+            page: number;
+            page_size: number;
         };
         FabricDiagnosticRecordInput: {
             port?: string;
@@ -6993,6 +7096,63 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    listIssueVerifications: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                issueId: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped immutable history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueVerificationPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listIssueEscalationInbox: {
+        parameters: {
+            query?: {
+                project_id?: components["schemas"]["EntityID"];
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped immutable history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueEscalationPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getIssueVerificationScope: {

@@ -57,6 +57,7 @@ func main() {
 	if e != nil {
 		fail("fabric probe configuration rejected")
 	}
+	store.FabricIssueVerificationEnabled = os.Getenv("KEEL_FABRIC_ISSUE_VERIFY_ENABLED") == "true"
 	store.ProvisionPrepareEnabled = os.Getenv("KEEL_PROVISION_PREPARE_ENABLED") == "true"
 	if e = store.ConfigureProvisionInstall(os.Getenv("KEEL_PROVISION_INSTALL_ENABLED") == "true", os.Getenv("KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE")); e != nil {
 		fail("provision installer public trust configuration rejected")
@@ -89,6 +90,9 @@ func main() {
 	}
 	if _, e = store.FabricProbes.NetworkClient(); e == nil {
 		service.NetworkStore = store
+	}
+	if store.FabricIssueVerificationEnabled && store.FabricProbes.CollectorConfigured() {
+		service.IssueStore = store
 	}
 	agentConfig, e := agentidentity.Load(os.Getenv("KEEL_AGENT_WORKER_FILE"))
 	if e != nil || (agentConfig != nil && !agentConfig.TasksEnabled) {

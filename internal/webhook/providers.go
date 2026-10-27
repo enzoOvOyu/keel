@@ -114,10 +114,12 @@ type providerEvent struct {
 	ContentType string    `json:"datacontenttype"`
 	Time        time.Time `json:"time"`
 	Data        struct {
-		ProjectID   string `json:"project_id"`
-		ExecutionID string `json:"execution_id"`
-		Version     int64  `json:"aggregate_version"`
-		State       string `json:"state,omitempty"`
+		ProjectID           string `json:"project_id"`
+		ExecutionID         string `json:"execution_id"`
+		IssueID             string `json:"issue_id,omitempty"`
+		FailedVerifications int    `json:"failed_verifications,omitempty"`
+		Version             int64  `json:"aggregate_version"`
+		State               string `json:"state,omitempty"`
 	} `json:"data"`
 }
 
@@ -125,8 +127,15 @@ func providerText(s *Sink, eventID string, body []byte) (string, string, error) 
 	var event providerEvent
 	decoder := json.NewDecoder(bytes.NewReader(body))
 	decoder.DisallowUnknownFields()
-	if len(body) > 64<<10 || decoder.Decode(&event) != nil || decoder.Decode(new(any)) != io.EOF || event.SpecVersion != "1.0" || event.ID != eventID || event.Data.ProjectID != s.ProjectID || event.Source != "urn:keel:project:"+s.ProjectID || !identity.MatchString(event.Data.ExecutionID) || event.Subject != "execution/"+event.Data.ExecutionID || event.ContentType != "application/json" || event.Time.IsZero() || event.Data.Version < 1 || !eventTypes[event.Type] {
+	if len(body) > 64<<10 || decoder.Decode(&event) != nil || decoder.Decode(new(any)) != io.EOF || event.SpecVersion != "1.0" || event.ID != eventID || event.Data.ProjectID != s.ProjectID || event.Source != "urn:keel:project:"+s.ProjectID || !identity.MatchString(event.Data.ExecutionID) || event.ContentType != "application/json" || event.Time.IsZero() || event.Data.Version < 1 || !eventTypes[event.Type] {
 		return "", "", errors.New("invalid public notification event")
+	}
+	if event.Type == "issue.escalated" {
+		if !identity.MatchString(event.Data.IssueID) || event.Data.FailedVerifications != 2 || event.Subject != "issue/"+event.Data.IssueID {
+			return "", "", errors.New("invalid issue escalation projection")
+		}
+	} else if event.Subject != "execution/"+event.Data.ExecutionID || event.Data.IssueID != "" || event.Data.FailedVerifications != 0 {
+		return "", "", errors.New("invalid execution event subject")
 	}
 	allowed := false
 	for _, kind := range s.EventTypes {
@@ -154,6 +163,9 @@ func providerText(s *Sink, eventID string, body []byte) (string, string, error) 
 	text := fmt.Sprintf("%s\nProject: %s\nExecution: %s\nEvent: %s\nVersion: %d\nTime: %s", subject, s.ProjectID, event.Data.ExecutionID, event.ID, event.Data.Version, event.Time.UTC().Format(time.RFC3339Nano))
 	if event.Data.State != "" {
 		text += "\nState: " + event.Data.State
+	}
+	if event.Type == "issue.escalated" {
+		text += "\nIssue: " + event.Data.IssueID + "\nTwo scoped verifications failed. DL review and evidence-based replacement assessment required."
 	}
 	return subject, text, nil
 }

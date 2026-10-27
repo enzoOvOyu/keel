@@ -20,6 +20,7 @@ func TestVerificationScopeIdentityExcludesReadTimeButPinsAdmissionFacts(t *testi
 		name   string
 		change func(*IssueVerificationScope)
 	}{
+		{"management identity", func(v *IssueVerificationScope) { v.ManagementHash = "changed-management" }},
 		{"issue revision", func(v *IssueVerificationScope) { v.IssueVersion++ }},
 		{"repair revision", func(v *IssueVerificationScope) { v.RepairVersion++ }},
 		{"network BOM", func(v *IssueVerificationScope) { v.PackageID = "changed" }},

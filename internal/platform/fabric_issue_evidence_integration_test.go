@@ -148,7 +148,7 @@ func TestFabricIssueEvidencePostgresIdentityProvenanceAndHistory(t *testing.T) {
 	if e != nil || scope.PackageID != pkg || scope.CableUID != cableID || scope.EvidenceOrigin != "protocol_fixture" || len(scope.Targets) != 2 || scope.ExecutionAvailable || len(scope.ScopeHash) != 64 {
 		t.Fatalf("verification scope: %+v %v", scope, e)
 	}
-	if !slices.Contains(scope.Blockers, "issue_must_be_in_repair") || !slices.Contains(scope.Blockers, "current_repair_record_required") || !slices.Contains(scope.Blockers, "targeted_execution_adapter_pending") {
+	if !slices.Contains(scope.Blockers, "issue_must_be_in_repair") || !slices.Contains(scope.Blockers, "current_repair_record_required") || !slices.Contains(scope.Blockers, "targeted_execution_disabled") {
 		t.Fatalf("incomplete verification silently admitted: %+v", scope)
 	}
 	scopeAgain, e := s.IssueVerificationScope(ctx, actor, id)

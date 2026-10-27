@@ -341,7 +341,7 @@ func (s *Service) Control(ctx context.Context, a *Actor, projectID, id string, i
 		return nil, e
 	}
 	defer tx.Rollback()
-	if e = authorize(ctx, tx, a, projectID, "Admin", "DE", "DL", "SRE", "NDE"); e != nil {
+	if e = authorize(ctx, tx, a, projectID, "Admin", "DE", "DL", "SRE", "NDE", "NE"); e != nil {
 		return nil, e
 	}
 	idem, prior, e := idempotency(ctx, tx, a, "execution.control:"+id, key, in)
@@ -359,7 +359,24 @@ func (s *Service) Control(ctx context.Context, a *Actor, projectID, id string, i
 	if e != nil {
 		return nil, e
 	}
-	if x.Mode == "kea" || x.Mode == "fabric" {
+	if request, _ := x.Parameters["issue_verification_id"].(string); request != "" {
+		if e = authorize(ctx, tx, a, projectID, "Admin", "DL", "NE"); e != nil {
+			return nil, e
+		}
+		var assignee string
+		if e = tx.QueryRowContext(ctx, `SELECT coalesce(i.assignee_id,'') FROM issue_verification_requests q JOIN issues i ON i.id=q.issue_id WHERE q.id=$1 AND q.execution_id=$2`, request, id).Scan(&assignee); e != nil {
+			return nil, e
+		}
+		if !a.User.IsAdmin {
+			var role string
+			if e = tx.QueryRowContext(ctx, "SELECT role FROM memberships WHERE project_id=$1 AND user_id=$2", projectID, a.User.ID).Scan(&role); e != nil {
+				return nil, e
+			}
+			if role == "NE" && assignee != a.User.ID {
+				return nil, platform.ErrForbidden
+			}
+		}
+	} else if x.Mode == "kea" || x.Mode == "fabric" {
 		if e = authorize(ctx, tx, a, projectID, "Admin", "NDE"); e != nil {
 			return nil, e
 		}

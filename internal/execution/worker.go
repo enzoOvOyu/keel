@@ -82,7 +82,7 @@ func (s *Service) Claim(ctx context.Context, worker string, lease time.Duration)
 	cursorTime := time.Unix(0, 0)
 	cursorID := ""
 	for {
-		rows, e := s.DB.QueryContext(ctx, "SELECT id,created_at FROM exec_executions WHERE desired_state='running' AND state IN('scheduled','dispatching','running') AND (created_at,id)>($1,$2) AND (mode IN('sim','control') OR ($3 AND mode='kea') OR ($4 AND mode='fabric') OR ($5 AND mode='ssh') OR ($6 AND mode='agent') OR ($7 AND mode='provision')) ORDER BY created_at,id LIMIT 64", cursorTime, cursorID, s.KeaStore != nil, s.NetworkStore != nil, s.SSHRunner != nil, s.AgentRunner != nil, s.ProvisionStore != nil && (s.ProvisionStore.ProvisionPrepareEnabled || s.ProvisionStore.ProvisionInstallEnabled))
+		rows, e := s.DB.QueryContext(ctx, "SELECT id,created_at FROM exec_executions WHERE desired_state='running' AND state IN('scheduled','dispatching','running') AND (created_at,id)>($1,$2) AND (mode IN('sim','control') OR ($3 AND mode='kea') OR ($4 AND mode='fabric') OR ($5 AND mode='ssh') OR ($6 AND mode='agent') OR ($7 AND mode='provision')) ORDER BY created_at,id LIMIT 64", cursorTime, cursorID, s.KeaStore != nil, s.NetworkStore != nil || s.IssueStore != nil, s.SSHRunner != nil, s.AgentRunner != nil, s.ProvisionStore != nil && (s.ProvisionStore.ProvisionPrepareEnabled || s.ProvisionStore.ProvisionInstallEnabled))
 		if e != nil {
 			return nil, e
 		}
@@ -134,7 +134,8 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 	// revocation. UI logout does not cancel an accepted job; removed execution
 	// permission or account disable prevents subsequent task dispatch.
 	var creator, projectID, executionMode string
-	e = tx.QueryRowContext(ctx, "SELECT created_by,project_id,mode FROM exec_executions WHERE id=$1", id).Scan(&creator, &projectID, &executionMode)
+	var issueVerification bool
+	e = tx.QueryRowContext(ctx, "SELECT created_by,project_id,mode,parameters ? 'issue_verification_id' FROM exec_executions WHERE id=$1", id).Scan(&creator, &projectID, &executionMode, &issueVerification)
 	if e != nil {
 		return nil, e
 	}
@@ -147,11 +148,16 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 	if executionMode == "ssh" && s.SSHRunner == nil {
 		return nil, nil
 	}
-	if executionMode == "fabric" && s.NetworkStore == nil {
+	if executionMode == "fabric" && ((!issueVerification && s.NetworkStore == nil) || (issueVerification && s.IssueStore == nil)) {
 		return nil, nil
 	}
 	if executionMode == "kea" && s.KeaStore == nil {
 		return nil, nil
+	}
+	if issueVerification {
+		if e = advisory(ctx, tx, "keel-admin-initialization"); e != nil {
+			return nil, e
+		}
 	}
 	var enabled, admin bool
 	e = tx.QueryRowContext(ctx, "SELECT enabled,is_admin FROM users WHERE id=$1 FOR SHARE", creator).Scan(&enabled, &admin)
@@ -170,7 +176,11 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 		if e != nil && !errors.Is(e, sql.ErrNoRows) {
 			return nil, e
 		}
-		allowed = allowed && (role == "Admin" || ((executionMode == "kea" || executionMode == "fabric") && role == "NDE") || ((executionMode == "sim" || executionMode == "ssh" || executionMode == "agent" || executionMode == "provision" || executionMode == "control") && (role == "DE" || role == "DL" || role == "SRE")))
+		if issueVerification {
+			allowed = allowed && (role == "Admin" || role == "DL" || role == "NE")
+		} else {
+			allowed = allowed && (role == "Admin" || ((executionMode == "kea" || executionMode == "fabric") && role == "NDE") || ((executionMode == "sim" || executionMode == "ssh" || executionMode == "agent" || executionMode == "provision" || executionMode == "control") && (role == "DE" || role == "DL" || role == "SRE")))
+		}
 	}
 	x, e := scanExecution(tx.QueryRowContext(ctx, "SELECT "+executionColumns+" FROM exec_executions WHERE id=$1 AND desired_state='running' AND state IN('scheduled','dispatching','running') FOR UPDATE SKIP LOCKED", id))
 	if errors.Is(e, sql.ErrNoRows) {
@@ -321,7 +331,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 					return nil, tx.Commit()
 				}
 			}
-			if x.Mode == "fabric" {
+			if x.Mode == "fabric" && !issueVerification {
 				job, _ := x.Parameters["network_push_id"].(string)
 				phase, _ := x.Parameters["network_phase"].(string)
 				admitted, err := s.NetworkStore.NetworkClaimAllowedTx(ctx, tx, x.ProjectID, job, target.ResourceKey, phase)
@@ -348,6 +358,29 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 			}
 			if x.Snapshot.Flow.Definition.APIVersion == "keel.host/v1" && (x.Mode == "ssh" || x.Mode == "agent") {
 				resources = append(resources, x.Mode+":machine:"+target.ResourceKey)
+			}
+			if issueVerification {
+				if task.Type != "issue.verify" {
+					return nil, conflict("Issue execution task differs from admitted verification")
+				}
+				request, _ := x.Parameters["issue_verification_id"].(string)
+				resources, e = s.IssueStore.IssueVerificationResourcesTx(ctx, tx, request, id)
+				if e != nil {
+					var business *platform.Error
+					if errors.As(e, &business) && business.Status == 409 {
+						if _, e = tx.ExecContext(ctx, "UPDATE exec_executions SET desired_state='paused',state_version=state_version+1 WHERE id=$1", id); e != nil {
+							return nil, e
+						}
+						if e = event(ctx, tx, id, "execution.authorization_blocked", map[string]string{"reason": "issue_verification_scope_changed"}); e != nil {
+							return nil, e
+						}
+						if e = settle(ctx, tx, id); e != nil {
+							return nil, e
+						}
+						return nil, tx.Commit()
+					}
+					return nil, e
+				}
 			}
 			sort.Strings(resources)
 			mode := "exclusive"
@@ -449,6 +482,17 @@ func (s *Service) Heartbeat(ctx context.Context, c *Claim) (bool, error) {
 	return desired == "killed" || s.scriptHeartbeatTx(ctx, tx, c), tx.Commit()
 }
 func (s *Service) RecordReceipt(ctx context.Context, r Receipt) error {
+	tx, e := s.DB.BeginTx(ctx, nil)
+	if e != nil {
+		return e
+	}
+	defer tx.Rollback()
+	if e = s.recordReceiptTx(ctx, tx, r); e != nil {
+		return e
+	}
+	return tx.Commit()
+}
+func (s *Service) recordReceiptTx(ctx context.Context, tx *sql.Tx, r Receipt) error {
 	if r.Result != "success" && r.Result != "failed" && r.Result != "cancelled" {
 		return invalid("invalid receipt result")
 	}
@@ -460,11 +504,7 @@ func (s *Service) RecordReceipt(ctx context.Context, r Receipt) error {
 		return invalid("receipt exceeds 16 KiB")
 	}
 	digest := hash(data)
-	tx, e := s.DB.BeginTx(ctx, nil)
-	if e != nil {
-		return e
-	}
-	defer tx.Rollback()
+	var e error
 	var runner string
 	e = tx.QueryRowContext(ctx, "SELECT runner FROM exec_task_attempts WHERE id=$1 AND command_id=$2 AND fencing_token=$3 AND state IN('running','unknown','success','failed','cancelled')", r.AttemptID, r.CommandID, r.FencingToken).Scan(&runner)
 	if errors.Is(e, sql.ErrNoRows) {
@@ -481,7 +521,7 @@ func (s *Service) RecordReceipt(ctx context.Context, r Receipt) error {
 		if existing != digest {
 			return failure(409, "RECEIPT_CONFLICT", "command receipt is immutable")
 		}
-		return tx.Commit()
+		return nil
 	}
 	if !errors.Is(e, sql.ErrNoRows) {
 		return e
@@ -509,7 +549,7 @@ func (s *Service) RecordReceipt(ctx context.Context, r Receipt) error {
 	if prior != digest {
 		return failure(409, "RECEIPT_CONFLICT", "command receipt is immutable")
 	}
-	return tx.Commit()
+	return nil
 }
 func (s *Service) Complete(ctx context.Context, c *Claim) error {
 	tx, e := s.DB.BeginTx(ctx, nil)
@@ -517,6 +557,11 @@ func (s *Service) Complete(ctx context.Context, c *Claim) error {
 		return e
 	}
 	defer tx.Rollback()
+	if c.Task.Type == "issue.verify" {
+		if e = advisory(ctx, tx, "keel-admin-initialization"); e != nil {
+			return e
+		}
+	}
 	var id string
 	if e = tx.QueryRowContext(ctx, "SELECT id FROM exec_executions WHERE id=$1 FOR UPDATE", c.Attempt.ExecutionID).Scan(&id); e != nil {
 		return e
@@ -544,6 +589,9 @@ func (s *Service) Complete(ctx context.Context, c *Claim) error {
 	}
 	if a.State != "running" || a.LeaseUntil == nil || !a.LeaseUntil.After(time.Now()) {
 		return failure(409, "STALE_LEASE", "late completion requires explicit reconciliation")
+	}
+	if e = s.applyIssueVerificationReceipt(ctx, tx, a, r); e != nil {
+		return e
 	}
 	if e = s.applyProvisionReceipt(ctx, tx, a, r); e != nil {
 		return e
@@ -682,6 +730,9 @@ func (s *Service) Reconcile(ctx context.Context, a *Actor, projectID, id, attemp
 		return nil, e
 	}
 	defer tx.Rollback()
+	if e = lockIssueVerificationExecutionTx(ctx, tx, id); e != nil {
+		return nil, e
+	}
 	if e = authorize(ctx, tx, a, projectID, "Admin", "DL", "SRE"); e != nil {
 		return nil, e
 	}
@@ -727,6 +778,9 @@ func (s *Service) Reconcile(ctx context.Context, a *Actor, projectID, id, attemp
 		return nil, failure(409, "EVIDENCE_CONFLICT", "claimed result does not match the durable runner receipt")
 	}
 	// Reconciliation never silently creates a retry, even for an idempotent task.
+	if e = s.applyIssueVerificationReceipt(ctx, tx, attempt, r); e != nil {
+		return nil, e
+	}
 	if e = s.applyProvisionReceipt(ctx, tx, attempt, r); e != nil {
 		return nil, e
 	}
@@ -753,7 +807,7 @@ func (s *Service) Reconcile(ctx context.Context, a *Actor, projectID, id, attemp
 }
 func (s *Service) WorkerHeartbeat(ctx context.Context, id string, active int) error {
 	mode := "sim"
-	if s.KeaStore != nil || s.NetworkStore != nil || s.SSHRunner != nil || s.AgentRunner != nil || s.ProvisionStore != nil {
+	if s.KeaStore != nil || s.NetworkStore != nil || s.IssueStore != nil || s.SSHRunner != nil || s.AgentRunner != nil || s.ProvisionStore != nil {
 		mode = "mixed"
 	}
 	_, e := s.DB.ExecContext(ctx, "INSERT INTO exec_worker_heartbeats(id,mode,queue_mode,active_count,observed_at) VALUES($1,$2,$3,$4,now()) ON CONFLICT(id) DO UPDATE SET mode=EXCLUDED.mode,queue_mode=EXCLUDED.queue_mode,active_count=EXCLUDED.active_count,observed_at=EXCLUDED.observed_at", id, mode, s.queueMode(), active)
@@ -762,7 +816,7 @@ func (s *Service) WorkerHeartbeat(ctx context.Context, id string, active int) er
 func (s *Service) WorkerHealthy(ctx context.Context, id string) error {
 	var yes bool
 	mode := "sim"
-	if s.KeaStore != nil || s.NetworkStore != nil || s.SSHRunner != nil || s.AgentRunner != nil || s.ProvisionStore != nil {
+	if s.KeaStore != nil || s.NetworkStore != nil || s.IssueStore != nil || s.SSHRunner != nil || s.AgentRunner != nil || s.ProvisionStore != nil {
 		mode = "mixed"
 	}
 	e := s.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM exec_worker_heartbeats WHERE id=$1 AND mode=$2 AND queue_mode=$3 AND observed_at>now()-interval '10 seconds')", id, mode, s.queueMode()).Scan(&yes)

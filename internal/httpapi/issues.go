@@ -1,11 +1,66 @@
 package httpapi
 
 import (
+	"github.com/enzoOvOyu/keel/internal/execution"
 	"github.com/enzoOvOyu/keel/internal/platform"
 	"github.com/gin-gonic/gin"
 )
 
 func (a *authAPI) registerIssues(r *gin.Engine) {
+	r.GET("/api/v1/issue-escalations", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		p, ok := readPagination(c)
+		if !ok {
+			return
+		}
+		out, e := a.store.IssueEscalationInbox(c.Request.Context(), actor, c.Query("project_id"), p)
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
+	r.POST("/api/v1/projects/:id/issues/:issueId/verifications", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok || !a.writeAllowed(c) {
+			return
+		}
+		var in platform.IssueVerificationInput
+		if !decodeBody(c, &in) {
+			return
+		}
+		if _, e := a.store.GetProject(c.Request.Context(), actor, c.Param("id")); e != nil {
+			a.respondError(c, e)
+			return
+		}
+		service := execution.New(a.store.DB)
+		service.IssueStore = a.store
+		out, e := service.CreateIssueVerification(c.Request.Context(), actor, c.Param("id"), c.Param("issueId"), in, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(201, out)
+	})
+	r.GET("/api/v1/issues/:issueId/verifications", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		p, ok := readPagination(c)
+		if !ok {
+			return
+		}
+		out, e := a.store.IssueVerifications(c.Request.Context(), actor, c.Param("issueId"), p)
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
 	r.GET("/api/v1/issues/:issueId/verification-scope", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {

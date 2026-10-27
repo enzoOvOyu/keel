@@ -200,3 +200,25 @@ func TestWebhookProviderConfigurationAndPolicyBoundaries(t *testing.T) {
 		t.Fatal("closed notification credentials retained")
 	}
 }
+
+func TestIssueEscalationProviderProjectionIsScoped(t *testing.T) {
+	project, execution, issue, id := strings.Repeat("a", 32), strings.Repeat("b", 32), strings.Repeat("d", 32), strings.Repeat("c", 32)
+	sink := &Sink{ProjectID: project, EventTypes: []string{"issue.escalated"}, Format: "slack"}
+	event := map[string]any{"specversion": "1.0", "id": id, "source": "urn:keel:project:" + project, "type": "issue.escalated", "subject": "issue/" + issue, "time": time.Now().UTC(), "datacontenttype": "application/json", "data": map[string]any{"project_id": project, "execution_id": execution, "issue_id": issue, "failed_verifications": 2, "aggregate_version": 3}}
+	raw, _ := json.Marshal(event)
+	_, text, err := providerText(sink, id, raw)
+	if err != nil || !strings.Contains(text, "Issue: "+issue) || !strings.Contains(text, "DL review") {
+		t.Fatalf("missing scoped escalation: %s %v", text, err)
+	}
+	event["subject"] = "execution/" + execution
+	raw, _ = json.Marshal(event)
+	if _, _, err = providerText(sink, id, raw); err == nil {
+		t.Fatal("accepted escalation without issue subject")
+	}
+	event["subject"] = "issue/" + issue
+	event["data"].(map[string]any)["raw_evidence"] = "must never reach provider projection"
+	raw, _ = json.Marshal(event)
+	if _, _, err = providerText(sink, id, raw); err == nil {
+		t.Fatal("accepted unrestricted evidence in public notification")
+	}
+}

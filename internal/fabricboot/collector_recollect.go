@@ -112,6 +112,12 @@ func (r CollectorRecollectResponse) Validate(request CollectorRecollectRequest, 
 	}
 	return nil
 }
+
+// RecollectionUnknown means that the remote read may still own a session.
+// It is not a stopped receipt and must leave execution resources quarantined.
+type RecollectionUnknown struct{ Reason string }
+
+func (e *RecollectionUnknown) Error() string { return e.Reason }
 func (s *ProbeSuite) RecollectPorts(ctx context.Context, request CollectorRecollectRequest) (*CollectorRecollectResponse, error) {
 	if e := request.Validate(); e != nil {
 		return nil, e
@@ -144,22 +150,22 @@ func (s *ProbeSuite) RecollectPorts(ctx context.Context, request CollectorRecoll
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	response, e := client.Do(req)
 	if e != nil {
-		return nil, errors.New("targeted recollection request failed; no proof of fresh observations")
+		return nil, &RecollectionUnknown{Reason: "targeted recollection request failed; no proof of fresh observations"}
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.New("collector did not return completed recollection evidence")
+		return nil, &RecollectionUnknown{Reason: "collector did not return completed recollection evidence"}
 	}
 	raw, e = io.ReadAll(io.LimitReader(response.Body, (1<<20)+1))
 	if e != nil || len(raw) > 1<<20 {
-		return nil, errors.New("recollection evidence is unreadable or too large")
+		return nil, &RecollectionUnknown{Reason: "recollection evidence is unreadable or too large"}
 	}
 	var out CollectorRecollectResponse
 	if e = json.Unmarshal(raw, &out); e != nil {
-		return nil, errors.New("invalid recollection evidence")
+		return nil, &RecollectionUnknown{Reason: "invalid recollection evidence"}
 	}
 	if e = out.Validate(request, time.Now().UTC()); e != nil {
-		return nil, e
+		return nil, &RecollectionUnknown{Reason: "collector completion proof failed validation"}
 	}
 	return &out, nil
 }

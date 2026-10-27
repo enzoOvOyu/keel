@@ -385,6 +385,9 @@ func (s *Store) GetIssue(ctx context.Context, a *AuthSession, id string) (*Issue
 		return nil, e
 	}
 	v.AllowedTransitions = issueTransitions(v, role, a.User.ID)
+	if e = s.issueVerificationTransitionsTx(ctx, tx, a, v, role); e != nil {
+		return nil, e
+	}
 	out := &IssueDetail{Issue: *v, Events: []IssueEvent{}}
 	rows, e := tx.QueryContext(ctx, `SELECT id,version,actor_id,action,data,created_at FROM issue_events WHERE issue_id=$1 ORDER BY version`, id)
 	if e != nil {
@@ -467,11 +470,28 @@ func (s *Store) ActOnIssue(ctx context.Context, a *AuthSession, id, action strin
 	if v.Version != in.Version {
 		return nil, errVersion
 	}
-	if action == "verify" || action == "close" {
-		return nil, apiError(409, "ISSUE_REVALIDATION_REQUIRED", "Current scoped revalidation evidence is required; this action is not available")
+	if action == "verify" {
+		return nil, apiError(409, "ISSUE_REVALIDATION_REQUIRED", "Submit a versioned scope to the dedicated verification execution endpoint")
 	}
-	if !slices.Contains(issueTransitions(v, role, a.User.ID), action) {
-		return nil, apiError(409, "ISSUE_TRANSITION_DENIED", "This action is not allowed in the current state or assignment")
+	var verificationProof *IssueVerificationRequest
+	if action == "close" {
+		if !canConfirmIssueVerification(v, role, a.User.ID) {
+			return nil, ErrForbidden
+		}
+		if v.State != "verify" {
+			return nil, apiError(409, "ISSUE_REVALIDATION_REQUIRED", "Current successful scoped verification is required")
+		}
+		verificationProof, e = s.issueVerificationCloseEvidenceTx(ctx, tx, v)
+		if e != nil {
+			return nil, e
+		}
+	} else {
+		if e = s.issueVerificationTransitionsTx(ctx, tx, a, v, role); e != nil {
+			return nil, e
+		}
+		if !slices.Contains(v.AllowedTransitions, action) && !slices.Contains(issueTransitions(v, role, a.User.ID), action) {
+			return nil, apiError(409, "ISSUE_TRANSITION_DENIED", "This action is not allowed in the current state or assignment")
+		}
 	}
 	state := v.State
 	assignee := v.AssigneeID
@@ -493,6 +513,12 @@ func (s *Store) ActOnIssue(ctx context.Context, a *AuthSession, id, action strin
 	case "start":
 		state = "in_repair"
 	case "repair":
+		if v.State == "verify" {
+			if e = issueVerificationRepairAllowedTx(ctx, tx, v); e != nil {
+				return nil, e
+			}
+		}
+		state = "in_repair"
 		if !slices.Contains([]string{"reseat", "replace_cable", "replace_optic", "replace_nic", "rma_machine", "switch_repair", "configuration_fix", "flash_bios", "rma_board"}, in.RepairAction) || in.RepairAction == "flash_bios" && v.Category != "T7" {
 			return nil, apiError(400, "VALIDATION_ERROR", "Invalid repair action for this category")
 		}
@@ -502,13 +528,19 @@ func (s *Store) ActOnIssue(ctx context.Context, a *AuthSession, id, action strin
 		if utf8.RuneCountInString(in.OldSerial) > 240 || utf8.RuneCountInString(in.NewSerial) > 240 {
 			return nil, apiError(400, "VALIDATION_ERROR", "Serial/label is too long")
 		}
+	case "close":
+		state = "closed"
 	}
 	now := time.Now().UTC()
 	v, e = scanIssue(tx.QueryRowContext(ctx, `UPDATE issues SET state=$2,assignee_id=$3,version=version+1,updated_at=$4 WHERE id=$1 AND version=$5 RETURNING `+issueColumns, id, state, assignee, now, in.Version))
 	if e != nil {
 		return nil, e
 	}
-	if e = issueEventTx(ctx, tx, a, v, action, trace, in); e != nil {
+	var eventData any = in
+	if verificationProof != nil {
+		eventData = map[string]any{"version": in.Version, "reason": in.Reason, "request_id": verificationProof.ID, "execution_id": verificationProof.ExecutionID, "scope_hash": verificationProof.ScopeHash}
+	}
+	if e = issueEventTx(ctx, tx, a, v, action, trace, eventData); e != nil {
 		return nil, e
 	}
 	v.AllowedTransitions = issueTransitions(v, role, a.User.ID)
