@@ -7,6 +7,29 @@ import (
 
 func (a *authAPI) registerFabricDiagnostics(r *gin.Engine) {
 	base := "/api/v1/projects/:id/fabric/devices/:deviceId"
+	r.POST(base+"/diagnostics/record", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok || !a.writeAllowed(c) {
+			return
+		}
+		var input struct {
+			Port string `json:"port"`
+		}
+		if !decodeBody(c, &input) {
+			return
+		}
+		p, e := a.store.GetProject(c.Request.Context(), actor, c.Param("id"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		out, e := a.store.RecordFabricDiagnostics(c.Request.Context(), actor, p, c.Param("deviceId"), input.Port, c.GetString("trace_id"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
 	r.GET(base+"/diagnostics", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {

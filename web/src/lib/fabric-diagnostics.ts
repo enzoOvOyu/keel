@@ -6,3 +6,5 @@ const path=(project:string,device:string)=>`/projects/${encodeURIComponent(proje
 export const fabricDiagnostics=(project:string,device:string,signal:AbortSignal)=>request<PortDiagnostics>(path(project,device)+'/diagnostics',{signal})
 export const ddmTrends=(project:string,device:string,port:string,hours:24|48,signal:AbortSignal)=>request<DDMTrends>(`${path(project,device)}/ddm-trends?${new URLSearchParams({port,hours:String(hours)})}`,{signal})
 export const ddmExportProof=(project:string,device:string,csrf:string,report:DDMTrends)=>request<DDMTrends>(`${path(project,device)}/ddm-trends/export`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify({port:report.port,hours:report.hours,content_hash:report.content_hash})})
+
+export const recordFabricDiagnostics=(project:string,device:string,csrf:string)=>request<components['schemas']['FabricDiagnosticRecord']>(path(project,device)+'/diagnostics/record',{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify({})})

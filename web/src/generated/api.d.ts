@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{id}/fabric/devices/{deviceId}/diagnostics/record": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Compute and freeze diagnostics from current trusted cached collector observations. Requires current fabric:collect permission, CSRF and Origin. No device-side recollection. Unknown/not-applicable never opens a fault; clear T2-rail/T3/T4/T6 anomalies share the issue pool. Same evidence and scope reuse the original record and expiry; this is not G2/NP-3 or closure PASS. */
+        post: operations["recordFabricDiagnostics"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/issues/{issueId}/port-diagnostics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Read immutable diagnostic records linked to an issue in a currently authorized project; history retains policy, intended configuration, DDM thresholds, optics and collection references. Expired/network-BOM-changed records are stale. */
+        get: operations["listFabricPortIssueEvidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/issues/{issueId}/fabric-observations": {
         parameters: {
             query?: never;
@@ -3231,6 +3265,25 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FabricDiagnosticRecord: {
+            id: string;
+            content_hash: string;
+            port_scope: string;
+            /** Format: date-time */
+            recorded_at: string;
+            stale: boolean;
+            report: components["schemas"]["FabricDiagnosticsReport"];
+            issue_ids: string[];
+        };
+        FabricDiagnosticRecordPage: {
+            items: components["schemas"]["FabricDiagnosticRecord"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        FabricDiagnosticRecordInput: {
+            port?: string;
+        };
         FabricIssueLink: {
             cable_uid: string;
             issue_id: string;
@@ -4434,6 +4487,26 @@ export interface components {
             intent_hash: string;
             ports: components["schemas"]["FabricPortDiagnostics"][];
             evidence_refs: string[];
+            record_id?: string;
+            collection_id: string;
+            intent_snapshot: {
+                [key: string]: {
+                    configuration: components["schemas"]["FabricInterfaceConfiguration"];
+                    rail_id?: string;
+                    leaf_serial?: string;
+                };
+            };
+            ddm_limits: {
+                [key: string]: {
+                    warn_min: number | null;
+                    warn_max: number | null;
+                    critical_min: number | null;
+                    critical_max: number | null;
+                };
+            };
+            optics_snapshot: {
+                [key: string]: components["schemas"]["FabricOpticsData"];
+            };
         };
         FabricPortDiagnostics: {
             port: string;
@@ -6839,6 +6912,73 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    recordFabricDiagnostics: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+                deviceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FabricDiagnosticRecordInput"];
+            };
+        };
+        responses: {
+            /** @description Immutable diagnostic record and issue references */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FabricDiagnosticRecord"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listFabricPortIssueEvidence: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                issueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped diagnostic history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FabricDiagnosticRecordPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     listFabricIssueObservations: {
         parameters: {
             query?: {

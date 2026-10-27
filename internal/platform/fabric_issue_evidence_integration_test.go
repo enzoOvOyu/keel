@@ -117,6 +117,31 @@ func TestFabricIssueEvidencePostgresIdentityProvenanceAndHistory(t *testing.T) {
 	if len(first.IssueLinks) != 1 {
 		t.Fatalf("automatic issue link: %+v", first.IssueLinks)
 	}
+	// Cached diagnostics are explicitly recorded; viewing alone never produces evidence.
+	if _, e = s.FabricDiagnostics(ctx, actor, project, swA, "", "test"); e != nil {
+		t.Fatal(e)
+	}
+	var diagnosticCount int
+	if e = s.DB.QueryRowContext(ctx, "SELECT count(*) FROM fabric_diagnostic_records WHERE project_id=$1", project.ID).Scan(&diagnosticCount); e != nil || diagnosticCount != 0 {
+		t.Fatalf("GET produced diagnostic evidence: %d %v", diagnosticCount, e)
+	}
+	record, e := s.RecordFabricDiagnostics(ctx, actor, project, swA, "", "test")
+	if e != nil {
+		t.Fatal(e)
+	}
+	if record.Stale || record.Report.RecordID != record.ID || record.Report.CollectionID != first.ID || record.Report.NP3 != "BLOCKED" {
+		t.Fatalf("diagnostic scope: %+v", record)
+	}
+	recordAgain, e := s.RecordFabricDiagnostics(ctx, actor, project, swA, "", "test")
+	if e != nil || recordAgain.ID != record.ID || !recordAgain.Report.ValidUntil.Equal(record.Report.ValidUntil) || !recordAgain.RecordedAt.Equal(record.RecordedAt) {
+		t.Fatalf("diagnostic retry renewed evidence: %+v %v", recordAgain, e)
+	}
+	if _, e = s.DB.ExecContext(ctx, "UPDATE fabric_diagnostic_records SET valid_until=now()+interval '1 hour' WHERE id=$1", record.ID); e == nil {
+		t.Fatal("diagnostic expiry was mutable")
+	}
+	if _, e = s.RecordFabricDiagnostics(ctx, actor, project, swA, "unmodeled-port", "test"); e == nil {
+		t.Fatal("unmodeled diagnostic scope was accepted")
+	}
 	id := first.IssueLinks[0].IssueID
 	detail, e := s.GetIssue(ctx, actor, id)
 	if e != nil || detail.Issue.Source != "fabric" || detail.Issue.Version != 1 || len(detail.Events) != 1 {

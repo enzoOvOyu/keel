@@ -13,6 +13,12 @@ import (
 )
 
 type FabricDiagnosticsReport struct {
+	RecordID       string                          `json:"record_id,omitempty"`
+	CollectionID   string                          `json:"collection_id"`
+	IntentSnapshot map[string]fabricmon.PortIntent `json:"intent_snapshot"`
+	DDMLimits      map[string]fabricmon.Range      `json:"ddm_limits"`
+	OpticsSnapshot map[string]*fabricmon.Optics    `json:"optics_snapshot"`
+
 	Version        string                      `json:"version"`
 	ProjectID      string                      `json:"project_id"`
 	PackageID      string                      `json:"package_id"`
@@ -121,9 +127,6 @@ func approvedFabricPortIntents(variables map[string]any) (map[string]fabricmon.P
 	return out, nil
 }
 func (s *Store) FabricDiagnostics(ctx context.Context, a *AuthSession, p *ProjectSummary, id, port, trace string) (*FabricDiagnosticsReport, error) {
-	if len(port) > 128 {
-		return nil, apiError(400, "FABRIC_PORT_INVALID", "Invalid port")
-	}
 	tx, e := s.beginControl(ctx, a)
 	if e != nil {
 		return nil, e
@@ -131,6 +134,19 @@ func (s *Store) FabricDiagnostics(ctx context.Context, a *AuthSession, p *Projec
 	defer tx.Rollback()
 	if e = requireFabricPermission(ctx, tx, a, p.ID, "fabric:read"); e != nil {
 		return nil, e
+	}
+	out, e := s.fabricDiagnosticsTx(ctx, tx, p, id, port)
+	if e != nil {
+		return nil, e
+	}
+	if e = appendAudit(ctx, tx, a.User.ID, p.ID, "fabric.diagnostics.read", id, trace, map[string]any{"package_id": out.PackageID, "port": port, "policy_hash": out.PolicyHash, "intent_hash": out.IntentHash, "state": out.Gate.State, "evidence_refs": out.EvidenceRefs}); e != nil {
+		return nil, e
+	}
+	return out, tx.Commit()
+}
+func (s *Store) fabricDiagnosticsTx(ctx context.Context, tx *sql.Tx, p *ProjectSummary, id, port string) (*FabricDiagnosticsReport, error) {
+	if len(port) > 128 {
+		return nil, apiError(400, "FABRIC_PORT_INVALID", "Invalid port")
 	}
 	pkg, devices, cables, e := fabricInventoryTx(ctx, tx, p.ID)
 	if e != nil {
@@ -176,6 +192,7 @@ func (s *Store) FabricDiagnostics(ctx context.Context, a *AuthSession, p *Projec
 	samples := map[string]fabricmon.Snapshot{}
 	hashes := map[string]string{}
 	if report != nil {
+		out.CollectionID = report.ID
 		out.EvidenceSource = report.EvidenceSource
 		if report.ValidUntil.Before(out.ValidUntil) {
 			out.ValidUntil = report.ValidUntil
@@ -241,6 +258,13 @@ func (s *Store) FabricDiagnostics(ctx context.Context, a *AuthSession, p *Projec
 	if e != nil {
 		return nil, e
 	}
+	out.IntentSnapshot = intents
+	limits, e := fabricDDMLimitsTx(ctx, tx, p.ID)
+	if e != nil {
+		return nil, e
+	}
+	out.DDMLimits = limits
+	out.OpticsSnapshot = map[string]*fabricmon.Optics{}
 	used := usedFabricPorts(device.Serial, cables)
 	knownSerials := map[string]bool{}
 	chassisSerials := map[string]string{}
@@ -310,6 +334,34 @@ func (s *Store) FabricDiagnostics(ctx context.Context, a *AuthSession, p *Projec
 			intent = &copy
 		}
 		checks := fabricmon.DiagnosticPorts(current, previous, name, used[name], peer, intent, policy)
+		if used[name] {
+			var optics *fabricmon.Optics
+			applicable := true
+			for _, v := range current.Ports {
+				if v.Name == name {
+					optics = v.Optics
+					if v.OpticsApplicable != nil {
+						applicable = *v.OpticsApplicable
+					}
+					break
+				}
+			}
+			out.OpticsSnapshot[name] = optics
+			state, reasons := fabricmon.JudgeOptics(optics, limits)
+			status := "normal"
+			if !applicable {
+				state = "not_applicable"
+				reasons = []string{"optics_not_applicable"}
+				status = "not_applicable"
+			}
+			if state == "unknown" {
+				status = "unknown"
+			}
+			if state == "warning" || state == "critical" {
+				status = "anomaly"
+			}
+			checks.Checks = append(checks.Checks, fabricmon.DiagnosticCheck{RuleRef: "PRECHECK-DDM@1", IssueType: "T3", State: status, Reason: strings.Join(reasons, ","), Observed: map[string]string{"ddm_state": state}, ThresholdRef: "fabric.ddm.*"})
+		}
 		out.Ports = append(out.Ports, checks)
 		for _, check := range checks.Checks {
 			state := "PASS"
@@ -344,8 +396,5 @@ func (s *Store) FabricDiagnostics(ctx context.Context, a *AuthSession, p *Projec
 		}
 	}
 	out.EvidenceRefs = unique
-	if e = appendAudit(ctx, tx, a.User.ID, p.ID, "fabric.diagnostics.read", id, trace, map[string]any{"package_id": pkg, "port": port, "policy_hash": out.PolicyHash, "intent_hash": out.IntentHash, "state": out.Gate.State, "evidence_refs": out.EvidenceRefs}); e != nil {
-		return nil, e
-	}
-	return out, tx.Commit()
+	return out, nil
 }

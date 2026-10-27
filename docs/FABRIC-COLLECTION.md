@@ -36,3 +36,14 @@
 `FabricCollectionReport.issue_links`是授权范围内的关联投影：同模式、同包线缆已有未关闭工单继续可达，即使最新观察为pending或仅网络预检通过。网络页面可跳转统一`/issues?project_id=...&issue_id=...`详情；`GET /api/v1/issues/{issueId}/fabric-observations`分页返回来源、规则、原采集run/包、观察/有效时间和指纹。过期或当前网络BOM已变化时标记stale，旧证据留档。只读历史与采集缓存读取都不意味着设备侧已重新执行采集。
 
 当前继续使用运维固定的mTLS快照GET契约；受限定向采集/复验Execution、端口诊断持久证据、有效PASS关闭及失败升级仍待后续交付。普通`verify/close`保持阻断，不把N-S5或协议仿真结果当G2/NP-3或真实硬件通过。只完成格式化、API/路由生成；新增集成用例留待P2重大里程碑集中执行。运行库与3000本轮未变。
+
+
+## P2 接续：端口诊断持久证据（源码，待里程碑验证）
+
+070迁移增加不可变`fabric_diagnostic_records`、端口工单绑定和异常观察。`POST /api/v1/projects/{id}/fabric/devices/{deviceId}/diagnostics/record`接受可选的建模端口，仅计算当前项目最新有效采集缓存；权限为当前项目`fabric:collect`，需要Origin/CSRF。普通GET诊断不创建记录或工单。该操作不调用设备重新采集，不等同定向重验Execution。
+
+记录冻结网络BOM、设备/端口范围、device/protocol_fixture来源、原采集run和样本引用、计数窗口/阈值、配置意图与DDM阈值/光模块读值。已有诊断器产生的T2-rail/T4/T6明确异常，以及DDM明确warning/critical的T3，按稳定端口/类别/子类/规则ID/来源复用同一统一工单，版本化规则留在每次观察；未知和不适用不自动开单，也不关闭既有工单。缺失后续配置意图仍为unknown，不把尚未开发的Golden作为本步开工前置。
+
+同一范围和完全相同的证据/版本复用原记录及原过期时间，读取时间或重复run不能延长其有效期。记录及关联观察只追加，规则和参数变化生成独立证据。`GET /api/v1/issues/{issueId}/port-diagnostics`按当前项目权限分页查询，保留原记录；stale当前反映TTL和网络BOM变化，不能代替后续重验准入对全部配置/规则版本与范围的复核。前端有显式记录入口、工单跳转与历史原值查看；NP-3始终BLOCKED。
+
+本批仅格式化和生成OpenAPI类型，新增指纹隔离单元用例及缓存记录/幂等/不可变/未知端口的PostgreSQL用例源码，均未执行；070尚未应用，3000不变。下一步接领域限定的重验Execution与完整证据关闭/失败升级，不把本次缓存记录冒充硬件复采或整项WP闭环。

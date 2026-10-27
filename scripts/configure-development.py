@@ -41,6 +41,7 @@ GRANT USAGE ON SCHEMA public TO keel_app;
 GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO keel_app;
 GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO keel_app;
 DO $keel$ BEGIN
+  IF to_regclass('public.fabric_diagnostic_records') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON fabric_diagnostic_records,fabric_port_issue_bindings,fabric_port_issue_observations FROM keel_app; END IF;
   IF to_regclass('public.fabric_issue_bindings') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON fabric_issue_bindings,fabric_issue_observations FROM keel_app; END IF;
   IF to_regclass('public.issue_events') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON issue_events FROM keel_app; REVOKE DELETE,TRUNCATE ON issues FROM keel_app; END IF;
   IF to_regclass('public.audits') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON audits FROM keel_app; END IF;

@@ -297,10 +297,10 @@ func evaluateIndexedCable(c Cable, samples map[string]Snapshot, ports map[string
 // Missing approved thresholds or telemetry remains unknown; thresholds are
 // supplied by the parameter catalog, never hardcoded in the UI/adapter.
 type Range struct {
-	WarnMin     *float64
-	WarnMax     *float64
-	CriticalMin *float64
-	CriticalMax *float64
+	WarnMin     *float64 `json:"warn_min"`
+	WarnMax     *float64 `json:"warn_max"`
+	CriticalMin *float64 `json:"critical_min"`
+	CriticalMax *float64 `json:"critical_max"`
 }
 
 func JudgeOptics(o *Optics, limits map[string]Range) (string, []string) {
