@@ -1786,3 +1786,11 @@ P1当前按IMPLEMENTATION-PLAN§2退出判据继续收口：认证与项目隔�
 首轮设计与PoC材料单元通过，前端类型/构建通过（契约同步后仍将纳入最终候选构建）。修复证据单元的干净新提交断言；MediaDependencies同步script/os_boot及引用schema，消除平台/执行契约漂移；rerun显式提交boolean确认字段；公钥修复工作数据转换为事件map；缓存测试改用现有外部测试包；TFTP每块/重试重验授权；测试密钥/离线产物目录使用明确私有目录，超长SSH请求断言跟随已支持脚本的16KiB边界。Docker上下文显式排除两份原草稿，以便安全构建同一候选。
 
 尚未宣布全量Go/PG/浏览器/镜像通过；失败先定位后定向复测，集中证据通过后才备份/迁移/部署3000。源64迁移，运行上次记录46，最终部署状态后续回录。本节是启动检查点，后续结果覆盖待验证状态。
+
+## 161. 集中数据库批次定位与性能issue（2026-10-27，继续验证）
+
+用户要求宿主性能相关超时先登记、不反复纠缠。已记录docs/issues/P1-001-test-host-resource-timeouts.md：MemAvailable一度376MiB、无swap、shared约10GiB；worker/CLI期限及未及时取得回执待资源充足时隔离复验，不提高超时或标PASS。gh CLI本机不可用，仅建立仓库内issue记录，未声称已发布GitHub issue。其他项目与业务服务不动，仅清理本轮已废弃的明确自有Go临时构建目录。
+
+基础全仓go test -race通过；前端build/typecheck与设计/PoC材料单元已通过。实际PG首批暴露确定性错误：缓存/网口只读事务错误调用FOR SHARE身份helper，已共享有锁准入/无锁授权快照两条查询；旧JSON BOM提交漏保存model_version_id，现与model_id同事务锁定并冻结最新已发布项目型号，保留原作用域；Webhook投递状态复用参数推断varchar/text冲突，现显式类型。修正测试夹具的多次首管理员初始化、umask下0644负例、审计DBA篡改需显式禁用并恢复触发器、ZTP历史缺映射版本引用。没有放松真实审批、审计追加、身份绑定或unknown约束。
+
+Agent/Redis/PXE初批与lifecycle首批失败不记通过，保留原日志；之后仅对实际修复和资源明确的失败项定向复测，尚未迁移或更新3000。

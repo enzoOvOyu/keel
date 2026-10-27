@@ -14,12 +14,22 @@ import (
 // ActiveAgentIdentityTx freezes current identity with the same transaction that
 // admits an execution. A heartbeat is never hardware or SSH trust evidence.
 func (s *Store) ActiveAgentIdentityTx(ctx context.Context, tx *sql.Tx, project, machine string) (*AgentCredential, error) {
-	serial, version, e := agentTarget(ctx, tx, project, machine)
+	return s.activeAgentIdentityTx(ctx, tx, project, machine, true)
+}
+
+// Read-only inventory views use their repeatable-read authorization snapshot;
+// execution admission keeps explicit row pins through ActiveAgentIdentityTx.
+func (s *Store) activeAgentIdentityTx(ctx context.Context, tx *sql.Tx, project, machine string, pin bool) (*AgentCredential, error) {
+	serial, version, e := agentTargetTx(ctx, tx, project, machine, pin)
 	if e != nil {
 		return nil, e
 	}
 	out := &AgentCredential{}
-	e = tx.QueryRowContext(ctx, `SELECT c.id,c.project_id,c.machine_id,c.serial_number,c.asset_version,c.authority_id,c.certificate_pem,c.certificate_hash,c.agent_version,`+agentCredentialExpirySQL+`,c.revoked_at,c.state_version FROM agent_credentials c WHERE c.project_id=$1 AND c.machine_id=$2 AND c.revoked_at IS NULL AND `+agentCredentialExpirySQL+`>now() FOR SHARE OF c`, project, machine).Scan(&out.ID, &out.ProjectID, &out.MachineID, &out.Serial, &out.AssetVersion, &out.AuthorityID, &out.CertificatePEM, &out.CertificateHash, &out.AgentVersion, &out.ExpiresAt, &out.RevokedAt, &out.StateVersion)
+	query := `SELECT c.id,c.project_id,c.machine_id,c.serial_number,c.asset_version,c.authority_id,c.certificate_pem,c.certificate_hash,c.agent_version,` + agentCredentialExpirySQL + `,c.revoked_at,c.state_version FROM agent_credentials c WHERE c.project_id=$1 AND c.machine_id=$2 AND c.revoked_at IS NULL AND ` + agentCredentialExpirySQL + `>now()`
+	if pin {
+		query += " FOR SHARE OF c"
+	}
+	e = tx.QueryRowContext(ctx, query, project, machine).Scan(&out.ID, &out.ProjectID, &out.MachineID, &out.Serial, &out.AssetVersion, &out.AuthorityID, &out.CertificatePEM, &out.CertificateHash, &out.AgentVersion, &out.ExpiresAt, &out.RevokedAt, &out.StateVersion)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil, ErrAgentDenied
 	}

@@ -25,14 +25,14 @@ type BomPortRow struct {
 }
 
 type BomMachineRow struct {
-	SerialNumber string        `json:"serial_number"`
-	Rack         string        `json:"rack"`
-	UnitPosition string        `json:"unit_position"`
-	BmcAddress   string        `json:"bmc_address"`
-	Hostname     string        `json:"hostname"`
-	IpReference  string        `json:"ip_reference"`
-	ModelName    string        `json:"model_name"`
-	Ports        []BomPortRow  `json:"ports"`
+	SerialNumber string       `json:"serial_number"`
+	Rack         string       `json:"rack"`
+	UnitPosition string       `json:"unit_position"`
+	BmcAddress   string       `json:"bmc_address"`
+	Hostname     string       `json:"hostname"`
+	IpReference  string       `json:"ip_reference"`
+	ModelName    string       `json:"model_name"`
+	Ports        []BomPortRow `json:"ports"`
 }
 
 type BomImportInput struct {
@@ -46,29 +46,29 @@ type BomPortIssue struct {
 }
 
 type BomMachineIssue struct {
-	SerialNumber string          `json:"serial_number"`
-	Reason       string          `json:"reason"`
-	Ports        []BomPortIssue  `json:"ports,omitempty"`
+	SerialNumber string         `json:"serial_number"`
+	Reason       string         `json:"reason"`
+	Ports        []BomPortIssue `json:"ports,omitempty"`
 }
 
 type BomPreview struct {
-	Machines       int             `json:"machines"`
-	Ports          int             `json:"ports"`
-	NewMachines    int             `json:"new_machines"`
-	ExistingMachines int          `json:"existing_machines"`
-	NewAssets      int             `json:"new_assets"`
-	UpdatedAssets  int             `json:"updated_assets"`
-	Issues         []BomMachineIssue `json:"issues"`
-	ModelNames     []string        `json:"model_names"`
+	Machines         int               `json:"machines"`
+	Ports            int               `json:"ports"`
+	NewMachines      int               `json:"new_machines"`
+	ExistingMachines int               `json:"existing_machines"`
+	NewAssets        int               `json:"new_assets"`
+	UpdatedAssets    int               `json:"updated_assets"`
+	Issues           []BomMachineIssue `json:"issues"`
+	ModelNames       []string          `json:"model_names"`
 }
 
 type BomCommitResult struct {
-	ImportID       string    `json:"import_id"`
-	MachinesCreated int      `json:"machines_created"`
-	PortsCreated   int       `json:"ports_created"`
-	AssetsCreated  int       `json:"assets_created"`
-	AssetsUpdated  int       `json:"assets_updated"`
-	CommittedAt    time.Time `json:"committed_at"`
+	ImportID        string    `json:"import_id"`
+	MachinesCreated int       `json:"machines_created"`
+	PortsCreated    int       `json:"ports_created"`
+	AssetsCreated   int       `json:"assets_created"`
+	AssetsUpdated   int       `json:"assets_updated"`
+	CommittedAt     time.Time `json:"committed_at"`
 }
 
 var (
@@ -195,7 +195,7 @@ func (s *Store) PreviewBomImport(ctx context.Context, a *AuthSession, project *P
 				for _, port := range machine.Ports {
 					normalized, ok := normalizeMAC(port.MacAddress)
 					if ok && normalized == mac && sn != machine.SerialNumber {
-						preview.Issues = append(preview.Issues, BomMachineIssue{SerialNumber: machine.SerialNumber, Reason: "", Ports: []BomPortIssue{{MacAddress: mac, Reason: "mac_exists_other_machine"}}, })
+						preview.Issues = append(preview.Issues, BomMachineIssue{SerialNumber: machine.SerialNumber, Reason: "", Ports: []BomPortIssue{{MacAddress: mac, Reason: "mac_exists_other_machine"}}})
 					}
 				}
 			}
@@ -328,23 +328,24 @@ func (s *Store) CommitBomImport(ctx context.Context, a *AuthSession, project *Pr
 				result.PortsCreated++
 			}
 		}
-		var modelID any
+		var modelID, modelVersionID any
 		if machine.ModelName != "" {
-			var id string
-			if e = tx.QueryRowContext(ctx, "SELECT id FROM device_models WHERE scope_key=$1 AND name=$2 AND state='active'", scope, machine.ModelName).Scan(&id); e != nil {
+			var id, revision string
+			if e = tx.QueryRowContext(ctx, `SELECT m.id,v.id FROM device_models m JOIN device_model_versions v ON v.model_id=m.id WHERE m.scope_key=$1 AND m.name=$2 AND m.state='active' AND m.kind IN('server','compute-tray') ORDER BY v.version DESC LIMIT 1 FOR SHARE OF m,v`, scope, machine.ModelName).Scan(&id, &revision); e != nil {
 				if errors.Is(e, sql.ErrNoRows) {
 					return nil, apiError(409, "BOM_VALIDATION_FAILED", "unknown model "+machine.ModelName)
 				}
 				return nil, e
 			}
 			modelID = id
+			modelVersionID = revision
 		}
 		var version int64 = 1
-		if e = tx.QueryRowContext(ctx, `INSERT INTO project_assets(id,project_id,machine_id,model_id,hostname,ip_reference,state,version,created_at,updated_at)
-			VALUES($1,$2,$3,$4,$5,$6,'planned',1,$7,$7)
-			ON CONFLICT(project_id,machine_id) DO UPDATE SET hostname=EXCLUDED.hostname, ip_reference=EXCLUDED.ip_reference, model_id=EXCLUDED.model_id, updated_at=EXCLUDED.updated_at, version=project_assets.version+1
+		if e = tx.QueryRowContext(ctx, `INSERT INTO project_assets(id,project_id,machine_id,model_id,model_version_id,hostname,ip_reference,state,version,created_at,updated_at)
+			VALUES($1,$2,$3,$4,$5,$6,$7,'planned',1,$8,$8)
+			ON CONFLICT(project_id,machine_id) DO UPDATE SET hostname=EXCLUDED.hostname, ip_reference=EXCLUDED.ip_reference, model_id=EXCLUDED.model_id, model_version_id=EXCLUDED.model_version_id, updated_at=EXCLUDED.updated_at, version=project_assets.version+1
 			RETURNING version`,
-			RandomID(), project.ID, machineID, modelID, machine.Hostname, machine.IpReference, result.CommittedAt).Scan(&version); e != nil {
+			RandomID(), project.ID, machineID, modelID, modelVersionID, machine.Hostname, machine.IpReference, result.CommittedAt).Scan(&version); e != nil {
 			var pg *pgconn.PgError
 			if errors.As(e, &pg) && pg.Code == "23505" {
 				return nil, apiError(409, "BOM_VALIDATION_FAILED", "hostname conflict on "+machine.Hostname)

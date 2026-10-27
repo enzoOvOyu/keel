@@ -82,7 +82,7 @@ func (s *Store) GetAgentNetworkInventory(ctx context.Context, a *AuthSession, pr
 	if err = requireProjectMember(ctx, tx, a, project); err != nil {
 		return nil, err
 	}
-	credential, err := s.ActiveAgentIdentityTx(ctx, tx, project, machine)
+	credential, err := s.activeAgentIdentityTx(ctx, tx, project, machine, false)
 	if errors.Is(err, ErrAgentDenied) {
 		return nil, apiError(409, "AGENT_IDENTITY_REQUIRED", "Current Agent identity and provisioned asset are required")
 	}

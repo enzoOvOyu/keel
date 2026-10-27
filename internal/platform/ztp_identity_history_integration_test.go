@@ -34,6 +34,7 @@ func TestZTPIdentityHistoryPreservesPhysicalIdentityPostgres(t *testing.T) {
 	old, newID := RandomID(), RandomID()
 	oldSN, newSN := "OLD-"+suffix, "NEW-"+suffix
 	pkg := RandomID()
+	exec(`INSERT INTO bom_mapping_profiles(id,project_id,version_ref,state,created_by,created_at) VALUES($1,$2,'v1','approved',$3,$4)`, RandomID(), project.ID, actor.User.ID, start)
 	exec(`INSERT INTO bom_import_packages(id,project_id,bom_import_batch_id,schema_version,profile_version_ref,content_hash,declared_by,manifest,row_count,state,uploaded_by,committed_at) VALUES($1,$2,'history-fixture','bom-import/v1','v1',$3,'design_institute','{}',2,'committed',$4,$5)`, pkg, project.ID, "sha256:"+strings.Repeat("a", 64), actor.User.ID, start)
 	for i, item := range []struct{ id, serial string }{{old, oldSN}, {newID, newSN}} {
 		exec(`INSERT INTO bom_items(item_uid,category,serial,position,source_of_record,first_project_id,created_at,updated_at) VALUES($1,'switch',$2,'{"dc":"d1","rack":"r1","idx":"1"}','design_bom',$3,$4,$4)`, item.id, item.serial, project.ID, start)

@@ -46,9 +46,17 @@ type AgentCredential struct {
 
 func agentTokenHash(token string) string { return digest("keel-agent-enrollment-v1:" + token) }
 func agentTarget(ctx context.Context, tx *sql.Tx, project, machine string) (string, int64, error) {
+	return agentTargetTx(ctx, tx, project, machine, true)
+}
+
+func agentTargetTx(ctx context.Context, tx *sql.Tx, project, machine string, pin bool) (string, int64, error) {
 	var serial, state, assetState string
 	var version int64
-	e := tx.QueryRowContext(ctx, `SELECT p.state,m.serial_number,a.state,a.version FROM projects p JOIN project_assets a ON a.project_id=p.id JOIN machines m ON m.id=a.machine_id WHERE p.id=$1 AND m.id=$2 FOR SHARE OF p,a,m`, project, machine).Scan(&state, &serial, &assetState, &version)
+	query := `SELECT p.state,m.serial_number,a.state,a.version FROM projects p JOIN project_assets a ON a.project_id=p.id JOIN machines m ON m.id=a.machine_id WHERE p.id=$1 AND m.id=$2`
+	if pin {
+		query += " FOR SHARE OF p,a,m"
+	}
+	e := tx.QueryRowContext(ctx, query, project, machine).Scan(&state, &serial, &assetState, &version)
 	if errors.Is(e, sql.ErrNoRows) {
 		return "", 0, ErrAgentDenied
 	}

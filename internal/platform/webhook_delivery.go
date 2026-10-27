@@ -183,8 +183,8 @@ func (d *WebhookDispatcher) DeliverOne(ctx context.Context, s *webhook.Sink) (bo
 	if status >= 100 && status <= 599 {
 		storedStatus = status
 	}
-	result, err := d.DB.ExecContext(ctx, `UPDATE notification_webhook_deliveries SET state=$4,lease_token=NULL,lease_until=NULL,http_status=$5,last_error=NULLIF($6,''),
- next_attempt_at=now()+($7::bigint * interval '1 millisecond'),delivered_at=CASE WHEN $4='delivered' THEN now() ELSE NULL END,updated_at=now()
+	result, err := d.DB.ExecContext(ctx, `UPDATE notification_webhook_deliveries SET state=$4::varchar,lease_token=NULL,lease_until=NULL,http_status=$5,last_error=NULLIF($6::varchar,''),
+ next_attempt_at=now()+($7::bigint * interval '1 millisecond'),delivered_at=CASE WHEN $4::varchar='delivered' THEN now() ELSE NULL END,updated_at=now()
  WHERE sink_id=$1 AND event_id=$2 AND state='delivering' AND lease_token=$3`, s.ID, id, token, state, storedStatus, reason, delay.Milliseconds())
 	if err != nil {
 		return true, err

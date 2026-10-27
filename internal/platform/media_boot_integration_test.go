@@ -18,8 +18,8 @@ func TestOSBootMediaComposition(t *testing.T) {
 	objects := &testMediaObjects{}
 	s.MediaObjects = objects
 	const password = "test-only-os-boot-password"
-	for _, name := range []string{"os-owner", "os-reviewer", "os-outsider"} {
-		if _, err := s.CreateUser(ctx, name, name, password, true, true); err != nil {
+	for i, name := range []string{"os-owner", "os-reviewer", "os-outsider"} {
+		if _, err := s.CreateUser(ctx, name, name, password, true, i == 0); err != nil {
 			t.Fatal(err)
 		}
 	}

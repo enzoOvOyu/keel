@@ -150,6 +150,9 @@ func TestWebhookConfigurationDisabledAndProtected(t *testing.T) {
 	raw, _ := json.Marshal(valid)
 	path := filepath.Join(dir, "public-config")
 	os.WriteFile(path, raw, 0644)
+	if err := os.Chmod(path, 0644); err != nil {
+		t.Fatal(err)
+	}
 	if c, err := Load(path, false); err == nil {
 		c.Close()
 		t.Fatal("unprotected policy accepted")

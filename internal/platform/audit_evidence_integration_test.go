@@ -115,16 +115,34 @@ func TestAuditEvidenceDetectsOwnerChangesWithoutExportingMetadata(t *testing.T) 
 	if !additional.Unchanged || additional.Additional != 1 || additional.Matched != 2 {
 		t.Fatalf("new audit treated as corruption: %+v", additional)
 	}
-	if _, err = s.DB.ExecContext(ctx, `UPDATE audits SET metadata='{"private_fixture_value":"owner-changed"}' WHERE action='test.evidence.first'`); err != nil {
-		t.Fatal(err)
+	// Simulate a DBA deliberately bypassing the append-only trigger. Ordinary
+	// UPDATE/DELETE must remain rejected, including for an owner transaction.
+	ownerTamper := func(query string) {
+		t.Helper()
+		tx, e := s.DB.BeginTx(ctx, nil)
+		if e != nil {
+			t.Fatal(e)
+		}
+		defer tx.Rollback()
+		if _, e = tx.ExecContext(ctx, "ALTER TABLE audits DISABLE TRIGGER USER"); e != nil {
+			t.Fatal(e)
+		}
+		if _, e = tx.ExecContext(ctx, query); e != nil {
+			t.Fatal(e)
+		}
+		if _, e = tx.ExecContext(ctx, "ALTER TABLE audits ENABLE TRIGGER USER"); e != nil {
+			t.Fatal(e)
+		}
+		if e = tx.Commit(); e != nil {
+			t.Fatal(e)
+		}
 	}
+	ownerTamper(`UPDATE audits SET metadata='{"private_fixture_value":"owner-changed"}' WHERE action='test.evidence.first'`)
 	changed := compare()
 	if changed.Unchanged || changed.Changed != 1 || changed.Missing != 0 {
 		t.Fatalf("owner change not detected: %+v", changed)
 	}
-	if _, err = s.DB.ExecContext(ctx, "DELETE FROM audits WHERE action='test.evidence.second'"); err != nil {
-		t.Fatal(err)
-	}
+	ownerTamper("DELETE FROM audits WHERE action='test.evidence.second'")
 	missing := compare()
 	if missing.Unchanged || missing.Changed != 1 || missing.Missing != 1 || len(missing.Differences) != 2 {
 		t.Fatalf("owner deletion not detected: %+v", missing)
