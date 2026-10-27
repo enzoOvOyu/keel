@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"io"
 	"time"
@@ -48,7 +47,7 @@ func (s *bmcRawSink) StoreRaw(ctx context.Context, target bmc.Target, path strin
 // The request must already exist from domain-owned execution admission. No
 // hardware request is made here and no G1/NP assertion or asset mapping is set.
 func (s *Store) RecordBMCCollection(ctx context.Context, execution string, fence int64, report *bmc.Snapshot) error {
-	if report == nil || report.Validate() != nil || fence < 1 {
+	if report == nil || report.Validate() != nil || report.Target.BOMPackageID == "" || fence < 1 {
 		return apiError(400, "BMC_COLLECTION_INVALID", "Invalid bounded raw-backed inventory report")
 	}
 	if report.CollectedAt.After(time.Now().Add(5 * time.Second)) {
@@ -74,6 +73,12 @@ func (s *Store) RecordBMCCollection(ctx context.Context, execution string, fence
 	if e = lockKey(ctx, tx, "keel-admin-initialization"); e != nil {
 		return e
 	}
+	// Serialize result admission with lease reaping without blocking heartbeat
+	// updates of the attempt row. The following query checks wall-clock expiry.
+	var executionID string
+	if e = tx.QueryRowContext(ctx, `SELECT id FROM exec_executions WHERE id=$1 AND project_id=$2 AND mode='bmc' FOR UPDATE`, execution, report.Target.ProjectID).Scan(&executionID); e != nil {
+		return e
+	}
 	var target []byte
 	var level, origin, creator string
 	e = tx.QueryRowContext(ctx, `SELECT target,level,origin,created_by FROM bmc_collection_requests WHERE id=$1 AND project_id=$2 AND execution_id=$3 FOR UPDATE`, report.Target.RequestID, report.Target.ProjectID, execution).Scan(&target, &level, &origin, &creator)
@@ -86,8 +91,18 @@ func (s *Store) RecordBMCCollection(ctx context.Context, execution string, fence
 	if bmc.CanonicalDigest(target) != bmc.CanonicalDigest(networkJSON(report.Target)) || level != report.Level || origin != report.Origin {
 		return apiError(409, "BMC_COLLECTION_SCOPE_CHANGED", "Inventory does not match the frozen request")
 	}
+	if e = checkBMCBOMBatchTx(ctx, tx, &report.Target); e != nil {
+		return e
+	}
+	var dispatched bool
+	if e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM bmc_collection_dispatches d WHERE d.request_id=$1 AND d.execution_id=$2 AND d.fencing_token=$3 AND d.dispatched_at<=$4 AND d.deadline+interval '5 seconds'>=$5)`, report.Target.RequestID, execution, fence, report.StartedAt, report.CollectedAt).Scan(&dispatched); e != nil {
+		return e
+	}
+	if !dispatched {
+		return apiError(409, "BMC_DISPATCH_REQUIRED", "Report requires the original bounded command dispatch")
+	}
 	var valid bool
-	e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM exec_task_attempts a JOIN exec_executions x ON x.id=a.execution_id JOIN exec_targets t ON t.id=a.target_id JOIN project_assets p ON p.id=$4 JOIN machines m ON m.id=p.machine_id JOIN users u ON u.id=$7 WHERE a.execution_id=$1 AND x.project_id=$2 AND t.resource_key=$3 AND a.fencing_token=$5 AND a.state='running' AND a.lease_until>now() AND x.desired_state IN('running','paused') AND p.project_id=$2 AND p.machine_id=$3 AND p.version=$6 AND m.serial_number=$8 AND u.enabled AND (u.is_admin OR EXISTS(SELECT 1 FROM memberships mb WHERE mb.project_id=$2 AND mb.user_id=u.id AND mb.role IN('DE','SRE','DL'))))`, execution, report.Target.ProjectID, report.Target.MachineID, report.Target.AssetID, fence, report.Target.AssetVersion, creator, report.Target.Serial).Scan(&valid)
+	e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM exec_task_attempts a JOIN exec_executions x ON x.id=a.execution_id JOIN exec_targets t ON t.id=a.target_id JOIN project_assets p ON p.id=$4 JOIN machines m ON m.id=p.machine_id JOIN users u ON u.id=$7 JOIN projects project ON project.id=x.project_id WHERE a.execution_id=$1 AND x.project_id=$2 AND t.resource_key=$3 AND a.fencing_token=$5 AND a.state='running' AND a.lease_until>clock_timestamp() AND (SELECT count(*) FROM exec_resource_leases l WHERE l.attempt_id=a.id AND l.fencing_token=a.fencing_token AND l.state='held' AND l.expires_at>clock_timestamp() AND ((l.resource_id='device:machine:'||$3 AND l.mode='shared') OR (l.resource_id='bmc:machine:'||$3 AND l.mode='exclusive')))=2 AND x.mode='bmc' AND x.desired_state IN('running','paused') AND p.project_id=$2 AND p.machine_id=$3 AND p.version=$6 AND m.serial_number=$8 AND u.enabled AND project.state NOT IN('archived','delivered') AND (u.is_admin OR EXISTS(SELECT 1 FROM memberships mb WHERE mb.project_id=$2 AND mb.user_id=u.id AND mb.role IN('Admin','DE','SRE','DL'))))`, execution, report.Target.ProjectID, report.Target.MachineID, report.Target.AssetID, fence, report.Target.AssetVersion, creator, report.Target.Serial).Scan(&valid)
 	if e != nil {
 		return e
 	}

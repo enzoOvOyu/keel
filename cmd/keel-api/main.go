@@ -58,6 +58,12 @@ func main() {
 		defer store.Close()
 		store.AgentTasksEnabled = os.Getenv("KEEL_AGENT_TASKS_ENABLED") == "true"
 		store.FabricIssueVerificationEnabled = os.Getenv("KEEL_FABRIC_ISSUE_VERIFY_ENABLED") == "true"
+		store.BMCInventoryEnabled = os.Getenv("KEEL_BMC_INVENTORY_ENABLED") == "true"
+		if err := store.ConfigureBMCInventory(os.Getenv("KEEL_BMC_INVENTORY_FILE"), os.Getenv("KEEL_DEVICE_CREDENTIAL_MASTER_KEY_FILE")); err != nil {
+			slog.Error("BMC inventory configuration rejected")
+			os.Exit(1)
+		}
+
 		store.ProvisionPrepareEnabled = os.Getenv("KEEL_PROVISION_PREPARE_ENABLED") == "true"
 		if err = store.ConfigureProvisionInstall(os.Getenv("KEEL_PROVISION_INSTALL_ENABLED") == "true", os.Getenv("KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE")); err != nil {
 			slog.Error("provision installer public trust configuration rejected")

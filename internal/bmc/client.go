@@ -66,6 +66,7 @@ func NewClient(endpoint string, transport *http.Transport, timeout time.Duration
 	return &Client{root: root, http: &http.Client{Transport: t, Timeout: timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("BMC redirects are not permitted") }}, credentials: provider, target: target, origin: origin}, nil
 }
 func (c *Client) Origin() string { return c.origin }
+func (c *Client) Close() error   { c.http.CloseIdleConnections(); return nil }
 
 // CanonicalPath bounds navigation to the service tree. Next links may retain
 // their opaque query; cross-origin links, encoded separators and dot segments

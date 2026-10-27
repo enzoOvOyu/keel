@@ -154,6 +154,12 @@ func (c *Collector) Collect(ctx context.Context, target Target, level string) (*
 			addFailure(*failure(item.path, "partial_failure", "invalid_json_resource", false))
 			continue
 		}
+		structuredDigest := CanonicalDigest(doc.Body)
+		if structuredDigest == "" {
+			addFailure(*failure(item.path, "partial_failure", "json_number_limit", false))
+			out.Capabilities[item.feature] = "partial"
+			continue
+		}
 		raw, e := c.Raw.StoreRaw(ctx, target, item.path, doc.Body)
 		digest := sha256.Sum256(doc.Body)
 		if e != nil || raw.Key != RawKey(target, item.path, hex.EncodeToString(digest[:])) || (raw.Version == "" || raw.Version == "null") || raw.SHA256 != hex.EncodeToString(digest[:]) || raw.Size != int64(len(doc.Body)) {
@@ -161,7 +167,7 @@ func (c *Collector) Collect(ctx context.Context, target Target, level string) (*
 			break
 		}
 		resourceType, _ := data["@odata.type"].(string)
-		out.Resources = append(out.Resources, Resource{Path: item.path, Type: resourceType, Source: "bmc", ReceivedAt: doc.ReceivedAt, Raw: raw, DataSHA256: CanonicalDigest(doc.Body), Data: append(json.RawMessage(nil), doc.Body...)})
+		out.Resources = append(out.Resources, Resource{Path: item.path, Type: resourceType, Source: "bmc", ReceivedAt: doc.ReceivedAt, Raw: raw, DataSHA256: structuredDigest, Data: append(json.RawMessage(nil), doc.Body...)})
 		if out.Capabilities[item.feature] != "partial" {
 			out.Capabilities[item.feature] = "collected"
 		}
@@ -277,12 +283,82 @@ func CanonicalDigest(raw []byte) string {
 	if d.Decode(&trailing) != io.EOF {
 		return ""
 	}
+	value, ok := canonicalJSONNumbers(value)
+	if !ok {
+		return ""
+	}
 	canonical, e := json.Marshal(value)
 	if e != nil {
 		return ""
 	}
 	digest := sha256.Sum256(canonical)
 	return hex.EncodeToString(digest[:])
+}
+
+// PostgreSQL JSONB normalizes number spellings (1e3 -> 1000). Normalize
+// decimals without float64 rounding, and bound exponents before allocation.
+func canonicalJSONNumbers(value any) (any, bool) {
+	switch v := value.(type) {
+	case json.Number:
+		number := string(v)
+		negative := strings.HasPrefix(number, "-")
+		number = strings.TrimPrefix(number, "-")
+		mantissa, exponentText, hasExponent := strings.Cut(strings.ToLower(number), "e")
+		exponent := 0
+		if hasExponent {
+			var e error
+			exponent, e = strconv.Atoi(exponentText)
+			if e != nil || exponent < -4096 || exponent > 4096 {
+				return nil, false
+			}
+		}
+		whole, fraction, _ := strings.Cut(mantissa, ".")
+		if len(whole)+len(fraction) > 4096 {
+			return nil, false
+		}
+		digits := strings.TrimLeft(whole+fraction, "0")
+		if digits == "" {
+			return json.Number("0"), true
+		}
+		scale := len(fraction) - exponent
+		for scale > 0 && strings.HasSuffix(digits, "0") {
+			digits = strings.TrimSuffix(digits, "0")
+			scale--
+		}
+		var out string
+		switch {
+		case scale <= 0:
+			out = digits + strings.Repeat("0", -scale)
+		case scale >= len(digits):
+			out = "0." + strings.Repeat("0", scale-len(digits)) + digits
+		default:
+			out = digits[:len(digits)-scale] + "." + digits[len(digits)-scale:]
+		}
+		if negative {
+			out = "-" + out
+		}
+		return json.Number(out), true
+	case map[string]any:
+		for key, item := range v {
+			normalized, ok := canonicalJSONNumbers(item)
+			if !ok {
+				return nil, false
+			}
+			v[key] = normalized
+		}
+		return v, true
+	case []any:
+		for i, item := range v {
+			normalized, ok := canonicalJSONNumbers(item)
+			if !ok {
+				return nil, false
+			}
+			v[i] = normalized
+		}
+		return v, true
+	default:
+		return value, true
+	}
 }
 func RawKey(target Target, resource, digest string) string {
 	pathHash := sha256.Sum256([]byte(resource))

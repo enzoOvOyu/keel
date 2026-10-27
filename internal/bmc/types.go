@@ -18,6 +18,8 @@ var stableID = regexp.MustCompile(`^[a-f0-9]{32}$`)
 var sha256Pattern = regexp.MustCompile(`^[a-f0-9]{64}$`)
 
 type Target struct {
+	BOMPackageID       string `json:"bom_package_id,omitempty"`
+	AdapterBindingHash string `json:"adapter_binding_hash,omitempty"`
 	RequestID          string `json:"request_id"`
 	ProjectID          string `json:"project_id"`
 	AssetID            string `json:"asset_id"`
@@ -29,6 +31,12 @@ type Target struct {
 }
 
 func (t Target) Validate() error {
+	if t.BOMPackageID != "" && !stableID.MatchString(t.BOMPackageID) {
+		return errors.New("invalid frozen BOM package identity")
+	}
+	if t.AdapterBindingHash != "" && !sha256Pattern.MatchString(t.AdapterBindingHash) {
+		return errors.New("invalid BMC adapter binding hash")
+	}
 	if !stableID.MatchString(t.RequestID) || !stableID.MatchString(t.ProjectID) || !stableID.MatchString(t.AssetID) || !stableID.MatchString(t.MachineID) || t.AssetVersion < 1 || len(t.Serial) < 1 || len(t.Serial) > 120 || len(t.CredentialBatchRef) < 1 || len(t.CredentialBatchRef) > 120 || len(t.CredentialVersion) < 1 || len(t.CredentialVersion) > 120 {
 		return errors.New("invalid BMC target or frozen credential identity")
 	}

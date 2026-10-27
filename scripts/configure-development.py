@@ -42,6 +42,8 @@ GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO keel_app;
 GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO keel_app;
 DO $keel$ BEGIN
   IF to_regclass('public.network_address_plans') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON network_address_plans,network_address_plan_approvals FROM keel_app; END IF;
+  IF to_regclass('public.bmc_collection_dispatches') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON bmc_collection_dispatches FROM keel_app; END IF;
+  IF to_regclass('public.device_credential_versions') IS NOT NULL THEN REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON device_credential_versions,device_credential_heads,device_credential_revocations FROM keel_app; END IF;
   IF to_regclass('public.bmc_collection_requests') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON bmc_collection_requests,bmc_collection_records,bmc_collection_resources FROM keel_app; END IF;
   IF to_regclass('public.network_template_changes') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON network_template_changes,network_template_change_jobs FROM keel_app; END IF;
   IF to_regclass('public.issue_verification_dispatches') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON issue_verification_dispatches,issue_verification_queries FROM keel_app; END IF;

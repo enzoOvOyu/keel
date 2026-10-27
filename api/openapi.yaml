@@ -2644,6 +2644,25 @@ paths:
               schema: { $ref: '#/components/schemas/FabricDeviceEvidence' }
 
   /api/v1/projects/{id}/assets/{assetId}/bmc/collections:
+    post:
+      operationId: createBMCCollection
+      description: Authorized domain-owned read-only inventory on the shared Execution scheduler. Freezes the current BOM batch, credential version, asset revision and operator-owned adapter binding. No endpoint, origin or secret is accepted from browser input. No automatic retry of unknown attempts.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: assetId, in: path, required: true, schema: { type: string } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 128 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BMCCollectionInput' }
+      responses:
+        '202':
+          description: Accepted immutable inventory request and ordinary execution. This does not assert successful collection or a hardware gate.
+          content:
+            application/json:
+              schema: { $ref: './execution.openapi.yaml#/components/schemas/Execution' }
+        '409': { $ref: '#/components/responses/Conflict' }
     get:
       operationId: listBMCCollections
       description: Project-scoped immutable inventory history. This read never contacts a BMC. Quality, static freshness and sim/real origin do not constitute G1 or dynamic network readiness.
@@ -2672,6 +2691,54 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/BMCCollectionDetail' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/projects/{id}/assets/{assetId}/bmc/collections/{collectionId}/manifest:
+    get:
+      operationId: getBMCCollectionManifest
+      description: Scoped retained evidence, read only. Manifest and metadata pages omit full resource bodies; a resource body is loaded only on demand.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: assetId, in: path, required: true, schema: { type: string } }
+        - { name: collectionId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Exact project-scoped retained evidence.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BMCCollectionManifest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/projects/{id}/assets/{assetId}/bmc/collections/{collectionId}/resources:
+    get:
+      operationId: listBMCResources
+      description: Scoped retained evidence, read only. Manifest and metadata pages omit full resource bodies; a resource body is loaded only on demand.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: assetId, in: path, required: true, schema: { type: string } }
+        - { name: collectionId, in: path, required: true, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 1000000, default: 1 } }
+        - { name: page_size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Exact project-scoped retained evidence.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BMCResourcePage' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/projects/{id}/assets/{assetId}/bmc/collections/{collectionId}/resource:
+    get:
+      operationId: getBMCResource
+      description: Scoped retained evidence, read only. Manifest and metadata pages omit full resource bodies; a resource body is loaded only on demand.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: assetId, in: path, required: true, schema: { type: string } }
+        - { name: collectionId, in: path, required: true, schema: { type: string } }
+        - { name: path, in: query, required: true, schema: { type: string, maxLength: 2048 } }
+      responses:
+        '200':
+          description: Exact project-scoped retained evidence.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BMCResource' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/projects/{id}/assets/{assetId}/bmc/collections/{collectionId}/raw:
     get:
@@ -4277,6 +4344,64 @@ components:
                     before_present: { type: boolean }
                     after_present: { type: boolean }
 
+    BMCCollectionInput:
+      type: object
+      additionalProperties: false
+      required: [level, expected_asset_version, reason]
+      properties:
+        level: { type: string, enum: [L1, L2, L3] }
+        expected_asset_version: { type: integer, format: int64, minimum: 1 }
+        reason: { type: string, minLength: 3, maxLength: 1000 }
+    BMCResource:
+      type: object
+      required: [path, type, data_sha256, source, received_at, raw, data]
+      properties:
+        path: { type: string }
+        type: { type: string }
+        data_sha256: { type: string }
+        source: { type: string, enum: [bmc] }
+        received_at: { type: string, format: date-time }
+        data: { type: object, additionalProperties: true }
+        raw:
+          type: object
+          required: [key, version, sha256, size]
+          properties:
+            key: { type: string }
+            version: { type: string }
+            sha256: { type: string }
+            size: { type: integer, format: int64 }
+    BMCCollectionManifest:
+      allOf:
+        - { $ref: '#/components/schemas/BMCCollectionSummary' }
+        - type: object
+          required: [source, started_at, credential_batch_ref, credential_version, adapter_binding_hash, capabilities, failures, degraded]
+          properties:
+            source: { type: string, enum: [bmc] }
+            started_at: { type: string, format: date-time }
+            credential_batch_ref: { type: string }
+            credential_version: { type: string }
+            adapter_binding_hash: { type: string }
+            capabilities: { $ref: '#/components/schemas/BMCInventorySnapshot/properties/capabilities' }
+            failures: { $ref: '#/components/schemas/BMCInventorySnapshot/properties/failures' }
+            degraded: { type: boolean }
+    BMCResourceSummary:
+      type: object
+      required: [path, type, source, received_at, data_sha256, raw]
+      properties:
+        path: { type: string }
+        type: { type: string }
+        source: { type: string, enum: [bmc] }
+        received_at: { type: string, format: date-time }
+        data_sha256: { type: string }
+        raw: { $ref: '#/components/schemas/BMCResource/properties/raw' }
+    BMCResourcePage:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/BMCResourceSummary' } }
+        total: { type: integer }
+        page: { type: integer }
+        page_size: { type: integer }
     BMCCollectionSummary:
       type: object
       required: [id, project_id, asset_id, machine_id, execution_id, level, origin, state, parser_version, collected_at, received_at, content_hash, identity_matched, asset_current, freshness, freshness_max_age_seconds, resource_count, failure_count]
@@ -4331,6 +4456,8 @@ components:
             serial: { type: string }
             credential_batch_ref: { type: string }
             credential_version: { type: string }
+            adapter_binding_hash: { type: string, pattern: "^[a-f0-9]{64}$" }
+            bom_package_id: { type: string, pattern: "^[a-f0-9]{32}$" }
         level: { type: string, enum: [L1, L2, L3] }
         origin: { type: string, enum: [sim, real] }
         source: { type: string, enum: [bmc] }
@@ -4342,24 +4469,7 @@ components:
         resources:
           type: array
           maxItems: 4096
-          items:
-            type: object
-            required: [path, type, data_sha256, source, received_at, raw, data]
-            properties:
-              path: { type: string }
-              type: { type: string }
-              data_sha256: { type: string }
-              source: { type: string, enum: [bmc] }
-              received_at: { type: string, format: date-time }
-              data: { type: object, additionalProperties: true }
-              raw:
-                type: object
-                required: [key, version, sha256, size]
-                properties:
-                  key: { type: string }
-                  version: { type: string }
-                  sha256: { type: string }
-                  size: { type: integer, format: int64 }
+          items: { $ref: '#/components/schemas/BMCResource' }
         failures:
           type: array
           maxItems: 256

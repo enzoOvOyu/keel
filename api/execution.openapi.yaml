@@ -4013,7 +4013,8 @@
               "ssh",
               "agent",
               "provision",
-              "control"
+              "control",
+              "bmc"
             ]
           },
           "resource_key": {
@@ -4149,7 +4150,8 @@
               "ssh",
               "agent",
               "provision",
-              "control"
+              "control",
+              "bmc"
             ]
           },
           "flow": {
@@ -4245,7 +4247,8 @@
               "ssh",
               "agent",
               "provision",
-              "control"
+              "control",
+              "bmc"
             ]
           },
           "state": {
@@ -4379,7 +4382,8 @@
               "ssh",
               "agent",
               "provision",
-              "control"
+              "control",
+              "bmc"
             ]
           },
           "state": {
@@ -4797,7 +4801,8 @@
               "ssh",
               "agent",
               "provision",
-              "control"
+              "control",
+              "bmc"
             ]
           }
         },
@@ -5155,7 +5160,8 @@
               "ssh",
               "agent",
               "provision",
-              "control"
+              "control",
+              "bmc"
             ]
           },
           "resource_key": {

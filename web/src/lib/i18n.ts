@@ -1,3 +1,4 @@
+import { bmcTranslations } from './bmc-i18n'
 import { artifactTranslations } from './artifact-i18n'
 import { provisionTranslations } from './provision-i18n'
 import { catalogManagementTranslations } from './catalog-management-i18n'
@@ -30,7 +31,7 @@ export const resources = {
   zh: { translation: {
     ...artifactTranslations.zh,
     ...managementTranslations.zh,...provisionTranslations.zh,
-    ...fabricTranslations.zh,
+    ...fabricTranslations.zh,...bmcTranslations.zh,
     ...networkDeliveryTranslations.zh,
     ...networkHealthTranslations.zh,...fabricDiagnosticTranslations.zh,...networkRuleTranslations.zh,...networkRuleTranslations.zh,
     ...networkPushTranslations.zh,
@@ -141,7 +142,7 @@ export const resources = {
   en: { translation: {
     ...artifactTranslations.en,
     ...managementTranslations.en,...provisionTranslations.en,
-    ...fabricTranslations.en,
+    ...fabricTranslations.en,...bmcTranslations.en,
     ...networkDeliveryTranslations.en,
     ...networkHealthTranslations.en,...fabricDiagnosticTranslations.en,...networkRuleTranslations.en,...networkRuleTranslations.en,
     ...networkPushTranslations.en,

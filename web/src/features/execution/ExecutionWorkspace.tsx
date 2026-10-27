@@ -674,6 +674,8 @@ export function ExecutionWorkspace({
             ? trustVerification ? "sshTrustExecutionNotice" : "sshExecutionNotice"
             : current.execution.mode === "agent"
             ? "agentExecutionNotice"
+            : current.execution.mode === "bmc"
+            ? "bmcExecutionNotice"
             : current.execution.mode === "fabric"
             ? "networkExecutionDetail"
             : current.execution.mode === "kea"

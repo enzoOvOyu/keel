@@ -58,11 +58,17 @@ func main() {
 		fail("fabric probe configuration rejected")
 	}
 	store.FabricIssueVerificationEnabled = os.Getenv("KEEL_FABRIC_ISSUE_VERIFY_ENABLED") == "true"
+	store.BMCInventoryEnabled = os.Getenv("KEEL_BMC_INVENTORY_ENABLED") == "true"
+	if err := store.ConfigureBMCInventory(os.Getenv("KEEL_BMC_INVENTORY_FILE"), os.Getenv("KEEL_DEVICE_CREDENTIAL_MASTER_KEY_FILE")); err != nil {
+		slog.Error("BMC inventory configuration rejected")
+		os.Exit(1)
+	}
+
 	store.ProvisionPrepareEnabled = os.Getenv("KEEL_PROVISION_PREPARE_ENABLED") == "true"
 	if e = store.ConfigureProvisionInstall(os.Getenv("KEEL_PROVISION_INSTALL_ENABLED") == "true", os.Getenv("KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE")); e != nil {
 		fail("provision installer public trust configuration rejected")
 	}
-	if store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled || store.SSHScriptsEnabled || store.AgentScriptsEnabled || store.ArtifactTransfersEnabled {
+	if store.BMCInventoryEnabled || store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled || store.SSHScriptsEnabled || store.AgentScriptsEnabled || store.ArtifactTransfersEnabled {
 		store.MediaObjects, e = mediaartifact.Load()
 		if e != nil || store.MediaObjects == nil {
 			fail("Provision preparation requires configured media storage")
@@ -78,6 +84,9 @@ func main() {
 		defer queue.Close()
 	}
 	service.MediaStore = store
+	if store.BMCInventoryEnabled && store.BMCInventory != nil {
+		service.BMCStore = store
+	}
 	if store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled {
 		service.ProvisionStore = store
 	}

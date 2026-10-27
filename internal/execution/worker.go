@@ -82,7 +82,7 @@ func (s *Service) Claim(ctx context.Context, worker string, lease time.Duration)
 	cursorTime := time.Unix(0, 0)
 	cursorID := ""
 	for {
-		rows, e := s.DB.QueryContext(ctx, "SELECT id,created_at FROM exec_executions WHERE desired_state='running' AND state IN('scheduled','dispatching','running') AND (created_at,id)>($1,$2) AND (mode IN('sim','control') OR ($3 AND mode='kea') OR ($4 AND mode='fabric') OR ($5 AND mode='ssh') OR ($6 AND mode='agent') OR ($7 AND mode='provision')) ORDER BY created_at,id LIMIT 64", cursorTime, cursorID, s.KeaStore != nil, s.NetworkStore != nil || s.IssueStore != nil, s.SSHRunner != nil, s.AgentRunner != nil, s.ProvisionStore != nil && (s.ProvisionStore.ProvisionPrepareEnabled || s.ProvisionStore.ProvisionInstallEnabled))
+		rows, e := s.DB.QueryContext(ctx, "SELECT id,created_at FROM exec_executions WHERE desired_state='running' AND state IN('scheduled','dispatching','running') AND (created_at,id)>($1,$2) AND (mode IN('sim','control') OR ($3 AND mode='kea') OR ($4 AND mode='fabric') OR ($5 AND mode='ssh') OR ($6 AND mode='agent') OR ($7 AND mode='provision') OR ($8 AND mode='bmc')) ORDER BY created_at,id LIMIT 64", cursorTime, cursorID, s.KeaStore != nil, s.NetworkStore != nil || s.IssueStore != nil, s.SSHRunner != nil, s.AgentRunner != nil, s.ProvisionStore != nil && (s.ProvisionStore.ProvisionPrepareEnabled || s.ProvisionStore.ProvisionInstallEnabled), s.BMCStore != nil && s.BMCStore.BMCInventoryEnabled)
 		if e != nil {
 			return nil, e
 		}
@@ -142,6 +142,9 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 	if executionMode == "provision" && (s.ProvisionStore == nil || (!s.ProvisionStore.ProvisionPrepareEnabled && !s.ProvisionStore.ProvisionInstallEnabled)) {
 		return nil, nil
 	}
+	if executionMode == "bmc" && (s.BMCStore == nil || !s.BMCStore.BMCInventoryEnabled) {
+		return nil, nil
+	}
 	if executionMode == "agent" && s.AgentRunner == nil {
 		return nil, nil
 	}
@@ -154,7 +157,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 	if executionMode == "kea" && s.KeaStore == nil {
 		return nil, nil
 	}
-	if issueVerification {
+	if issueVerification || executionMode == "bmc" {
 		if e = advisory(ctx, tx, "keel-admin-initialization"); e != nil {
 			return nil, e
 		}
@@ -179,7 +182,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 		if issueVerification {
 			allowed = allowed && (role == "Admin" || role == "DL" || role == "NE")
 		} else {
-			allowed = allowed && (role == "Admin" || ((executionMode == "kea" || executionMode == "fabric") && role == "NDE") || ((executionMode == "sim" || executionMode == "ssh" || executionMode == "agent" || executionMode == "provision" || executionMode == "control") && (role == "DE" || role == "DL" || role == "SRE")))
+			allowed = allowed && (role == "Admin" || ((executionMode == "kea" || executionMode == "fabric") && role == "NDE") || ((executionMode == "sim" || executionMode == "ssh" || executionMode == "agent" || executionMode == "provision" || executionMode == "control" || executionMode == "bmc") && (role == "DE" || role == "DL" || role == "SRE")))
 		}
 	}
 	x, e := scanExecution(tx.QueryRowContext(ctx, "SELECT "+executionColumns+" FROM exec_executions WHERE id=$1 AND desired_state='running' AND state IN('scheduled','dispatching','running') FOR UPDATE SKIP LOCKED", id))
@@ -342,9 +345,31 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 					continue
 				}
 			}
+			if x.Mode == "bmc" {
+				request, _ := x.Parameters["bmc_collection_id"].(string)
+				if task.Type != "bmc.inventory" {
+					return nil, conflict("BMC task differs from admitted inventory")
+				}
+				if _, err := s.BMCStore.BMCCollectionFrozenTx(ctx, tx, request, id); err != nil {
+					var business *platform.Error
+					if !errors.As(err, &business) {
+						return nil, err
+					}
+					if _, e = tx.ExecContext(ctx, "UPDATE exec_executions SET desired_state='paused',state_version=state_version+1 WHERE id=$1", id); e != nil {
+						return nil, e
+					}
+					if e = event(ctx, tx, id, "execution.authorization_blocked", map[string]string{"reason": business.Code}); e != nil {
+						return nil, e
+					}
+					if e = settle(ctx, tx, id); e != nil {
+						return nil, e
+					}
+					return nil, tx.Commit()
+				}
+			}
 			resources := []string{}
 			for _, kind := range task.Resources {
-				if x.Mode == "ssh" || x.Mode == "agent" || x.Mode == "provision" {
+				if x.Mode == "ssh" || x.Mode == "agent" || x.Mode == "provision" || x.Mode == "bmc" {
 					resources = append(resources, kind+":machine:"+target.ResourceKey)
 				} else if x.Mode == "control" {
 					resources = append(resources, "project-kv:"+x.ProjectID)
@@ -384,7 +409,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 			}
 			sort.Strings(resources)
 			mode := "exclusive"
-			if task.Type == "sim.read" || task.Type == "kv.get" || (x.Mode == "ssh" || x.Mode == "agent") && task.Script == nil && task.Artifact == nil {
+			if task.Type == "bmc.inventory" || task.Type == "sim.read" || task.Type == "kv.get" || (x.Mode == "ssh" || x.Mode == "agent") && task.Script == nil && task.Artifact == nil {
 				mode = "shared"
 			}
 			if _, e = tx.ExecContext(ctx, "SAVEPOINT resource_candidate"); e != nil {
@@ -479,7 +504,7 @@ func (s *Service) Heartbeat(ctx context.Context, c *Claim) (bool, error) {
 	if e = tx.QueryRowContext(ctx, "SELECT desired_state FROM exec_executions WHERE id=$1", c.Attempt.ExecutionID).Scan(&desired); e != nil {
 		return false, e
 	}
-	return desired == "killed" || s.scriptHeartbeatTx(ctx, tx, c), tx.Commit()
+	return desired == "killed" || s.bmcHeartbeatTx(ctx, tx, c) || s.scriptHeartbeatTx(ctx, tx, c), tx.Commit()
 }
 func (s *Service) RecordReceipt(ctx context.Context, r Receipt) error {
 	tx, e := s.DB.BeginTx(ctx, nil)
@@ -534,6 +559,9 @@ func (s *Service) recordReceiptTx(ctx context.Context, tx *sql.Tx, r Receipt) er
 		if _, err = provisionReceiptTarget(ctx, tx, attempt, r); err != nil {
 			return err
 		}
+	}
+	if e = bmcReceiptAllowedTx(ctx, tx, r); e != nil {
+		return e
 	}
 	if e = s.agentReceiptAllowedTx(ctx, tx, r); e != nil {
 		return e
@@ -704,6 +732,11 @@ func (s *Service) reapExecution(ctx context.Context, id string) (int, error) {
 		if _, e = tx.ExecContext(ctx, "UPDATE exec_resource_leases SET state='reconciling' WHERE attempt_id=$1 AND state='held'", a); e != nil {
 			return 0, e
 		}
+		if executionMode == "bmc" {
+			if e = s.recoverExpiredBMCReceiptTx(ctx, tx, id, a); e != nil {
+				return 0, e
+			}
+		}
 		if executionMode == "control" {
 			if e = recordControlUncommittedTx(ctx, tx, a); e != nil {
 				return 0, e
@@ -841,6 +874,9 @@ var _ = json.Valid
 // Agent currently accepts one local run at a time. Serialize only that channel;
 // the common read-only device lease remains shared with SSH/BMC readers.
 func hostResourceLeaseMode(executionMode, resource, defaultMode string) string {
+	if executionMode == "bmc" && strings.HasPrefix(resource, "bmc:machine:") {
+		return "exclusive"
+	}
 	if executionMode == "agent" && strings.HasPrefix(resource, "agent:machine:") {
 		return "exclusive"
 	}

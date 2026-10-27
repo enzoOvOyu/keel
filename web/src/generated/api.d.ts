@@ -2370,7 +2370,8 @@ export interface paths {
         /** @description Project-scoped immutable inventory history. This read never contacts a BMC. Quality, static freshness and sim/real origin do not constitute G1 or dynamic network readiness. */
         get: operations["listBMCCollections"];
         put?: never;
-        post?: never;
+        /** @description Authorized domain-owned read-only inventory on the shared Execution scheduler. Freezes the current BOM batch, credential version, asset revision and operator-owned adapter binding. No endpoint, origin or secret is accepted from browser input. No automatic retry of unknown attempts. */
+        post: operations["createBMCCollection"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2385,6 +2386,57 @@ export interface paths {
             cookie?: never;
         };
         get: operations["getBMCCollection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/bmc/collections/{collectionId}/manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Scoped retained evidence, read only. Manifest and metadata pages omit full resource bodies; a resource body is loaded only on demand. */
+        get: operations["getBMCCollectionManifest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/bmc/collections/{collectionId}/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Scoped retained evidence, read only. Manifest and metadata pages omit full resource bodies; a resource body is loaded only on demand. */
+        get: operations["listBMCResources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/bmc/collections/{collectionId}/resource": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Scoped retained evidence, read only. Manifest and metadata pages omit full resource bodies; a resource body is loaded only on demand. */
+        get: operations["getBMCResource"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5387,6 +5439,60 @@ export interface components {
                 }[];
             }[];
         };
+        BMCCollectionInput: {
+            /** @enum {string} */
+            level: "L1" | "L2" | "L3";
+            /** Format: int64 */
+            expected_asset_version: number;
+            reason: string;
+        };
+        BMCResource: {
+            path: string;
+            type: string;
+            data_sha256: string;
+            /** @enum {string} */
+            source: "bmc";
+            /** Format: date-time */
+            received_at: string;
+            data: {
+                [key: string]: unknown;
+            };
+            raw: {
+                key: string;
+                version: string;
+                sha256: string;
+                /** Format: int64 */
+                size: number;
+            };
+        };
+        BMCCollectionManifest: components["schemas"]["BMCCollectionSummary"] & {
+            /** @enum {string} */
+            source: "bmc";
+            /** Format: date-time */
+            started_at: string;
+            credential_batch_ref: string;
+            credential_version: string;
+            adapter_binding_hash: string;
+            capabilities: components["schemas"]["BMCInventorySnapshot"]["capabilities"];
+            failures: components["schemas"]["BMCInventorySnapshot"]["failures"];
+            degraded: boolean;
+        };
+        BMCResourceSummary: {
+            path: string;
+            type: string;
+            /** @enum {string} */
+            source: "bmc";
+            /** Format: date-time */
+            received_at: string;
+            data_sha256: string;
+            raw: components["schemas"]["BMCResource"]["raw"];
+        };
+        BMCResourcePage: {
+            items: components["schemas"]["BMCResourceSummary"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
         BMCCollectionSummary: {
             id: string;
             project_id: string;
@@ -5436,6 +5542,8 @@ export interface components {
                 serial: string;
                 credential_batch_ref: string;
                 credential_version: string;
+                adapter_binding_hash?: string;
+                bom_package_id?: string;
             };
             /** @enum {string} */
             level: "L1" | "L2" | "L3";
@@ -5451,25 +5559,7 @@ export interface components {
             started_at: string;
             /** Format: date-time */
             collected_at: string;
-            resources: {
-                path: string;
-                type: string;
-                data_sha256: string;
-                /** @enum {string} */
-                source: "bmc";
-                /** Format: date-time */
-                received_at: string;
-                data: {
-                    [key: string]: unknown;
-                };
-                raw: {
-                    key: string;
-                    version: string;
-                    sha256: string;
-                    /** Format: int64 */
-                    size: number;
-                };
-            }[];
+            resources: components["schemas"]["BMCResource"][];
             failures: {
                 path: string;
                 /** @enum {string} */
@@ -7196,7 +7286,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control" | "bmc";
             /** @description Stable controller/device identity for non-simulation targets. */
             resource_key?: string;
             ssh?: components["schemas"]["SSHBinding"];
@@ -7226,7 +7316,7 @@ export interface components {
         /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
         ExecutionSnapshot: {
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control" | "bmc";
             flow: components["schemas"]["FlowVersion"];
             targets: components["schemas"]["SimTarget"][];
             /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
@@ -7248,7 +7338,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control" | "bmc";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -7321,7 +7411,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control" | "bmc";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -13605,6 +13695,36 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    createBMCCollection: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BMCCollectionInput"];
+            };
+        };
+        responses: {
+            /** @description Accepted immutable inventory request and ordinary execution. This does not assert successful collection or a hardware gate. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
     getBMCCollection: {
         parameters: {
             query?: never;
@@ -13625,6 +13745,86 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BMCCollectionDetail"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getBMCCollectionManifest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+                collectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact project-scoped retained evidence. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BMCCollectionManifest"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listBMCResources: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+                collectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact project-scoped retained evidence. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BMCResourcePage"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getBMCResource: {
+        parameters: {
+            query: {
+                path: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+                collectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact project-scoped retained evidence. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BMCResource"];
                 };
             };
             404: components["responses"]["NotFound"];

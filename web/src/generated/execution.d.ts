@@ -827,7 +827,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control" | "bmc";
             /** @description Stable controller/device identity for non-simulation targets. */
             resource_key?: string;
             ssh?: components["schemas"]["SSHBinding"];
@@ -860,7 +860,7 @@ export interface components {
         /** @description Immutable historical snapshot. Simulation admission is never hardware gate evidence. */
         ExecutionSnapshot: {
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control" | "bmc";
             flow: components["schemas"]["FlowVersion"];
             targets: components["schemas"]["SimTarget"][];
             /** @description Public scalar parameters only; never send credentials or secrets. Total encoded parameters <=16 KiB. */
@@ -882,7 +882,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control" | "bmc";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -909,7 +909,7 @@ export interface components {
             project_id: string;
             flow_version_id: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control" | "bmc";
             /** @enum {string} */
             state: "created" | "scheduled" | "dispatching" | "running" | "pausing" | "paused" | "cancelling" | "reconciling" | "success" | "failed" | "killed" | "warning";
             state_version: number;
@@ -1011,7 +1011,7 @@ export interface components {
             /** Format: int64 */
             next_cursor: number;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control" | "bmc";
         };
         SimTargetPage: {
             items: components["schemas"]["SimTarget"][];
@@ -1096,7 +1096,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control";
+            mode: "sim" | "kea" | "fabric" | "ssh" | "agent" | "provision" | "control" | "bmc";
             resource_key?: string;
             agent?: components["schemas"]["AgentBinding"];
             provision_request_id?: string;

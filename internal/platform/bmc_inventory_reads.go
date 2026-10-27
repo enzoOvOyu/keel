@@ -82,7 +82,7 @@ func bmcReadScopeTx(ctx context.Context, tx *sql.Tx, a *AuthSession, project, as
 	return int64(maxAge / time.Second), nil
 }
 
-const bmcSummaryFields = `r.id,r.project_id,r.asset_id,r.machine_id,r.execution_id,r.level,r.origin,r.state,r.parser_version,r.collected_at,r.received_at,r.content_hash,coalesce((r.report->>'identity_matched')::boolean,false),(a.version=q.asset_version AND a.machine_id=r.machine_id),jsonb_array_length(r.report->'resources'),jsonb_array_length(r.report->'failures')`
+const bmcSummaryFields = `r.id,r.project_id,r.asset_id,r.machine_id,r.execution_id,r.level,r.origin,r.state,r.parser_version,r.collected_at,r.received_at,r.content_hash,coalesce((r.report->>'identity_matched')::boolean,false),(a.version=q.asset_version AND a.machine_id=r.machine_id AND EXISTS(SELECT 1 FROM machines machine WHERE machine.id=a.machine_id AND machine.serial_number=q.target->>'serial') AND (coalesce(q.target->>'bom_package_id','')='' OR q.target->>'bom_package_id'=(SELECT p.id FROM bom_item_revisions v JOIN bom_import_packages p ON p.id=v.package_id AND p.project_id=v.project_id AND p.state='committed' WHERE v.project_id=r.project_id AND v.item_uid=r.machine_id ORDER BY p.committed_at DESC,p.id DESC LIMIT 1))),jsonb_array_length(r.report->'resources'),jsonb_array_length(r.report->'failures')`
 const bmcSummaryFrom = ` FROM bmc_collection_records r JOIN bmc_collection_requests q ON q.id=r.id JOIN project_assets a ON a.id=r.asset_id WHERE r.project_id=$1 AND r.asset_id=$2`
 
 func scanBMCCollectionSummary(row scanner, maxAge int64) (*BMCCollectionSummary, error) {

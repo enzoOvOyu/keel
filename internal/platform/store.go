@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/enzoOvOyu/keel/ent"
+	"github.com/enzoOvOyu/keel/internal/bmc"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/ldapauth"
 	"github.com/enzoOvOyu/keel/internal/mediamanifest"
@@ -29,6 +30,8 @@ type MediaObjectStore interface {
 }
 
 type Store struct {
+	BMCInventoryEnabled            bool
+	BMCInventory                   *bmc.Suite
 	FabricIssueVerificationEnabled bool
 	ArtifactTransfersEnabled       bool
 	TaskCacheInventoryEnabled      bool
@@ -78,6 +81,9 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 	return &Store{DB: db, Ent: ent.NewClient(ent.Driver(entsql.OpenDB(dialect.Postgres, db))), passwordSlots: make(chan struct{}, 2), dummyHash: h, dsn: dsn}, nil
 }
 func (s *Store) Close() error {
+	if s.BMCInventory != nil {
+		s.BMCInventory.Close()
+	}
 	if s.SSHRunner != nil {
 		s.SSHRunner.Close()
 	}

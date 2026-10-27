@@ -42,6 +42,7 @@ type Service struct {
 	KeaStore           *platform.Store
 	NetworkStore       *platform.Store
 	IssueStore         *platform.Store
+	BMCStore           *platform.Store
 }
 
 func New(db *sql.DB) *Service { return &Service{DB: db} }

@@ -10,6 +10,23 @@ import (
 
 func (a *authAPI) registerBMCInventory(r *gin.Engine) {
 	base := "/api/v1/projects/:id/assets/:assetId/bmc/collections"
+	r.POST(base, func(c *gin.Context) {
+		actor, service, ok := a.executionProject(c, true)
+		if !ok {
+			return
+		}
+		service.BMCStore = a.store
+		var in platform.BMCCollectionInput
+		if !decodeExecutionBody(c, &in) {
+			return
+		}
+		out, e := service.CreateBMCCollection(c.Request.Context(), actor, c.Param("id"), c.Param("assetId"), in, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(202, out)
+	})
 	r.GET(base, func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {
@@ -44,6 +61,46 @@ func (a *authAPI) registerBMCInventory(r *gin.Engine) {
 			return
 		}
 		out, e := a.store.GetBMCCollection(c.Request.Context(), actor, p, c.Param("assetId"), c.Param("collectionId"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
+	r.GET(base+"/:collectionId/manifest", func(c *gin.Context) {
+		actor, _, ok := a.executionProject(c, false)
+		if !ok {
+			return
+		}
+		out, e := a.store.GetBMCCollectionManifest(c.Request.Context(), actor, &platform.ProjectSummary{ID: c.Param("id")}, c.Param("assetId"), c.Param("collectionId"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
+	r.GET(base+"/:collectionId/resources", func(c *gin.Context) {
+		actor, _, ok := a.executionProject(c, false)
+		if !ok {
+			return
+		}
+		page, ok := readPagination(c)
+		if !ok {
+			return
+		}
+		out, e := a.store.ListBMCResources(c.Request.Context(), actor, &platform.ProjectSummary{ID: c.Param("id")}, c.Param("assetId"), c.Param("collectionId"), page)
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
+	r.GET(base+"/:collectionId/resource", func(c *gin.Context) {
+		actor, _, ok := a.executionProject(c, false)
+		if !ok {
+			return
+		}
+		out, e := a.store.GetBMCResource(c.Request.Context(), actor, &platform.ProjectSummary{ID: c.Param("id")}, c.Param("assetId"), c.Param("collectionId"), c.Query("path"))
 		if e != nil {
 			a.respondError(c, e)
 			return

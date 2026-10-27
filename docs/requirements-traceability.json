@@ -173,12 +173,16 @@
         "H-2"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Bounded read-only L1/L2/L3 Redfish collector, explicit sim/real origins, pinned credential identity, exact versioned raw objects and JSONB evidence, immutable source migration076, scoped read APIs and static freshness now have source. Shared execution/manual admission, cron/event scheduling, encrypted batch provider, IPMI fallback and acceptance remain incomplete. New test sources are NOT_RUN; no database migration or deployment. See HANDOFF section178.",
+      "implementation_notes": "Bounded L1/L2/L3 Redfish/raw evidence, domain-owned manual shared Execution with current BOM/asset/credential/adapter pins, device/BMC fenced leases, one-shot dispatch and original-report receipt recovery, encrypted batch version CAS/expiry/revocation CLI, scoped paginated lazy asset UI now have source. Source migrations076/077 and new cases are NOT_RUN, not deployed. Cron/event/retry scheduling, IPMI fallback and full-batch credential revalidation remain incomplete. No G1/G2/G3 acceptance; see HANDOFF section179 and BMC-INVENTORY.md.",
       "evidence_refs": [
         "internal/bmc/collector.go",
         "internal/platform/bmc_inventory.go",
         "internal/platform/bmc_inventory_reads.go",
-        "docs/HANDOFF.md"
+        "docs/HANDOFF.md",
+        "internal/execution/bmc.go",
+        "internal/platform/bmc_credentials.go",
+        "web/src/features/assets/BMCInventoryDialog.tsx",
+        "docs/BMC-INVENTORY.md"
       ]
     },
     {
@@ -1835,12 +1839,16 @@
         "F-3.4"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Bounded read-only L1/L2/L3 Redfish collector, explicit sim/real origins, pinned credential identity, exact versioned raw objects and JSONB evidence, immutable source migration076, scoped read APIs and static freshness now have source. Shared execution/manual admission, cron/event scheduling, encrypted batch provider, IPMI fallback and acceptance remain incomplete. New test sources are NOT_RUN; no database migration or deployment. See HANDOFF section178.",
+      "implementation_notes": "Bounded L1/L2/L3 Redfish/raw evidence, domain-owned manual shared Execution with current BOM/asset/credential/adapter pins, device/BMC fenced leases, one-shot dispatch and original-report receipt recovery, encrypted batch version CAS/expiry/revocation CLI, scoped paginated lazy asset UI now have source. Source migrations076/077 and new cases are NOT_RUN, not deployed. Cron/event/retry scheduling, IPMI fallback and full-batch credential revalidation remain incomplete. No G1/G2/G3 acceptance; see HANDOFF section179 and BMC-INVENTORY.md.",
       "evidence_refs": [
         "internal/bmc/collector.go",
         "internal/platform/bmc_inventory.go",
         "internal/platform/bmc_inventory_reads.go",
-        "docs/HANDOFF.md"
+        "docs/HANDOFF.md",
+        "internal/execution/bmc.go",
+        "internal/platform/bmc_credentials.go",
+        "web/src/features/assets/BMCInventoryDialog.tsx",
+        "docs/BMC-INVENTORY.md"
       ]
     },
     {
