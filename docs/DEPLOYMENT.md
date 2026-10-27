@@ -32,7 +32,7 @@ curl --fail http://127.0.0.1:3000/healthz
 
 ### 可选 Redis Streams 执行队列
 
-worker 未配置 `KEEL_EXECUTION_QUEUE_FILE` 时保持 PostgreSQL-only 模式，不能据此宣称 Redis 队列通过。启用需先按正式迁移流程应用066～067（本轮未执行），准备独占命名空间的 Redis 7+ 服务，并提供属主可读、无符号链接的0600配置文件：
+worker 未配置 `KEEL_EXECUTION_QUEUE_FILE` 时保持 PostgreSQL-only 模式，不能据此宣称 Redis 队列通过。启用需先确认066～067已按正式迁移流程应用（当前状态见HANDOFF），准备独占命名空间的 Redis 7+ 服务，并提供属主可读、无符号链接的0600配置文件：
 
 ```json
 {"schema":"keel.execution-queue/v1","address":"redis.example.internal:6379","namespace":"keel_dev","tls":true,"username":"keel-worker","password_file":"/run/keel/execution-queue/redis.password","ca_file":"/run/keel/execution-queue/ca.pem","server_name":"redis.example.internal"}
@@ -44,7 +44,7 @@ PostgreSQL业务状态与outbox同事务。Redis只存版本化CloudEvent公共�
 
 配置Redis后故障不静默冒充DB-only成功：新created等待队列恢复，已scheduled任务仍走原Claim、fence和权限检查；租约回收继续运行，失败周期停止刷新健康心跳（原10秒时效，067将心跳绑定队列模式，DB-only不代替Redis健康）。缓存重建不生成TaskAttempt、不重放unknown副作用。非法/未知/投影不匹配引用先写无载荷的拒绝记录再ACK。没有故障自动删除数据库数据或放弃对账。
 
-集中验收可为Agent入口显式传 `--redis-address 127.0.0.1:16379`，只连接独立Redis测试服务，不启动或清空服务，随机命名空间仅清理自身两键。报告分别列PostgreSQL事务/去重、真实Redis协议与Redis+PostgreSQL串联组；未提供fixture或用例skip不算Redis通过。2026-10-27已完成独立协议及6项ExecutionStream定向检查，实际结果、整批状态和待复验项见 [P1验证记录](P1-VALIDATION-2026-10-27.md)。现有3000/业务数据库/Redis配置未变，启用仍需先按部署流程完成迁移和受控配置。
+集中验收可为Agent入口显式传 `--redis-address 127.0.0.1:16379`，只连接独立Redis测试服务，不启动或清空服务，随机命名空间仅清理自身两键。报告分别列PostgreSQL事务/去重、真实Redis协议与Redis+PostgreSQL串联组；未提供fixture或用例skip不算Redis通过。2026-10-27已完成独立协议及6项ExecutionStream定向检查，实际结果、整批状态和待复验项见 [P1验证记录](P1-VALIDATION-2026-10-27.md)。3000及业务库随后按用户要求更新，运行状态见HANDOFF §163；Redis队列配置仍未启用，启用需另行准备受控配置。
 
 当前环境直接访问loopback服务。只有从另一台电脑访问历史远端部署时才配置可选SSH隧道，本地开发不执行：
 
@@ -229,6 +229,6 @@ WP-1.5 的一次性注册、短期mTLS与连接心跳见 [AGENT-IDENTITY](AGENT-
 网页/API入口另由 `KEEL_AGENT_TASKS_ENABLED=true` 开启，默认false；开关只允许提交既有只读任务，不启动worker或签发身份。资产页的在线/离线来自当前证书绑定和30秒心跳/任务连接，不能替代主机健康；执行页沿用原五Tab，unknown在worker查询到真实终态后由当前有权限操作员显式对账。此入口无新增迁移；`npm run build` 后运行 `python3 scripts/check-agent-integration.py --browser` 可验证隔离PG/HTTP/真实Agent/浏览器链路。
 
 
-## 本轮 P1 源码与可选通知配置（尚未发布）
+## P1 源码与可选通知配置
 
-050/051/052 新增 Agent 续签、owner 主密钥维护和独立 Webhook 消费证据；源迁移49条，运行仍46，当前未执行生产迁移。新二进制不能直接连接旧运行 schema。集中验收/备份恢复与权限演练后再按既有发布流程部署，不能自动启用真实通道。可选 worker `KEEL_WEBHOOK_SINKS_FILE` 默认空，独立只读 `/run/keel/webhooks` 挂载默认无密钥；详见 [WEBHOOK-NOTIFICATIONS](WEBHOOK-NOTIFICATIONS.md)。主密钥维护与审计归档分别见 [CREDENTIAL-MASTER-ROTATION](CREDENTIAL-MASTER-ROTATION.md)、[AUDIT-EVIDENCE](AUDIT-EVIDENCE.md)，本批没有执行这些生产维护操作。运行版本与验证事实以 HANDOFF 最后记录为准。
+050/051/052 新增 Agent 续签、owner 主密钥维护和独立 Webhook 消费证据；2026-10-27用户明确要求先行发布后，运行已迁移至067（64条），版本与证据见HANDOFF §163。后续升级仍按备份恢复与权限演练流程部署，不能自动启用真实通道。可选 worker `KEEL_WEBHOOK_SINKS_FILE` 默认空，独立只读 `/run/keel/webhooks` 挂载默认无密钥；详见 [WEBHOOK-NOTIFICATIONS](WEBHOOK-NOTIFICATIONS.md)。主密钥维护与审计归档分别见 [CREDENTIAL-MASTER-ROTATION](CREDENTIAL-MASTER-ROTATION.md)、[AUDIT-EVIDENCE](AUDIT-EVIDENCE.md)，本批没有执行这些生产维护操作。运行版本与验证事实以 HANDOFF 最后记录为准。

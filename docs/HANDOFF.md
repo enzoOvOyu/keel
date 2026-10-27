@@ -1,6 +1,6 @@
 # 当前开发状态
 
-更新：2026-10-27；当前集中测试结果见 [P1验证记录](P1-VALIDATION-2026-10-27.md) 与§160～162，性能待复验项见 [P1-001](issues/P1-001-test-host-resource-timeouts.md)。P1仍partial，3000未更新。后续编号章节保留历史快照；操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-27；当前集中测试结果见 [P1验证记录](P1-VALIDATION-2026-10-27.md) 与§160～162，性能待复验项见 [P1-001](issues/P1-001-test-host-resource-timeouts.md)。P1仍partial；用户后续要求先行发布，3000现为`7afda32`、数据库64条迁移（最后067），见§163。后续编号章节保留历史快照；操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-27，集中测试检查点）
 
@@ -12,7 +12,7 @@
 - 用户2026-10-27已授权集中测试，通过后更新；此前等待验证限制已解除。确定性修复及多数软件批次已通过，性能可能影响的失败登记P1-001、不反复追跑，P1尚未签署。先读上方短验证记录，不重做已通过且未受修改影响的检查。无tmux、SSH绕转、子Agent、工作树或推送。
 - P1仍partial：源码实现、软件验收和真实PoC分开记录。当前逻辑扇出200；批准脚本/制品可组合为主机DAG，未知副作用不自动重放。重装历史保持不可变，RMA需独立批准并按sim/device隔离退役旧绑定；不迁移凭据或覆盖旧物理身份。
 - 下一主线按P1实际WP和F-0.5/F-1退出判据收口软件缺口与集中验收材料；136已接项目模拟，不开放真实136设备会话或监听路由。真实PoC由用户提供，后续G3+、完整IPv6规划和P2～P4能力不强拉进P1。
-- 源64迁移（排除026原草稿）/运行46；本轮只读确认最后049，050～067未应用。3000已检查健康，仍`6668a72c`，未构建候选镜像/迁移/部署/推送。`.env`及其他项目服务未动。原`internal/platform/fabric_precheck.go`与`migrations/026_fabric_precheck.sql`保留，不提交或执行。
+- 源/运行均64迁移（排除026原草稿），最后067；用户要求先发布到3000后，已部署`7afda320ecebbf9670c61103239e5f9872b2ed49`，容器健康及浏览器登录/项目/型号/退出撤权通过。`.env`更新镜像引用；其他项目服务未动，无GitHub推送。原`internal/platform/fabric_precheck.go`与`migrations/026_fabric_precheck.sql`保留，不提交或执行。备份及回滚边界见§163。
 
 
 历史安排（2026-10-26）：合并四Agent工作后恢复单Agent；保持本地开发、无tmux/SSH绕转，PoC由用户提供。当时等待集中验证的限制已被2026-10-27授权替代，当前按AGENTS执行。
@@ -1810,3 +1810,13 @@ bf265ec的PXE定向收尾3项PASS（baseline、写盘前恢复含并发幂等及
 用户再次要求对可能受宿主性能影响的步骤沿用issue，不反复追跑；P1-001保持OPEN。SSH首批公钥安装浏览器等待终态超时，独占库定向8.70秒通过且后续真实SSH/HTTP/CLI通过，但首批仍不改PASS；Agent CLI/脚本/制品/浏览器、200逻辑ZTP整包预算耗尽等保留原始失败及未确认原因。所有确定性修复后的目标用例通过，与尚未完成的时限相关验收分列；P1不签署，不把执行200/200替代ZTP200证据。
 
 原始日志/结果/截图按白名单复制到持久私有evidence目录的runs下（16个隔离环境、128个文件，约8.24MiB），有SHA256索引，排除凭据/私钥文件。测试PG保留；只清理本轮自有数据库/MinIO/Redis fixture，不动其他项目服务、业务数据卷、.env或两份原草稿。3000 /healthz仍6668a72c；只读核实业务库46条、最后049，源码64条，050～067未应用。没有候选部署镜像构建、业务迁移/部署或GitHub推送。后续先按issue补齐签署缺口，再执行已有备份/迁移/授权/发布流程。
+
+
+## §163 2026-10-27 用户明确要求先发布到3000
+
+- 本节替代前文“3000未更新/运行46迁移”的历史状态。用户在了解剩余验收缺口后要求先发布；不把部署当作P1签署，P1-001保持OPEN，没有补跑集中测试。
+- 运行镜像`keel:7afda320ecebbf9670c61103239e5f9872b2ed49`；一次`docker build`完成前端类型/构建及API/admin/worker/sim/SSH runner/Agent二进制。两份原草稿由既有`.dockerignore`排除，未触碰。因原草稿使工作区非净，未使用要求全净的deploy.sh，而在原工作区按同一构建/Compose健康等待/600权限更新镜像引用流程执行，没有stash或新增工作树。
+- 首次备份后在自有独立库恢复，再用候选镜像`keel-admin migrate`演练050～067；原有业务表行数保持。切换前停止旧API、再次备份并检查目录，业务迁移在既有事务/checksum机制下成功；`configure-development.py --grant`授权后，核对审计UPDATE/DELETE、迁移历史INSERT及域密钥INSERT对应用角色均为false。运行库64条迁移、最后`migrations/067_worker_queue_health.sql`。
+- `docker compose up -d --no-build --wait --wait-timeout 90 api`通过；healthz版本与镜像相符、providers可用、匿名项目请求401。真实浏览器登录，已认证项目/型号API及页面可用，退出后撤权401，无pageerror。没有启动worker、开启真实执行通道或Redis队列。
+- 私有证据目录`/home/ubuntu/.local/state/keel/evidence/deploy-20261027/`（700）保留构建/迁移日志、恢复前后行数、两份数据库备份、旧.env副本（600）、浏览器截图和`smoke-result.json`/摘要索引。自有恢复数据库与临时owner凭据文件已清理；旧镜像、运行数据卷和其他服务保留。
+- 旧镜像为`6668a72c1adaeb2444b8c28a3f4db4f038db49dd`，不能直接连接当前64迁移schema；如需退回须单独评估停止写入后的备份恢复及后续数据保全，不直接切镜像或删除卷。本次未推送GitHub，P1未签署，真实PoC未执行。
