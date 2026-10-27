@@ -2309,3 +2309,11 @@ ReadWiringCapture重新打开固定版本对象、核对SHA256/大小、重建�
 - portmon快照读取资产显式绑定的不可变型号版本/哈希/布局，不查最新型号版本。几何位置仅在槽位与实际NIC物理端口关系唯一时绑定灯；多端口/多单元歧义保持未知，全部实际端口仍保留在原列表，不缩小分母。未配置布局/无绑定版本明确缺失，不生成虚拟面板。
 - 自定义资产视图中的服务器名称接统一五标签详情抽屉，上下台范围限定当前页服务器；交换机不误进服务器详情。抽屉内预收集/拓扑/映射发布/名称修正按实际表单状态登记未提交修改，标签切换、上下台、关闭/路由离开给丢弃确认，刷新/关闭页签保护；只读筛选不误报修改。写请求期间仍阻断切换。
 - 本增量仅格式化/契约生成/源码差异检查，Go/DB/TS/浏览器均NOT_RUN，保留到下一重大里程碑统一检查。BMC ServerLampPanel与控制属于WP-3.12、维护期调度属于WP-4.8，不因抽屉收口提前实现后置工作；P2保留现有BMC资产采集入口。接续a9ad885，3000/运行库未变；原草稿和netbom.xlsx未动。
+
+
+## 212. P2 H-2～H-5材料与布局/抽屉里程碑检查
+
+- 新增poc/p2执行包：8台服务器/至少2交换机、B300 amd64/GB300 arm64身份与版本要求，H-2 L1/凭据轮换、H-3两端TLV/原交换机回读、H-4物理逐口/同域T2与真实计数T4维修、H-5主机DOM逐字段及unsupported对比，包含恢复和差异回录。H-13/H-15～H-17复用独立包，真实执行均由所有者安排，模板NOT_RUN。
+- 离线检查器复用有界/no-follow/哈希读取，核对8台完整范围、真实来源标签、部分平台原字段、期限与同工单原命令重验/关闭版本；READY_FOR_REVIEW仍hardware_acceptance=UNVERIFIED。人工原文真实性、TLV/DOM逐字段一致、硬件和操作授权不由离线脚本代签。
+- §211增量与本包合并集中检查通过：`go test ./internal/platform -run TestPortMonitor -count=1 -timeout=90s -v`、隔离keel_test_agent_panel_*库`go test ./internal/agentidentity -run TestMonitorPostgres -count=1 -timeout=90s -v`、`python3 -m unittest discover -s poc/p2 -p test_validate.py -v`四个合成检查及前端`tsc --noEmit`。证据`/tmp/keel-p2-panel-poc-milestone-t8pfbwq0/`，临时库已删；随后修正材料须引用G2 wiring-retests而非fabric通用verification列表，并补同工单/关闭版本检查，定向重跑四个Python检查通过。
+- 布局/抽屉仅软件和类型检查，不含浏览器；没有真实PoC、G1/G2/G3正向全链或portmon维修正向链验收。源码105条迁移/108，运行仍64/067、3000为7afda32。下一步继续Agentless降级和portmon领域维修闭环；不强行启动WP-3.12/4.8。原草稿/netbom.xlsx未动。

@@ -1,0 +1,192 @@
+{
+  "schema": "keel.p2.hardware/v1",
+  "status": "NOT_RUN",
+  "project_id": "",
+  "platform_commit": "",
+  "environment": "",
+  "approval_ref": "",
+  "operator": "",
+  "reviewer": "",
+  "started_at": "",
+  "finished_at": "",
+  "platform_health": {
+    "path": "health.json",
+    "sha256": ""
+  },
+  "servers": [
+    {
+      "asset_id": "",
+      "serial": "",
+      "model": "",
+      "family": "HGX_B300",
+      "arch": "amd64",
+      "bmc_manifest": {
+        "path": "bmc_manifest.json",
+        "sha256": ""
+      },
+      "bmc_system_raw": {
+        "path": "bmc_system_raw.json",
+        "sha256": ""
+      },
+      "lldp_host_raw": {
+        "path": "lldp_host_raw.txt",
+        "sha256": ""
+      },
+      "lldp_switch_raw": {
+        "path": "lldp_switch_raw.txt",
+        "sha256": ""
+      },
+      "step2": {
+        "path": "step2.json",
+        "sha256": ""
+      },
+      "step3": {
+        "path": "step3.json",
+        "sha256": ""
+      },
+      "mapping": {
+        "path": "mapping.json",
+        "sha256": ""
+      },
+      "manual_mapping": {
+        "path": "manual_mapping.txt",
+        "sha256": ""
+      },
+      "dom_direct": {
+        "path": "dom_direct.txt",
+        "sha256": ""
+      },
+      "dom_panel": {
+        "path": "dom_panel.txt",
+        "sha256": ""
+      },
+      "comparison_record": {
+        "path": "comparison_record.txt",
+        "sha256": ""
+      },
+      "comparisons": {
+        "mapping_identity": "NOT_RUN",
+        "dom_readback": "NOT_RUN"
+      }
+    }
+  ],
+  "switches": [
+    {
+      "switch_id": "",
+      "serial": "",
+      "model": "",
+      "nos": "",
+      "nos_version": ""
+    }
+  ],
+  "cases": [
+    {
+      "name": "credential-version-reverify",
+      "observed_at": "",
+      "operator": "",
+      "restoration_ref": "",
+      "before": {
+        "path": "credential-version-reverify/before.json",
+        "sha256": ""
+      },
+      "after": {
+        "path": "credential-version-reverify/after.json",
+        "sha256": ""
+      },
+      "operation_log": {
+        "path": "credential-version-reverify/operation_log.json",
+        "sha256": ""
+      }
+    },
+    {
+      "name": "wrong-patch-T2",
+      "observed_at": "",
+      "operator": "",
+      "restoration_ref": "",
+      "before": {
+        "path": "wrong-patch-T2/before.json",
+        "sha256": ""
+      },
+      "after": {
+        "path": "wrong-patch-T2/after.json",
+        "sha256": ""
+      },
+      "operation_log": {
+        "path": "wrong-patch-T2/operation_log.json",
+        "sha256": ""
+      },
+      "issue": {
+        "path": "wrong-patch-T2/issue.json",
+        "sha256": ""
+      },
+      "verifications": {
+        "path": "wrong-patch-T2/verifications.json",
+        "sha256": ""
+      },
+      "repair_report": {
+        "path": "wrong-patch-T2/repair_report.json",
+        "sha256": ""
+      },
+      "closed_version": 0
+    },
+    {
+      "name": "counter-growth-T4",
+      "observed_at": "",
+      "operator": "",
+      "restoration_ref": "",
+      "before": {
+        "path": "counter-growth-T4/before.json",
+        "sha256": ""
+      },
+      "after": {
+        "path": "counter-growth-T4/after.json",
+        "sha256": ""
+      },
+      "operation_log": {
+        "path": "counter-growth-T4/operation_log.json",
+        "sha256": ""
+      },
+      "issue": {
+        "path": "counter-growth-T4/issue.json",
+        "sha256": ""
+      },
+      "verifications": {
+        "path": "counter-growth-T4/verifications.json",
+        "sha256": ""
+      },
+      "repair_report": {
+        "path": "counter-growth-T4/repair_report.json",
+        "sha256": ""
+      },
+      "closed_version": 0
+    },
+    {
+      "name": "dom-unsupported",
+      "observed_at": "",
+      "operator": "",
+      "restoration_ref": "",
+      "before": {
+        "path": "dom-unsupported/before.json",
+        "sha256": ""
+      },
+      "after": {
+        "path": "dom-unsupported/after.json",
+        "sha256": ""
+      },
+      "operation_log": {
+        "path": "dom-unsupported/operation_log.json",
+        "sha256": ""
+      }
+    }
+  ],
+  "sim_difference_register": {
+    "path": "sim-differences.json",
+    "sha256": ""
+  },
+  "related_packages": {
+    "H-13": "../topology-h13/evidence.template.json",
+    "H-15": "../bom-h15/evidence.template.json",
+    "H-16": "../ztp-h16/evidence.template.json",
+    "H-17": "../fabric-h17/evidence.template.json"
+  }
+}

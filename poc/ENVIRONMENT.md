@@ -49,3 +49,5 @@ READY_FOR_REVIEW仅表示10台记录内部一致、文件摘要匹配，**不是
 P1其他执行材料分别见`poc/bom-h15/ENVIRONMENT.md`（真实BOM/映射/三级定位回传）与`poc/ztp-h16/ENVIRONMENT.md`（≥2交换机、239/143/60-43）。各包的合成自检、文件摘要完整性与真实硬件签署分开记录。
 
 P2 PCIe拓扑的B300/GB300双架构H-13材料独立位于[topology-h13/ENVIRONMENT.md](topology-h13/ENVIRONMENT.md)，当前NOT_RUN；不复用P1结果声称P2或真机验收完成。
+
+P2 H-2～H-5的8台服务器/2台交换机、DOM与T2/T4维修演练材料见[p2/ENVIRONMENT.md](p2/ENVIRONMENT.md)。模板及执行状态为NOT_RUN，离线一致性不授予硬件验收。
