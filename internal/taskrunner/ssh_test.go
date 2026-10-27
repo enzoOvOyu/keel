@@ -312,7 +312,9 @@ func TestWrapperRejectsUnsafeInputAndNeverRestartsAccepted(t *testing.T) {
 		}
 	}
 	b, _ := json.Marshal(taskrunner.Request{Action: "run", Command: c})
-	b = append(b, bytes.Repeat([]byte(" "), 4097)...)
+	// Script requests use the bounded 16 KiB envelope, including the approved
+	// script artifact; the former 4 KiB probe is now a valid request size.
+	b = append(b, bytes.Repeat([]byte(" "), 16385)...)
 	if w.Serve(context.Background(), bytes.NewReader(b), io.Discard) == nil {
 		t.Fatal("oversize request accepted")
 	}

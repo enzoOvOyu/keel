@@ -1301,6 +1301,8 @@ export interface components {
             readonly arch?: string;
         };
         MediaDependencies: {
+            task_script?: components["schemas"]["MediaTaskScriptProfile"];
+            os_boot?: components["schemas"]["MediaOSBootProfile"];
             compatibility?: components["schemas"]["CompatibilityMatrix"];
             /** @description Exact approved artifact identities. Server records canonical labels; no latest-version lookup. Closure is bounded to 128 dependencies and 16 edges deep. */
             artifacts?: components["schemas"]["MediaArtifactDependency"][];
@@ -1583,6 +1585,56 @@ export interface components {
         };
         ControlFlowCreateInput: {
             flow_version_id: string;
+        };
+        /** @description Independently reviewed runnable-tool metadata; separate from the immutable artifact manifest or external source URL. Restricted to 1..8192-byte noarch Linux tools with no hardware scope or dependencies. */
+        MediaTaskScriptProfile: {
+            /** @enum {string} */
+            version: "keel.task-script/v1";
+            /** @enum {string} */
+            interpreter: "shell" | "python";
+        };
+        MediaOSBootProfile: {
+            /** @constant */
+            schema: "keel.os-boot/v1";
+            /** @constant */
+            installer: "cloud-init";
+            kernel_media_id: string;
+            initrd_media_id: string;
+            template_media_id: string;
+            recipe?: components["schemas"]["MediaBootRecipe"];
+        };
+        /** @description Reviewed installer inputs. v1 admits boot/preflight only; v2 additionally binds one target-system UKI inside the approved rootfs. Neither metadata nor byte verification grants disk write permission or proves bootability. */
+        MediaBootRecipe: {
+            /** @enum {string} */
+            schema: "keel.boot-recipe/v1" | "keel.boot-recipe/v2";
+            /** @constant */
+            protocol: "keel-initrd/v1";
+            /** @constant */
+            rootfs_format: "squashfs";
+            uefi_media_id: string;
+            legacy_media_id?: string;
+            preflight_media_id: string;
+            ssh_helper_media_id: string;
+            preflight_sha256: string;
+            ssh_helper_sha256: string;
+            target_boot?: components["schemas"]["MediaTargetBoot"];
+        } & ({
+            /** @constant */
+            schema?: "keel.boot-recipe/v1";
+        } | {
+            /** @constant */
+            schema?: "keel.boot-recipe/v2";
+        });
+        MediaTargetBoot: {
+            /** @constant */
+            schema: "keel.target-boot/v1";
+            /** @constant */
+            path: "usr/lib/keel/target.efi";
+            sha256: string;
+            size: number;
+            kernel_release: string;
+            /** @constant */
+            command_line: "root=PARTLABEL=keel-root rootfstype=ext4 rw rootwait";
         };
     };
     responses: {

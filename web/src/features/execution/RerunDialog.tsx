@@ -18,7 +18,7 @@ export function RerunDialog({projectId,projectName,sourceExecutionId,mode,target
  useEffect(()=>setConfirmed(false),[data?.selection_hash,sourceExecutionId,projectId])
  async function submit(event:FormEvent){
   event.preventDefault();if(!data||data.targets.length===0||preview.isFetching||preview.isError||(data.requires_full_workflow_confirmation&&!confirmed))return
-  const body={mode,...(mode==='targets'?{target_ids:targets}:{}),expected_version:data.source_version,selection_hash:data.selection_hash,change_reason:reason.trim(),...(data.requires_full_workflow_confirmation?{confirm_full_workflow:confirmed}:{})},payload=JSON.stringify(body)
+  const body={mode,...(mode==='targets'?{target_ids:targets}:{}),expected_version:data.source_version,selection_hash:data.selection_hash,change_reason:reason.trim(),confirm_full_workflow:!!data.requires_full_workflow_confirmation&&confirmed},payload=JSON.stringify(body)
   if(key.current?.payload!==payload)key.current={payload,key:crypto.randomUUID()}
   const requestKey=key.current.key,result=await action.run(()=>rerunExecution(projectId,sourceExecutionId,body,session.csrf_token,requestKey))
   if(result.ok)onDone(result.value.id)

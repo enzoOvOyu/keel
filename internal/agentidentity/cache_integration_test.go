@@ -1,4 +1,4 @@
-package agentidentity
+package agentidentity_test
 
 import (
 	"context"

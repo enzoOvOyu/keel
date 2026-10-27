@@ -139,7 +139,7 @@ func runtimeBootPlan(result *provisionimage.InitrdResult) mediaboot.Plan {
 
 func TestInstallerInitrdBindsActualArchiveToFrozenRolePlan(t *testing.T) {
 	raw, key, directory := signedInitrdFixture(t)
-	output := filepath.Join(t.TempDir(), "runtime.cpio.gz")
+	output := filepath.Join(privateBundleDir(t), "runtime.cpio.gz")
 	result, err := CreateInstallerInitrd(context.Background(), raw, key, directory, output)
 	if err != nil {
 		t.Fatal(err)
@@ -179,7 +179,7 @@ func TestInstallerInitrdBindsActualArchiveToFrozenRolePlan(t *testing.T) {
 
 func TestInstallerInitrdIndependentApprovedClosureAndPublication(t *testing.T) {
 	raw, key, directory := signedInitrdFixture(t)
-	output := filepath.Join(t.TempDir(), "runtime.cpio.gz")
+	output := filepath.Join(privateBundleDir(t), "runtime.cpio.gz")
 	result, err := CreateInstallerInitrd(context.Background(), raw, key, directory, output)
 	if err != nil {
 		t.Fatal(err)
@@ -202,7 +202,7 @@ func TestInstallerInitrdIndependentApprovedClosureAndPublication(t *testing.T) {
 	if err = os.WriteFile(filepath.Join(directory, strings.Repeat("1", 32)+".bin"), []byte("changed init"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	badOutput := filepath.Join(t.TempDir(), "changed.cpio.gz")
+	badOutput := filepath.Join(privateBundleDir(t), "changed.cpio.gz")
 	if _, err = CreateInstallerInitrd(context.Background(), raw, key, directory, badOutput); err == nil {
 		t.Fatal("changed approved input")
 	}
@@ -214,7 +214,7 @@ func TestInstallerInitrdRejectsCanceledAndUntrustedBuild(t *testing.T) {
 	raw, key, directory := signedInitrdFixture(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	output := filepath.Join(t.TempDir(), "canceled.cpio.gz")
+	output := filepath.Join(privateBundleDir(t), "canceled.cpio.gz")
 	if _, err := CreateInstallerInitrd(ctx, raw, key, directory, output); err == nil {
 		t.Fatal("canceled image build")
 	}
@@ -229,7 +229,7 @@ func TestInstallerInitrdRejectsCanceledAndUntrustedBuild(t *testing.T) {
 
 func TestInstallerInitrdWriterToolsIndependentClosure(t *testing.T) {
 	raw, key, directory := signedInitrdFixtureMode(t, true)
-	output := filepath.Join(t.TempDir(), "writer-inputs.cpio.gz")
+	output := filepath.Join(privateBundleDir(t), "writer-inputs.cpio.gz")
 	result, err := CreateInstallerInitrd(context.Background(), raw, key, directory, output)
 	if err != nil {
 		t.Fatal(err)
@@ -250,7 +250,7 @@ func TestInstallerInitrdWriterToolsIndependentClosure(t *testing.T) {
 	if err = os.WriteFile(filepath.Join(directory, id+".bin"), []byte("changed tool bytes"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	changed := filepath.Join(t.TempDir(), "changed-tool.cpio.gz")
+	changed := filepath.Join(privateBundleDir(t), "changed-tool.cpio.gz")
 	if _, err = CreateInstallerInitrd(context.Background(), raw, key, directory, changed); err == nil {
 		t.Fatal("changed tool accepted")
 	}

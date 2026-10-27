@@ -3944,6 +3944,7 @@ export interface components {
             interpreter: "shell" | "python";
         };
         MediaDependencies: {
+            task_script?: components["schemas"]["MediaTaskScriptProfile"];
             os_boot?: components["schemas"]["MediaOSBootProfile"];
             compatibility?: components["schemas"]["CompatibilityMatrix"];
             /** @description Exact approved artifact identities. Server records canonical labels; no latest-version lookup. Closure is bounded to 128 dependencies and 16 edges deep. */
@@ -6075,31 +6076,6 @@ export interface components {
             change_reason: string;
             confirmed_full_workflow?: boolean;
         };
-        "schemas-MediaDependencies": {
-            compatibility?: components["schemas"]["CompatibilityMatrix"];
-            /** @description Exact approved artifact identities. Server records canonical labels; no latest-version lookup. Closure is bounded to 128 dependencies and 16 edges deep. */
-            artifacts?: components["schemas"]["MediaArtifactDependency"][];
-        };
-        "schemas-CatalogMedia": {
-            id: string;
-            uri: string;
-            version: string;
-            arch: string;
-            hw_scope: string;
-            os_scope: string;
-            sha256: string;
-            object_version: string;
-            deps: components["schemas"]["schemas-MediaDependencies"];
-        };
-        "schemas-CatalogSelection": {
-            key_id: string;
-            key: string;
-            value: string;
-            /** Format: date-time */
-            updated_at: string;
-            deps: components["schemas"]["CatalogDependencies"];
-            media?: components["schemas"]["schemas-CatalogMedia"];
-        };
         ExecutionCircuitBreakerPolicy: {
             default_percent: number;
             /** @enum {string} */
@@ -6123,7 +6099,7 @@ export interface components {
             /** Format: date-time */
             frozen_at: string;
             rerun_source?: components["schemas"]["RerunSource"];
-            catalog?: components["schemas"]["schemas-CatalogSelection"][];
+            catalog?: components["schemas"]["CatalogSelection"][];
             /** @description Original published definition digest before server-owned media approval snapshots are added. flow.content_hash binds the frozen execution definition. */
             source_flow_content_hash?: string;
             circuit_breaker_policy?: components["schemas"]["ExecutionCircuitBreakerPolicy"];

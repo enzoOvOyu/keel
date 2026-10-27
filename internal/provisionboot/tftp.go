@@ -108,7 +108,16 @@ func (t *TFTPTransfer) Close() error {
 	t.closed = true
 	return t.artifact.File.Close()
 }
-func (t *TFTPTransfer) allowed() bool { return !t.closed && t.guard != nil && t.guard.check() }
+func (t *TFTPTransfer) allowed() bool {
+	if t.closed || t.guard == nil {
+		return false
+	}
+	// TFTP advances in discrete small blocks. Revalidate before every DATA or
+	// retry; a hash-pass check must not authorize later packets after revocation.
+	// The HTTP stream's bounded check cache remains local to its own guard.
+	t.guard.checked = time.Time{}
+	return t.guard.check()
+}
 
 // Next ignores a duplicate ACK and advances exactly once for a matching ACK.
 // Duplicate ACKs must not cause DATA retransmission (RFC1123 section 4.2.3.1). A nil ACK starts at block 1. A nil DATA after the

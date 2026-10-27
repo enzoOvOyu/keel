@@ -5934,6 +5934,12 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
+          "task_script": {
+            "$ref": "#/components/schemas/MediaTaskScriptProfile"
+          },
+          "os_boot": {
+            "$ref": "#/components/schemas/MediaOSBootProfile"
+          },
           "compatibility": {
             "$ref": "#/components/schemas/CompatibilityMatrix"
           },
@@ -6993,6 +6999,188 @@
         "required": [
           "flow_version_id"
         ]
+      },
+      "MediaTaskScriptProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "interpreter"
+        ],
+        "description": "Independently reviewed runnable-tool metadata; separate from the immutable artifact manifest or external source URL. Restricted to 1..8192-byte noarch Linux tools with no hardware scope or dependencies.",
+        "properties": {
+          "version": {
+            "type": "string",
+            "enum": [
+              "keel.task-script/v1"
+            ]
+          },
+          "interpreter": {
+            "type": "string",
+            "enum": [
+              "shell",
+              "python"
+            ]
+          }
+        }
+      },
+      "MediaOSBootProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema",
+          "installer",
+          "kernel_media_id",
+          "initrd_media_id",
+          "template_media_id"
+        ],
+        "properties": {
+          "schema": {
+            "type": "string",
+            "const": "keel.os-boot/v1"
+          },
+          "installer": {
+            "type": "string",
+            "const": "cloud-init"
+          },
+          "kernel_media_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "initrd_media_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "template_media_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "recipe": {
+            "$ref": "#/components/schemas/MediaBootRecipe"
+          }
+        }
+      },
+      "MediaBootRecipe": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Reviewed installer inputs. v1 admits boot/preflight only; v2 additionally binds one target-system UKI inside the approved rootfs. Neither metadata nor byte verification grants disk write permission or proves bootability.",
+        "required": [
+          "schema",
+          "protocol",
+          "rootfs_format",
+          "uefi_media_id",
+          "preflight_media_id",
+          "ssh_helper_media_id",
+          "preflight_sha256",
+          "ssh_helper_sha256"
+        ],
+        "properties": {
+          "schema": {
+            "type": "string",
+            "enum": [
+              "keel.boot-recipe/v1",
+              "keel.boot-recipe/v2"
+            ]
+          },
+          "protocol": {
+            "type": "string",
+            "const": "keel-initrd/v1"
+          },
+          "rootfs_format": {
+            "type": "string",
+            "const": "squashfs"
+          },
+          "uefi_media_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "legacy_media_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "preflight_media_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "ssh_helper_media_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "preflight_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "ssh_helper_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "target_boot": {
+            "$ref": "#/components/schemas/MediaTargetBoot"
+          }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "schema": {
+                "const": "keel.boot-recipe/v1"
+              }
+            },
+            "not": {
+              "required": [
+                "target_boot"
+              ]
+            }
+          },
+          {
+            "properties": {
+              "schema": {
+                "const": "keel.boot-recipe/v2"
+              }
+            },
+            "required": [
+              "target_boot"
+            ]
+          }
+        ]
+      },
+      "MediaTargetBoot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema",
+          "path",
+          "sha256",
+          "size",
+          "kernel_release",
+          "command_line"
+        ],
+        "properties": {
+          "schema": {
+            "type": "string",
+            "const": "keel.target-boot/v1"
+          },
+          "path": {
+            "type": "string",
+            "const": "usr/lib/keel/target.efi"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 402653184
+          },
+          "kernel_release": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._+-]{0,127}$"
+          },
+          "command_line": {
+            "type": "string",
+            "const": "root=PARTLABEL=keel-root rootfstype=ext4 rw rootwait"
+          }
+        }
       }
     }
   }

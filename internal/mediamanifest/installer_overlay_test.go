@@ -90,7 +90,7 @@ func signedOverlayFixture(t *testing.T) ([]byte, ed25519.PublicKey, string) {
 }
 func TestInstallerOverlayTrustedMetadataAndExactPrivateOutput(t *testing.T) {
 	raw, key, directory := signedOverlayFixture(t)
-	output := filepath.Join(t.TempDir(), "helpers.cpio.gz")
+	output := filepath.Join(privateBundleDir(t), "helpers.cpio.gz")
 	result, err := CreateInstallerOverlay(context.Background(), raw, key, directory, output)
 	if err != nil {
 		t.Fatal(err)
@@ -177,7 +177,7 @@ func TestInstallerOverlayRejectsCorruptSymlinkAndUntrustedInputs(t *testing.T) {
 
 func TestInstallerOverlayVerificationRequiresIndependentTrust(t *testing.T) {
 	raw, key, directory := signedOverlayFixture(t)
-	output := filepath.Join(t.TempDir(), "out.cpio.gz")
+	output := filepath.Join(privateBundleDir(t), "out.cpio.gz")
 	if _, err := CreateInstallerOverlay(context.Background(), raw, key, directory, output); err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func TestInstallerOverlayVerificationRequiresIndependentTrust(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, changed := range [][]byte{content[:len(content)-1], append(append([]byte{}, content...), content...)} {
-		path := filepath.Join(t.TempDir(), "bad.cpio.gz")
+		path := filepath.Join(privateBundleDir(t), "bad.cpio.gz")
 		os.WriteFile(path, changed, 0600)
 		if _, err := VerifyInstallerOverlay(context.Background(), path, key); err == nil {
 			t.Fatal("accepted truncated/concatenated overlay")

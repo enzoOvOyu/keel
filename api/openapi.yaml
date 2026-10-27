@@ -3746,6 +3746,7 @@ components:
       type: object
       additionalProperties: false
       properties:
+        task_script: { $ref: '#/components/schemas/MediaTaskScriptProfile' }
         os_boot: { $ref: '#/components/schemas/MediaOSBootProfile' }
         compatibility: { $ref: '#/components/schemas/CompatibilityMatrix' }
         artifacts:

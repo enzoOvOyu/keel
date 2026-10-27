@@ -23,7 +23,11 @@ func TestWebhookCLIBoundariesAndIndependentKeygen(t *testing.T) {
 			t.Fatal("invalid notification CLI accepted", args)
 		}
 	}
-	path := filepath.Join(t.TempDir(), "webhook-key")
+	directory := t.TempDir()
+	if err := os.Chmod(directory, 0700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(directory, "webhook-key")
 	if err := run([]string{"webhook-signing-keygen", "--output", path}); err != nil {
 		t.Fatal(err)
 	}

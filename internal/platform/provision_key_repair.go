@@ -437,7 +437,7 @@ func (s *Store) PrepareProvisionKeyRepair(ctx context.Context, project, id, atte
 	if !until.After(time.Now()) || !work.Plan.ExpiresAt.After(time.Now()) {
 		return nil, ErrProvisionBootDenied
 	}
-	if err = appendProvisionEventTx(ctx, tx, x, "first_boot.key_repair_consumed", work); err != nil {
+	if err = appendProvisionEventTx(ctx, tx, x, "first_boot.key_repair_consumed", map[string]any{"repair_id": work.RepairID, "query_id": work.QueryID, "mode": work.Mode, "command": work.Command, "plan": work.Plan, "bootstrap": work.Bootstrap}); err != nil {
 		return nil, err
 	}
 	if r.State != "consumed" {

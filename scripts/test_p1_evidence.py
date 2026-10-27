@@ -62,7 +62,8 @@ class EvidenceBoundaries(unittest.TestCase):
         for key, value in [('commit', 'b' * 40), ('tracked_changes', True), ('unexpected_untracked', True)]:
             changed = {**original, key: value}
             self.assertFalse(source_provenance(original, changed)['unchanged_clean_snapshot'])
-            self.assertFalse(source_provenance(changed, changed)['unchanged_clean_snapshot'])
+            # A different, stable clean commit is valid in a separate run.
+            self.assertEqual(source_provenance(changed, changed)['unchanged_clean_snapshot'], key == 'commit')
 
     def test_preserved_drafts_require_the_exact_exclusion_overlay(self):
         with tempfile.TemporaryDirectory() as directory:
