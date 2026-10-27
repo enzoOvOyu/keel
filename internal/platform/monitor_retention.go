@@ -67,7 +67,7 @@ func (s *Store) TickMonitorFreshness(ctx context.Context) error {
 		return e
 	}
 	defer tx.Rollback()
-	rows, e := tx.QueryContext(ctx, `SELECT alert.id,asset.state,sample.observed_at,sample.received_at,sample.interval_seconds FROM monitor_alerts alert JOIN project_assets asset ON asset.project_id=alert.project_id AND asset.machine_id=alert.machine_id LEFT JOIN monitor_metric_samples sample ON sample.sequence=alert.sample_sequence WHERE alert.source='host' AND alert.state IN('firing','suppressed') AND ((asset.state='maintained' AND alert.state<>'suppressed') OR (asset.state<>'maintained' AND (sample.observed_at+make_interval(secs=>sample.interval_seconds*3)<=clock_timestamp() OR sample.received_at+make_interval(secs=>sample.interval_seconds*3)<=clock_timestamp()))) ORDER BY alert.id FOR UPDATE OF alert SKIP LOCKED LIMIT 200`)
+	rows, e := tx.QueryContext(ctx, `SELECT alert.id,asset.state,sample.observed_at,sample.received_at,sample.interval_seconds FROM monitor_alerts alert JOIN project_assets asset ON asset.project_id=alert.project_id AND asset.machine_id=alert.machine_id LEFT JOIN monitor_metric_samples sample ON sample.sequence=alert.sample_sequence WHERE alert.source='host' AND alert.sample_sequence IS NOT NULL AND alert.state IN('firing','suppressed') AND ((asset.state='maintained' AND alert.state<>'suppressed') OR (asset.state<>'maintained' AND (sample.observed_at+make_interval(secs=>sample.interval_seconds*3)<=clock_timestamp() OR sample.received_at+make_interval(secs=>sample.interval_seconds*3)<=clock_timestamp()))) ORDER BY alert.id FOR UPDATE OF alert SKIP LOCKED LIMIT 200`)
 	if e != nil {
 		return e
 	}

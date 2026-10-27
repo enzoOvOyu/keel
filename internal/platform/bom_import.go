@@ -433,14 +433,7 @@ func (s *Store) ListProjectAssets(ctx context.Context, a *AuthSession, project *
 	if e = tx.QueryRowContext(ctx, `SELECT count(*) FROM project_assets WHERE project_id=$1`, project.ID).Scan(&out.Total); e != nil {
 		return out, e
 	}
-	rows, e := tx.QueryContext(ctx, `SELECT pa.id,pa.machine_id,m.serial_number,pa.hostname,pa.ip_reference,pa.state,pa.version,
-			COALESCE(dm.name,''), m.rack, m.unit_position, m.ssh_trust, m.ssh_trust_source, COALESCE(dm.id,''), COALESCE(mv.id,''), COALESCE(mv.version,0)
-		FROM project_assets pa
-		JOIN machines m ON m.id=pa.machine_id
-		LEFT JOIN device_models dm ON dm.id=pa.model_id AND (dm.scope_key='global' OR dm.scope_key='project:'||pa.project_id)
-		LEFT JOIN device_model_versions mv ON mv.id=pa.model_version_id AND mv.model_id=dm.id
-		WHERE pa.project_id=$1
-		ORDER BY pa.hostname LIMIT $2 OFFSET $3`, project.ID, p.PageSize, p.Offset())
+	rows, e := tx.QueryContext(ctx, projectAssetSummarySelect+` WHERE pa.project_id=$1 ORDER BY pa.hostname LIMIT $2 OFFSET $3`, project.ID, p.PageSize, p.Offset())
 	if e != nil {
 		return out, e
 	}
@@ -478,3 +471,10 @@ type ProjectAssetSummary struct {
 	SshTrust       string `json:"ssh_trust"`
 	SshTrustSource string `json:"ssh_trust_source"`
 }
+
+const projectAssetSummarySelect = `SELECT pa.id,pa.machine_id,m.serial_number,pa.hostname,pa.ip_reference,pa.state,pa.version,
+			COALESCE(dm.name,''), m.rack, m.unit_position, m.ssh_trust, m.ssh_trust_source, COALESCE(dm.id,''), COALESCE(mv.id,''), COALESCE(mv.version,0)
+		FROM project_assets pa
+		JOIN machines m ON m.id=pa.machine_id
+		LEFT JOIN device_models dm ON dm.id=pa.model_id AND (dm.scope_key='global' OR dm.scope_key='project:'||pa.project_id)
+		LEFT JOIN device_model_versions mv ON mv.id=pa.model_version_id AND mv.model_id=dm.id`

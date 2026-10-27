@@ -3,7 +3,7 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import AssetDetailFrame from './AssetDetailFrame'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
@@ -15,7 +15,7 @@ import { useAction } from '../../lib/management'
 import { createPrecollect, currentG1, downloadPrecollect, getPrecollect, listPrecollect, previewPrecollect, type PrecollectInput } from '../../lib/precollect'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 
-export default function PrecollectDialog({ asset, onClose }: { asset: ProjectAsset; onClose: () => void }) {
+export default function PrecollectDialog({ asset, onClose, embedded = false, onBusy }: { asset: ProjectAsset; onClose: () => void; embedded?: boolean; onBusy?: (busy: boolean) => void }) {
  const { t } = useTranslation(), session = useSession(), project = useProject(), navigate = useNavigate(), action = useAction()
  const [now, setNow] = useState(Date.now())
  const [page, setPage] = useState(1), [selected, setSelected] = useState(''), [reason, setReason] = useState(''), [validation, setValidation] = useState('')
@@ -49,7 +49,7 @@ export default function PrecollectDialog({ asset, onClose }: { asset: ProjectAss
  }, [currentEvidence?.valid_until, selectedEvidence?.valid_until, now])
  const validity = (evidence: NonNullable<typeof currentEvidence>) => Date.parse(evidence.valid_until) <= Math.max(now, Date.now()) ? 'stale' : evidence.validity
  const effectiveVerdict = currentEvidence && validity(currentEvidence) !== 'fresh' ? 'BLOCKED' : gate.data?.effective_verdict ?? 'BLOCKED'
- return <Dialog open onOpenChange={open => { if (!open && !action.busy) onClose() }}><DialogContent className="ui:max-h-[90vh] ui:overflow-y-auto ui:sm:max-w-5xl"><DialogHeader><DialogTitle>{t('precollectTitle')} · {asset.hostname}</DialogTitle><DialogDescription>{t('precollectIntro')}</DialogDescription></DialogHeader>
+ return <AssetDetailFrame title={`${t('precollectTitle')} · ${asset.hostname}`} description={t('precollectIntro')} busy={action.busy} embedded={embedded} onBusy={onBusy} onClose={onClose}>
   {errors.map((error, i) => <ActionError key={i} error={error} />)}
   {!denied && <>
    <section className="ui:grid ui:gap-2" aria-label={t('precollectCurrent')}><h3>{t('precollectCurrent')}</h3>{gate.data ? <><p>{t(`precollect_${effectiveVerdict}`)}{gate.data.reason && <> · <span className="mono-value">{gate.data.reason}</span></>}</p>{gate.data.evidence && <p>{t('precollectHistorical')}: {t(`precollect_${gate.data.evidence.verdict}`)} · {t('precollectValidity')}: {t(`precollect_${validity(gate.data.evidence)}`)} · {t('precollectUntil')}: {new Date(gate.data.evidence.valid_until).toLocaleString()}</p>}</> : gate.isFetching && <p role="status">{t('loadingRecords')}</p>}</section>
@@ -63,6 +63,6 @@ export default function PrecollectDialog({ asset, onClose }: { asset: ProjectAss
     {record.report && <><p>{t('precollectNoConfigChange')}: {String(record.report.config_unchanged)}</p><details><summary>{t('precollectReport')}</summary><pre className="ui:max-h-96 ui:overflow-auto ui:whitespace-pre-wrap ui:break-words">{JSON.stringify(record.report, null, 2)}</pre></details><Button type="button" variant="outline" disabled={action.busy} onClick={() => void action.run(() => downloadPrecollect(project.id, asset.id, record.id))}>{t('precollectRaw')}</Button></>}
    </section>}
   </>}
-  <p className="field-hint">{t('precollectReadOnly')}</p><Button type="button" variant="outline" disabled={action.busy} onClick={onClose}>{t('bmcClose')}</Button>
- </DialogContent></Dialog>
+  <p className="field-hint">{t('precollectReadOnly')}</p>{!embedded && <Button type="button" variant="outline" disabled={action.busy} onClick={onClose}>{t('bmcClose')}</Button>}
+ </AssetDetailFrame>
 }

@@ -11,7 +11,7 @@ import { useProject } from '../../components/ProjectWorkspace'
 import { ApiError } from '../../lib/api'
 import { mappingFleet } from '../../lib/mapping'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
-import MappingDialog from './MappingDialog'
+import ServerDetailDrawer from './ServerDetailDrawer'
 
 export default function MappingFleetDialog({ onClose }: { onClose: () => void }) {
  const { t } = useTranslation(), project = useProject(), session = useSession()
@@ -37,5 +37,5 @@ export default function MappingFleetDialog({ onClose }: { onClose: () => void })
    })}</TableBody></Table>{!query.data.items.length && <p>{t('mappingNoFleetRows')}</p>}<Pagination offset={(page - 1) * query.data.page_size} limit={query.data.page_size} total={query.data.total} busy={query.isFetching} onChange={offset => setPage(Math.floor(offset / query.data!.page_size) + 1)} /></>}
   </>}
   <Button variant="outline" onClick={onClose}>{t('bmcClose')}</Button>
- </DialogContent></Dialog>{selected && <MappingDialog key={`${project.id}:${selected.id}:${selected.assessment}`} asset={selected} initialAssessmentId={selected.assessment} onClose={() => setSelected(null)} />}</>
+ </DialogContent></Dialog>{selected && <ServerDetailDrawer key={`${project.id}:${selected.id}:${selected.assessment}`} target={selected} assets={(query.data?.items ?? []).map(item => ({ id: item.asset_id, hostname: item.hostname }))} initialTab="mapping" initialAssessmentId={selected.assessment} onSelect={target => { const item = query.data?.items.find(item => item.asset_id === target.id); setSelected({ ...target, assessment: item?.revision?.assessment_id ?? '' }) }} onClose={() => { setSelected(null); void query.refetch() }} />}</>
 }

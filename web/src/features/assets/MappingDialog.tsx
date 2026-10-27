@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import AssetDetailFrame from './AssetDetailFrame'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
@@ -15,7 +15,7 @@ import { mappingAssessment, mappingBase, mappingHistory, previewMapping, publish
 import MappingCorrections from './MappingCorrections'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 
-export default function MappingDialog({ asset, onClose, initialAssessmentId = '' }: { asset: { id: string; hostname: string }; onClose: () => void; initialAssessmentId?: string }) {
+export default function MappingDialog({ asset, onClose, initialAssessmentId = '', embedded = false, onBusy }: { asset: { id: string; hostname: string }; onClose: () => void; initialAssessmentId?: string; embedded?: boolean; onBusy?: (busy: boolean) => void }) {
  const { t } = useTranslation(), session = useSession(), project = useProject(), queries = useQueryClient(), action = useAction()
  const [reason, setReason] = useState(''), [validation, setValidation] = useState(''), [page, setPage] = useState(1), [selected, setSelected] = useState(initialAssessmentId), [rail, setRail] = useState(''), [now, setNow] = useState(Date.now())
  const [correctionBusy, setCorrectionBusy] = useState(false)
@@ -55,7 +55,7 @@ export default function MappingDialog({ asset, onClose, initialAssessmentId = ''
    void queries.invalidateQueries({ queryKey: [...key, 'history'] }); void preview.refetch(); void queries.invalidateQueries({ queryKey: ['private', session.user.id, 'project', project.id, 'assets'] })
   }
  }
- return <Dialog open onOpenChange={open => { if (!open && !busy) onClose() }}><DialogContent className="ui:max-h-[90vh] ui:overflow-y-auto ui:sm:max-w-6xl"><DialogHeader><DialogTitle>{t('mappingTitle')} · {asset.hostname}</DialogTitle><DialogDescription>{t('mappingHelp')}</DialogDescription></DialogHeader>
+ return <AssetDetailFrame title={`${t('mappingTitle')} · ${asset.hostname}`} description={t('mappingHelp')} busy={busy} embedded={embedded} onBusy={onBusy} onClose={onClose}>
   {errors.map((error, i) => error ? <ActionError key={i} error={error as ApiError} /> : null)}
   {!denied && <>
    <div className="action-row"><Button variant="outline" disabled={preview.isFetching || history.isFetching || detail.isFetching} onClick={() => { setNow(Date.now()); void preview.refetch(); void history.refetch(); if (selected) void detail.refetch() }}>{t('topologyRefresh')}</Button><Button variant="outline" onClick={() => setSelected('')}>{t('mappingCurrentPreview')}</Button></div>
@@ -71,6 +71,6 @@ export default function MappingDialog({ asset, onClose, initialAssessmentId = ''
    <MappingCorrections assetId={asset.id} preview={preview.data} canWrite={canWrite && !action.busy} onBusy={setCorrectionBusy} onChanged={() => { void preview.refetch(); void history.refetch(); if (selected) void detail.refetch() }} />
    <section><h3>{t('mappingHistory')}</h3>{history.data && <>{history.data.items.map(item => <p key={item.id}><Button variant="outline" onClick={() => { setSelected(item.id); setRail('') }}>{item.revision_id ? `v${item.version}` : t('mappingConflictAssessment')} · {new Date(item.created_at).toLocaleString()} · {item.verdict}</Button></p>)}{!history.data.items.length && <p>{t('mappingNoHistory')}</p>}<Pagination offset={(page - 1) * history.data.page_size} limit={history.data.page_size} total={history.data.total} busy={history.isFetching} onChange={offset => setPage(Math.floor(offset / history.data!.page_size) + 1)} /></>}</section>
   </>}
-  <Button variant="outline" disabled={busy} onClick={onClose}>{t('bmcClose')}</Button>
- </DialogContent></Dialog>
+  {!embedded && <Button variant="outline" disabled={busy} onClick={onClose}>{t('bmcClose')}</Button>}
+ </AssetDetailFrame>
 }

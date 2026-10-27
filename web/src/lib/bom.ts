@@ -96,3 +96,5 @@ export const commitLegacyBom = (projectId: string, file: File, batch: string, to
   const form = legacyForm(file, batch); form.append('preview_token', token)
   return request<BomPackageCommitResult>(`/projects/${encodeURIComponent(projectId)}/bom/legacy/commit`, { method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: form })
 }
+
+export const getProjectAsset = (project: string, asset: string, signal: AbortSignal) => request<ProjectAsset>(`/projects/${encodeURIComponent(project)}/assets/${encodeURIComponent(asset)}`, { signal })

@@ -2260,3 +2260,14 @@ ReadWiringCapture重新打开固定版本对象、核对SHA256/大小、重建�
 - 新增监控策略编辑器/告警中心及详情组件，活动页轮询、隐藏页停订阅；快照/三种窗口趋势保留来源、单位、具体TTL、样本覆盖率和缺口。详情组件尚待五标签抽屉接入，不宣称WP-2.11完成。
 - 本次重大软件检查：隔离临时库运行 `go test ./internal/monitor ./internal/agentclient ./internal/agentidentity ./internal/platform ./internal/webhook ./internal/httpapi ./cmd/keel-agent ./cmd/keel-worker ./cmd/keel-api -run TestMonitor -count=1 -timeout=90s -v` PASS；包含全102条源码迁移、队列/规则/预算、真实软件mTLS入库与精确ACK/去重、策略幂等和历史帧、阶段切换、趋势读取、变造重复帧拒绝。其余包该命令只编译，并非全包业务测试；通知投递/动态窗口正向链等仍未验。前端 `tsc --noEmit` PASS。日志 `/tmp/keel-monitor-milestone-9s0zf1p_/`，自建临时库已删；未跑硬件/浏览器/镜像/性能负载验证。
 - 运行服务和数据库未更新：3000仍7afda32，运行64条迁移/067，068～105未应用。原fabric_precheck两份草稿及netbom.xlsx保留，未push/部署。继续监控缺项与WP-2.6 portmon，再豁免/KPI、五标签抽屉和P2集中收口。
+
+
+## 207. portmon 物理投影、五标签抽屉及心跳告警增量
+
+- 接续92754cf，保持单Agent本地开发。portmon只消费mon-svc已入库数据和当前G3，不另建采集器。全部稳定PhysicalPort可见，未建/无效映射不按OS名称猜测；同一映射版本关联五元组、role/rail、源分列指标、告警、未关闭网络工单及事件时间线。未启用、unknown、陈旧、Agentless降级与维护停止分别保留；空分母/部分未知不汇总为正常。批量可见资产上限200且同项目同读事务，未放大原200逻辑设备范围。
+- 网口SSE按完整快照同步，重连重新核验项目/资产/会话并全量resync，不用游标冒充已补齐缺测观测；25s旋转遵守API写期限，隐藏标签/卸载断开订阅。来源不混计，历史事件引用原sample对应MappingRevision；稳定物理端口关联开放工单在换版后仍保留。当前按钮按部件/端口位排列，真实机箱面板几何和网络源桥接仍待补，不宣称型号布局已验收。
+- Fleet双状态列从服务端同源投影读取，点击映射/网络定位相应标签。ServerDetailDrawer复用Shadcn Dialog/Tabs，720/960宽切换、当前页上下台与↑↓、按标签懒加载/卸载及滚动位置保存，写请求或线序子对话框期间禁止关闭/切机。新增单资产读接口复用原资产查询投影；主Fleet、Mapping项目列表、拓扑项目列表已统一入口，Mapping列表保留精确原assessment。自定义资产视图等剩余入口、未保存表单保护、BMC状态灯/控制及完整界面体验仍需继续，不能宣称WP-2.11验收。
+- Agent失联按已提交认证心跳3×10s单独告警，不虚构采样行、不推断关机；同一失联持续期间worker不会重复写事件，重新建立mTLS连接后恢复，维护/只读项目抑制。补CPU计数差分，首样本/重置/损坏为unknown，guest时间不重复计算。
+- 集中检查首轮中规则/队列/CPU/portmon聚合、通知公开字段拒绝泄漏及项目伪造、全部新路由注册通过。失联用例先错误尝试续用超时连接，后又试图改写不可变connected_at，均被既有约束拒绝；现用同证书合法重连并遵守1秒准入节流，不修改约束。进一步发现并修复真实告警恢复UPDATE中$6在varchar赋值和CASE表达式间推断冲突，显式类型后通过。
+- 最终定向 `go test ./internal/agentidentity -run TestMonitorPostgres -count=1 -timeout=90s -v` PASS：新增portmon未映射拒绝推断、批量scope/资产详情、失联dedupe/重连恢复、历史小时聚合，仍含原mTLS/策略/ACK用例；前端 `tsc --noEmit` PASS。原全目标日志 `/tmp/keel-portmon-milestone-xc799d8y/`，最终定向证据 `/tmp/keel-portmon-milestone-qm83rse6/`；中间失败原证据保留，均为确定性约束/SQL问题，未归咎性能、未扩大期限。所有自建测试库已删。未执行浏览器/镜像/设备/性能验证，通知真实投递、端口维修重验/关闭/升级仍需补齐。
+- 运行版不变：3000仍7afda32，运行64条迁移/067，源码102条/最后105（隔离026）；原两草稿及netbom.xlsx保留。下一步监控SSH降级/源桥接、端口工单闭环、门禁限定豁免/KPI、剩余抽屉入口及PoC包与P2集中收口。不以源码覆盖估算替代验收百分比。

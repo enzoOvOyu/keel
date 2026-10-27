@@ -259,6 +259,9 @@ loop:
 				lastMonitorTick = time.Now()
 				work, cancel := context.WithTimeout(ctx, 3*time.Second)
 				monitorErr := store.TickMonitorFreshness(work)
+				if monitorErr == nil {
+					monitorErr = store.TickMonitorAgentHealth(work)
+				}
 				cancel()
 				monitorOK = monitorErr == nil
 				if monitorErr != nil {

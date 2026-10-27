@@ -19,7 +19,7 @@ type MetricDefinition struct {
 var Metrics = map[string]MetricDefinition{
 	"link.state": {"D1", "state", false}, "link.speed": {"D1", "Mbps", false},
 	"dom.temperature": {"D2", "C", false}, "dom.rx_power": {"D2", "dBm", false}, "dom.tx_power": {"D2", "dBm", false},
-	"host.load1": {"D3", "load", false}, "host.memory_used": {"D3", "bytes", false}, "host.disk_used": {"D3", "bytes", false},
+	"host.cpu_utilization": {"D3", "percent", false}, "host.load1": {"D3", "load", false}, "host.memory_used": {"D3", "bytes", false}, "host.disk_used": {"D3", "bytes", false},
 	"gpu.utilization": {"D4", "percent", false}, "gpu.temperature": {"D4", "C", false}, "gpu.power": {"D4", "W", false}, "gpu.ecc": {"D4", "count", true},
 	"rdma.errors": {"D5", "count", true}, "rdma.pfc_pause": {"D5", "count", true}, "service.state": {"D6", "state", false},
 	"bmc.health": {"B7", "state", false}, "bmc.power": {"B7", "state", false}, "bmc.temperature": {"B7", "C", false}, "bmc.sel_critical": {"B7", "count", true},

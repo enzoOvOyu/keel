@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import AssetDetailFrame from './AssetDetailFrame'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -17,7 +17,7 @@ import { getTopology, getTopologyRelations, listTopology, previewTopology, valid
 import PcieTopologyView from './PcieTopologyView'
 import WiringDialog from './WiringDialog'
 
-export default function TopologyDialog({ asset, onClose }: { asset: Pick<ProjectAsset, 'id' | 'hostname'>; onClose: () => void }) {
+export default function TopologyDialog({ asset, onClose, embedded = false, onBusy }: { asset: Pick<ProjectAsset, 'id' | 'hostname'>; onClose: () => void; embedded?: boolean; onBusy?: (busy: boolean) => void }) {
  const { t } = useTranslation(), session = useSession(), project = useProject(), action = useAction(), queries = useQueryClient()
  const [page, setPage] = useState(1), [selected, setSelected] = useState(''), [reason, setReason] = useState(''), [validation, setValidation] = useState(''), [now, setNow] = useState(Date.now())
  const [showWiring, setShowWiring] = useState(false)
@@ -52,7 +52,7 @@ export default function TopologyDialog({ asset, onClose }: { asset: Pick<Project
  }
  const wiringPorts = [...new Map((relations.data?.rows ?? []).filter(row => row.physical_port_id).map(row => [row.physical_port_id, { id: row.physical_port_id, name: row.interface, mac: row.permanent_mac }])).values()]
  const effective = record && Date.parse(record.valid_until) <= now ? 'BLOCKED' : record?.effective_verdict
- return <Dialog open onOpenChange={open => { if (!open && !action.busy) onClose() }}><DialogContent className="ui:max-h-[90vh] ui:overflow-y-auto ui:sm:max-w-6xl"><DialogHeader><DialogTitle>{t('topologyTitle')} · {asset.hostname}</DialogTitle><DialogDescription>{t('topologyIntro')}</DialogDescription></DialogHeader>
+ return <AssetDetailFrame title={`${t('topologyTitle')} · ${asset.hostname}`} description={t('topologyIntro')} busy={action.busy || showWiring} embedded={embedded} onBusy={onBusy} onClose={onClose}>
   {errors.map((error, index) => error ? <ActionError key={index} error={error as ApiError} /> : null)}
   {!denied && <>
    {scope.isPending && <p role="status">{t('loadingRecords')}</p>}
@@ -66,6 +66,6 @@ export default function TopologyDialog({ asset, onClose }: { asset: Pick<Project
   </>}
   {!denied && wiringPorts.length > 0 && <Button variant="outline" disabled={action.busy} onClick={() => setShowWiring(true)}>{t('wiringTitle')}</Button>}
   {showWiring && !denied && <WiringDialog key={`${project.id}:${asset.id}:${selected}`} asset={asset} ports={wiringPorts} onClose={() => setShowWiring(false)} />}
-  <p className="field-hint">{t('topologyFirmwareHint')}</p><p className="field-hint">{t('topologyReadOnly')}</p><Button variant="outline" disabled={action.busy} onClick={onClose}>{t('bmcClose')}</Button>
- </DialogContent></Dialog>
+  <p className="field-hint">{t('topologyFirmwareHint')}</p><p className="field-hint">{t('topologyReadOnly')}</p>{!embedded && <Button variant="outline" disabled={action.busy} onClick={onClose}>{t('bmcClose')}</Button>}
+ </AssetDetailFrame>
 }

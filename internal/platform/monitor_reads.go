@@ -87,7 +87,7 @@ func (s *Store) MonitorSnapshot(ctx context.Context, a *AuthSession, project, as
 	out.Stage = monitorStage(state)
 	var last sql.NullTime
 	var live bool
-	if e = tx.QueryRowContext(ctx, `SELECT max(c.last_seen_at),coalesce(bool_or(c.disconnected_at IS NULL AND c.last_seen_at>now()-interval '30 seconds'),false) FROM agent_credentials identity JOIN agent_connections c ON c.credential_id=identity.id WHERE identity.project_id=$1 AND identity.machine_id=$2 AND identity.revoked_at IS NULL AND identity.expires_at>now()`, project, out.MachineID).Scan(&last, &live); e != nil {
+	if e = tx.QueryRowContext(ctx, `SELECT max(c.last_seen_at),coalesce(bool_or(c.disconnected_at IS NULL AND identity.expires_at>now() AND c.last_seen_at>now()-interval '30 seconds'),false) FROM agent_credentials identity JOIN agent_connections c ON c.credential_id=identity.id WHERE identity.project_id=$1 AND identity.machine_id=$2 AND identity.revoked_at IS NULL`, project, out.MachineID).Scan(&last, &live); e != nil {
 		return nil, e
 	}
 	if last.Valid {

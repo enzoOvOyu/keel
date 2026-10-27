@@ -12,6 +12,18 @@ import (
 // asset listing. Preview is a read-only validation pass; Commit is the only
 // writing path and requires the same project-admin authority as publishing.
 func (a *authAPI) registerBomImport(r *gin.Engine) {
+	r.GET("/api/v1/projects/:id/assets/:assetId", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		out, e := a.store.GetProjectAsset(c.Request.Context(), actor, c.Param("id"), c.Param("assetId"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
 	r.POST("/api/v1/projects/:id/bom/preview", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {

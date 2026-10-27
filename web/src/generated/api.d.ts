@@ -4206,6 +4206,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/assets/{assetId}/ports/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Bounded full snapshot SSE; every reconnect fully resynchronizes. No missed observation is acknowledged by an event ID. */
+        get: operations["portMonitorStream"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/ports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["portMonitorFleet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getProjectAsset"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/ports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["portMonitorSnapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/ports/{portId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["portMonitorEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/assets/{assetId}/monitor": {
         parameters: {
             query?: never;
@@ -4454,6 +4535,85 @@ export interface components {
         MappingExcludedPort: {
             plan: components["schemas"]["MappingPortPlan"];
             reason: string;
+        };
+        PortMonitorItem: {
+            physical_port_id: string;
+            plan: components["schemas"]["MappingPortPlan"];
+            binding: components["schemas"]["MappingBinding"] | null;
+            mapping_state: string;
+            state: string;
+            reason: string;
+            observations: components["schemas"]["MonitorObservation"][];
+            alerts: components["schemas"]["MonitorAlert"][];
+            open_issue_ids: string[];
+            event_count: number;
+        };
+        PortMonitorSummary: {
+            total: number;
+            up: number;
+            down: number;
+            degraded: number;
+            flapping: number;
+            unknown: number;
+            disabled: number;
+            maintained: number;
+        };
+        PortMonitorSnapshot: {
+            /** Format: date-time */
+            mapping_valid_until: string | null;
+            resync_required: boolean;
+            project_id: string;
+            asset_id: string;
+            machine_id: string;
+            /** Format: date-time */
+            as_of: string;
+            mapping_revision_id: string;
+            mapping_state: string;
+            mapping_reason: string;
+            network_state: string;
+            stage: string;
+            summary: components["schemas"]["PortMonitorSummary"];
+            items: components["schemas"]["PortMonitorItem"][];
+        };
+        PortMonitorEvent: {
+            id: string;
+            alert_id: string;
+            version: number;
+            state: string;
+            severity: string;
+            source: string;
+            method: string;
+            origin: string;
+            rule_id: string;
+            mapping_revision_id: string;
+            sample_sequence: number | null;
+            context: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            observed_at: string;
+        };
+        PortMonitorEvents: {
+            items: components["schemas"]["PortMonitorEvent"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        PortMonitorFleetItem: {
+            asset_id: string;
+            mapping_state: string;
+            /** Format: date-time */
+            mapping_valid_until: string | null;
+            mapping_revision_id: string;
+            mapping_reason: string;
+            network_state: string;
+            summary: components["schemas"]["PortMonitorSummary"];
+        };
+        PortMonitorFleet: {
+            project_id: string;
+            /** Format: date-time */
+            as_of: string;
+            items: components["schemas"]["PortMonitorFleetItem"][];
         };
         MonitorPolicy: {
             stage: string;
@@ -19949,7 +20109,6 @@ export interface operations {
             query?: never;
             header: {
                 "X-CSRF-Token": string;
-                "Idempotency-Key": string;
             };
             path: {
                 id: string;
@@ -19970,6 +20129,151 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MonitorAlert"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    portMonitorStream: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Full snapshot, rotate, unavailable or access_revoked events */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    portMonitorFleet: {
+        parameters: {
+            query?: {
+                asset_ids?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortMonitorFleet"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getProjectAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectAssetSummary"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    portMonitorSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortMonitorSnapshot"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    portMonitorEvents: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+                portId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortMonitorEvents"];
                 };
             };
             400: components["responses"]["InvalidRequest"];

@@ -113,6 +113,10 @@ func (s *Store) monitorEvaluateFrameTx(ctx context.Context, tx *sql.Tx, project,
 	return nil
 }
 func recordMonitorFindingTx(ctx context.Context, tx *sql.Tx, project, machine string, sample MonitorObservation, finding monitor.Finding, ruleVersion string, now time.Time) error {
+	var sampleSequence any
+	if sample.Sequence > 0 {
+		sampleSequence = sample.Sequence
+	}
 	scopeKey := sample.PhysicalPortID
 	if scopeKey == "" {
 		scopeKey = sample.Sample.Entity
@@ -162,15 +166,15 @@ func recordMonitorFindingTx(ctx context.Context, tx *sql.Tx, project, machine st
 	if fresh {
 		id = RandomID()
 		version = 1
-		_, e = tx.ExecContext(ctx, `INSERT INTO monitor_alerts(id,project_id,machine_id,physical_port_id,mapping_revision_id,source,method,origin,entity_key,dtype,rule_id,rule_version,severity,state,first_at,last_at,count,version,sample_sequence,issue_id,context,scope_key)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15,1,1,$16,$17,$18,$19)`, id, project, machine, nullBOMString(sample.PhysicalPortID), nullBOMString(sample.MappingRevisionID), sample.Source, sample.Method, sample.Origin, sample.Sample.Entity, sample.DType, finding.RuleID, ruleVersion, finding.Severity, state, sample.Sample.ObservedAt, sample.Sequence, nullBOMString(issue), networkJSON(finding.Context), scopeKey)
+		_, e = tx.ExecContext(ctx, `INSERT INTO monitor_alerts(id,project_id,machine_id,physical_port_id,mapping_revision_id,source,method,origin,entity_key,dtype,rule_id,rule_version,severity,state,first_at,last_at,count,version,sample_sequence,issue_id,context,scope_key)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15,1,1,$16,$17,$18,$19)`, id, project, machine, nullBOMString(sample.PhysicalPortID), nullBOMString(sample.MappingRevisionID), sample.Source, sample.Method, sample.Origin, sample.Sample.Entity, sample.DType, finding.RuleID, ruleVersion, finding.Severity, state, sample.Sample.ObservedAt, sampleSequence, nullBOMString(issue), networkJSON(finding.Context), scopeKey)
 	} else {
 		version++
-		_, e = tx.ExecContext(ctx, `UPDATE monitor_alerts SET physical_port_id=$2,mapping_revision_id=$3,rule_version=$4,severity=$5,state=$6,last_at=$7,count=count+CASE WHEN $6 IN('firing','suppressed')THEN 1 ELSE 0 END,version=$8,sample_sequence=$9,issue_id=$10,context=$11 WHERE id=$1`, id, nullBOMString(sample.PhysicalPortID), nullBOMString(sample.MappingRevisionID), ruleVersion, finding.Severity, state, sample.Sample.ObservedAt, version, sample.Sequence, nullBOMString(issue), networkJSON(finding.Context))
+		_, e = tx.ExecContext(ctx, `UPDATE monitor_alerts SET physical_port_id=$2,mapping_revision_id=$3,rule_version=$4,severity=$5,state=$6::varchar,last_at=$7,count=count+CASE WHEN $6::varchar IN('firing','suppressed')THEN 1 ELSE 0 END,version=$8,sample_sequence=$9,issue_id=$10,context=$11 WHERE id=$1`, id, nullBOMString(sample.PhysicalPortID), nullBOMString(sample.MappingRevisionID), ruleVersion, finding.Severity, state, sample.Sample.ObservedAt, version, sampleSequence, nullBOMString(issue), networkJSON(finding.Context))
 	}
 	if e != nil {
 		return e
 	}
-	if _, e = tx.ExecContext(ctx, `INSERT INTO monitor_alert_events(id,alert_id,version,state,severity,sample_sequence,context,observed_at)VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, RandomID(), id, version, state, finding.Severity, sample.Sequence, networkJSON(finding.Context), sample.Sample.ObservedAt); e != nil {
+	if _, e = tx.ExecContext(ctx, `INSERT INTO monitor_alert_events(id,alert_id,version,state,severity,sample_sequence,context,observed_at)VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, RandomID(), id, version, state, finding.Severity, sampleSequence, networkJSON(finding.Context), sample.Sample.ObservedAt); e != nil {
 		return e
 	}
 	if state == "firing" && (fresh || oldState != "firing" || oldSeverity != finding.Severity) {

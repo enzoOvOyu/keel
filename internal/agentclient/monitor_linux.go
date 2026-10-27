@@ -61,7 +61,7 @@ func monitorSample(key, entity string, value *float64, state, quality string, at
 func monitorNumber(key, entity string, value float64, at time.Time) monitor.Sample {
 	return monitorSample(key, entity, &value, "", "good", at)
 }
-func collectMonitorGroup(ctx context.Context, dtype string, now time.Time) []monitor.Sample {
+func collectMonitorGroup(ctx context.Context, dtype string, now time.Time, cpu *monitorCPUCounter) []monitor.Sample {
 	samples := []monitor.Sample{}
 	unknown := func(key, entity string) {
 		samples = append(samples, monitorSample(key, entity, nil, "", "unknown", now))
@@ -132,6 +132,16 @@ func collectMonitorGroup(ctx context.Context, dtype string, now time.Time) []mon
 			}
 		}
 	case "D3":
+		cpuRaw, cpuErr := os.ReadFile("/proc/stat")
+		if cpuErr == nil {
+			if utilization, ok := cpu.observe(cpuRaw); ok {
+				samples = append(samples, monitorNumber("host.cpu_utilization", "host", utilization, now))
+			} else {
+				unknown("host.cpu_utilization", "host")
+			}
+		} else {
+			unknown("host.cpu_utilization", "host")
+		}
 		raw, e := os.ReadFile("/proc/loadavg")
 		fields := strings.Fields(string(raw))
 		if e == nil && len(fields) > 0 {
@@ -247,6 +257,7 @@ func RunMonitorCollector(ctx context.Context, c Config) error {
 	if _, e := monitorQueueDirectory(c); e != nil {
 		return e
 	}
+	cpu := &monitorCPUCounter{}
 	previous := map[string]monitor.Sample{}
 	last := map[string]time.Time{}
 	var baseline, policyID string
@@ -296,7 +307,7 @@ func RunMonitorCollector(ctx context.Context, c Config) error {
 					deadline = assignment.ValidUntil
 				}
 				work, cancel := context.WithDeadline(ctx, deadline)
-				samples := collectMonitorGroup(work, dtype, time.Now().UTC())
+				samples := collectMonitorGroup(work, dtype, time.Now().UTC(), cpu)
 				cancel()
 				for offset := 0; offset < len(samples); offset += 12 {
 					end := offset + 12

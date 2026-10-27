@@ -105,6 +105,78 @@ func TestMonitorPostgresMTLSDurableReplayPolicyHistoryAndStageTransition(t *test
 	if len(trend.Items) == 0 {
 		t.Fatal("missing gap-aware trend buckets")
 	}
+
+	// Projection refuses to infer a healthy port from an unbound interface.
+	port := platform.RandomID()
+	_, err = f.store.DB.ExecContext(ctx, `INSERT INTO physical_ports(id,machine_id,mac_address,port_name,created_at)VALUES($1,$2,$3,'nic0',now())`, port, machine, "02:"+port[0:2]+":"+port[2:4]+":"+port[4:6]+":"+port[6:8]+":"+port[8:10])
+	requireNoError(t, err)
+	ports, err := f.store.PortMonitorSnapshot(ctx, f.actor, f.project, asset)
+	requireNoError(t, err)
+	if ports.MappingState != "unbuilt" || ports.NetworkState != "unknown" || len(ports.Items) != 1 || ports.Items[0].State != "unknown" {
+		t.Fatal("unmapped port inferred healthy")
+	}
+	fleet, err := f.store.PortMonitorFleet(ctx, f.actor, f.project, []string{asset})
+	requireNoError(t, err)
+	if len(fleet.Items) != 1 || fleet.Items[0].NetworkState != "unknown" {
+		t.Fatal("fleet status disagrees with port projection")
+	}
+	if _, err = f.store.PortMonitorFleet(ctx, f.actor, f.project, []string{asset, asset}); err == nil {
+		t.Fatal("duplicate scope accepted")
+	}
+	if _, err = f.store.PortMonitorEvents(ctx, f.actor, f.project, asset, platform.RandomID(), platform.Pagination{Page: 1, PageSize: 20}); err == nil {
+		t.Fatal("foreign port event scope accepted")
+	}
+	detail, err := f.store.GetProjectAsset(ctx, f.actor, f.project, asset)
+	requireNoError(t, err)
+	if detail.MachineID != machine {
+		t.Fatal("asset detail scope changed")
+	}
+	// Agent lost is a heartbeat-derived alert, not a fabricated metric or power state.
+	_, err = f.store.DB.ExecContext(ctx, `UPDATE agent_connections SET last_seen_at=clock_timestamp()-interval '31 seconds' WHERE credential_id=$1`, credential.ID)
+	requireNoError(t, err)
+	requireNoError(t, f.store.TickMonitorAgentHealth(ctx))
+	requireNoError(t, f.store.TickMonitorAgentHealth(ctx))
+	var alertState string
+	var alertVersion int64
+	requireNoError(t, f.store.DB.QueryRowContext(ctx, `SELECT state,version FROM monitor_alerts WHERE project_id=$1 AND machine_id=$2 AND rule_id='agent-lost'`, f.project, machine).Scan(&alertState, &alertVersion))
+	if alertState != "firing" || alertVersion != 1 {
+		t.Fatal("worker ticks duplicated liveness observation", alertState, alertVersion)
+	}
+	// An expired connection cannot be resurrected: reconnect with the same identity.
+	requireNoError(t, stream.CloseSend())
+	// Respect the original connection's one-second admission throttle. Its
+	// immutable identity timestamp must never be rewritten by a test fixture.
+	var reconnectAt time.Time
+	requireNoError(t, f.store.DB.QueryRowContext(ctx, `SELECT max(connected_at)+interval '1 second' FROM agent_connections WHERE credential_id=$1`, credential.ID).Scan(&reconnectAt))
+	if wait := time.Until(reconnectAt.Add(time.Millisecond)); wait > 0 {
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			t.Fatal(ctx.Err())
+		case <-timer.C:
+		}
+	}
+	stream, err = f.client(t, &pair).Heartbeats(ctx)
+	requireNoError(t, err)
+	in.Sequence = 0
+	send(nil)
+	requireNoError(t, f.store.TickMonitorAgentHealth(ctx))
+	requireNoError(t, f.store.DB.QueryRowContext(ctx, `SELECT state,version FROM monitor_alerts WHERE project_id=$1 AND machine_id=$2 AND rule_id='agent-lost'`, f.project, machine).Scan(&alertState, &alertVersion))
+	if alertState != "resolved" || alertVersion != 2 {
+		t.Fatal("heartbeat recovery not distinguished", alertState, alertVersion)
+	}
+	requireNoError(t, f.store.TickMonitorFreshness(ctx))
+	// A real software transport sample can be old without being hardware proof.
+	historical := monitor.Frame{Version: monitor.Version, ID: "history-frame", PolicyID: initial.PolicyID, Full: true, Samples: []monitor.Sample{{Key: "host.disk_used", Entity: "root", Value: &value, Quality: "good", ObservedAt: time.Now().UTC().Add(-2 * time.Hour)}}, Unchanged: []monitor.Unchanged{}}
+	historicalRaw, err := json.Marshal(historical)
+	requireNoError(t, err)
+	send(historicalRaw)
+	requireNoError(t, f.store.MaintainMonitorHistory(ctx))
+	requireNoError(t, f.store.DB.QueryRowContext(ctx, `SELECT count(*) FROM monitor_hourly_samples WHERE project_id=$1 AND machine_id=$2`, f.project, machine).Scan(&count))
+	if count != 1 {
+		t.Fatal("hourly source history missing", count)
+	}
 	// An ID is bound to exact bytes; mutated replay must never receive an ACK.
 	frame.Unchanged[0].ObservedAt = now.Add(2 * time.Millisecond)
 	raw, err = json.Marshal(frame)

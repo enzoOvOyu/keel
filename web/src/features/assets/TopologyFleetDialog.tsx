@@ -10,7 +10,7 @@ import { ActionError, Pagination } from '../../components/Management'
 import { useProject } from '../../components/ProjectWorkspace'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 import { listTopologyFleet } from '../../lib/topology'
-import TopologyDialog from './TopologyDialog'
+import ServerDetailDrawer from './ServerDetailDrawer'
 
 export default function TopologyFleetDialog({ onClose }: { onClose: () => void }) {
  const { t } = useTranslation(), session = useSession(), project = useProject()
@@ -24,5 +24,5 @@ export default function TopologyFleetDialog({ onClose }: { onClose: () => void }
   {query.isPending && <p role="status">{t('loadingRecords')}</p>}
   {query.data && !query.isError && <><Table><TableHeader><TableRow>{[t('topologyFleetHost'), 'SN', t('topologyHistorical'), t('topologyEffective'), t('topologyUntil')].map(label => <TableHead key={label}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>{query.data.items.map(row => <TableRow key={row.asset_id}><TableCell><Button variant="link" onClick={() => setTarget({ id: row.asset_id, hostname: row.hostname })}>{row.hostname}</Button></TableCell><TableCell>{row.serial}</TableCell><TableCell>{row.historical_verdict ? t(`precollect_${row.historical_verdict}`) : '—'}</TableCell><TableCell>{row.effective_verdict === 'UNAVAILABLE' ? t('topologyFleetUncollected') : t(`precollect_${row.valid_until && Date.parse(row.valid_until) <= now ? 'BLOCKED' : row.effective_verdict}`)}{row.reason && <code className="cell-subtitle">{row.reason}</code>}</TableCell><TableCell>{row.valid_until ? new Date(row.valid_until).toLocaleString() : '—'}</TableCell></TableRow>)}</TableBody></Table>{!query.data.items.length && <p>{t('topologyFleetEmpty')}</p>}<Pagination offset={(page - 1) * query.data.page_size} limit={query.data.page_size} total={query.data.total} busy={query.isFetching} onChange={offset => setPage(Math.floor(offset / (query.data?.page_size ?? 20)) + 1)} /></>}
   <p className="field-hint">{t('topologyFleetExpiry')}</p><Button variant="outline" onClick={onClose}>{t('bmcClose')}</Button>
- </DialogContent></Dialog>{target && <TopologyDialog asset={target} onClose={() => { setTarget(null); void query.refetch() }} />}</>
+ </DialogContent></Dialog>{target && <ServerDetailDrawer key={`${project.id}:${target.id}`} target={target} assets={(query.data?.items ?? []).map(item => ({ id: item.asset_id, hostname: item.hostname }))} initialTab="topology" onSelect={setTarget} onClose={() => { setTarget(null); void query.refetch() }} />}</>
 }
