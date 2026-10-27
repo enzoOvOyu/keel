@@ -4126,6 +4126,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/assets/{assetId}/mapping/corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMappingCorrections"];
+        put?: never;
+        post: operations["requestMappingCorrection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/mapping/corrections/{correctionId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decideMappingCorrection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/assets/{assetId}/mapping/preview": {
         parameters: {
             query?: never;
@@ -4222,10 +4254,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/mapping": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["mappingFleet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        MappingFleetItem: {
+            asset_id: string;
+            machine_id: string;
+            hostname: string;
+            serial: string;
+            state: string;
+            revision: components["schemas"]["MappingRevision"] | null;
+        };
+        MappingFleetPage: {
+            project_id: string;
+            rail: string;
+            /** Format: date-time */
+            as_of: string;
+            items: components["schemas"]["MappingFleetItem"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
         MappingPortPlan: {
             physical_port_id: string;
             component_id: string;
@@ -4264,6 +4330,51 @@ export interface components {
             required_gpus: number;
             mapped_gpus: number;
         };
+        MappingNameChange: {
+            physical_port_id: string;
+            logical_name: string;
+        };
+        MappingCorrectionInput: {
+            scope_hash: string;
+            reason: string;
+            changes: components["schemas"]["MappingNameChange"][];
+        };
+        MappingCorrectionDecisionInput: {
+            approve: boolean;
+            reason: string;
+        };
+        MappingCorrectionDecision: {
+            approved: boolean;
+            approved_by: string;
+            reason: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        MappingCorrection: {
+            id: string;
+            project_id: string;
+            asset_id: string;
+            base_scope_hash: string;
+            source_scope_hash: string;
+            requested_by: string;
+            reason: string;
+            effective_state: string;
+            source_candidate: components["schemas"]["MappingCandidate"];
+            changes: components["schemas"]["MappingNameChange"][];
+            /** Format: date-time */
+            created_at: string;
+            decision: components["schemas"]["MappingCorrectionDecision"] | null;
+        };
+        MappingCorrectionPage: {
+            items: components["schemas"]["MappingCorrection"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        MappingExcludedPort: {
+            plan: components["schemas"]["MappingPortPlan"];
+            reason: string;
+        };
         MappingCandidate: {
             rule_version: string;
             project_id: string;
@@ -4284,6 +4395,9 @@ export interface components {
             bindings: components["schemas"]["MappingBinding"][];
             /** Format: date-time */
             valid_until: string | null;
+            base_scope_hash?: string;
+            correction_id?: string;
+            excluded_ports?: components["schemas"]["MappingExcludedPort"][];
         };
         MappingPublishInput: {
             scope_hash: string;
@@ -19385,6 +19499,108 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
+    listMappingCorrections: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingCorrectionPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    requestMappingCorrection: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MappingCorrectionInput"];
+            };
+        };
+        responses: {
+            /** @description Immutable Step 1 and current four-step timeline. A fresh exact handshake is consumed once; later LLDP execution requires separate admission and dispatch readiness. No automatic G2 or NP-3. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingCorrection"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    decideMappingCorrection: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                assetId: string;
+                correctionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MappingCorrectionDecisionInput"];
+            };
+        };
+        responses: {
+            /** @description Immutable Step 1 and current four-step timeline. A fresh exact handshake is consumed once; later LLDP execution requires separate admission and dispatch readiness. No automatic G2 or NP-3. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingCorrection"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     previewMapping: {
         parameters: {
             query?: never;
@@ -19560,6 +19776,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MappingRevision"];
                     "text/csv": string;
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    mappingFleet: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                rail?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingFleetPage"];
                 };
             };
             400: components["responses"]["InvalidRequest"];

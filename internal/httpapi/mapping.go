@@ -6,7 +6,71 @@ import (
 )
 
 func (a *authAPI) registerMapping(r *gin.Engine) {
+	r.GET("/api/v1/projects/:id/mapping", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		page, ok := readPagination(c)
+		if !ok {
+			return
+		}
+		out, e := a.store.MappingFleet(c.Request.Context(), actor, c.Param("id"), c.Query("rail"), page)
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
 	base := "/api/v1/projects/:id/assets/:assetId/mapping"
+	r.GET(base+"/corrections", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		page, ok := readPagination(c)
+		if !ok {
+			return
+		}
+		out, e := a.store.ListMappingCorrections(c.Request.Context(), actor, c.Param("id"), c.Param("assetId"), page)
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
+	r.POST(base+"/corrections", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok || !a.writeAllowed(c) {
+			return
+		}
+		var in platform.MappingCorrectionInput
+		if !decodeExecutionBody(c, &in) {
+			return
+		}
+		out, e := a.store.RequestMappingCorrection(c.Request.Context(), actor, c.Param("id"), c.Param("assetId"), in, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
+	r.POST(base+"/corrections/:correctionId/decision", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok || !a.writeAllowed(c) {
+			return
+		}
+		var in platform.MappingCorrectionDecisionInput
+		if !decodeExecutionBody(c, &in) {
+			return
+		}
+		out, e := a.store.DecideMappingCorrection(c.Request.Context(), actor, c.Param("id"), c.Param("assetId"), c.Param("correctionId"), in, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
 	r.GET(base+"/preview", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {

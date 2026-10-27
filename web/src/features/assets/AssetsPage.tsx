@@ -25,6 +25,7 @@ import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 const PrecollectDialog = lazy(() => import('./PrecollectDialog'))
 const TopologyDialog = lazy(() => import('./TopologyDialog'))
 const MappingDialog = lazy(() => import('./MappingDialog'))
+const MappingFleetDialog = lazy(() => import('./MappingFleetDialog'))
 const TopologyFleetDialog = lazy(() => import('./TopologyFleetDialog'))
 const AssetViewsDialog = lazy(() => import('./AssetViewsDialog'))
 
@@ -133,6 +134,7 @@ function AssetsContent() {
   const [modelTarget, setModelTarget] = useState<ProjectAsset | null>(null)
   const [bmcTarget,setBMCTarget] = useState<ProjectAsset|null>(null)
   const [precollectTarget, setPrecollectTarget] = useState<ProjectAsset | null>(null)
+  const [showMappingFleet, setShowMappingFleet] = useState(false)
   const [mappingTarget, setMappingTarget] = useState<ProjectAsset | null>(null)
   const [topologyTarget, setTopologyTarget] = useState<ProjectAsset | null>(null)
   const [showAssetViews, setShowAssetViews] = useState(false)
@@ -148,7 +150,7 @@ function AssetsContent() {
   if (!allowed) return <PermissionDenied />
   return <>
     <div className="page-heading"><div><p className="section-eyebrow">{project.name}</p><h1>{t('bomTitle')}</h1><p>{t('bomIntro')}</p></div>
-      <Button type="button" variant="outline" onClick={() => setShowAssetViews(true)}>{t('assetViewsTitle')}</Button><Button variant="outline" onClick={() => setShowTopologyFleet(true)}>{t('topologyFleetTitle')}</Button>{manage && <div className="table-actions"><Button variant="default" className="primary-button ui:min-h-11" onClick={() => { setSuccess(''); setPackageImporting(true) }}>{t('bomPackageTitle')}</Button><Button variant="outline" className="secondary-button ui:min-h-11" onClick={() => { setSuccess(''); setImporting(true) }}>{t('bomImport')}</Button><Button variant="outline" className="secondary-button ui:min-h-11" disabled={!selected.size} onClick={() => { setSuccess(''); setTrustTarget((assets.data?.items ?? []).filter((a) => selected.has(a.machine_id))) }}>{t('trustMockTitle')}</Button></div>}</div>
+      <Button type="button" variant="outline" onClick={() => setShowAssetViews(true)}>{t('assetViewsTitle')}</Button><Button variant="outline" onClick={() => setShowTopologyFleet(true)}>{t('topologyFleetTitle')}</Button><Button variant="outline" onClick={() => setShowMappingFleet(true)}>{t('mappingFleetTitle')}</Button>{manage && <div className="table-actions"><Button variant="default" className="primary-button ui:min-h-11" onClick={() => { setSuccess(''); setPackageImporting(true) }}>{t('bomPackageTitle')}</Button><Button variant="outline" className="secondary-button ui:min-h-11" onClick={() => { setSuccess(''); setImporting(true) }}>{t('bomImport')}</Button><Button variant="outline" className="secondary-button ui:min-h-11" disabled={!selected.size} onClick={() => { setSuccess(''); setTrustTarget((assets.data?.items ?? []).filter((a) => selected.has(a.machine_id))) }}>{t('trustMockTitle')}</Button></div>}</div>
     {success && <SuccessNotice>{success}</SuccessNotice>}
     <section className="management-panel" aria-busy={assets.isFetching}>
       <ActionError error={assets.error} />
@@ -170,6 +172,7 @@ function AssetsContent() {
     {provisionTarget && <ProvisionPreviewDialog key={`${project.id}:${provisionTarget.id}`} projectId={project.id} asset={provisionTarget} onClose={() => setProvisionTarget(null)} />}
     {showTopologyFleet && <Suspense fallback={<p role="status">{t('loadingRecords')}</p>}><TopologyFleetDialog key={project.id} onClose={() => setShowTopologyFleet(false)} /></Suspense>}
     {showAssetViews && <Suspense fallback={<p role="status">{t('loadingRecords')}</p>}><AssetViewsDialog key={project.id} onClose={() => setShowAssetViews(false)} /></Suspense>}
+    {showMappingFleet && <Suspense fallback={<p role="status">{t('loadingRecords')}</p>}><MappingFleetDialog key={project.id} onClose={() => setShowMappingFleet(false)} /></Suspense>}
     {mappingTarget && <Suspense fallback={<p role="status">{t('loadingRecords')}</p>}><MappingDialog key={`${project.id}:${mappingTarget.id}`} asset={mappingTarget} onClose={() => setMappingTarget(null)} /></Suspense>}
     {topologyTarget && <Suspense fallback={<p role="status">{t('loadingRecords')}</p>}><TopologyDialog key={`${project.id}:${topologyTarget.id}`} asset={topologyTarget} onClose={() => setTopologyTarget(null)} /></Suspense>}
     {precollectTarget && <Suspense fallback={<p role="status">{t('loadingRecords')}</p>}><PrecollectDialog key={`${project.id}:${precollectTarget.id}`} asset={precollectTarget} onClose={() => setPrecollectTarget(null)} /></Suspense>}

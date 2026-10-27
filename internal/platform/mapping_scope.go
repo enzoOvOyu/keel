@@ -9,7 +9,7 @@ import (
 	"github.com/enzoOvOyu/keel/internal/wiring"
 )
 
-func (s *Store) mappingCandidateTx(ctx context.Context, tx *sql.Tx, project, asset string, lock bool) (*MappingCandidate, error) {
+func (s *Store) mappingBaseCandidateTx(ctx context.Context, tx *sql.Tx, project, asset string, lock bool) (*MappingCandidate, error) {
 	out := &MappingCandidate{RuleVersion: mappingRuleVersion, ProjectID: project, AssetID: asset, Ready: true, Verdict: "PASS", Bindings: []MappingBinding{}, Conflicts: []MappingConflict{}}
 	var state string
 	query := `SELECT machine_id,version,coalesce(model_version_id,''),state FROM project_assets WHERE project_id=$1 AND id=$2`
@@ -23,7 +23,7 @@ func (s *Store) mappingCandidateTx(ctx context.Context, tx *sql.Tx, project, ass
 	if e != nil {
 		return nil, e
 	}
-	finish := func() (*MappingCandidate, error) { out.seal(); return out, nil }
+	finish := func() (*MappingCandidate, error) { out.seal(); out.BaseScopeHash = out.ScopeHash; return out, nil }
 	if !s.WiringEnabled {
 		out.block("WIRING_DISABLED", "", "")
 	}

@@ -1,12 +1,12 @@
 # 当前开发状态
 
-更新：2026-10-27；当前集中测试结果见 [P1验证记录](P1-VALIDATION-2026-10-27.md) 与§160～162，性能待复验项见 [P1-001](issues/P1-001-test-host-resource-timeouts.md)。用户发布后决定P1带遗留项收口、允许进入P2（§164）；main已合并并推送至`1a96897`，当前P2分支`dev/p2-validation`接续§204；3000现为`7afda32`、数据库64条迁移（最后067），发布证据见§163。后续编号章节保留历史快照；操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-27；当前集中测试结果见 [P1验证记录](P1-VALIDATION-2026-10-27.md) 与§160～162，性能待复验项见 [P1-001](issues/P1-001-test-host-resource-timeouts.md)。用户发布后决定P1带遗留项收口、允许进入P2（§164）；main已合并并推送至`1a96897`，当前P2分支`dev/p2-validation`接续§205；3000现为`7afda32`、数据库64条迁移（最后067），发布证据见§163。后续编号章节保留历史快照；操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-27，集中测试检查点）
 
 当前P1逻辑设备扇出按200台。本轮执行容量200/200成功（8.235秒，sim），完整12组控制/恢复/权限检查通过；200逻辑ZTP仍因整包超时待复验。原2,000台后续优化，成功率/介质完整性/权限/恢复要求保留。
 
-### 低Token接续入口（2026-10-27，接续§204）
+### 低Token接续入口（2026-10-27，接续§205）
 
 P2工作包现状与下一开发顺序见[P2-PROGRESS](P2-PROGRESS.md)。重点：先用模拟适配器接通共同Execution准入/worker/原回执与Step2～4，再接G2/NP-3/G3；真实helper预留到PoC，不强推硬件前置。
 
@@ -2240,3 +2240,12 @@ ReadWiringCapture重新打开固定版本对象、核对SHA256/大小、重建�
 - API接入preview、核对历史/详情、发布、版本详情/导出；Fleet新增懒加载映射详情入口，单机支持全端口/rail过滤、版本/冲突历史与DL发布，复用Shadcn控件。审批修正、项目级三视角和完整ServerDetailDrawer仍待后续，不宣称WP-2.5/2.11闭环。
 - 新增覆盖/独立关系/未启用口/CSV历史用例NOT_RUN。本增量只做gofmt、API类型生成和git diff --check，不重复跑刚结束的布线检查、不构建/部署。源98条迁移（排除026），068～101未应用到运行库；3000仍7afda32、运行64/067。原草稿及netbom.xlsx保留。
 - 下一步补G3项目级三视角、人工修正审批/明确不适用与来源追溯，再开发mon-svc、portmon、门禁豁免/KPI和完整抽屉；T3/T4/T5与正向G2全业务链集中验证仍需保留在P2收口清单。
+
+
+## 205. G3 三视角、人工名称修正审批与集中软件检查
+
+- 接续f09bbbe，项目全服务器/rail/单机详情引用同一不可变MappingRevision，未建立映射保持可见；rail过滤不改变全机验收分母。历史导出保留当前有效性、原部件SN、审批ID和基础范围hash。
+- 新增102不可变修正申请/批准或拒绝记录。Admin/DL按精确当前预览提出逻辑名称修正，显式批准后仍须另行发布新映射版本；依赖、先前审批或TTL变化阻断沿用。仅可修正规划名称，不可替换OS/MAC/BDF/物理对端/GPU关系或豁免物理冲突；原BOM名称保留。不存在申请、未知端口、重复/非法名称和不同幂等请求均拒绝。
+- OOB NIC沿用完整G2五元组，GPU关联明确标不适用；unused端口保留BOM不适用记录及历史导出，不进入启用端口分母。未知角色仍阻断，未为非NIC的BMC物理接口编造OS/BDF映射。
+- 重大G3检查：独立keel_test_agent_mapping_*库运行`go test ./internal/platform -run TestMapping -count=1 -timeout=90s -v`通过，包含全99条源码迁移、缺证据不发布/不可假审批/跨项目/幂等/历史不可变、映射规则和修正仅影响名称；前端`tsc --noEmit`通过。证据`/tmp/keel-mapping-milestone-70yzlyq8/`，临时库已删。未覆盖真实G2正向全链、完整审批正向DB链、浏览器或硬件PoC，不能作为P2验收完成。
+- 3000保持7afda32、运行64条迁移/067；068～102未迁移到运行库，未构建/发布/push/操作设备。原两份fabric_precheck草稿及netbom.xlsx保留。下一步WP-2.10 mon-svc统一策略/ingest/delta/ACK/告警/预算及趋势，再portmon/豁免KPI/五标签抽屉与完整P2集中验证。

@@ -50,25 +50,32 @@ type MappingCoverage struct {
 	RequiredGPUs  int `json:"required_gpus"`
 	MappedGPUs    int `json:"mapped_gpus"`
 }
+type MappingExcludedPort struct {
+	Plan   MappingPortPlan `json:"plan"`
+	Reason string          `json:"reason"`
+}
 type MappingCandidate struct {
-	RuleVersion      string            `json:"rule_version"`
-	ProjectID        string            `json:"project_id"`
-	AssetID          string            `json:"asset_id"`
-	MachineID        string            `json:"machine_id"`
-	AssetVersion     int64             `json:"asset_version"`
-	ModelVersionID   string            `json:"model_version_id"`
-	ModelContentHash string            `json:"model_content_hash"`
-	BOMPackageID     string            `json:"bom_package_id"`
-	TopologyID       string            `json:"topology_id"`
-	G1ID             string            `json:"g1_id"`
-	RolePlanVersion  string            `json:"role_plan_version"`
-	ScopeHash        string            `json:"scope_hash"`
-	Ready            bool              `json:"ready"`
-	Verdict          string            `json:"verdict"`
-	Conflicts        []MappingConflict `json:"conflicts"`
-	Coverage         MappingCoverage   `json:"coverage"`
-	Bindings         []MappingBinding  `json:"bindings"`
-	ValidUntil       *time.Time        `json:"valid_until"`
+	ExcludedPorts    []MappingExcludedPort `json:"excluded_ports,omitempty"`
+	RuleVersion      string                `json:"rule_version"`
+	ProjectID        string                `json:"project_id"`
+	AssetID          string                `json:"asset_id"`
+	MachineID        string                `json:"machine_id"`
+	AssetVersion     int64                 `json:"asset_version"`
+	ModelVersionID   string                `json:"model_version_id"`
+	ModelContentHash string                `json:"model_content_hash"`
+	BOMPackageID     string                `json:"bom_package_id"`
+	TopologyID       string                `json:"topology_id"`
+	G1ID             string                `json:"g1_id"`
+	RolePlanVersion  string                `json:"role_plan_version"`
+	ScopeHash        string                `json:"scope_hash"`
+	BaseScopeHash    string                `json:"base_scope_hash,omitempty"`
+	CorrectionID     string                `json:"correction_id,omitempty"`
+	Ready            bool                  `json:"ready"`
+	Verdict          string                `json:"verdict"`
+	Conflicts        []MappingConflict     `json:"conflicts"`
+	Coverage         MappingCoverage       `json:"coverage"`
+	Bindings         []MappingBinding      `json:"bindings"`
+	ValidUntil       *time.Time            `json:"valid_until"`
 }
 
 func (c *MappingCandidate) block(code, port, component string) {
@@ -77,6 +84,9 @@ func (c *MappingCandidate) block(code, port, component string) {
 	c.Conflicts = append(c.Conflicts, MappingConflict{Code: code, PhysicalPortID: port, ComponentID: component})
 }
 func (c *MappingCandidate) seal() {
+	sort.Slice(c.ExcludedPorts, func(i, j int) bool {
+		return c.ExcludedPorts[i].Plan.PhysicalPortID < c.ExcludedPorts[j].Plan.PhysicalPortID
+	})
 	sort.Slice(c.Bindings, func(i, j int) bool { return c.Bindings[i].Plan.PhysicalPortID < c.Bindings[j].Plan.PhysicalPortID })
 	sort.Slice(c.Conflicts, func(i, j int) bool {
 		a, b := c.Conflicts[i], c.Conflicts[j]
@@ -89,7 +99,10 @@ func (c *MappingCandidate) seal() {
 		return a.Code < b.Code
 	})
 	c.ScopeHash = ""
+	base := c.BaseScopeHash
+	c.BaseScopeHash = "" // Derived provenance is excluded from its own hash.
 	c.ScopeHash = digest(string(networkJSON(c)))
+	c.BaseScopeHash = base
 }
 
 // G2 supplies observed endpoints; the BOM supplies the complete enabled port
@@ -106,6 +119,7 @@ func buildMappingBindings(out *MappingCandidate, plans []MappingPortPlan, compon
 	seenPorts, names, interfaces, macs, peers := map[string]bool{}, map[string]string{}, map[string]string{}, map[string]string{}, map[string]string{}
 	for _, plan := range plans {
 		if plan.Role == "unused" {
+			out.ExcludedPorts = append(out.ExcludedPorts, MappingExcludedPort{Plan: plan, Reason: "not_applicable_bom_unused"})
 			continue
 		}
 		out.Coverage.RequiredPorts++
@@ -115,7 +129,7 @@ func buildMappingBindings(out *MappingCandidate, plans []MappingPortPlan, compon
 			continue
 		}
 		seenPorts[plan.PhysicalPortID] = true
-		if plan.Role != "compute" && plan.Role != "storage" && plan.Role != "management" {
+		if plan.Role != "compute" && plan.Role != "storage" && plan.Role != "management" && plan.Role != "oob" {
 			out.block("MAPPING_ROLE_POLICY_REQUIRED", plan.PhysicalPortID, plan.ComponentID)
 			continue
 		}

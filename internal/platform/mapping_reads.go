@@ -26,6 +26,9 @@ type MappingHistoryPage struct {
 }
 
 func (s *Store) ListMappingHistory(ctx context.Context, a *AuthSession, project, asset string, page Pagination) (*MappingHistoryPage, error) {
+	if e := page.Validate(); e != nil {
+		return nil, e
+	}
 	tx, e := s.beginControlRead(ctx, a)
 	if e != nil {
 		return nil, e
@@ -78,7 +81,7 @@ func (s *Store) GetMappingAssessment(ctx context.Context, a *AuthSession, projec
 func MappingRevisionCSV(revision *MappingRevision) (string, error) {
 	var out strings.Builder
 	w := csv.NewWriter(&out)
-	if e := w.Write([]string{"mapping_revision_id", "mapping_version", "scope_hash", "effective_verdict", "invalidation_reason", "physical_port_id", "component_id", "component_serial", "logical_name", "role", "rail", "os_interface", "permanent_mac", "pci_bdf", "switch_id", "switch_port_id", "cable_id", "g2_confirmation_id", "gpu_components", "gpu_applicability"}); e != nil {
+	if e := w.Write([]string{"mapping_revision_id", "mapping_version", "scope_hash", "effective_verdict", "invalidation_reason", "physical_port_id", "component_id", "component_serial", "logical_name", "role", "rail", "os_interface", "permanent_mac", "pci_bdf", "switch_id", "switch_port_id", "cable_id", "g2_confirmation_id", "gpu_components", "gpu_applicability", "correction_id", "base_scope_hash"}); e != nil {
 		return "", e
 	}
 	for _, binding := range revision.Candidate.Bindings {
@@ -86,7 +89,16 @@ func MappingRevisionCSV(revision *MappingRevision) (string, error) {
 		for _, gpu := range binding.GPUs {
 			gpus = append(gpus, gpu.ComponentID)
 		}
-		cells := []string{revision.ID, strconv.FormatInt(revision.Version, 10), revision.Candidate.ScopeHash, revision.EffectiveVerdict, revision.InvalidationReason, binding.Plan.PhysicalPortID, binding.Plan.ComponentID, binding.Plan.ComponentSerial, binding.LogicalName, binding.Plan.Role, binding.Plan.Rail, binding.Observed.Interface, binding.Observed.PermanentMAC, binding.Observed.BDF, binding.Observed.SwitchID, binding.SwitchPortID, binding.Observed.CableID, binding.ConfirmationID, strings.Join(gpus, ";"), binding.GPUApplicability}
+		cells := []string{revision.ID, strconv.FormatInt(revision.Version, 10), revision.Candidate.ScopeHash, revision.EffectiveVerdict, revision.InvalidationReason, binding.Plan.PhysicalPortID, binding.Plan.ComponentID, binding.Plan.ComponentSerial, binding.LogicalName, binding.Plan.Role, binding.Plan.Rail, binding.Observed.Interface, binding.Observed.PermanentMAC, binding.Observed.BDF, binding.Observed.SwitchID, binding.SwitchPortID, binding.Observed.CableID, binding.ConfirmationID, strings.Join(gpus, ";"), binding.GPUApplicability, revision.Candidate.CorrectionID, revision.Candidate.BaseScopeHash}
+		for i := range cells {
+			cells[i] = assetViewCSVCell(cells[i])
+		}
+		if e := w.Write(cells); e != nil {
+			return "", e
+		}
+	}
+	for _, excluded := range revision.Candidate.ExcludedPorts {
+		cells := []string{revision.ID, strconv.FormatInt(revision.Version, 10), revision.Candidate.ScopeHash, revision.EffectiveVerdict, revision.InvalidationReason, excluded.Plan.PhysicalPortID, excluded.Plan.ComponentID, excluded.Plan.ComponentSerial, excluded.Plan.Name, excluded.Plan.Role, excluded.Plan.Rail, "", "", "", "", "", "", "", "", excluded.Reason, revision.Candidate.CorrectionID, revision.Candidate.BaseScopeHash}
 		for i := range cells {
 			cells[i] = assetViewCSVCell(cells[i])
 		}

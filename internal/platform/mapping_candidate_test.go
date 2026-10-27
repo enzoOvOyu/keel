@@ -91,3 +91,19 @@ func TestMappingExportPinsRevisionAndPreservesCurrentBlock(t *testing.T) {
 		t.Fatal("export changed version, lost validity or allowed a spreadsheet formula")
 	}
 }
+
+func TestMappingOOBNICRequiresG2AndExplicitlyExcludesGPUAffinity(t *testing.T) {
+	out, plans, components, _, proofs := mappingFixture(t)
+	plans[0].Role = "oob"
+	components = components[:1]
+	buildMappingBindings(out, plans, components, nil, proofs)
+	if !out.Ready || out.Bindings[0].GPUApplicability != "not_applicable_non_compute_role" || out.Coverage.RequiredPorts != 1 {
+		t.Fatal("OOB NIC must retain full physical/G2 mapping without inventing GPU affinity")
+	}
+	out, plans, components, relations, proofs := mappingFixture(t)
+	plans = append(plans, MappingPortPlan{PhysicalPortID: strings.Repeat("d", 32), Role: "unused"})
+	buildMappingBindings(out, plans, components, relations, proofs)
+	if !out.Ready || len(out.ExcludedPorts) != 1 || out.ExcludedPorts[0].Reason != "not_applicable_bom_unused" {
+		t.Fatal("unused ports must remain explicitly traceable")
+	}
+}
