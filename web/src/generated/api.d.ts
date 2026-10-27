@@ -4126,10 +4126,205 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/assets/{assetId}/mapping/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["previewMapping"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/mapping/assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMappingAssessments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/mapping/assessments/{assessmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMappingAssessment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/mapping/revisions/{revisionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMappingRevision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/mapping/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["publishMapping"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/mapping/revisions/{revisionId}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["exportMappingRevision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        MappingPortPlan: {
+            physical_port_id: string;
+            component_id: string;
+            component_serial: string;
+            port_index: string;
+            name: string;
+            role: string;
+            rail: string;
+        };
+        MappingGPU: {
+            component_id: string;
+            uuid: string;
+            bdf: string;
+            model_key: string;
+            affinity: string;
+        };
+        MappingBinding: {
+            plan: components["schemas"]["MappingPortPlan"];
+            logical_name: string;
+            observed: components["schemas"]["WiringExpectedPort"];
+            switch_port_id: string;
+            confirmation_id: string;
+            gpus: components["schemas"]["MappingGPU"][];
+            gpu_applicability: string;
+        };
+        MappingConflict: {
+            code: string;
+            physical_port_id: string;
+            component_id: string;
+        };
+        MappingCoverage: {
+            required_ports: number;
+            mapped_ports: number;
+            required_nics: number;
+            mapped_nics: number;
+            required_gpus: number;
+            mapped_gpus: number;
+        };
+        MappingCandidate: {
+            rule_version: string;
+            project_id: string;
+            asset_id: string;
+            machine_id: string;
+            model_version_id: string;
+            model_content_hash: string;
+            bom_package_id: string;
+            topology_id: string;
+            g1_id: string;
+            role_plan_version: string;
+            scope_hash: string;
+            verdict: string;
+            asset_version: number;
+            ready: boolean;
+            conflicts: components["schemas"]["MappingConflict"][];
+            coverage: components["schemas"]["MappingCoverage"];
+            bindings: components["schemas"]["MappingBinding"][];
+            /** Format: date-time */
+            valid_until: string | null;
+        };
+        MappingPublishInput: {
+            scope_hash: string;
+            reason: string;
+        };
+        MappingRevision: {
+            id: string;
+            assessment_id: string;
+            previous_id: string;
+            confirmed_by: string;
+            reason: string;
+            effective_verdict: string;
+            invalidation_reason: string;
+            version: number;
+            candidate: components["schemas"]["MappingCandidate"];
+            /** Format: date-time */
+            created_at: string;
+        };
+        MappingPublication: {
+            assessment_id: string;
+            candidate: components["schemas"]["MappingCandidate"];
+            revision: components["schemas"]["MappingRevision"] | null;
+        };
+        MappingHistoryItem: {
+            id: string;
+            scope_hash: string;
+            verdict: string;
+            revision_id: string;
+            created_by: string;
+            reason: string;
+            conflict_count: number;
+            version: number;
+            /** Format: date-time */
+            created_at: string;
+        };
+        MappingHistoryPage: {
+            items: components["schemas"]["MappingHistoryItem"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
         WiringPortSource: {
             physical_port_id: string;
             command_id: string;
@@ -19181,6 +19376,190 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WiringBatch"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    previewMapping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingCandidate"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listMappingAssessments: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingHistoryPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getMappingAssessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+                assessmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingPublication"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getMappingRevision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+                revisionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingRevision"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    publishMapping: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MappingPublishInput"];
+            };
+        };
+        responses: {
+            /** @description Immutable Step 1 and current four-step timeline. A fresh exact handshake is consumed once; later LLDP execution requires separate admission and dispatch readiness. No automatic G2 or NP-3. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingPublication"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    exportMappingRevision: {
+        parameters: {
+            query?: {
+                format?: "json" | "csv";
+            };
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+                revisionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingRevision"];
+                    "text/csv": string;
                 };
             };
             400: components["responses"]["InvalidRequest"];
