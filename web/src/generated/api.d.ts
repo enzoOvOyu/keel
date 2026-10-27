@@ -5104,6 +5104,27 @@ export interface components {
             facts_hash: string;
             reason: string;
         };
+        WiringHealthPolicy: {
+            /** @enum {string} */
+            version: "keel.wiring-health/v1";
+            counters: components["schemas"]["FabricCounterPolicy"];
+            optics: {
+                [key: string]: {
+                    warn_min: number | null;
+                    warn_max: number | null;
+                    critical_min: number | null;
+                    critical_max: number | null;
+                };
+            };
+        };
+        WiringHealthCheck: {
+            physical_port_id: string;
+            /** @enum {string} */
+            category: "T3" | "T4" | "T5";
+            code: string;
+            /** @enum {string} */
+            verdict: "PASS" | "FAIL" | "BLOCKED";
+        };
         WiringFinding: {
             physical_port_id: string;
             cable_id: string;
@@ -5134,6 +5155,7 @@ export interface components {
             coverage_id?: string;
             port_sources?: components["schemas"]["WiringPortSource"][];
             missing_port_ids?: string[];
+            health_checks?: components["schemas"]["WiringHealthCheck"][];
         };
         WiringExpectation: {
             version: string;
@@ -5144,6 +5166,7 @@ export interface components {
             hostname: string;
             scope_hash: string;
             ports: components["schemas"]["WiringExpectedPort"][];
+            health_policy?: components["schemas"]["WiringHealthPolicy"];
         };
         WiringStepReport: {
             id: string;
@@ -5259,6 +5282,7 @@ export interface components {
             facts_hash: string;
             ready: boolean;
             blockers: string[];
+            health_policy?: components["schemas"]["WiringHealthPolicy"];
         };
         WiringCollectorProbe: {
             service: string;

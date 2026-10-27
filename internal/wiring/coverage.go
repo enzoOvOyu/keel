@@ -10,22 +10,23 @@ import (
 // PortProof identifies original immutable evidence for ONE physical port. It
 // never refreshes a retained observation's timestamp when another port reruns.
 type PortProof struct {
-	PhysicalPortID string       `json:"physical_port_id"`
-	ParentID       string       `json:"parent_id"`
-	Step2ID        string       `json:"step2_id"`
-	Step3ID        string       `json:"step3_id"`
-	CommandID      string       `json:"command_id"`
-	RawSHA256      string       `json:"raw_sha256"`
-	ScopeHash      string       `json:"scope_hash"`
-	PolicyHash     string       `json:"policy_hash"`
-	HostOrigin     string       `json:"host_origin"`
-	SwitchOrigin   string       `json:"switch_origin"`
-	Expected       ExpectedPort `json:"expected"`
-	Step2          string       `json:"step2"`
-	Step3          string       `json:"step3"`
-	Findings       []Finding    `json:"findings"`
-	ObservedAt     time.Time    `json:"observed_at"`
-	ValidUntil     time.Time    `json:"valid_until"`
+	HealthChecks   []HealthCheck `json:"health_checks,omitempty"`
+	PhysicalPortID string        `json:"physical_port_id"`
+	ParentID       string        `json:"parent_id"`
+	Step2ID        string        `json:"step2_id"`
+	Step3ID        string        `json:"step3_id"`
+	CommandID      string        `json:"command_id"`
+	RawSHA256      string        `json:"raw_sha256"`
+	ScopeHash      string        `json:"scope_hash"`
+	PolicyHash     string        `json:"policy_hash"`
+	HostOrigin     string        `json:"host_origin"`
+	SwitchOrigin   string        `json:"switch_origin"`
+	Expected       ExpectedPort  `json:"expected"`
+	Step2          string        `json:"step2"`
+	Step3          string        `json:"step3"`
+	Findings       []Finding     `json:"findings"`
+	ObservedAt     time.Time     `json:"observed_at"`
+	ValidUntil     time.Time     `json:"valid_until"`
 }
 type Coverage struct {
 	Version        string      `json:"version"`

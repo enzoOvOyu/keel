@@ -43,7 +43,7 @@ func decodeFixture(raw []byte) (*FixtureDocument, error) {
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	var document FixtureDocument
-	if decoder.Decode(&document) != nil || document.Version != "keel.lldp-fixture/v1" || len(document.Before) < 1 || len(document.Before) > MaxPorts || len(document.During) > MaxPorts || len(document.After) > MaxPorts || len(document.Probes) > 2*MaxPorts || len(document.Switches) > MaxPorts {
+	if decoder.Decode(&document) != nil || document.Version != "keel.lldp-fixture/v1" || len(document.Before) < 1 || len(document.Before) > MaxPorts || len(document.During) > MaxPorts || len(document.After) > MaxPorts || len(document.Probes) > 3*MaxPorts || len(document.Switches) > MaxPorts {
 		return nil, ErrCaptureRejected
 	}
 	switch document.HostFault {

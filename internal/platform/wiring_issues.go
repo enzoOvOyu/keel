@@ -13,12 +13,16 @@ import (
 // evaluator failures create a physical-port issue, before any G3 mapping exists.
 func recordWiringIssuesTx(ctx context.Context, tx *sql.Tx, c *WiringCommand, result wiring.Result, owner string, observed time.Time, sha string, reports map[int]string) error {
 	actor := &AuthSession{User: UserSummary{ID: owner}}
+	sourceVersion := wiring.RuleVersion
+	if c.Expectation.HealthPolicy != nil {
+		sourceVersion += "+" + wiring.HealthVersion
+	}
 	ports := map[string]wiring.ExpectedPort{}
 	for _, p := range c.Expectation.Ports {
 		ports[p.PhysicalPortID] = p
 	}
 	for _, finding := range result.Findings {
-		if finding.Verdict != "FAIL" || !slices.Contains([]string{"T1", "T2", "T6"}, finding.Category) {
+		if finding.Verdict != "FAIL" || !slices.Contains([]string{"T1", "T2", "T3", "T4", "T5", "T6"}, finding.Category) {
 			continue
 		}
 		port, ok := ports[finding.PhysicalPortID]
@@ -40,7 +44,7 @@ func recordWiringIssuesTx(ctx context.Context, tx *sql.Tx, c *WiringCommand, res
 			return e
 		}
 		if fresh {
-			in := CreateIssueInput{Title: "Wiring: " + finding.Category + " / " + finding.Code, Category: finding.Category, Source: "g2", Phase: "delivery", Anchors: []IssueAnchor{{Kind: "machine", ID: c.Expectation.MachineID}, {Kind: "component", ID: port.ComponentID}, {Kind: "port", ID: port.PhysicalPortID}, {Kind: "cable", ID: port.CableID}}, Evidence: IssueEvidence{ObservedAt: observed, SourceVersion: wiring.RuleVersion, Expected: string(networkJSON(finding.Expected)), Actual: string(networkJSON(map[string]any{"finding": finding, "raw_sha256": sha, "command_id": c.Binding.CommandID})), ExecutionID: c.Binding.ExecutionID}}
+			in := CreateIssueInput{Title: "Wiring: " + finding.Category + " / " + finding.Code, Category: finding.Category, Source: "g2", Phase: "delivery", Anchors: []IssueAnchor{{Kind: "machine", ID: c.Expectation.MachineID}, {Kind: "component", ID: port.ComponentID}, {Kind: "port", ID: port.PhysicalPortID}, {Kind: "cable", ID: port.CableID}}, Evidence: IssueEvidence{ObservedAt: observed, SourceVersion: sourceVersion, Expected: string(networkJSON(finding.Expected)), Actual: string(networkJSON(map[string]any{"finding": finding, "raw_sha256": sha, "command_id": c.Binding.CommandID})), ExecutionID: c.Binding.ExecutionID}}
 			if len(in.Evidence.Actual) > 3800 || len(in.Evidence.Expected) > 3800 {
 				in.Evidence.Expected = string(networkJSON(map[string]string{"raw_sha256": sha, "field": "finding.expected"}))
 				in.Evidence.Actual = string(networkJSON(map[string]any{"command_id": c.Binding.CommandID, "raw_sha256": sha, "physical_port_id": port.PhysicalPortID, "code": finding.Code, "finding_hash": digest(string(networkJSON(finding)))}))

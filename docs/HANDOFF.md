@@ -2283,3 +2283,14 @@ ReadWiringCapture重新打开固定版本对象、核对SHA256/大小、重建�
 - 本轮集中软件检查：隔离数据库执行 `go test ./internal/execution ./internal/platform ./internal/agentidentity ./internal/httpapi -run 'TestGate|TestMonitorPostgres|TestPortMonitorRoutes' -count=1 -timeout=90s -v` PASS，覆盖全103条源码迁移（通过106，排除原026）、缺证据不制造豁免/门禁、跨项目拒绝、参数项目覆盖/停用与版本变化、mTLS阶段切换及路由共存；platform本命令仅编译，没有匹配业务用例。前端 `tsc --noEmit` PASS，日志 `/tmp/keel-gates-milestone-1qqvhof8/`。首轮Go审计参数类型错误已修正，原失败日志保留于7r27nd7r。
 - 随后统一数据库与API的项目Admin/DL权限判定，新增SQL变更仅定向重跑隔离execution的TestGateDashboardAndWaiver，PASS，日志 `/tmp/keel-gates-milestone-_9teatgf/`；未重复TS/浏览器/镜像。以上不证明G1豁免完整正向业务链、真实G2全链或硬件PoC已通过，仍在P2收口清单。
 - 运行3000仍7afda32，数据库64条/067，068～106未应用到运行库；未部署/push/操作真实设备。原两份fabric_precheck草稿和netbom.xlsx保持隔离。继续端口T3/T4/T5分类/领域维修、Agentless/source桥接、详情剩余交互和完整P2集中验证。
+
+
+## 209. T1～T5 诊断分类与按故障类别重验约束
+
+- 接续d412d39，保持单Agent本地开发。增加可选的、原始归档保留的health探针：同一物理接口/BDF/永久MAC、原命令窗口、模块/DOM、同epoch双时间计数、明确PCIe训练和固件状态。严格JSON/大小/时间/身份检查；端口健康投影必须从原始探针独立重算，不能直接上传/改写故障结论。
+- Step1/命令/计划冻结HealthPolicy，复用已批准参数目录fabric.ddm与fabric.precheck的计数窗口/阈值；变更参与范围和策略hash失效。未配置阈值、缺测或计数重置形成独立BLOCKED诊断，不改变G2声明的三方线序分母；具体物理FAIL阻断。模拟不能升级真实来源。未凭down/空LLDP推断T5或执行RMA。
+- T3包含模块不支持和DOM超限，T4包含同epoch/完整窗口CRC或flapping增长，T5包含明确PCIe训练失败/固件崩溃；保留原T1/T2/T6。107扩展同一工单绑定类别，新范围必须引用相同冻结策略；健康投影与原始逐端口结果严格一致。分类仍是诊断与处置入口，不能代替人工授权硬件动作。
+- T3/T4/T5维修关闭必须有新原命令对应类别的健康PASS及有效Step3；仅恢复LLDP或遗漏诊断不能关闭。其他类别的新失败不会累计为本工单的又一次维修失败/升级。Go与SQL同时约束，沿用原维修/重验/明确关闭及连续两次失败的DL升级机制。四步时间线展示逐端口诊断与线序的不同结论。
+- 原始探针适配接口/静态健康fixture已留；真实受控helper读取驱动/固件/完整DOM仍属PoC适配，不把结构化软件fixture当实际硬件采集。
+- 本轮重大分类检查：`go test ./internal/wiring -count=1 -timeout=90s -v` PASS（含T1～T5各两种变体、unknown/计数重置/窗口/缺阈值、原始health与投影防变造、既有档案/增量/恢复全部用例）；隔离库 `go test ./internal/platform ./internal/execution -run TestWiring -count=1 -timeout=90s -v` PASS（全104条源码迁移，通过107；冻结策略不可被端口子集替换、既有拒绝链）；前端 `tsc --noEmit` PASS。日志 `/tmp/keel-health-milestone-yzen8smd/`，仅删除自建临时库。
+- 该结果不包含十种故障分别创建工单的正向数据库全链、真实G2/G3、完整维修正向链、浏览器或硬件PoC，不声明F-4.6/P2已验收。运行3000仍7afda32、数据库64/067，068～107未应用；未部署/push/操作硬件，原草稿和netbom.xlsx隔离不变。继续mon-svc网络/BMC来源桥接、Agentless SSH、portmon领域重验及完整P2收口。

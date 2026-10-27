@@ -10,7 +10,7 @@ import (
 
 // Every expected port is evaluated. A missing observation stays BLOCKED and
 // never disappears from the denominator. This evaluates wire identity only;
-// existing fabric diagnostics separately owns DOM/counters/config T3/T4/T6.
+// a frozen health policy additionally requires retained T3/T4/T5 diagnostics.
 func Evaluate(expected Expectation, host *Capture, switches map[string]SwitchEvidence, now time.Time) Result {
 	out := Result{Version: Version, RuleVersion: RuleVersion, Step2: "PASS", Step3: "PASS", Findings: []Finding{}}
 	add := func(step int, p ExpectedPort, verdict, category, code string, want, got any) {
@@ -96,6 +96,7 @@ func Evaluate(expected Expectation, host *Capture, switches map[string]SwitchEvi
 			add(2, p, "BLOCKED", "", "host_permanent_identity_changed", p, actual)
 			continue
 		}
+		out.HealthChecks = append(out.HealthChecks, evaluateHealth(p, actual.Health, expected.HealthPolicy, add)...)
 		if canonicalMAC(actual.CurrentMAC) == "" {
 			add(2, p, "BLOCKED", "", "host_current_mac_missing", p.PermanentMAC, actual.CurrentMAC)
 		} else if !sameMAC(actual.CurrentMAC, p.PermanentMAC) {

@@ -1,0 +1,29 @@
+{
+  "version": "keel.wiring-health/v1",
+  "interface": "eth1",
+  "bdf": "0000:41:00.0",
+  "permanent_mac": "02:00:00:00:01:01",
+  "before_at": "2026-10-27T09:59:48Z",
+  "observed_at": "2026-10-27T09:59:59Z",
+  "before_epoch": "synthetic-nic-boot-1",
+  "epoch": "synthetic-nic-boot-1",
+  "crc_before": 10,
+  "crc": 10,
+  "flaps_before": 0,
+  "flaps": 0,
+  "module_present": true,
+  "optics": {
+    "vendor": "synthetic-vendor",
+    "model": "synthetic-optic",
+    "serial": "synthetic-module-1",
+    "media_type": "synthetic-optical",
+    "rx_dbm": -2,
+    "tx_dbm": -1,
+    "temperature_c": 35,
+    "voltage_v": 3.3,
+    "bias_ma": 6,
+    "supported": true
+  },
+  "pci_training_failed": false,
+  "firmware_crashed": false
+}

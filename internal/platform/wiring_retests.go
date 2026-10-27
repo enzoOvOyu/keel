@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/enzoOvOyu/keel/internal/wiring"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -143,6 +145,39 @@ func (s *Store) wiringRetestScopeTx(ctx context.Context, tx *sql.Tx, item *Issue
 		if verdict != found.Verdict {
 			out.Verdict = "BLOCKED"
 			block("WIRING_RETEST_OTHER_PORTS_BLOCKED")
+		}
+	}
+
+	// Health incidents cannot be closed using a legacy LLDP-only command. A new
+	// unrelated failure is not another failed repair of this issue's category.
+	var commandRaw, portRaw []byte
+	if e = tx.QueryRowContext(ctx, `SELECT c.command,e.proof FROM validation_wiring_commands c JOIN validation_wiring_port_evidence e ON e.command_id=c.command_id AND e.physical_port_id=$2 WHERE c.command_id=$1 AND c.project_id=$3`, out.CommandID, out.PhysicalPortID, item.ProjectID).Scan(&commandRaw, &portRaw); e != nil {
+		return nil, e
+	}
+	var original WiringCommand
+	var proof wiring.PortProof
+	if json.Unmarshal(commandRaw, &original) != nil || json.Unmarshal(portRaw, &proof) != nil {
+		return nil, wiring.ErrCaptureRejected
+	}
+	if slices.Contains([]string{"T3", "T4", "T5"}, item.Category) {
+		if original.Expectation.HealthPolicy == nil {
+			block("WIRING_HEALTH_RETEST_REQUIRED")
+		}
+		if out.Verdict == "PASS" && wiring.HealthVerdict(proof.HealthChecks, item.Category) != "PASS" {
+			block("WIRING_HEALTH_RETEST_NOT_PASS")
+		}
+	}
+	if out.Verdict == "FAIL" {
+		related := false
+		for _, finding := range proof.Findings {
+			if finding.PhysicalPortID == out.PhysicalPortID && finding.Category == item.Category && finding.Verdict == "FAIL" {
+				related = true
+				break
+			}
+		}
+		if !related {
+			out.Verdict = "BLOCKED"
+			block("WIRING_RETEST_UNRELATED_FAILURE")
 		}
 	}
 	if found.EffectiveVerdict != found.Verdict {

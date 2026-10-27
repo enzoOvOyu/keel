@@ -47,10 +47,11 @@ func wiringIdentityHash(f *WiringFacts) string {
 		devices = append(devices, device{d.ID, d.Serial, d.ManagementHash, d.GoldenHash, d.Ports})
 	}
 	return digest(string(networkJSON(struct {
+		HealthPolicy                *wiring.HealthPolicy `json:"health_policy,omitempty"`
 		Project, Package, Collector string
 		Hosts                       []WiringHost
 		Devices                     []device
-	}{f.ProjectID, f.NetworkPackageID, f.CollectorHash, f.Targets, devices})))
+	}{f.HealthPolicy, f.ProjectID, f.NetworkPackageID, f.CollectorHash, f.Targets, devices})))
 }
 func wiringHostFacts(f *WiringFacts, asset string) *WiringFacts {
 	out := *f

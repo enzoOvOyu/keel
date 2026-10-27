@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/enzoOvOyu/keel/internal/fabricmon"
+	"github.com/enzoOvOyu/keel/internal/wiring"
 )
 
 type WiringTargetInput struct {
@@ -62,18 +63,19 @@ type WiringSwitch struct {
 	NP4            NetworkGate `json:"np4"`
 }
 type WiringFacts struct {
-	Version            string         `json:"version"`
-	ProjectID          string         `json:"project_id"`
-	Targets            []WiringHost   `json:"targets"`
-	Switches           []WiringSwitch `json:"switches"`
-	NetworkPackageID   string         `json:"network_package_id"`
-	CollectionID       string         `json:"collection_id"`
-	CollectorHash      string         `json:"collector_hash"`
-	TTLSeconds         int            `json:"ttl_seconds"`
-	EvidenceValidUntil time.Time      `json:"evidence_valid_until"`
-	FactsHash          string         `json:"facts_hash"`
-	Ready              bool           `json:"ready"`
-	Blockers           []string       `json:"blockers"`
+	HealthPolicy       *wiring.HealthPolicy `json:"health_policy,omitempty"`
+	Version            string               `json:"version"`
+	ProjectID          string               `json:"project_id"`
+	Targets            []WiringHost         `json:"targets"`
+	Switches           []WiringSwitch       `json:"switches"`
+	NetworkPackageID   string               `json:"network_package_id"`
+	CollectionID       string               `json:"collection_id"`
+	CollectorHash      string               `json:"collector_hash"`
+	TTLSeconds         int                  `json:"ttl_seconds"`
+	EvidenceValidUntil time.Time            `json:"evidence_valid_until"`
+	FactsHash          string               `json:"facts_hash"`
+	Ready              bool                 `json:"ready"`
+	Blockers           []string             `json:"blockers"`
 }
 
 func normalizeWiringTargets(targets []WiringTargetInput) ([]WiringTargetInput, error) {
@@ -125,6 +127,18 @@ func (s *Store) wiringFactsTx(ctx context.Context, tx *sql.Tx, project string, t
 	out.TTLSeconds, e = networkReadinessTTLTx(ctx, tx, project)
 	if e != nil {
 		return nil, e
+	}
+	counters, e := fabricCounterPolicyTx(ctx, tx, project)
+	if e != nil {
+		return nil, e
+	}
+	optics, e := fabricDDMLimitsTx(ctx, tx, project)
+	if e != nil {
+		return nil, e
+	}
+	out.HealthPolicy = &wiring.HealthPolicy{Version: wiring.HealthVersion, Counters: counters, Optics: optics}
+	if out.HealthPolicy.Validate() != nil {
+		block("WIRING_HEALTH_POLICY_INVALID")
 	}
 	var inventory []FabricDeviceSummary
 	var cables []fabricmon.Cable

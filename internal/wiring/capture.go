@@ -238,7 +238,7 @@ func projectArchive(original *Archive) (*Archive, error) {
 	}
 	archive.Capture.AdvertisingAt = observed.AdvertisingAt
 	archive.Capture.CollectedAt = observed.CollectedAt
-	if observed.AdvertisingAt.Before(archive.Capture.StartedAt) || observed.CollectedAt.Before(observed.AdvertisingAt) || observed.CollectedAt.After(archive.Capture.AdvertisingStoppedAt) || len(observed.Probes) > 2*len(expected.Ports) || validateLocalState(expected, observed.States, false) != nil {
+	if observed.AdvertisingAt.Before(archive.Capture.StartedAt) || observed.CollectedAt.Before(observed.AdvertisingAt) || observed.CollectedAt.After(archive.Capture.AdvertisingStoppedAt) || len(observed.Probes) > 3*len(expected.Ports) || validateLocalState(expected, observed.States, false) != nil {
 		archive.Capture.Missing = append(archive.Capture.Missing, "lldp_capture_scope_invalid")
 		return archive, nil
 	}
@@ -248,7 +248,7 @@ func projectArchive(original *Archive) (*Archive, error) {
 	for _, p := range observed.Probes {
 		rawSize += len(p.Stdout) + len(p.Stderr)
 		key := p.PhysicalPortID + ":" + p.Kind
-		if rawSize > MaxCaptureBytes/2 || p.Kind != "neighbors" && p.Kind != "local" || p.State != "success" && p.State != "failed" {
+		if rawSize > MaxCaptureBytes/2 || p.Kind != "neighbors" && p.Kind != "local" && p.Kind != "health" || p.State != "success" && p.State != "failed" {
 			return archive, ErrCaptureRejected
 		}
 		if _, duplicate := probeMap[key]; duplicate {
@@ -285,6 +285,13 @@ func projectArchive(original *Archive) (*Archive, error) {
 					port.Neighbors = values[p.Interface]
 					port.LLDPReadable = true
 				}
+			}
+		}
+		if probe, ok := probeMap[p.PhysicalPortID+":health"]; ok && probe.State == "success" {
+			var err error
+			port.Health, err = decodeHealthProbe([]byte(probe.Stdout), p, archive.Capture.StartedAt, archive.Capture.AdvertisingStoppedAt)
+			if err != nil {
+				return archive, err
 			}
 		}
 		archive.Capture.Ports = append(archive.Capture.Ports, port)

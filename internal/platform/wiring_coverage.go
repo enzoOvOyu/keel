@@ -37,7 +37,7 @@ func recordWiringCoverageTx(ctx context.Context, tx *sql.Tx, c *WiringCommand, p
 		if result.Step2 == "PASS" {
 			three = RandomID()
 		}
-		proof := wiring.PortProof{PhysicalPortID: p.PhysicalPortID, ParentID: c.ParentID, Step2ID: id, Step3ID: three, CommandID: c.Binding.CommandID, RawSHA256: sha, ScopeHash: c.Expectation.ScopeHash, PolicyHash: c.PolicyHash, HostOrigin: c.HostOrigin, SwitchOrigin: c.Binding.Origin, Expected: p, Step2: result.Step2, Step3: result.Step3, Findings: result.Findings, ObservedAt: stopped, ValidUntil: until}
+		proof := wiring.PortProof{HealthChecks: result.HealthChecks, PhysicalPortID: p.PhysicalPortID, ParentID: c.ParentID, Step2ID: id, Step3ID: three, CommandID: c.Binding.CommandID, RawSHA256: sha, ScopeHash: c.Expectation.ScopeHash, PolicyHash: c.PolicyHash, HostOrigin: c.HostOrigin, SwitchOrigin: c.Binding.Origin, Expected: p, Step2: result.Step2, Step3: result.Step3, Findings: result.Findings, ObservedAt: stopped, ValidUntil: until}
 		_, e = tx.ExecContext(ctx, `INSERT INTO validation_wiring_port_evidence(id,command_id,physical_port_id,parent_id,proof,observed_at,valid_until) VALUES($1,$2,$3,$4,$5,$6,$7)`, id, c.Binding.CommandID, p.PhysicalPortID, c.ParentID, networkJSON(proof), stopped, until)
 		if e != nil {
 			return nil, e

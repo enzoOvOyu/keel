@@ -17,7 +17,7 @@ func WiringExpectation(facts *WiringFacts, asset string) (wiring.Expectation, er
 		if host.AssetID != asset {
 			continue
 		}
-		out := wiring.Expectation{Version: wiring.Version, ProjectID: facts.ProjectID, AssetID: host.AssetID, MachineID: host.MachineID, Serial: host.Serial, Hostname: host.Hostname, ScopeHash: facts.FactsHash, Ports: []wiring.ExpectedPort{}}
+		out := wiring.Expectation{HealthPolicy: facts.HealthPolicy, Version: wiring.Version, ProjectID: facts.ProjectID, AssetID: host.AssetID, MachineID: host.MachineID, Serial: host.Serial, Hostname: host.Hostname, ScopeHash: facts.FactsHash, Ports: []wiring.ExpectedPort{}}
 		for _, p := range host.Ports {
 			out.Ports = append(out.Ports, wiring.ExpectedPort{PhysicalPortID: p.PhysicalPortID, ComponentID: p.ComponentID, PortIndex: p.PortIndex, Interface: p.Interface, PermanentMAC: p.PermanentMAC, BDF: p.BDF, Rail: p.Rail, CableID: p.CableID, SwitchID: p.SwitchID, SwitchSerial: p.SwitchSerial, SwitchChassisIDs: slices.Clone(p.SwitchChassisIDs), SwitchPort: p.SwitchPort})
 		}

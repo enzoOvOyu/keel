@@ -49,6 +49,7 @@ type WiringPortSource struct {
 	Step3          string    `json:"step3"`
 }
 type WiringStepDetail struct {
+	HealthChecks   []wiring.HealthCheck   `json:"health_checks,omitempty"`
 	PortSources    []WiringPortSource     `json:"port_sources,omitempty"`
 	MissingPortIDs []string               `json:"missing_port_ids,omitempty"`
 	CoverageID     string                 `json:"coverage_id,omitempty"`

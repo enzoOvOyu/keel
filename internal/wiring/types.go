@@ -40,18 +40,19 @@ type ExpectedPort struct {
 	SwitchPort       string   `json:"switch_port"`
 }
 type Expectation struct {
-	Version   string         `json:"version"`
-	ProjectID string         `json:"project_id"`
-	AssetID   string         `json:"asset_id"`
-	MachineID string         `json:"machine_id"`
-	Serial    string         `json:"serial"`
-	Hostname  string         `json:"hostname"`
-	ScopeHash string         `json:"scope_hash"`
-	Ports     []ExpectedPort `json:"ports"`
+	HealthPolicy *HealthPolicy  `json:"health_policy,omitempty"`
+	Version      string         `json:"version"`
+	ProjectID    string         `json:"project_id"`
+	AssetID      string         `json:"asset_id"`
+	MachineID    string         `json:"machine_id"`
+	Serial       string         `json:"serial"`
+	Hostname     string         `json:"hostname"`
+	ScopeHash    string         `json:"scope_hash"`
+	Ports        []ExpectedPort `json:"ports"`
 }
 
 func (e Expectation) Validate() error {
-	if e.Version != Version || !entityID.MatchString(e.ProjectID) || !entityID.MatchString(e.AssetID) || !entityID.MatchString(e.MachineID) || !scopeDigest.MatchString(e.ScopeHash) || !field.MatchString(e.Serial) || !field.MatchString(e.Hostname) || len(e.Ports) < 1 || len(e.Ports) > MaxPorts {
+	if e.HealthPolicy.Validate() != nil || e.Version != Version || !entityID.MatchString(e.ProjectID) || !entityID.MatchString(e.AssetID) || !entityID.MatchString(e.MachineID) || !scopeDigest.MatchString(e.ScopeHash) || !field.MatchString(e.Serial) || !field.MatchString(e.Hostname) || len(e.Ports) < 1 || len(e.Ports) > MaxPorts {
 		return errors.New("invalid wiring expectation")
 	}
 	seen := map[string]bool{}
@@ -106,6 +107,7 @@ type Identity struct {
 	Sysdesc   string `json:"sysdesc"`
 }
 type HostPort struct {
+	Health         *HealthObservation   `json:"health,omitempty"`
 	PhysicalPortID string               `json:"physical_port_id"`
 	Interface      string               `json:"interface"`
 	BDF            string               `json:"bdf"`
@@ -149,9 +151,10 @@ type Finding struct {
 	Actual         any    `json:"actual,omitempty"`
 }
 type Result struct {
-	Version     string    `json:"version"`
-	RuleVersion string    `json:"rule_version"`
-	Step2       string    `json:"step2"`
-	Step3       string    `json:"step3"`
-	Findings    []Finding `json:"findings"`
+	HealthChecks []HealthCheck `json:"health_checks,omitempty"`
+	Version      string        `json:"version"`
+	RuleVersion  string        `json:"rule_version"`
+	Step2        string        `json:"step2"`
+	Step3        string        `json:"step3"`
+	Findings     []Finding     `json:"findings"`
 }

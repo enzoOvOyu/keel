@@ -57,6 +57,24 @@ func TestWiringSchemaAndSubsetPredicatesPostgres(t *testing.T) {
 			t.Fatal("database did not preserve exact original port identities")
 		}
 	}
+	// A narrowed port list may never replace the server's frozen diagnostic policy.
+	full.HealthPolicy = &wiring.HealthPolicy{Version: wiring.HealthVersion}
+	selected = full
+	selected.Ports = append([]wiring.ExpectedPort{}, full.Ports[1])
+	var allowed bool
+	if e = s.DB.QueryRowContext(ctx, `SELECT keel_wiring_expectation_within($1::jsonb,$2::jsonb)`, networkJSON(full), networkJSON(selected)).Scan(&allowed); e != nil {
+		t.Fatal(e)
+	}
+	if !allowed {
+		t.Fatal("physical subset lost identical diagnostic policy")
+	}
+	selected.HealthPolicy = nil
+	if e = s.DB.QueryRowContext(ctx, `SELECT keel_wiring_expectation_within($1::jsonb,$2::jsonb)`, networkJSON(full), networkJSON(selected)).Scan(&allowed); e != nil {
+		t.Fatal(e)
+	}
+	if allowed {
+		t.Fatal("partial rerun discarded diagnostic policy")
+	}
 	stamp := "2026-10-27T12:34:56.123456789Z"
 	var stored time.Time
 	if e = s.DB.QueryRowContext(ctx, `SELECT keel_wiring_original_timestamp($1)`, stamp).Scan(&stored); e != nil {

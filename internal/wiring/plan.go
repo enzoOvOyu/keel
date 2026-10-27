@@ -28,11 +28,12 @@ type PortPlan struct {
 	ReadNeighbors  Invocation `json:"read_neighbors"`
 }
 type Plan struct {
-	Version   string     `json:"version"`
-	ScopeHash string     `json:"scope_hash"`
-	CommandID string     `json:"command_id"`
-	Ports     []PortPlan `json:"ports"`
-	Digest    string     `json:"digest"`
+	HealthPolicy *HealthPolicy `json:"health_policy,omitempty"`
+	Version      string        `json:"version"`
+	ScopeHash    string        `json:"scope_hash"`
+	CommandID    string        `json:"command_id"`
+	Ports        []PortPlan    `json:"ports"`
+	Digest       string        `json:"digest"`
 }
 
 func quoteConfiguration(value string) string { raw, _ := json.Marshal(value); return string(raw) }
@@ -47,7 +48,7 @@ func BuildPlan(expected Expectation, commandID string) (*Plan, error) {
 	if expected.Validate() != nil || !entityID.MatchString(commandID) {
 		return nil, errors.New("invalid fixed LLDP plan scope")
 	}
-	out := &Plan{Version: Version, ScopeHash: expected.ScopeHash, CommandID: commandID, Ports: []PortPlan{}}
+	out := &Plan{HealthPolicy: expected.HealthPolicy, Version: Version, ScopeHash: expected.ScopeHash, CommandID: commandID, Ports: []PortPlan{}}
 	selected := slices.Clone(expected.Ports)
 	sort.Slice(selected, func(i, j int) bool { return selected[i].PhysicalPortID < selected[j].PhysicalPortID })
 	for _, p := range selected {

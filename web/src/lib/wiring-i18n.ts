@@ -1,5 +1,6 @@
 export const wiringTranslations = {
  zh: {
+ wiringHealthChecks: '模块 / 线缆 / 网卡原始诊断', wiringHealthScopeHelp: '诊断与 LLDP 线序分别保留结论。缺测、计数重置或阈值未配置保持 BLOCKED；相关 T3/T4/T5 工单须有对应诊断的新鲜通过证据才能关闭。',
  wiringRetestTitle: "布线维修重验", wiringRetestHelp: "登记维修后，从 Step2 开始重新采集当前主机，再提交新的原始报告重验。Step1 拓扑不重建；通过后仍需明确关闭工单。", wiringRetestRepair: "维修记录", wiringRetestAssets: "前往资产启动新的布线采集", wiringRetestCandidate: "新报告结论", wiringRetestSubmit: "提交维修后报告重验", wiringRetestHistory: "布线重验历史", wiringRetestEmpty: "暂无重验记录", wiringRetestCanClose: "当前重验通过，可明确关闭工单", wiringRetestEscalated: "连续两次失败，已登记 DL 升级通知", wiringRetestNoDL: "项目尚无启用的 DL 接收人",
  wiringConfirmDL: 'DL 确认线序并形成 G2',
  wiringRerunPorts: '本次重跑端口', wiringRerunHelp: '仅采集所选端口或 rail；原 Step1 全量范围不变，其他端口保留原始证据及到期时间。', wiringOriginalCoverage: '查看逐端口原始覆盖证据',
@@ -8,6 +9,7 @@ export const wiringTranslations = {
   wiringTitle: '布线就绪握手', wiringHelp: '明确选择本次主机端口，检查当前 G1、拓扑、BOM 与对端交换机 NP-1/2/4。创建握手才检查采集器在线状态，最长有效 30 秒。', wiringPort: '选择物理端口', wiringPreview: '预览本次范围', wiringCreate: '检查在线状态并创建握手', wiringReason: '操作原因', wiringReady: '前置证据就绪', wiringBlocked: '前置证据未就绪', wiringBlockers: '阻挡原因', wiringSwitches: '本次对端交换机', wiringLease: '握手凭证', wiringLeaseReady: '当前有效', wiringLeaseExpired: '已过期或范围已变化', wiringHistory: '握手历史', wiringDetail: '核对当前有效性', wiringEmpty: '暂无握手记录', wiringNoExecution: '先归档 Step1，再刷新就绪并创建统一 LLDP 执行任务。G2 仍需 DL 单独确认。', wiringReadinessAt: '就绪检查时间', wiringValidUntil: '有效截止', wiringInvalidReason: '请输入 3 至 1000 字的操作原因', wiringScopeSelection: '选择改变后需重新预览；采集器在线状态只在创建时检查。', wiringGateHint: '此处不依赖后置的 NP-3、NP-5 或 NP-6。', wiringCurrentSelection: '本次端口', wiringCollector: '采集器',
  },
  en: {
+ wiringHealthChecks: 'Original module / cable / NIC diagnostics', wiringHealthScopeHelp: 'Health diagnostics and LLDP identity retain separate verdicts. Missing data, counter resets or unconfigured limits remain BLOCKED. T3/T4/T5 repair closure requires new passing evidence for its health category.',
  wiringRetestTitle: "Wiring repair verification", wiringRetestHelp: "Record a repair, start a new capture from Step 2, then submit its original report. Step 1 stays unchanged. A passing retest still requires explicit issue closure.", wiringRetestRepair: "Recorded repair", wiringRetestAssets: "Open assets to capture wiring again", wiringRetestCandidate: "New report verdict", wiringRetestSubmit: "Verify the post-repair report", wiringRetestHistory: "Wiring retest history", wiringRetestEmpty: "No retests recorded", wiringRetestCanClose: "Current verification passed; explicit closure is available", wiringRetestEscalated: "Two consecutive failures; DL escalation recorded", wiringRetestNoDL: "No enabled DL recipient is assigned",
  wiringConfirmDL: 'DL: confirm wiring and publish G2',
  wiringRerunPorts: 'Ports to rerun', wiringRerunHelp: 'Capture only selected ports or a rail. The original Step 1 denominator stays fixed; other ports retain their original evidence and expiry.', wiringOriginalCoverage: 'Original per-port coverage',

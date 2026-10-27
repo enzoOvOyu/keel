@@ -57,7 +57,9 @@ func (s *Store) ApplyWiringCaptureTx(ctx context.Context, tx *sql.Tx, attempt, c
 		until = *coverage.ValidUntil
 	}
 	sources := make([]WiringPortSource, 0, len(coverage.Proofs))
+	healthChecks := []wiring.HealthCheck{}
 	for _, proof := range coverage.Proofs {
+		healthChecks = append(healthChecks, proof.HealthChecks...)
 		sources = append(sources, WiringPortSource{PhysicalPortID: proof.PhysicalPortID, CommandID: proof.CommandID, RawSHA256: proof.RawSHA256, ObservedAt: proof.ObservedAt, ValidUntil: proof.ValidUntil, Step2: proof.Step2, Step3: proof.Step3})
 	}
 	parent := c.ParentID
@@ -84,7 +86,7 @@ func (s *Store) ApplyWiringCaptureTx(ctx context.Context, tx *sql.Tx, attempt, c
 		if e = tx.QueryRowContext(ctx, `SELECT coalesce(max(version),0)+1 FROM validation_wiring_step_reports WHERE batch_id=$1 AND asset_id=$2 AND step=$3`, c.BatchID, c.AssetID, step).Scan(&version); e != nil {
 			return e
 		}
-		detail := WiringStepDetail{PortSources: sources, MissingPortIDs: coverage.MissingPortIDs, CoverageID: coverageID, Version: "keel.wiring-step/v1", Step: step, Verdict: verdict, TopologyID: "", CommandID: command, RawSHA256: sha, HostOrigin: c.HostOrigin, SwitchOrigin: c.Binding.Origin, Findings: coverage.Findings}
+		detail := WiringStepDetail{HealthChecks: healthChecks, PortSources: sources, MissingPortIDs: coverage.MissingPortIDs, CoverageID: coverageID, Version: "keel.wiring-step/v1", Step: step, Verdict: verdict, TopologyID: "", CommandID: command, RawSHA256: sha, HostOrigin: c.HostOrigin, SwitchOrigin: c.Binding.Origin, Findings: coverage.Findings}
 		id := RandomID()
 		_, e = tx.ExecContext(ctx, `INSERT INTO validation_wiring_step_reports(id,batch_id,asset_id,step,version,parent_id,source_hash,verdict,detail,created_by,created_at,valid_until,policy_hash) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`, id, c.BatchID, c.AssetID, step, version, parent, coverage.SourceHash, verdict, networkJSON(detail), owner, time.Now().UTC(), until, policy)
 		if e != nil {
@@ -123,6 +125,6 @@ func wiringReportPolicyTx(ctx context.Context, tx *sql.Tx, project string) (time
 		return 0, "", apiError(409, "WIRING_POLICY_INVALID", "Gate evidence TTL must be positive and at most 24 hours")
 	}
 	var raw []byte
-	e = tx.QueryRowContext(ctx, `SELECT coalesce(jsonb_agg(jsonb_build_object('id',p.id,'updated_at',p.updated_at,'value',p.default_value) ORDER BY p.id),'[]'::jsonb) FROM param_keys p WHERE p.scope_key IN('global',$1) AND p.key='gate.evidence_ttl' AND NOT EXISTS(SELECT 1 FROM param_keys override WHERE override.key=p.key AND override.scope_key=$1 AND p.scope_key='global')`, "project:"+project).Scan(&raw)
-	return duration, digest(string(raw)), e
+	e = tx.QueryRowContext(ctx, `SELECT coalesce(jsonb_agg(jsonb_build_object('id',p.id,'updated_at',p.updated_at,'value',p.default_value,'state',p.state) ORDER BY p.id),'[]'::jsonb) FROM param_keys p WHERE p.scope_key IN('global',$1) AND (p.key IN('gate.evidence_ttl','fabric.precheck.counter_window_seconds','fabric.precheck.crc_growth_max','fabric.precheck.flap_growth_max') OR p.key LIKE 'fabric.ddm.%') AND NOT EXISTS(SELECT 1 FROM param_keys override WHERE override.key=p.key AND override.scope_key=$1 AND p.scope_key='global')`, "project:"+project).Scan(&raw)
+	return duration, digest(wiring.HealthVersion + ":" + string(raw)), e
 }
