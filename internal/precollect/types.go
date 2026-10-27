@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/enzoOvOyu/keel/internal/pcitopology"
 )
 
 const Version = "keel.precollect/v1"
@@ -49,19 +51,21 @@ type NetConfig struct {
 	AdminUp bool   `json:"admin_up"`
 }
 type Bundle struct {
-	ConfigBefore []NetConfig     `json:"config_before"`
-	ConfigAfter  []NetConfig     `json:"config_after"`
-	Version      string          `json:"version"`
-	Origin       string          `json:"origin"`
-	StartedAt    time.Time       `json:"started_at"`
-	CollectedAt  time.Time       `json:"collected_at"`
-	Serial       string          `json:"serial"`
-	Arch         string          `json:"arch"`
-	OSRelease    string          `json:"os_release"`
-	Interfaces   []InterfaceSeed `json:"interfaces"`
-	RDMADevices  []string        `json:"rdma_devices"`
-	Probes       []Probe         `json:"probes"`
-	Missing      []string        `json:"missing"`
+	PCINodes     []pcitopology.Node `json:"pci_nodes,omitempty"`
+	PCIMissing   []string           `json:"pci_missing,omitempty"`
+	ConfigBefore []NetConfig        `json:"config_before"`
+	ConfigAfter  []NetConfig        `json:"config_after"`
+	Version      string             `json:"version"`
+	Origin       string             `json:"origin"`
+	StartedAt    time.Time          `json:"started_at"`
+	CollectedAt  time.Time          `json:"collected_at"`
+	Serial       string             `json:"serial"`
+	Arch         string             `json:"arch"`
+	OSRelease    string             `json:"os_release"`
+	Interfaces   []InterfaceSeed    `json:"interfaces"`
+	RDMADevices  []string           `json:"rdma_devices"`
+	Probes       []Probe            `json:"probes"`
+	Missing      []string           `json:"missing"`
 }
 type GPU struct {
 	UUID           string `json:"uuid"`
@@ -90,20 +94,21 @@ type NIC struct {
 	TxPowerDBm      *float64 `json:"tx_power_dbm"`
 }
 type Report struct {
-	ConfigUnchanged bool      `json:"config_unchanged"`
-	Version         string    `json:"version"`
-	Origin          string    `json:"origin"`
-	Serial          string    `json:"serial"`
-	Arch            string    `json:"arch"`
-	OSRelease       string    `json:"os_release"`
-	CollectedAt     time.Time `json:"collected_at"`
-	GPUs            []GPU     `json:"gpus"`
-	NICs            []NIC     `json:"nics"`
-	RDMADevices     []string  `json:"rdma_devices"`
-	NVLinkStatus    string    `json:"nvlink_status"`
-	PCITopology     string    `json:"pci_topology"`
-	GPUTopology     string    `json:"gpu_topology"`
-	Missing         []string  `json:"missing"`
+	Topology        *pcitopology.Snapshot `json:"topology,omitempty"`
+	ConfigUnchanged bool                  `json:"config_unchanged"`
+	Version         string                `json:"version"`
+	Origin          string                `json:"origin"`
+	Serial          string                `json:"serial"`
+	Arch            string                `json:"arch"`
+	OSRelease       string                `json:"os_release"`
+	CollectedAt     time.Time             `json:"collected_at"`
+	GPUs            []GPU                 `json:"gpus"`
+	NICs            []NIC                 `json:"nics"`
+	RDMADevices     []string              `json:"rdma_devices"`
+	NVLinkStatus    string                `json:"nvlink_status"`
+	PCITopology     string                `json:"pci_topology"`
+	GPUTopology     string                `json:"gpu_topology"`
+	Missing         []string              `json:"missing"`
 }
 
 func Hash(raw []byte) string       { sum := sha256.Sum256(raw); return hex.EncodeToString(sum[:]) }
@@ -135,8 +140,14 @@ func Decode(raw []byte, now time.Time) (*Bundle, error) {
 	if d.Decode(&b) != nil || d.Decode(new(any)) != io.EOF {
 		return nil, ErrInvalid
 	}
-	if b.Version != Version || (b.Origin != "sim" && b.Origin != "real") || b.StartedAt.IsZero() || b.CollectedAt.Before(b.StartedAt) || b.CollectedAt.After(now.Add(5*time.Second)) || b.CollectedAt.Sub(b.StartedAt) > 30*time.Second || len(b.Serial) > 120 || len(b.OSRelease) > 16384 || len(b.Interfaces) > 128 || len(b.RDMADevices) > 128 || len(b.Probes) > 600 || len(b.Missing) > 128 {
+	if b.Version != Version || (b.Origin != "sim" && b.Origin != "real") || b.StartedAt.IsZero() || b.CollectedAt.Before(b.StartedAt) || b.CollectedAt.After(now.Add(5*time.Second)) || b.CollectedAt.Sub(b.StartedAt) > 30*time.Second || len(b.Serial) > 120 || len(b.OSRelease) > 16384 || len(b.Interfaces) > 128 || len(b.RDMADevices) > 128 || len(b.Probes) > 600 || len(b.Missing) > 128 || len(b.PCIMissing) > 256 {
 		return nil, ErrInvalid
+	}
+	if b.PCINodes != nil {
+		candidate := pcitopology.Snapshot{Version: pcitopology.Version, Nodes: b.PCINodes, Missing: b.PCIMissing}
+		if candidate.Validate() != nil {
+			return nil, ErrInvalid
+		}
 	}
 	seen := map[string]bool{}
 	for _, p := range b.Interfaces {
@@ -148,7 +159,7 @@ func Decode(raw []byte, now time.Time) (*Bundle, error) {
 	probes := map[string]bool{}
 	for _, p := range b.Probes {
 		switch p.Kind {
-		case "gpu", "nvlink", "gpu_topology", "pci_topology", "rdma_links", "ibv_devices":
+		case "gpu", "gpu_identity", "nvlink", "gpu_topology", "pci_topology", "rdma_links", "ibv_devices":
 			if p.Target != "" {
 				return nil, ErrInvalid
 			}
@@ -177,6 +188,11 @@ func Decode(raw []byte, now time.Time) (*Bundle, error) {
 	}
 	for _, v := range b.Missing {
 		if v == "" || len(v) > 160 {
+			return nil, ErrInvalid
+		}
+	}
+	for _, v := range b.PCIMissing {
+		if v == "" || len(v) > 256 {
 			return nil, ErrInvalid
 		}
 	}
@@ -244,6 +260,18 @@ func Normalize(b *Bundle) (*Report, error) {
 			return ""
 		}
 		return strings.TrimSpace(p.Stdout)
+	}
+	if b.PCINodes != nil {
+		interfaces := map[string]string{}
+		for _, n := range b.Interfaces {
+			if !n.VirtualFunction {
+				interfaces[n.Name] = n.BDF
+			}
+		}
+		r.Topology = pcitopology.Normalize(b.PCINodes, interfaces, ready("gpu_identity", ""), ready("gpu_topology", ""), ready("nvlink", ""), b.PCIMissing)
+		if r.Topology.Validate() != nil {
+			return nil, ErrInvalid
+		}
 	}
 	if p, ok := probes["gpu:"]; !ok || p.State != "ready" {
 		r.Missing = append(r.Missing, "gpu_inventory_unavailable")

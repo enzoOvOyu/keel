@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/enzoOvOyu/keel/internal/pcitopology"
 )
 
 // Device model library (WP-1.12, FR-14). Models are stable identities with
@@ -316,6 +318,15 @@ func validateModelPayload(input PublishModelVersionInput) error {
 	hardware, err := json.Marshal(input.HwSpec)
 	if err != nil {
 		return apiError(400, "VALIDATION_ERROR", "Invalid hw_spec")
+	}
+	if version, ok := input.ExpectedTopology["version"]; ok {
+		if version != pcitopology.Version {
+			return apiError(400, "VALIDATION_ERROR", "Unsupported expected_topology version")
+		}
+		raw, _ := json.Marshal(input.ExpectedTopology)
+		if _, e := pcitopology.DecodeExpectation(raw); e != nil {
+			return apiError(400, "VALIDATION_ERROR", "Topology expectations require independent provenance, stable slots and complete four-dimension specifications")
+		}
 	}
 	if _, _, err := modelGPUExpectation(hardware); err != nil {
 		return apiError(400, "VALIDATION_ERROR", err.Error())

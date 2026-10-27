@@ -17,6 +17,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/enzoOvOyu/keel/internal/pcitopology"
 )
 
 // Collector has no caller-supplied command, executable, interface or sysfs path.
@@ -124,11 +126,13 @@ func Collect(parent context.Context) (*Bundle, error) {
 		b.Probes = append(b.Probes, p)
 	}
 	appendProbe("gpu", "", "nvidia-smi", "--query-gpu=uuid,pci.bus_id,memory.total,driver_version,ecc.errors.uncorrected.volatile.total", "--format=csv,noheader,nounits")
+	appendProbe("gpu_identity", "", "nvidia-smi", "--query-gpu=index,uuid,pci.bus_id,serial", "--format=csv,noheader,nounits")
 	appendProbe("nvlink", "", "nvidia-smi", "nvlink", "--status")
 	appendProbe("gpu_topology", "", "nvidia-smi", "topo", "-m")
 	appendProbe("pci_topology", "", "lspci", "-D", "-tv")
 	appendProbe("rdma_links", "", "rdma", "-j", "link", "show")
 	appendProbe("ibv_devices", "", "ibv_devices")
+	b.PCINodes, b.PCIMissing = pcitopology.CollectSysfs(ctx)
 	for _, seed := range b.Interfaces {
 		if seed.VirtualFunction {
 			continue

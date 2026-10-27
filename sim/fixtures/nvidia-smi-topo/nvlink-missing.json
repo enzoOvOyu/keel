@@ -1,0 +1,325 @@
+{
+  "description": "Synthetic behavior specification only; no vendor or real hardware acceptance claim.",
+  "origin": "sim",
+  "expectation": {
+    "version": "keel.pcie-topology/v1",
+    "provenance": {
+      "kind": "vendor_spec",
+      "reference": "sim://synthetic-two-gpu-one-nic-spec",
+      "sha256": "419caec812eafb57b68ef429b56f63eff5f2a22723c443ba203b230462a8b6e9"
+    },
+    "devices": [
+      {
+        "key": "GPU-A",
+        "kind": "gpu",
+        "pcie_slot": "PCI-E1",
+        "root": "pci0000:00",
+        "upstream": [
+          "0000:00:01.0",
+          "0000:01:00.0",
+          "0000:02:01.0"
+        ],
+        "numa": 0,
+        "speed_gt": 32,
+        "width": 16
+      },
+      {
+        "key": "GPU-B",
+        "kind": "gpu",
+        "pcie_slot": "PCI-E2",
+        "root": "pci0000:00",
+        "upstream": [
+          "0000:00:01.0",
+          "0000:01:00.0",
+          "0000:02:02.0"
+        ],
+        "numa": 0,
+        "speed_gt": 32,
+        "width": 16
+      },
+      {
+        "key": "NIC-A",
+        "kind": "nic",
+        "pcie_slot": "PCI-E3",
+        "root": "pci0000:00",
+        "upstream": [
+          "0000:00:01.0",
+          "0000:01:00.0",
+          "0000:02:03.0"
+        ],
+        "numa": 0,
+        "speed_gt": 32,
+        "width": 16
+      }
+    ],
+    "nvlinks": [
+      {
+        "from": "GPU-A",
+        "to": "GPU-B",
+        "links": 2
+      },
+      {
+        "from": "GPU-B",
+        "to": "GPU-A",
+        "links": 2
+      }
+    ]
+  },
+  "snapshot": {
+    "version": "keel.pcie-topology/v1",
+    "nodes": [
+      {
+        "bdf": "0000:00:01.0",
+        "root": "pci0000:00",
+        "upstream": [],
+        "pcie_type": "root_port",
+        "class": "0x060400",
+        "physical_slot": "",
+        "numa": 0,
+        "max_speed_gt": 32,
+        "max_width": 16,
+        "speed_gt": 32,
+        "width": 16
+      },
+      {
+        "bdf": "0000:01:00.0",
+        "root": "pci0000:00",
+        "upstream": [
+          "0000:00:01.0"
+        ],
+        "pcie_type": "switch_upstream",
+        "class": "0x060400",
+        "physical_slot": "",
+        "numa": 0,
+        "max_speed_gt": 32,
+        "max_width": 16,
+        "speed_gt": 32,
+        "width": 16
+      },
+      {
+        "bdf": "0000:02:01.0",
+        "root": "pci0000:00",
+        "upstream": [
+          "0000:00:01.0",
+          "0000:01:00.0"
+        ],
+        "pcie_type": "switch_downstream",
+        "class": "0x060400",
+        "physical_slot": "",
+        "numa": 0,
+        "max_speed_gt": 32,
+        "max_width": 16,
+        "speed_gt": 32,
+        "width": 16
+      },
+      {
+        "bdf": "0000:03:00.0",
+        "root": "pci0000:00",
+        "upstream": [
+          "0000:00:01.0",
+          "0000:01:00.0",
+          "0000:02:01.0"
+        ],
+        "pcie_type": "endpoint",
+        "class": "0x030200",
+        "physical_slot": "PCI-E1",
+        "numa": 0,
+        "max_speed_gt": 32,
+        "max_width": 16,
+        "speed_gt": 32,
+        "width": 16
+      },
+      {
+        "bdf": "0000:02:02.0",
+        "root": "pci0000:00",
+        "upstream": [
+          "0000:00:01.0",
+          "0000:01:00.0"
+        ],
+        "pcie_type": "switch_downstream",
+        "class": "0x060400",
+        "physical_slot": "",
+        "numa": 0,
+        "max_speed_gt": 32,
+        "max_width": 16,
+        "speed_gt": 32,
+        "width": 16
+      },
+      {
+        "bdf": "0000:04:00.0",
+        "root": "pci0000:00",
+        "upstream": [
+          "0000:00:01.0",
+          "0000:01:00.0",
+          "0000:02:02.0"
+        ],
+        "pcie_type": "endpoint",
+        "class": "0x030200",
+        "physical_slot": "PCI-E2",
+        "numa": 0,
+        "max_speed_gt": 32,
+        "max_width": 16,
+        "speed_gt": 32,
+        "width": 16
+      },
+      {
+        "bdf": "0000:02:03.0",
+        "root": "pci0000:00",
+        "upstream": [
+          "0000:00:01.0",
+          "0000:01:00.0"
+        ],
+        "pcie_type": "switch_downstream",
+        "class": "0x060400",
+        "physical_slot": "",
+        "numa": 0,
+        "max_speed_gt": 32,
+        "max_width": 16,
+        "speed_gt": 32,
+        "width": 16
+      },
+      {
+        "bdf": "0000:05:00.0",
+        "root": "pci0000:00",
+        "upstream": [
+          "0000:00:01.0",
+          "0000:01:00.0",
+          "0000:02:03.0"
+        ],
+        "pcie_type": "endpoint",
+        "class": "0x030200",
+        "physical_slot": "PCI-E3",
+        "numa": 0,
+        "max_speed_gt": 32,
+        "max_width": 16,
+        "speed_gt": 32,
+        "width": 16
+      }
+    ],
+    "devices": [
+      {
+        "label": "GPU0",
+        "kind": "gpu",
+        "bdf": "0000:03:00.0",
+        "identity": "GPU-aaaaaaaa-aaaa"
+      },
+      {
+        "label": "GPU1",
+        "kind": "gpu",
+        "bdf": "0000:04:00.0",
+        "identity": "GPU-bbbbbbbb-bbbb"
+      },
+      {
+        "label": "NIC0",
+        "kind": "nic",
+        "bdf": "0000:05:00.0",
+        "identity": "eth0"
+      }
+    ],
+    "affinity": [
+      {
+        "from": "GPU0",
+        "to": "GPU0",
+        "observed": "X",
+        "computed": "X"
+      },
+      {
+        "from": "GPU0",
+        "to": "GPU1",
+        "observed": "NV2",
+        "computed": "PIX"
+      },
+      {
+        "from": "GPU0",
+        "to": "NIC0",
+        "observed": "PIX",
+        "computed": "PIX"
+      },
+      {
+        "from": "GPU1",
+        "to": "GPU0",
+        "observed": "NV2",
+        "computed": "PIX"
+      },
+      {
+        "from": "GPU1",
+        "to": "GPU1",
+        "observed": "X",
+        "computed": "X"
+      },
+      {
+        "from": "GPU1",
+        "to": "NIC0",
+        "observed": "PIX",
+        "computed": "PIX"
+      },
+      {
+        "from": "NIC0",
+        "to": "GPU0",
+        "observed": "PIX",
+        "computed": "PIX"
+      },
+      {
+        "from": "NIC0",
+        "to": "GPU1",
+        "observed": "PIX",
+        "computed": "PIX"
+      },
+      {
+        "from": "NIC0",
+        "to": "NIC0",
+        "observed": "X",
+        "computed": "X"
+      }
+    ],
+    "nvlinks": [
+      {
+        "gpu": "GPU0",
+        "index": 0,
+        "state": "inactive"
+      },
+      {
+        "gpu": "GPU0",
+        "index": 1,
+        "state": "active"
+      },
+      {
+        "gpu": "GPU1",
+        "index": 0,
+        "state": "active"
+      },
+      {
+        "gpu": "GPU1",
+        "index": 1,
+        "state": "active"
+      }
+    ],
+    "missing": []
+  },
+  "bindings": [
+    {
+      "key": "GPU-A",
+      "kind": "gpu",
+      "bdf": "0000:03:00.0",
+      "component_id": "00000000000000000000000000000001"
+    },
+    {
+      "key": "GPU-B",
+      "kind": "gpu",
+      "bdf": "0000:04:00.0",
+      "component_id": "00000000000000000000000000000002"
+    },
+    {
+      "key": "NIC-A",
+      "kind": "nic",
+      "bdf": "0000:05:00.0",
+      "component_id": "00000000000000000000000000000003"
+    }
+  ],
+  "raw": {
+    "gpu_identity": "0, GPU-aaaaaaaa-aaaa, 00000000:03:00.0\n1, GPU-bbbbbbbb-bbbb, 00000000:04:00.0\n",
+    "gpu_topology": "        GPU0 GPU1 NIC0 CPU Affinity NUMA Affinity GPU NUMA ID\nGPU0    X    NV2  PIX  0-7          0             N/A\nGPU1    NV2  X    PIX  0-7          0             N/A\nNIC0    PIX  PIX  X\n\nLegend:\n  X = Self\n  PIX = Connection traversing at most a single PCIe bridge\n  NIC Legend:\n  NIC0: eth0\n",
+    "nvlink": "GPU 0: Mock GPU (UUID: GPU-aaaaaaaa-aaaa)\n Link 0: 50.000 GB/s\n Link 1: 50.000 GB/s\nGPU 1: Mock GPU (UUID: GPU-bbbbbbbb-bbbb)\n Link 0: 50.000 GB/s\n Link 1: 50.000 GB/s\n"
+  },
+  "expected_category": "nvlink_missing"
+}
