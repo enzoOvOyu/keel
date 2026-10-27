@@ -47,6 +47,18 @@ func TestIndependentLLDPFixturesRetainSourceAndRuleDifferences(t *testing.T) {
 			if e != nil || archive == nil {
 				t.Fatal(e)
 			}
+			if test.name == "dual-ended" {
+				originalHost := *archive
+				originalHost.Readback = nil
+				partial, e := projectArchive(&originalHost)
+				if e != nil {
+					t.Fatal(e)
+				}
+				recovered, e := AttachOriginalReadback(partial, binding, archive.Readback.Exchanges)
+				if e != nil || recovered.Readback == nil || len(recovered.Capture.Missing) != 0 {
+					t.Fatal("complete original responses did not recover coordinated evidence", e)
+				}
+			}
 			stored, _ := json.Marshal(archive)
 			_, historical, e := EvaluateArchive(stored, expected, binding, "sim")
 			if e != nil || historical.Step2 == "PASS" || historical.Step3 != "BLOCKED" || archive.Capture.Origin != "sim" || archive.Readback.Origin != "protocol_fixture" {

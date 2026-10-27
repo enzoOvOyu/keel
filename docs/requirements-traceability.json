@@ -1862,15 +1862,11 @@
         "F-3.4"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Bounded L1/L2/L3 Redfish/raw evidence, domain-owned manual shared Execution with current BOM/asset/credential/adapter pins, device/BMC fenced leases, one-shot dispatch and original-report receipt recovery, encrypted batch version CAS/expiry/revocation CLI, scoped paginated lazy asset UI now have source. Source migrations076/077 and new cases are NOT_RUN, not deployed. Cron/event/retry scheduling, IPMI fallback and full-batch credential revalidation remain incomplete. No G1/G2/G3 acceptance; see HANDOFF section179 and BMC-INVENTORY.md.",
+      "implementation_notes": "L1/L2/L3 inventory, UTC cron/business-event policy, bounded stopped-proof retry, restricted IPMI fallback and full-BOM credential revalidation now have source. Versioned credential/raw/adapter/asset bindings, shared Execution and ordinary actor boundaries are retained. New software/DB/browser/hardware cases NOT_RUN, no deployment or hardware acceptance. See HANDOFF 179–186.",
       "evidence_refs": [
-        "internal/bmc/collector.go",
         "internal/platform/bmc_inventory.go",
-        "internal/platform/bmc_inventory_reads.go",
-        "docs/HANDOFF.md",
-        "internal/execution/bmc.go",
-        "internal/platform/bmc_credentials.go",
-        "web/src/features/assets/BMCInventoryDialog.tsx",
+        "internal/execution/bmc_policy.go",
+        "internal/platform/bmc_credential_verification.go",
         "docs/BMC-INVENTORY.md"
       ]
     },
@@ -1883,7 +1879,12 @@
       "acceptance": [
         "F-3.3"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Personal/team immutable inventory-view revisions, bounded JSONPath, catalog-based colors, whole-scope sort/group/pagination and provenance-preserving CSV/template export have source and lazy UI. Scope capped at 200 total devices; not full JSONPath standard support. Migration081 and new cases NOT_RUN, no deployment.",
+      "evidence_refs": [
+        "internal/platform/asset_views.go",
+        "docs/ASSET-VIEWS.md"
+      ]
     },
     {
       "id": "WP-2.3",
@@ -1899,7 +1900,13 @@
         "F-4.3",
         "F-4.19"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Read-only fixed precollection, original chunk recovery, retained normalized data, independent current G1, stable PhysicalPort/component identities and asset UI have source. Missing unsupported/old/sim facts cannot PASS. Migration080 and new cases NOT_RUN; unified waiver not implemented.",
+      "evidence_refs": [
+        "internal/platform/precollect_scope.go",
+        "internal/platform/precollect_evidence.go",
+        "internal/execution/precollect.go"
+      ]
     },
     {
       "id": "WP-2.4",
@@ -1915,7 +1922,16 @@
         "F-4.5",
         "F-4.6"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Target-scoped G1/topology/NP-1/2/4 readiness, fixed mTLS health handshake, independently bound switch MACs, strict json0 and three-source Step2/3 rules have source. Live-advertising readback, durable original-command ledger, original terminal queries, separate host-start/stop proof, version-pinned archives, no-restart recovery and independent dual-NIC/dual-switch protocol fixtures are authored. Registered-command Run/Query consumers are internal only: common Execution admission/worker routing and the real privileged driver are not connected. Steps2–4 remain database-blocked; no G2/NP-3. Migrations084–088 and all added checks NOT_RUN.",
+      "evidence_refs": [
+        "internal/wiring/capture.go",
+        "internal/wiring/recollect.go",
+        "internal/platform/wiring_host_session.go",
+        "internal/platform/wiring_evidence.go",
+        "sim/fixtures/lldp/README.md",
+        "docs/WIRING-VALIDATION.md"
+      ]
     },
     {
       "id": "WP-2.5",
@@ -2006,7 +2022,12 @@
         "H-5",
         "H-13"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Only the H-13 subset has dual-architecture environment/result templates and independent topology/raw/G1/original receipt consistency checking source. H-2–H-5 and the complete P2 execution pack remain incomplete. All templates/checks NOT_RUN; READY_FOR_REVIEW is not hardware/P2 acceptance. LLDP synthetic software fixtures are not PoC results.",
+      "evidence_refs": [
+        "poc/topology-h13/ENVIRONMENT.md",
+        "sim/fixtures/lldp/README.md"
+      ]
     },
     {
       "id": "WP-2.10",
@@ -2056,7 +2077,14 @@
         "F-4.18",
         "H-13"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Sysfs PCIe ancestry/link/NUMA/socket and NVIDIA topology/NVLink capture, independent model four-dimension evaluator, immutable snapshots/diffs and T7 current-scope retest/close/escalation have source. Explicit model GPU–NIC map, asset topology relations, 200-host project topology view and H-13 dual-architecture offline evidence pack are authored. Full React Flow view, approved firmware mock repair receipt and actual PoC/performance remain incomplete. Migrations082–083 and added cases NOT_RUN.",
+      "evidence_refs": [
+        "internal/pcitopology/evaluate.go",
+        "internal/platform/topology.go",
+        "internal/platform/topology_relations.go",
+        "poc/topology-h13/ENVIRONMENT.md"
+      ]
     },
     {
       "id": "WP-2.13",
@@ -2069,7 +2097,13 @@
       "acceptance": [
         "F-4.17"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Immutable batches/target relations/StepReport and one-time handshake consumption publish Step1 only. Current Step1 follows G1/model/topology validity independently of the original network lease. Four-step UI shows later steps not started. Step2/3 pure rules and registered-command evidence consumers have source, but common Execution admission/routing, receipt-bound Step2/3 publication, rerun and DL Step4 confirmation remain incomplete. No G2/NP-3/Mapping. Migration085 and added cases NOT_RUN.",
+      "evidence_refs": [
+        "internal/platform/wiring_batches.go",
+        "internal/platform/migrations/085_wiring_step_reports.sql",
+        "docs/WIRING-VALIDATION.md"
+      ]
     },
     {
       "id": "WP-3.1",

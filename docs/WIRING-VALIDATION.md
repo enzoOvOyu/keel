@@ -55,3 +55,9 @@ StepReport具备step/version/parent/source_hash/verdict/detail及历史、当前
 ## 独立模拟适配器（源码，NOT_RUN）
 
 sim/fixtures/lldp包含独立两张NIC/两台交换机的冻结期望、接口前/中/后状态、json0原文及交换机观察，另含断链/空邻居/不可读/错口/unknown变体。模拟Driver/Collector不能访问真实设备、写网络状态或覆写来源；查询返回原命令固定终态，不能伪装新鲜硬件。规则单元输入与真实门禁判据分开，运行模拟适配器所得归档始终sim/protocol_fixture且不能PASS。测试均NOT_RUN，未接实际执行派发或安装helper。
+
+## 主机会话原证明与恢复消费者（源码，NOT_RUN）
+
+088新增唯一主机启动意图和独立停止原文；RunWiringCommand仅消费已注册、已持有共享Execution完整独占范围的命令，重复不Begin。unknown可能携带可保存的主机停止证明，但不能释放整个任务；ReadWiringHostStopped反读独立版本原文和host hash。QueryWiringCommand只读原命令终态，将原采样拼回旧广播窗口，不能改写主机原文、重新广播/POST或延长当前门禁。双方停止而数据不适用时只形成BLOCKED原文，真正未终态仍隔离。独立原文与完整capture按host hash绑定，终态查询与已保存结果不得相互矛盾。
+
+这些是内部执行消费者源码，尚未接共享Execution创建/worker路由、受控真实特权helper、已完成原runner回执消费或显式对账释放。Step2～4仍拒绝，无G2/NP-3。088未迁移，新增语义/数据库用例NOT_RUN。

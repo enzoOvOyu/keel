@@ -172,3 +172,16 @@ func TestCollectorUnknownKeepsQuarantineAfterHostCleanup(t *testing.T) {
 		t.Fatal("host stop released a collector with no terminal proof")
 	}
 }
+
+func TestUnknownCollectorRetainsOriginalHostStopForLaterReconciliation(t *testing.T) {
+	driver := newCaptureDriver()
+	_, e := CaptureWithReadback(context.Background(), driver.expected, strings.Repeat("b", 32), driver, func(context.Context, ReadbackScope) (*Readback, error) { return nil, ErrOutcomeUnknown })
+	var pending *UnknownCapture
+	if !errors.As(e, &pending) || pending.HostStopped == nil || !pending.HostStopped.Capture.Stopped || !pending.HostStopped.Stop.Restored {
+		t.Fatal("positive host stop proof lost when collector stayed unknown")
+	}
+	raw, _ := json.Marshal(pending.HostStopped)
+	if _, e = DecodeArchive(raw); e != nil {
+		t.Fatal("original partial host stop archive cannot be retained", e)
+	}
+}

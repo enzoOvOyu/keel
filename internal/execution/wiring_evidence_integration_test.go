@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -37,5 +38,29 @@ func TestWiringLedgerCannotCreateACommandFromMissingPrerequisitesPostgres(t *tes
 	mustAgent(t, f.store.DB.QueryRowContext(ctx, `SELECT count(*) FROM validation_wiring_capture_records`).Scan(&captures))
 	if commands != 0 || dispatches != 0 || captures != 0 {
 		t.Fatal("rejected operations retained fabricated evidence")
+	}
+}
+
+func TestWiringHostSessionCannotRunWithoutRegisteredSharedOwnershipPostgres(t *testing.T) {
+	f := agentKernel(t)
+	ctx := context.Background()
+	f.store.WiringEnabled = true
+	raw, e := os.ReadFile("../../sim/fixtures/lldp/dual-ended.json")
+	mustAgent(t, e)
+	driver, e := wiring.NewFixtureDriver(raw)
+	mustAgent(t, e)
+	binding := wiring.ReadbackBinding{ProjectID: f.project, ExecutionID: platform.RandomID(), AttemptID: platform.RandomID(), CommandID: platform.RandomID(), FencingToken: 1, Origin: "protocol_fixture"}
+	// A nil collector is rejected before any host-start intent. No adapter can be
+	// selected through a generic HTTP/Flow task or this missing command identity.
+	if _, e = f.store.RunWiringCommand(ctx, binding, driver, nil); e == nil {
+		t.Fatal("missing collector admitted host work")
+	}
+	if _, e = f.store.QueryWiringCommand(ctx, binding, nil); e == nil {
+		t.Fatal("missing original collector proof released a command")
+	}
+	var count int
+	mustAgent(t, f.store.DB.QueryRowContext(ctx, `SELECT count(*) FROM validation_wiring_host_dispatches`).Scan(&count))
+	if count != 0 {
+		t.Fatal("rejected host request left a start intent")
 	}
 }

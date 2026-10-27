@@ -111,7 +111,11 @@ func (s *Store) RecordWiringCapture(ctx context.Context, binding wiring.Readback
 	if e = verifyWiringExchangesTx(ctx, tx, binding, archive); e != nil {
 		return nil, e
 	}
-	_, e = tx.ExecContext(ctx, `INSERT INTO validation_wiring_capture_records(command_id,origin,collected_at,stopped_at,raw_key,raw_version,raw_sha256,raw_size,evaluation,received_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,statement_timestamp())`, binding.CommandID, archive.Capture.Origin, out.CollectedAt, out.StoppedAt, key, version, sha, len(raw), networkJSON(evaluation))
+	hostHash, e := wiring.HostEvidenceHash(archive)
+	if e != nil {
+		return nil, e
+	}
+	_, e = tx.ExecContext(ctx, `INSERT INTO validation_wiring_capture_records(command_id,origin,collected_at,stopped_at,raw_key,raw_version,raw_sha256,raw_size,evaluation,host_evidence_hash,received_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,statement_timestamp())`, binding.CommandID, archive.Capture.Origin, out.CollectedAt, out.StoppedAt, key, version, sha, len(raw), networkJSON(evaluation), hostHash)
 	if e != nil {
 		return nil, e
 	}
@@ -127,6 +131,9 @@ func verifyWiringExchangesTx(ctx context.Context, tx *sql.Tx, binding wiring.Rea
 	}
 	if unknown {
 		return wiring.ErrOutcomeUnknown
+	}
+	if e = verifyWiringHostBindingTx(ctx, tx, binding, archive); e != nil {
+		return e
 	}
 	if archive.Readback == nil {
 		return nil
@@ -197,6 +204,9 @@ func (s *Store) ReadWiringCapture(ctx context.Context, binding wiring.ReadbackBi
 		out.CollectedAt = &collected.Time
 	}
 	if e = tx.Commit(); e != nil {
+		return nil, nil, e
+	}
+	if _, e = s.ReadWiringHostStopped(ctx, binding); e != nil {
 		return nil, nil, e
 	}
 	raw, e := s.readWiringRaw(ctx, key, version, out.RawSHA256, out.RawSize)

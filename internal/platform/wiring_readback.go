@@ -180,7 +180,7 @@ func (l *WiringReadbackLedger) Begin(ctx context.Context, binding wiring.Readbac
 	return wiring.ReadbackDecision{Send: true}, nil
 }
 func (l *WiringReadbackLedger) Complete(ctx context.Context, binding wiring.ReadbackBinding, request fabricboot.CollectorRecollectRequest, response fabricboot.CollectorRecollectResponse) error {
-	if l == nil || l.Store == nil || !l.Store.WiringEnabled || response.Validate(request, time.Now().UTC()) != nil {
+	if l == nil || l.Store == nil || !l.Store.WiringEnabled || request.Validate() != nil {
 		return wiring.ErrCaptureRejected
 	}
 	tx, e := l.Store.DB.BeginTx(ctx, nil)
@@ -193,6 +193,22 @@ func (l *WiringReadbackLedger) Complete(ctx context.Context, binding wiring.Read
 	}
 	if _, e = loadWiringCommandTx(ctx, tx, binding); e != nil {
 		return e
+	}
+	validationAt := time.Now().UTC()
+	var queryRaw []byte
+	var queryHash string
+	queryErr := tx.QueryRowContext(ctx, `SELECT observation,content_hash FROM validation_wiring_readback_queries WHERE child_command_id=$1`, request.CommandID).Scan(&queryRaw, &queryHash)
+	if queryErr == nil {
+		var observation fabricboot.CollectorRecollectObservation
+		if json.Unmarshal(queryRaw, &observation) != nil || netbaseline.ContentHash(observation) != queryHash || observation.State != "completed" || observation.Validate(request, time.Now().UTC()) != nil || string(networkJSON(observation.Result)) != string(networkJSON(response)) {
+			return wiring.ErrOutcomeUnknown
+		}
+		validationAt = *observation.FinishedAt
+	} else if !errors.Is(queryErr, sql.ErrNoRows) {
+		return queryErr
+	}
+	if response.Validate(request, validationAt) != nil {
+		return wiring.ErrOutcomeUnknown
 	}
 	var raw []byte
 	var hash string

@@ -16,6 +16,14 @@ import (
 var ErrOutcomeUnknown = errors.New("LLDP outcome requires reconciliation")
 var ErrCaptureRejected = errors.New("LLDP capture rejected before side effects")
 
+// UnknownCapture may carry positive HOST cleanup evidence while a collector's
+// original command remains unresolved. This is not a terminal task receipt and
+// must never release the shared host/switch resource set.
+type UnknownCapture struct{ HostStopped *Archive }
+
+func (e *UnknownCapture) Error() string { return ErrOutcomeUnknown.Error() }
+func (e *UnknownCapture) Unwrap() error { return ErrOutcomeUnknown }
+
 type LocalState struct {
 	PhysicalPortID  string   `json:"physical_port_id"`
 	Interface       string   `json:"interface"`
@@ -163,7 +171,7 @@ func CaptureWithReadback(parent context.Context, expected Expectation, commandID
 		e = ErrOutcomeUnknown
 	}
 	cancel()
-	if e != nil || errors.Is(readbackErr, ErrOutcomeUnknown) || validateLocalState(expected, after, false) != nil || !localConfigurationEqual(before, after) {
+	if e != nil || validateLocalState(expected, after, false) != nil || !localConfigurationEqual(before, after) {
 		return nil, ErrOutcomeUnknown
 	}
 
@@ -181,6 +189,9 @@ func CaptureWithReadback(parent context.Context, expected Expectation, commandID
 	raw, e := json.Marshal(archive)
 	if e != nil || len(raw) > MaxCaptureBytes {
 		return nil, ErrOutcomeUnknown
+	}
+	if errors.Is(readbackErr, ErrOutcomeUnknown) {
+		return nil, &UnknownCapture{HostStopped: archive}
 	}
 	return archive, nil
 }
