@@ -5303,7 +5303,14 @@ export interface components {
                 }[];
             }[];
         };
+        /** @description Explicit project-visible published switch DeviceModels and roles classify complete imported intent. Domains are tags, not permission to merge or partially apply fragments. Absent scope identifies a legacy unscoped definition; historical hashes remain unchanged. */
+        NetworkTemplateScope: {
+            device_model_ids: string[];
+            roles: ("leaf" | "spine" | "superspine" | "mgmt")[];
+            domains: ("base" | "ports" | "mlag" | "bgp_evpn" | "rocev2" | "acl" | "system")[];
+        };
         NetworkTemplateDefinition: {
+            scope?: components["schemas"]["NetworkTemplateScope"];
             source: string;
             variables: {
                 [key: string]: {
@@ -5436,6 +5443,9 @@ export interface components {
             created_at: string;
         };
         NetworkPlannedDevice: {
+            device_model_id?: string;
+            /** @enum {string} */
+            role?: "leaf" | "spine" | "superspine" | "mgmt";
             address_plan_id?: string;
             addresses?: components["schemas"]["NetworkAddressAssignment"][];
             /** @description Immutable catalog/media identities pinned into plan and approval facts. */

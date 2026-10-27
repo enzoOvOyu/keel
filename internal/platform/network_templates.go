@@ -44,6 +44,8 @@ type NetworkPlanInput struct {
 	BatchRef           string `json:"batch_ref"`
 }
 type NetworkPlannedDevice struct {
+	DeviceModelID      string                          `json:"device_model_id,omitempty"`
+	Role               string                          `json:"role,omitempty"`
 	AddressPlanID      string                          `json:"address_plan_id,omitempty"`
 	Addresses          []netbaseline.AddressAssignment `json:"addresses,omitempty"`
 	CatalogSelections  []CatalogSelection              `json:"catalog_selections,omitempty"`
@@ -104,6 +106,9 @@ func (s *Store) CreateNetworkTemplate(ctx context.Context, a *AuthSession, p *Pr
 	if len(input.Name) < 1 || len(input.Name) > 120 || !validNetworkEvidenceRef(input.SourceRef) {
 		return nil, apiError(400, "NETWORK_TEMPLATE_INVALID", "Template name and approved source reference are required")
 	}
+	if input.Definition.Scope != nil {
+		input.Definition.Scope = input.Definition.Scope.Canonical()
+	}
 	if e := input.Definition.Validate(); e != nil {
 		return nil, apiError(400, "NETWORK_TEMPLATE_INVALID", e.Error())
 	}
@@ -117,6 +122,9 @@ func (s *Store) CreateNetworkTemplate(ctx context.Context, a *AuthSession, p *Pr
 	}
 	defer tx.Rollback()
 	if e = requireFabricPermission(ctx, tx, a, p.ID, "fabric:template:edit"); e != nil {
+		return nil, e
+	}
+	if e = validateNetworkTemplateScopeTx(ctx, tx, p.ID, input.Definition.Scope, true); e != nil {
 		return nil, e
 	}
 	input.ChangeReason = strings.TrimSpace(input.ChangeReason)
@@ -151,6 +159,9 @@ func networkTemplateFactsTx(ctx context.Context, tx *sql.Tx, project string, inp
 		return nil, "", nil, ErrNotFound
 	}
 	if e != nil {
+		return nil, "", nil, e
+	}
+	if e = validateNetworkTemplateScopeTx(ctx, tx, project, template.Definition.Scope, lockCatalog); e != nil {
 		return nil, "", nil, e
 	}
 	plan, e := currentManagementPlanTx(ctx, tx, project, input.BatchRef)
@@ -199,10 +210,22 @@ func networkTemplateFactsTx(ctx context.Context, tx *sql.Tx, project string, inp
 		d.Serial = binding.Serial
 		d.Hostname = binding.Hostname
 		d.Address = binding.Address
-		if e = tx.QueryRowContext(ctx, `SELECT coalesce(model_version_id,''),coalesce(credential_batch_ref,'') FROM bom_items WHERE item_uid=$1 AND status<>'retired'`, d.ID).Scan(&d.ModelVersionID, &d.CredentialBatchRef); e != nil {
+		var deviceModel, deviceRole string
+		if e = tx.QueryRowContext(ctx, `SELECT coalesce(b.model_version_id,''),coalesce(b.credential_batch_ref,''),coalesce(v.model_id,''),coalesce(b.role,'') FROM bom_items b LEFT JOIN device_model_versions v ON v.id=b.model_version_id WHERE b.item_uid=$1 AND b.status<>'retired'`, d.ID).Scan(&d.ModelVersionID, &d.CredentialBatchRef, &deviceModel, &deviceRole); e != nil {
 			return nil, "", nil, e
 		}
+		if template.Definition.Scope != nil {
+			d.DeviceModelID = deviceModel
+			d.Role = deviceRole
+			if !template.Definition.Scope.Matches(d.DeviceModelID, d.Role) {
+				return nil, "", nil, apiError(409, "NETWORK_TEMPLATE_SCOPE_MISMATCH", "Every device in the approved batch must match the template's device model and role; review batch scope instead of silently skipping targets")
+			}
+		}
 		device := map[string]any{"id": d.ID, "serial": d.Serial, "hostname": d.Hostname, "management_ip": d.Address, "gateway": binding.Gateway, "management_cidr": plan.Rules.CIDR, "model_version_id": d.ModelVersionID}
+		if template.Definition.Scope != nil {
+			device["role"] = d.Role
+			device["device_model_id"] = d.DeviceModelID
+		}
 		if addressPlan != nil {
 			d.AddressPlanID = addressPlan.ID
 			d.Addresses = append([]netbaseline.AddressAssignment{}, addressesBySwitch[d.ID]...)

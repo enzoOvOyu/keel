@@ -56,11 +56,17 @@ type Variable struct {
 	CatalogKey string       `json:"catalog_key,omitempty"`
 }
 type Template struct {
+	Scope     *TemplateScope      `json:"scope,omitempty"`
 	Source    string              `json:"source"`
 	Variables map[string]Variable `json:"variables"`
 }
 
 func (t Template) Validate() error {
+	if t.Scope != nil {
+		if e := t.Scope.Validate(); e != nil {
+			return e
+		}
+	}
 	if len(t.Source) == 0 || len(t.Source) > 64<<10 || len(t.Variables) > 128 {
 		return errors.New("network template exceeds source/schema limits")
 	}

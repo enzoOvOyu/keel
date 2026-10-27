@@ -66,6 +66,7 @@ func TestExtendedAddressPlanningApprovalAndFrozenTemplateFactsPostgres(t *testin
 	if e != nil {
 		t.Fatal(e)
 	}
+	selectedTemplateID := template.ID
 	facts := func() ([]NetworkPlannedDevice, error) {
 		t.Helper()
 		tx, err := s.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelRepeatableRead})
@@ -73,7 +74,7 @@ func TestExtendedAddressPlanningApprovalAndFrozenTemplateFactsPostgres(t *testin
 			t.Fatal(err)
 		}
 		defer tx.Rollback()
-		_, _, devices, err := networkTemplateFactsTx(ctx, tx, p.ID, NetworkPlanInput{TemplateID: template.ID, BaselineRef: "address-v1", BatchRef: mgmt.Assignments[0].Batch}, false)
+		_, _, devices, err := networkTemplateFactsTx(ctx, tx, p.ID, NetworkPlanInput{TemplateID: selectedTemplateID, BaselineRef: "address-v1", BatchRef: mgmt.Assignments[0].Batch}, false)
 		return devices, err
 	}
 	_, e = facts()
@@ -182,6 +183,44 @@ func TestExtendedAddressPlanningApprovalAndFrozenTemplateFactsPostgres(t *testin
 	if e != ErrNotFound {
 		t.Fatal("cross-project plan visible", e)
 	}
+
+	// Scoped templates bind both dimensions before rendering. Changing only a
+	// device's model version leaves management names stable but blocks this scope.
+	model, modelVersion, otherModel, otherVersion := RandomID(), RandomID(), RandomID(), RandomID()
+	for i, m := range []struct{ id, version string }{{model, modelVersion}, {otherModel, otherVersion}} {
+		exec(`INSERT INTO device_models(id,scope_key,name,kind,created_by,created_at,updated_at) VALUES($1,$2,$3,'switch',$4,now(),now())`, m.id, "project:"+p.ID, fmt.Sprintf("Address scope switch %d", i), root.User.ID)
+		exec(`INSERT INTO device_model_versions(id,model_id,version,content_hash,published_at) VALUES($1,$2,1,repeat('b',64),now())`, m.version, m.id)
+	}
+	exec(`UPDATE bom_items SET model_version_id=$1 WHERE item_uid IN($2,$3)`, modelVersion, a, b)
+	scopedDefinition := template.Definition
+	scopedDefinition.Scope = &netbaseline.TemplateScope{DeviceModelIDs: []string{model}, Roles: []string{"spine"}, Domains: []string{"base", "ports"}}
+	scoped, e := s.CreateNetworkTemplate(ctx, editor, p, NetworkTemplateInput{Name: "explicitly scoped address config", SourceRef: "fixture:scoped-addresses", Definition: scopedDefinition}, "test")
+	if e != nil {
+		t.Fatal(e)
+	}
+	selectedTemplateID = scoped.ID
+	_, e = facts()
+	assertErrorCode(t, e, "NETWORK_TEMPLATE_SCOPE_MISMATCH")
+	scopedDefinition.Scope.Roles = []string{"leaf"}
+	scoped, e = s.CreateNetworkTemplate(ctx, editor, p, NetworkTemplateInput{Name: scoped.Name, SourceRef: scoped.SourceRef, Definition: scopedDefinition}, "test")
+	if e != nil {
+		t.Fatal(e)
+	}
+	selectedTemplateID = scoped.ID
+	scopedFacts, e := facts()
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, d := range scopedFacts {
+		if d.DeviceModelID != model || d.Role != "leaf" {
+			t.Fatal("lost current scope identity")
+		}
+	}
+	exec(`UPDATE bom_items SET model_version_id=$1 WHERE item_uid=$2`, otherVersion, a)
+	_, e = facts()
+	assertErrorCode(t, e, "NETWORK_TEMPLATE_SCOPE_MISMATCH")
+	exec(`UPDATE bom_items SET model_version_id=$1 WHERE item_uid=$2`, modelVersion, a)
+	selectedTemplateID = template.ID
 	// Mutating a live endpoint invalidates approval without changing historical proof.
 	exec(`UPDATE bom_items SET port_name='swp2',updated_at=now() WHERE item_uid=$1`, pa)
 	_, e = facts()

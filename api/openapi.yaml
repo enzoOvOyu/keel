@@ -4201,10 +4201,35 @@ components:
                     before_present: { type: boolean }
                     after_present: { type: boolean }
 
+    NetworkTemplateScope:
+      type: object
+      additionalProperties: false
+      required: [device_model_ids, roles, domains]
+      description: Explicit project-visible published switch DeviceModels and roles classify complete imported intent. Domains are tags, not permission to merge or partially apply fragments. Absent scope identifies a legacy unscoped definition; historical hashes remain unchanged.
+      properties:
+        device_model_ids:
+          type: array
+          minItems: 1
+          maxItems: 64
+          uniqueItems: true
+          items: { type: string, pattern: '^[a-f0-9]{32}$' }
+        roles:
+          type: array
+          minItems: 1
+          maxItems: 4
+          uniqueItems: true
+          items: { type: string, enum: [leaf, spine, superspine, mgmt] }
+        domains:
+          type: array
+          minItems: 1
+          maxItems: 7
+          uniqueItems: true
+          items: { type: string, enum: [base, ports, mlag, bgp_evpn, rocev2, acl, system] }
     NetworkTemplateDefinition:
       type: object
       required: [source, variables]
       properties:
+        scope: { $ref: '#/components/schemas/NetworkTemplateScope' }
         source: { type: string, maxLength: 65536 }
         variables:
           type: object
@@ -4340,6 +4365,8 @@ components:
       type: object
       required: [intended_id, id, serial, hostname, management_ip, model_version_id, credential_batch_ref, intended_hash]
       properties:
+        device_model_id: { type: string }
+        role: { type: string, enum: [leaf, spine, superspine, mgmt] }
         address_plan_id: { type: string }
         addresses: { type: array, items: { $ref: '#/components/schemas/NetworkAddressAssignment' } }
         catalog_selections: { type: array, items: { $ref: '#/components/schemas/CatalogSelection' }, description: Immutable catalog/media identities pinned into plan and approval facts. }

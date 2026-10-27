@@ -70,6 +70,9 @@ func (s *Store) RollbackNetworkTemplate(ctx context.Context, a *AuthSession, p *
 	if (target.State != "released" && target.State != "deprecated") || target.Version >= head.Version {
 		return nil, apiError(409, "NETWORK_TEMPLATE_ROLLBACK_TARGET_INVALID", "Select a historical released or deprecated version in this template family")
 	}
+	if e = validateNetworkTemplateScopeTx(ctx, tx, p.ID, target.Definition.Scope, true); e != nil {
+		return nil, e
+	}
 	v, e := insertNetworkTemplateTx(ctx, tx, a, p.ID, NetworkTemplateInput{Name: target.Name, SourceRef: target.SourceRef, Definition: target.Definition, ChangeReason: input.Reason}, head, target.ID)
 	if e != nil {
 		return nil, e
