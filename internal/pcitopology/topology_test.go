@@ -139,6 +139,18 @@ func TestSlotDesignAndCapabilityAreSeparate(t *testing.T) {
 		t.Fatalf("%+v", got)
 	}
 }
+
+func TestGPUToNICAssociationMustBeIndependentlyDeclared(t *testing.T) {
+	f := fixture(t, "baseline")
+	f.Expectation.GPUNICMap[0].Affinity = "PHB"
+	if got := Evaluate(&f.Snapshot, &f.Expectation, f.Bindings, true); got.Verdict != "FAIL" || !hasCode(got, "TOPOLOGY_GPU_NIC_AFFINITY_MISMATCH") {
+		t.Fatalf("observed proximity replaced the model map: %+v", got)
+	}
+	f.Expectation.GPUNICMap = nil
+	if f.Expectation.Validate() == nil {
+		t.Fatal("missing model association accepted")
+	}
+}
 func TestIndependentModelDecoderRejectsIncompleteAndUnknownFields(t *testing.T) {
 	f := fixture(t, "baseline")
 	raw, _ := json.Marshal(f.Expectation)

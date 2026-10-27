@@ -13,3 +13,5 @@
 视图当前使用已有React能力提供可访问的上游层级树；设计要求的完整React Flow交互仍未完成。新迁移082仅源码，未应用。当前窗口开发检查点不代表验证、发布或P2完成。
 
 T7源码重验链（083待应用）：先登记处置，随后新发起预收集并获得新G1，验证其拓扑后从工单提交当前快照。每个处置版本一次复测；全拓扑PASS进入待确认，标准关闭动作再次核对当前范围和权限。两次独立处置仍FAIL生成DL升级与站内/Execution outbox记录。缺证据不算确定失败，未配DL明确显示。固件审批/mock执行回执仍未接入，不能将处置登记当设备执行。所有新增用例NOT_RUN。
+
+型号追加显式 `gpu_nic_map`（gpu/nic稳定key及affinity），由独立规格声明；关系API只投影模型列出的对应项，并保留缺测行和物理端口身份，不发布Step1/G2。项目拓扑总览最多200台，按当前有效判定筛选后分页。全局Fleet、完整React Flow、固件批准/mock回执和真实PoC仍待后续。H-13执行入口见[poc/topology-h13/ENVIRONMENT.md](../poc/topology-h13/ENVIRONMENT.md)，全部NOT_RUN。

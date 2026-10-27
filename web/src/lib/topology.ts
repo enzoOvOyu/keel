@@ -10,6 +10,8 @@ const base = (project: string, asset: string) => `/projects/${encodeURIComponent
 export const previewTopology = (project: string, asset: string, signal: AbortSignal) => request<TopologyScope>(`${base(project, asset)}/scope`, { signal })
 export const listTopology = (project: string, asset: string, page: number, signal: AbortSignal) => request<TopologyPage>(`${base(project, asset)}?page=${page}&page_size=20`, { signal })
 export const getTopology = (project: string, asset: string, id: string, signal: AbortSignal) => request<TopologySnapshot>(`${base(project, asset)}/${encodeURIComponent(id)}`, { signal })
+export const getTopologyRelations = (project: string, asset: string, id: string, signal: AbortSignal) => request<components['schemas']['PciTopologyRelationTable']>(`${base(project, asset)}/${encodeURIComponent(id)}/relations`, { signal })
+export const listTopologyFleet = (project: string, verdict: string, page: number, signal: AbortSignal) => request<components['schemas']['PciTopologyFleetPage']>(`/projects/${encodeURIComponent(project)}/validation/topology/fleet?${new URLSearchParams({ page: String(page), page_size: '20', ...(verdict ? { verdict } : {}) })}`, { signal })
 export const validateTopology = (project: string, asset: string, scopeHash: string, reason: string, csrf: string, key: string) => request<TopologySnapshot>(`${base(project, asset)}/validate`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify({ scope_hash: scopeHash, reason }) })
 export type TopologyRetestScope = components['schemas']['PciTopologyRetestScope']
 export type TopologyRetest = components['schemas']['PciTopologyRetest']

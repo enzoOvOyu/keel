@@ -13,10 +13,10 @@ import type { ProjectAsset } from '../../lib/bom'
 import { useAction } from '../../lib/management'
 import { downloadPrecollect } from '../../lib/precollect'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
-import { getTopology, listTopology, previewTopology, validateTopology } from '../../lib/topology'
+import { getTopology, getTopologyRelations, listTopology, previewTopology, validateTopology } from '../../lib/topology'
 import PcieTopologyView from './PcieTopologyView'
 
-export default function TopologyDialog({ asset, onClose }: { asset: ProjectAsset; onClose: () => void }) {
+export default function TopologyDialog({ asset, onClose }: { asset: Pick<ProjectAsset, 'id' | 'hostname'>; onClose: () => void }) {
  const { t } = useTranslation(), { session } = useSession(), { project } = useProject(), action = useAction(), queries = useQueryClient()
  const [page, setPage] = useState(1), [selected, setSelected] = useState(''), [reason, setReason] = useState(''), [validation, setValidation] = useState(''), [now, setNow] = useState(Date.now())
  const mounted = useRef(true), attempt = useRef({ body: '', key: '' })
@@ -25,8 +25,9 @@ export default function TopologyDialog({ asset, onClose }: { asset: ProjectAsset
  const scope = useQuery({ queryKey: [...key, 'scope'], queryFn: ({ signal }) => previewTopology(project.id, asset.id, signal), retry: false, refetchOnWindowFocus: false })
  const list = useQuery({ queryKey: [...key, 'history', page], queryFn: ({ signal }) => listTopology(project.id, asset.id, page, signal), retry: false, refetchOnWindowFocus: false })
  const detail = useQuery({ queryKey: [...key, 'detail', selected], queryFn: ({ signal }) => getTopology(project.id, asset.id, selected, signal), enabled: !!selected, retry: false, refetchOnWindowFocus: false })
- useExpireOnUnauthorized(scope.error); useExpireOnUnauthorized(list.error); useExpireOnUnauthorized(detail.error)
- const errors = [scope.error, list.error, detail.error, action.error], denied = errors.some(error => error instanceof ApiError && [401, 403, 404].includes(error.status))
+ const relations = useQuery({ queryKey: [...key, 'relations', selected], queryFn: ({ signal }) => getTopologyRelations(project.id, asset.id, selected, signal), enabled: !!selected, retry: false, refetchOnWindowFocus: false })
+ useExpireOnUnauthorized(relations.error); useExpireOnUnauthorized(scope.error); useExpireOnUnauthorized(list.error); useExpireOnUnauthorized(detail.error)
+ const errors = [scope.error, list.error, detail.error, relations.error, action.error], denied = errors.some(error => error instanceof ApiError && [401, 403, 404].includes(error.status))
  const canWrite = !denied && (session.user.is_admin || ['Admin', 'DE', 'DL', 'SRE'].includes(project.role)) && !['archived', 'delivered'].includes(project.state)
  const freshScope = !!scope.data?.ready && Date.parse(scope.data.valid_until) > now
  const record = detail.data
@@ -36,7 +37,7 @@ export default function TopologyDialog({ asset, onClose }: { asset: ProjectAsset
   const timer = window.setTimeout(() => setNow(Date.now()), Math.min(2_147_483_647, Math.max(1, Math.min(...dates) - Date.now() + 1)))
   return () => window.clearTimeout(timer)
  }, [scope.data?.valid_until, record?.valid_until, now])
- function refresh() { setNow(Date.now()); void scope.refetch(); void list.refetch(); if (selected) void detail.refetch() }
+ function refresh() { setNow(Date.now()); void scope.refetch(); void list.refetch(); if (selected) { void detail.refetch(); void relations.refetch() } }
  async function compare(event: FormEvent<HTMLFormElement>) {
   event.preventDefault()
   if (!scope.data || !freshScope || !canWrite) return
@@ -58,7 +59,7 @@ export default function TopologyDialog({ asset, onClose }: { asset: ProjectAsset
    </section>}
    <Button variant="outline" onClick={refresh} disabled={action.busy || scope.isFetching || list.isFetching || detail.isFetching}>{t('topologyRefresh')}</Button>
    <section><h3>{t('topologyHistory')}</h3>{list.isPending && <p role="status">{t('loadingRecords')}</p>}{list.data && !list.isError && <><Table><TableHeader><TableRow><TableHead>{t('modelVersion')}</TableHead><TableHead>{t('topologyHistorical')}</TableHead><TableHead>{t('topologyEffective')}</TableHead><TableHead>{t('topologyUntil')}</TableHead><TableHead>{t('topologyEvidence')}</TableHead></TableRow></TableHeader><TableBody>{list.data.items.map(row => <TableRow key={row.id} aria-selected={selected === row.id}><TableCell>v{row.version}</TableCell><TableCell>{t(`precollect_${row.verdict}`)}</TableCell><TableCell>{t(`precollect_${Date.parse(row.valid_until) <= now ? 'BLOCKED' : row.effective_verdict}`)}</TableCell><TableCell>{new Date(row.valid_until).toLocaleString()}</TableCell><TableCell><Button variant="outline" size="sm" onClick={() => setSelected(row.id)}>{t('topologyEvidence')}</Button></TableCell></TableRow>)}</TableBody></Table>{list.data.items.length === 0 && <p>{t('topologyEmpty')}</p>}<Pagination offset={(page - 1) * list.data.page_size} limit={list.data.page_size} total={list.data.total} busy={list.isFetching} onChange={offset => setPage(Math.floor(offset / (list.data?.page_size ?? 20)) + 1)} /></>}</section>
-   {record && !detail.isError && <section><h3>{t('topologyHistorical')}: {t(`precollect_${record.verdict}`)} · {t('topologyEffective')}: {t(`precollect_${effective}`)}</h3><p>{t('topologyActualSource')}: {record.origin} · {record.precollect_id}</p>{record.invalidation_reason && <p className="mono-value">{record.invalidation_reason}</p>}<Button variant="outline" disabled={action.busy} onClick={() => void action.run(() => downloadPrecollect(project.id, asset.id, record.precollect_id))}>{t('precollectRaw')}</Button><PcieTopologyView record={record} /></section>}
+   {record && !detail.isError && <section><h3>{t('topologyHistorical')}: {t(`precollect_${record.verdict}`)} · {t('topologyEffective')}: {t(`precollect_${effective}`)}</h3><p>{t('topologyActualSource')}: {record.origin} · {record.precollect_id}</p>{record.invalidation_reason && <p className="mono-value">{record.invalidation_reason}</p>}<Button variant="outline" disabled={action.busy} onClick={() => void action.run(() => downloadPrecollect(project.id, asset.id, record.precollect_id))}>{t('precollectRaw')}</Button><PcieTopologyView record={record} />{relations.data && !relations.isError && <section><h3>{t('topologyRelationsTitle')}</h3><p className="field-hint">{t('topologyRelationsHelp')}</p><Table><TableHeader><TableRow>{['GPU','NIC',t('topologyNUMA'),t('topologyMatrix'),t('topologyEffective')].map(label => <TableHead key={label}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>{relations.data.rows.map((row, index) => <TableRow key={`${row.gpu_key}:${row.nic_key}:${row.physical_port_id}:${index}`}><TableCell>{row.gpu_key}<code className="cell-subtitle">{row.gpu_uuid} · {row.gpu_node?.bdf}</code></TableCell><TableCell>{row.nic_key} · {row.interface}<code className="cell-subtitle">{row.permanent_mac} · {row.nic_node?.bdf}</code></TableCell><TableCell>{row.gpu_node?.numa ?? '?'} / {row.nic_node?.numa ?? '?'}</TableCell><TableCell>{row.expected_affinity} → {row.observed_affinity || '?'} ({row.computed_affinity || '?'})</TableCell><TableCell>{t(`precollect_${row.verdict}`)}</TableCell></TableRow>)}</TableBody></Table></section>}</section>}
   </>}
   <p className="field-hint">{t('topologyFirmwareHint')}</p><p className="field-hint">{t('topologyReadOnly')}</p><Button variant="outline" disabled={action.busy} onClick={onClose}>{t('bmcClose')}</Button>
  </DialogContent></Dialog>

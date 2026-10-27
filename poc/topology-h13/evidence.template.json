@@ -1,0 +1,93 @@
+{
+  "schema": "keel.h13.pcie/v1",
+  "item": "H-13",
+  "status": "NOT_RUN",
+  "environment": "REPLACE_WITH_CONTROLLED_ENVIRONMENT",
+  "approval_ref": "REPLACE_WITH_APPROVED_POC_WINDOW",
+  "project_id": "REPLACE_WITH_32_HEX_PROJECT_ID",
+  "platform_commit": "REPLACE_WITH_40_HEX_COMMIT",
+  "platform_health": {
+    "path": "evidence/health.json",
+    "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+  },
+  "started_at": null,
+  "finished_at": null,
+  "samples": [
+    {
+      "family": "HGX_B300",
+      "arch": "amd64",
+      "asset_id": "REPLACE_WITH_32_HEX_ASSET_ID",
+      "serial": "REPLACE_WITH_REAL_SERIAL",
+      "kernel": "",
+      "nvidia_smi_version": "",
+      "lspci_version": "",
+      "exported_at": null,
+      "snapshot": {
+        "path": "evidence/hgx_b300-snapshot.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "precollect_raw": {
+        "path": "evidence/hgx_b300-precollect.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "g1": {
+        "path": "evidence/hgx_b300-g1.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "published_model": {
+        "path": "evidence/hgx_b300-model-versions.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "independent_specification": {
+        "path": "evidence/hgx_b300-independent-specification.txt",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "execution": {
+        "path": "evidence/hgx_b300-execution.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "screen_capture": {
+        "path": "evidence/hgx_b300-topology.png",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      }
+    },
+    {
+      "family": "GB300",
+      "arch": "arm64",
+      "asset_id": "REPLACE_WITH_32_HEX_ASSET_ID",
+      "serial": "REPLACE_WITH_REAL_SERIAL",
+      "kernel": "",
+      "nvidia_smi_version": "",
+      "lspci_version": "",
+      "exported_at": null,
+      "snapshot": {
+        "path": "evidence/gb300-snapshot.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "precollect_raw": {
+        "path": "evidence/gb300-precollect.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "g1": {
+        "path": "evidence/gb300-g1.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "published_model": {
+        "path": "evidence/gb300-model-versions.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "independent_specification": {
+        "path": "evidence/gb300-independent-specification.txt",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "execution": {
+        "path": "evidence/gb300-execution.json",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      },
+      "screen_capture": {
+        "path": "evidence/gb300-topology.png",
+        "sha256": "REPLACE_WITH_ACTUAL_64_HEX_SHA256"
+      }
+    }
+  ]
+}

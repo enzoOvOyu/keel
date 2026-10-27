@@ -24,6 +24,7 @@ import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 
 const PrecollectDialog = lazy(() => import('./PrecollectDialog'))
 const TopologyDialog = lazy(() => import('./TopologyDialog'))
+const TopologyFleetDialog = lazy(() => import('./TopologyFleetDialog'))
 const AssetViewsDialog = lazy(() => import('./AssetViewsDialog'))
 
 function BomImportDialog({ projectId, onClose, onDone }: { projectId: string; onClose: () => void; onDone: (message: string) => Promise<void> }) {
@@ -133,6 +134,7 @@ function AssetsContent() {
   const [precollectTarget, setPrecollectTarget] = useState<ProjectAsset | null>(null)
   const [topologyTarget, setTopologyTarget] = useState<ProjectAsset | null>(null)
   const [showAssetViews, setShowAssetViews] = useState(false)
+  const [showTopologyFleet, setShowTopologyFleet] = useState(false)
   const manage = canManageProject(project, session.user.is_admin) && session.permissions.includes('model:manage')
   const assets = useQuery({ queryKey: ['private', session.user.id, 'project', project.id, 'assets', page], queryFn: ({ signal }) => listProjectAssets(project.id, page, signal), enabled: allowed })
   useExpireOnUnauthorized(assets.error)
@@ -144,7 +146,7 @@ function AssetsContent() {
   if (!allowed) return <PermissionDenied />
   return <>
     <div className="page-heading"><div><p className="section-eyebrow">{project.name}</p><h1>{t('bomTitle')}</h1><p>{t('bomIntro')}</p></div>
-      <Button type="button" variant="outline" onClick={() => setShowAssetViews(true)}>{t('assetViewsTitle')}</Button>{manage && <div className="table-actions"><Button variant="default" className="primary-button ui:min-h-11" onClick={() => { setSuccess(''); setPackageImporting(true) }}>{t('bomPackageTitle')}</Button><Button variant="outline" className="secondary-button ui:min-h-11" onClick={() => { setSuccess(''); setImporting(true) }}>{t('bomImport')}</Button><Button variant="outline" className="secondary-button ui:min-h-11" disabled={!selected.size} onClick={() => { setSuccess(''); setTrustTarget((assets.data?.items ?? []).filter((a) => selected.has(a.machine_id))) }}>{t('trustMockTitle')}</Button></div>}</div>
+      <Button type="button" variant="outline" onClick={() => setShowAssetViews(true)}>{t('assetViewsTitle')}</Button><Button variant="outline" onClick={() => setShowTopologyFleet(true)}>{t('topologyFleetTitle')}</Button>{manage && <div className="table-actions"><Button variant="default" className="primary-button ui:min-h-11" onClick={() => { setSuccess(''); setPackageImporting(true) }}>{t('bomPackageTitle')}</Button><Button variant="outline" className="secondary-button ui:min-h-11" onClick={() => { setSuccess(''); setImporting(true) }}>{t('bomImport')}</Button><Button variant="outline" className="secondary-button ui:min-h-11" disabled={!selected.size} onClick={() => { setSuccess(''); setTrustTarget((assets.data?.items ?? []).filter((a) => selected.has(a.machine_id))) }}>{t('trustMockTitle')}</Button></div>}</div>
     {success && <SuccessNotice>{success}</SuccessNotice>}
     <section className="management-panel" aria-busy={assets.isFetching}>
       <ActionError error={assets.error} />
@@ -164,6 +166,7 @@ function AssetsContent() {
     <AgentExecutions />
     <SSHDomainKeys />
     {provisionTarget && <ProvisionPreviewDialog key={`${project.id}:${provisionTarget.id}`} projectId={project.id} asset={provisionTarget} onClose={() => setProvisionTarget(null)} />}
+    {showTopologyFleet && <Suspense fallback={<p role="status">{t('loadingRecords')}</p>}><TopologyFleetDialog key={project.id} onClose={() => setShowTopologyFleet(false)} /></Suspense>}
     {showAssetViews && <Suspense fallback={<p role="status">{t('loadingRecords')}</p>}><AssetViewsDialog key={project.id} onClose={() => setShowAssetViews(false)} /></Suspense>}
     {topologyTarget && <Suspense fallback={<p role="status">{t('loadingRecords')}</p>}><TopologyDialog key={`${project.id}:${topologyTarget.id}`} asset={topologyTarget} onClose={() => setTopologyTarget(null)} /></Suspense>}
     {precollectTarget && <Suspense fallback={<p role="status">{t('loadingRecords')}</p>}><PrecollectDialog key={`${project.id}:${precollectTarget.id}`} asset={precollectTarget} onClose={() => setPrecollectTarget(null)} /></Suspense>}

@@ -193,6 +193,18 @@ func Evaluate(s *Snapshot, e *Expectation, bindings []Binding, real bool) Evalua
 			}
 		}
 	}
+	for _, expectedPair := range e.GPUNICMap {
+		from, to := labels[expectedPair.GPU], labels[expectedPair.NIC]
+		if from == "" || to == "" {
+			continue
+		}
+		actual, ok := pairs[from+":"+to]
+		if !ok {
+			add("pcie_misplaced", "TOPOLOGY_GPU_NIC_AFFINITY_REQUIRED", expectedPair.GPU+":"+expectedPair.NIC, "BLOCKED", expectedPair.Affinity, nil)
+		} else if actual.Observed != expectedPair.Affinity {
+			add("pcie_misplaced", "TOPOLOGY_GPU_NIC_AFFINITY_MISMATCH", expectedPair.GPU+":"+expectedPair.NIC, "FAIL", expectedPair.Affinity, actual.Observed)
+		}
+	}
 	active := map[string]int{}
 	observed := map[string]bool{}
 	for _, l := range s.NVLinks {

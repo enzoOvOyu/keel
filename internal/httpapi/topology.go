@@ -7,6 +7,34 @@ import (
 
 func (a *authAPI) registerTopology(r *gin.Engine) {
 	base := "/api/v1/projects/:id/assets/:assetId/topology"
+	r.GET("/api/v1/projects/:id/validation/topology/fleet", func(c *gin.Context) {
+		actor, _, ok := a.executionProject(c, false)
+		if !ok {
+			return
+		}
+		page, ok := readPagination(c)
+		if !ok {
+			return
+		}
+		out, e := a.store.TopologyFleet(c.Request.Context(), actor, c.Param("id"), c.Query("verdict"), page)
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
+	r.GET(base+"/:snapshotId/relations", func(c *gin.Context) {
+		actor, _, ok := a.executionProject(c, false)
+		if !ok {
+			return
+		}
+		out, e := a.store.TopologyRelations(c.Request.Context(), actor, c.Param("id"), c.Param("assetId"), c.Param("snapshotId"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
 	r.GET("/api/v1/issues/:issueId/topology-retests/scope", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {

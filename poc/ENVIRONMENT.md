@@ -47,3 +47,5 @@ READY_FOR_REVIEW仅表示10台记录内部一致、文件摘要匹配，**不是
 历史 `poc/results/p1-selfcheck.json` 保留为2026-10-13旧脚本快照；当时仅检测工具/公钥文件，缺PXE仍记NOTE，**不能作为当前平台就绪或H-1证据**。新自检不覆盖该历史文件，也不往Git写真机记录。
 
 P1其他执行材料分别见`poc/bom-h15/ENVIRONMENT.md`（真实BOM/映射/三级定位回传）与`poc/ztp-h16/ENVIRONMENT.md`（≥2交换机、239/143/60-43）。各包的合成自检、文件摘要完整性与真实硬件签署分开记录。
+
+P2 PCIe拓扑的B300/GB300双架构H-13材料独立位于[topology-h13/ENVIRONMENT.md](topology-h13/ENVIRONMENT.md)，当前NOT_RUN；不复用P1结果声称P2或真机验收完成。

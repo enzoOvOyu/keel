@@ -3932,10 +3932,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/assets/{assetId}/topology/{snapshotId}/relations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["topologyRelations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/validation/topology/fleet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["topologyFleet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        PciTopologyRelationRow: {
+            gpu_key: string;
+            nic_key: string;
+            gpu_component_id: string;
+            nic_component_id: string;
+            gpu_uuid: string;
+            permanent_mac: string;
+            physical_port_id: string;
+            interface: string;
+            gpu_node: components["schemas"]["PciTopologyNode"] | null;
+            nic_node: components["schemas"]["PciTopologyNode"] | null;
+            expected_affinity: string;
+            observed_affinity: string;
+            computed_affinity: string;
+            verdict: string;
+        };
+        PciTopologyRelationTable: {
+            snapshot_id: string;
+            version: number;
+            model_version_id: string;
+            g1_id: string;
+            scope_hash: string;
+            historical_verdict: string;
+            effective_verdict: string;
+            step1_published: boolean;
+            rows: components["schemas"]["PciTopologyRelationRow"][];
+        };
+        PciTopologyFleetRow: {
+            asset_id: string;
+            machine_id: string;
+            hostname: string;
+            serial: string;
+            snapshot_id: string;
+            snapshot_version: number;
+            historical_verdict: string;
+            effective_verdict: string;
+            validity: string;
+            reason: string;
+            valid_until: string | null;
+        };
+        PciTopologyFleetPage: {
+            items: components["schemas"]["PciTopologyFleetRow"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
         PciTopologyRetestInput: {
             version: number;
             snapshot_id: string;
@@ -4045,6 +4123,11 @@ export interface components {
             };
             devices: components["schemas"]["PciTopologyExpectedDevice"][];
             nvlinks: components["schemas"]["PciTopologyExpectedNVLink"][];
+            gpu_nic_map: {
+                gpu: string;
+                nic: string;
+                affinity: string;
+            }[];
         };
         PciTopologyBinding: {
             key: string;
@@ -18197,6 +18280,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PciTopologyRetest"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    topologyRelations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+                snapshotId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authorized topology projection, no capture or gate publication. Fleet scope is capped at 200; verdict filtering precedes pagination. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PciTopologyRelationTable"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    topologyFleet: {
+        parameters: {
+            query?: {
+                verdict?: "PASS" | "FAIL" | "BLOCKED" | "UNAVAILABLE";
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authorized topology projection, no capture or gate publication. Fleet scope is capped at 200; verdict filtering precedes pagination. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PciTopologyFleetPage"];
                 };
             };
             400: components["responses"]["InvalidRequest"];

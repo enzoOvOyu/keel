@@ -95,11 +95,17 @@ type ExpectedNVLink struct {
 	To    string `json:"to"`
 	Links int    `json:"links"`
 }
+type ExpectedGPUNIC struct {
+	GPU      string `json:"gpu"`
+	NIC      string `json:"nic"`
+	Affinity string `json:"affinity"`
+}
 type Expectation struct {
 	Version    string           `json:"version"`
 	Provenance Provenance       `json:"provenance"`
 	Devices    []ExpectedDevice `json:"devices"`
 	NVLinks    []ExpectedNVLink `json:"nvlinks"`
+	GPUNICMap  []ExpectedGPUNIC `json:"gpu_nic_map"`
 }
 
 // Binding comes from stable BOM components/ports and retained identity evidence,
@@ -192,6 +198,23 @@ func (e *Expectation) Validate() error {
 			if other == "gpu" && a != b && !pairs[a+":"+b] {
 				return ErrInvalid
 			}
+		}
+	}
+	if e.GPUNICMap == nil || len(e.GPUNICMap) > 256*256 {
+		return ErrInvalid
+	}
+	associations := map[string]bool{}
+	covered := map[string]bool{}
+	for _, pair := range e.GPUNICMap {
+		if keys[pair.GPU] != "gpu" || keys[pair.NIC] != "nic" || pair.Affinity == "X" || !validAffinity(pair.Affinity) || associations[pair.GPU+":"+pair.NIC] {
+			return ErrInvalid
+		}
+		associations[pair.GPU+":"+pair.NIC] = true
+		covered[pair.GPU] = true
+	}
+	for key, kind := range keys {
+		if kind == "gpu" && !covered[key] {
+			return ErrInvalid
 		}
 	}
 	return nil

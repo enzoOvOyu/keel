@@ -54,3 +54,32 @@ func TestTopologyInputRejectsUnscopedOrUnexplainedMutation(t *testing.T) {
 		}
 	}
 }
+
+func TestTopologyFleetFiltersCurrentVerdictBeforePaginationPostgres(t *testing.T) {
+	f, _ := bmcExecutionFixture(t)
+	ctx := context.Background()
+	page := platform.Pagination{Page: 1, PageSize: 1}
+	rows, e := f.store.TopologyFleet(ctx, f.actor, f.project, "UNAVAILABLE", page)
+	mustAgent(t, e)
+	if rows.Total != 1 || len(rows.Items) != 1 || rows.Items[0].MachineID != f.machine || rows.Items[0].EffectiveVerdict != "UNAVAILABLE" {
+		t.Fatalf("%+v", rows)
+	}
+	pass, e := f.store.TopologyFleet(ctx, f.actor, f.project, "PASS", page)
+	mustAgent(t, e)
+	if pass.Total != 0 || len(pass.Items) != 0 {
+		t.Fatal("uncollected device passed filter")
+	}
+	page.Page = 2
+	empty, e := f.store.TopologyFleet(ctx, f.actor, f.project, "UNAVAILABLE", page)
+	mustAgent(t, e)
+	if empty.Total != 1 || len(empty.Items) != 0 {
+		t.Fatal("filter pagination changed total")
+	}
+	if _, e = f.store.TopologyFleet(ctx, f.actor, f.project, "forged", page); e == nil {
+		t.Fatal("invalid verdict filter admitted")
+	}
+	other, _ := ordinaryTestActor(t, f.store)
+	if _, e = f.store.TopologyFleet(ctx, other, f.project, "", page); e == nil {
+		t.Fatal("project topology inventory leaked")
+	}
+}

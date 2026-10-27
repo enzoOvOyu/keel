@@ -22,6 +22,12 @@ func (s *Store) topologyValidityTx(ctx context.Context, tx *sql.Tx, out *PciTopo
 	}
 	current, _, e := s.topologyScopeTx(ctx, tx, out.ProjectID, out.AssetID, false)
 	if e != nil {
+		if code, ok := topologyReadInvalidation(e); ok {
+			out.Validity = "invalidated"
+			out.EffectiveVerdict = "BLOCKED"
+			out.InvalidationReason = code
+			return nil
+		}
 		return e
 	}
 	if !current.Ready || current.ScopeHash != out.ScopeHash {
@@ -126,7 +132,11 @@ func (s *Store) ListTopology(ctx context.Context, a *AuthSession, project, asset
 	// Calculate current scope once for a whole history page, not per row.
 	current, _, e := s.topologyScopeTx(ctx, tx, project, asset, false)
 	if e != nil {
-		return out, e
+		if code, ok := topologyReadInvalidation(e); ok {
+			current = &TopologyScope{Ready: false, Code: code}
+		} else {
+			return out, e
+		}
 	}
 	for i := range out.Items {
 		v := &out.Items[i]
