@@ -63,14 +63,15 @@ func (s *Service) ReconcileProvisionBeforeWrite(ctx context.Context, a *Actor, p
 		return nil, err
 	}
 	var locked string
-	if err = tx.QueryRowContext(ctx, `SELECT id FROM provision_installations WHERE id=$1 AND project_id=$2 FOR UPDATE`, id, project).Scan(&locked); err != nil {
+	var currentVersion int64
+	if err = tx.QueryRowContext(ctx, `SELECT id,state_version FROM provision_installations WHERE id=$1 AND project_id=$2 FOR UPDATE`, id, project).Scan(&locked, &currentVersion); err != nil {
 		return nil, err
 	}
 	x, err := platform.LoadProvisionInstallationBindingTx(ctx, tx, project, id)
 	if err != nil {
 		return nil, err
 	}
-	if x.State != "unknown" || x.StateVersion != in.ExpectedVersion || x.PermitIssuedAt != nil || x.AttemptID == nil || *x.AttemptID != attempt.ID || x.CommandID == nil || *x.CommandID != attempt.CommandID || x.FencingToken == nil || *x.FencingToken != attempt.FencingToken || attempt.State != "unknown" || attempt.TaskID != "provision-install" || attempt.StartedAt == nil {
+	if x.State != "unknown" || currentVersion != in.ExpectedVersion || x.PermitIssuedAt != nil || x.AttemptID == nil || *x.AttemptID != attempt.ID || x.CommandID == nil || *x.CommandID != attempt.CommandID || x.FencingToken == nil || *x.FencingToken != attempt.FencingToken || attempt.State != "unknown" || attempt.TaskID != "provision-install" || attempt.StartedAt == nil {
 		return nil, conflict("An unchanged unknown installation that never issued a write permit is required")
 	}
 	var issued bool

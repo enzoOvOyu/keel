@@ -110,6 +110,7 @@ assert result['machines_created'] == 2 and result['ports_created'] == 3 and resu
 assets = admin.call('GET', path + '/assets?page=1&page_size=20')
 assert len(assets['items']) == 2 and all(a['model_name'] == 'B300-8U' for a in assets['items']), assets
 assert all(a['state'] == 'planned' and a['version'] == 1 for a in assets['items'])
+assert all(a['model_id'] == model['id'] and not a.get('model_version_id') for a in assets['items']), 'Legacy imports preserve unpublished model binding without inventing a version'
 passed.append('Commit creates machines, ports and model-bound assets')
 
 # 3. Re-committing the same file version is rejected (idempotent by version).
@@ -118,11 +119,13 @@ assert rej['code'] == 'BOM_VERSION_EXISTS', rej
 passed.append('Duplicate file version commits are rejected')
 
 # 4. A new file version updates existing assets instead of duplicating them.
+published = admin.call('POST', path + f'/models/{model["id"]}/versions', {'hw_spec': {'cpu_arch': 'amd64'}}, code=201)
 updated = bom('v2', [machine('SN-100', 'node-100', [mac_a, mac_a2]), machine('SN-101', 'node-102', [mac_b])])
 result2 = admin.call('POST', path + '/bom/commit', updated, code=201)
 assert result2['machines_created'] == 0 and result2['assets_updated'] == 2, result2
 assets = admin.call('GET', path + '/assets?page=1&page_size=20')
 assert len(assets['items']) == 2
+assert all(a['model_version_id'] == published['id'] for a in assets['items']), 'Re-import freezes the published model version'
 by_host = {a['hostname']: a for a in assets['items']}
 assert by_host['node-102']['version'] == 2, by_host
 passed.append('Re-imported machines update assets in place without duplicating identity')

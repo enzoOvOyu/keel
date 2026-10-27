@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise real local auth/project boundaries against an isolated test database.
 
-Required: KEEL_TEST_DATABASE_URL ending /keel_test_http; a migrated or empty,
+Required: KEEL_TEST_DATABASE_URL naming keel_test_http or its random-suffix fixture; a migrated or empty,
 separately running test API on loopback port 3102; KEEL_ADMIN_BINARY pointing
 at the matching built admin CLI. Refuses normal deployment/development ports.
 The script creates random test accounts/projects only in that disposable DB.
@@ -15,6 +15,7 @@ import http.client
 import http.cookies
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import subprocess
@@ -24,7 +25,7 @@ import urllib.parse
 BASE = urllib.parse.urlsplit(os.environ.get('KEEL_AUTH_TEST_BASE_URL', 'http://127.0.0.1:3102'))
 DATABASE = os.environ.get('KEEL_TEST_DATABASE_URL', '')
 DB = urllib.parse.urlsplit(DATABASE)
-if DB.scheme not in ('postgres', 'postgresql') or urllib.parse.unquote(DB.path) != '/keel_test_http':
+if DB.scheme not in ('postgres', 'postgresql') or not re.fullmatch(r'/keel_test_http(?:_[0-9a-f]{12})?', urllib.parse.unquote(DB.path)):
     raise SystemExit('Refusing: KEEL_TEST_DATABASE_URL must name isolated keel_test_http database')
 if BASE.scheme != 'http' or BASE.hostname not in ('127.0.0.1', 'localhost') or BASE.port != 3102:
     raise SystemExit('Refusing: test API must be http://127.0.0.1:3102 or http://localhost:3102')

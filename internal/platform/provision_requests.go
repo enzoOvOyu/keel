@@ -75,6 +75,13 @@ func requireProvisionReadAuthority(ctx context.Context, tx *sql.Tx, a *AuthSessi
 		return err
 	}
 	if a.User.IsAdmin {
+		var exists bool
+		if err := tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM projects WHERE id=$1)", project).Scan(&exists); err != nil {
+			return err
+		}
+		if !exists {
+			return ErrNotFound
+		}
 		return nil
 	}
 	var role string

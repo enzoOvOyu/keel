@@ -1798,3 +1798,5 @@ Agent/Redis/PXE初批与lifecycle首批失败不记通过，保留原日志；�
 首轮定向复测（589702b）已通过OS引导组成、PXE预览/请求生命周期/重装序列号/验证期间失效、ZTP身份历史及受保护webhook配置。审计与webhook实际CLI主要断言通过后，受限角色连接夹具仍失败：PG报告`unrecognized configuration parameter "+role"`，将启动参数改为无空格的`-crole=...`，保留受限角色负例。P1-001补录整包预算耗尽及浏览器期限终止，未把局部成功当整项通过。
 
 112361a下owner CLI批次退出0，审计DBA篡改检测/离线CLI、主密钥轮换/恢复CLI、webhook投递与权限/适配器CLI通过。Agent定向批次的缓存/网口读接口、全部6个ExecutionStream用例通过（含真实Redis+PG调度、提交后ACK/重复消费、重建/失败隔离及队列健康模式）；该批整体因PXE后续确定性失败退出1，不能标整批PASS。PXE新增修复：DHCP观测与文件发送INSERT SELECT显式指定varchar参数，避免text/varchar推断冲突；BOM更新后fixture通过真实撤销/重新注册取得当前资产版本身份；回收fixture只断言本次目标attempt进入unknown，不依赖共享隔离DB中全局回收总数恰好1。以上PXE修复待定向复测。
+
+d5f8618定向PXE批次中，首次启动/SSH、孤立派发、密钥修复、注册结果恢复、灰度、SSH批次/已知失败、写许可及准备资源互斥均已PASS；仅写盘前恢复和修复列表失败，未记整批PASS。定位修复：前者错误使用不包含state_version的轻量绑定视图，改从已锁定行读取精确版本；后者平台管理员读取不存在项目缺404，补存在性校验。BOM旧兼容入口维持未发布型号可建planned资产，已发布则冻结最新版本；不把兼容导入当统一网络BOM准备或放宽PXE已发布版本准入。HTTP夹具补未发布→发布后重导冻结的断言；认证测试允许严格12位hex后缀的独占keel_test_http数据库，保留15433回环及隔离API限制，不重置原有测试数据库。

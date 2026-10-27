@@ -330,15 +330,21 @@ func (s *Store) CommitBomImport(ctx context.Context, a *AuthSession, project *Pr
 		}
 		var modelID, modelVersionID any
 		if machine.ModelName != "" {
-			var id, revision string
-			if e = tx.QueryRowContext(ctx, `SELECT m.id,v.id FROM device_models m JOIN device_model_versions v ON v.model_id=m.id WHERE m.scope_key=$1 AND m.name=$2 AND m.state='active' AND m.kind IN('server','compute-tray') ORDER BY v.version DESC LIMIT 1 FOR SHARE OF m,v`, scope, machine.ModelName).Scan(&id, &revision); e != nil {
+			var id string
+			var revision sql.NullString
+			// Preserve the legacy name-only import for unpublished models. Once a
+			// version exists, freeze it for downstream execution admission. Model
+			// publication also locks m, keeping this lookup stable until commit.
+			if e = tx.QueryRowContext(ctx, `SELECT m.id,v.id FROM device_models m LEFT JOIN LATERAL (SELECT id FROM device_model_versions WHERE model_id=m.id ORDER BY version DESC LIMIT 1) v ON true WHERE m.scope_key=$1 AND m.name=$2 AND m.state='active' FOR SHARE OF m`, scope, machine.ModelName).Scan(&id, &revision); e != nil {
 				if errors.Is(e, sql.ErrNoRows) {
 					return nil, apiError(409, "BOM_VALIDATION_FAILED", "unknown model "+machine.ModelName)
 				}
 				return nil, e
 			}
 			modelID = id
-			modelVersionID = revision
+			if revision.Valid {
+				modelVersionID = revision.String
+			}
 		}
 		var version int64 = 1
 		if e = tx.QueryRowContext(ctx, `INSERT INTO project_assets(id,project_id,machine_id,model_id,model_version_id,hostname,ip_reference,state,version,created_at,updated_at)
