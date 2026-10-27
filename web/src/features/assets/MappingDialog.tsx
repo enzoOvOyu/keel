@@ -1,3 +1,4 @@
+import { useServerDetailDraft } from './server-detail-drafts'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -18,6 +19,7 @@ import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 export default function MappingDialog({ asset, onClose, initialAssessmentId = '', embedded = false, onBusy }: { asset: { id: string; hostname: string }; onClose: () => void; initialAssessmentId?: string; embedded?: boolean; onBusy?: (busy: boolean) => void }) {
  const { t } = useTranslation(), session = useSession(), project = useProject(), queries = useQueryClient(), action = useAction()
  const [reason, setReason] = useState(''), [validation, setValidation] = useState(''), [page, setPage] = useState(1), [selected, setSelected] = useState(initialAssessmentId), [rail, setRail] = useState(''), [now, setNow] = useState(Date.now())
+ useServerDetailDraft('mapping', !!reason.trim())
  const [correctionBusy, setCorrectionBusy] = useState(false)
  const busy = action.busy || correctionBusy
  const attempt = useRef({ body: '', key: '' }), mounted = useRef(true)
@@ -51,6 +53,7 @@ export default function MappingDialog({ asset, onClose, initialAssessmentId = ''
   })
   if (!mounted.current) return
   if (result.ok) {
+   setReason('')
    queries.setQueryData([...key, 'assessment', result.value.assessment_id], result.value); setSelected(result.value.assessment_id); setPage(1); setNow(Date.now())
    void queries.invalidateQueries({ queryKey: [...key, 'history'] }); void preview.refetch(); void queries.invalidateQueries({ queryKey: ['private', session.user.id, 'project', project.id, 'assets'] })
   }

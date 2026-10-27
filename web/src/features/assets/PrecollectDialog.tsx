@@ -1,3 +1,4 @@
+import { useServerDetailDraft } from './server-detail-drafts'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
@@ -19,6 +20,7 @@ export default function PrecollectDialog({ asset, onClose, embedded = false, onB
  const { t } = useTranslation(), session = useSession(), project = useProject(), navigate = useNavigate(), action = useAction()
  const [now, setNow] = useState(Date.now())
  const [page, setPage] = useState(1), [selected, setSelected] = useState(''), [reason, setReason] = useState(''), [validation, setValidation] = useState('')
+ useServerDetailDraft('precollect', !!reason.trim())
  const mounted = useRef(true), attempt = useRef({ body: '', key: '' })
  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
  const key = ['private', session.user.id, 'project', project.id, 'precollect', asset.id]

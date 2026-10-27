@@ -4623,6 +4623,7 @@ export interface components {
             maintained: number;
         };
         PortMonitorSnapshot: {
+            panel: components["schemas"]["PortMonitorPanel"] | null;
             /** Format: date-time */
             mapping_valid_until: string | null;
             resync_required: boolean;
@@ -4770,6 +4771,23 @@ export interface components {
         };
         GateWaiverRevocationInput: {
             reason: string;
+        };
+        PortMonitorPanelCell: {
+            id: string;
+            label: string;
+            row: number;
+            column: number;
+            physical_port_id: string;
+            reason: string;
+        };
+        PortMonitorPanel: {
+            state: string;
+            model_version_id: string;
+            model_version: number;
+            model_content_hash: string;
+            rows: number;
+            columns: number;
+            cells: components["schemas"]["PortMonitorPanelCell"][];
         };
         MonitorPolicy: {
             stage: string;

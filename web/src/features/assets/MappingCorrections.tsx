@@ -1,3 +1,4 @@
+import { useServerDetailDraft } from './server-detail-drafts'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -14,6 +15,7 @@ import { useExpireOnUnauthorized, useSession } from '../../lib/session'
 export default function MappingCorrections({ assetId, preview, canWrite, onChanged, onBusy }: { assetId: string; preview?: MappingCandidate; canWrite: boolean; onChanged: () => void; onBusy: (busy: boolean) => void }) {
  const { t } = useTranslation(), session = useSession(), project = useProject(), action = useAction()
  const [page, setPage] = useState(1), [reason, setReason] = useState(''), [names, setNames] = useState<Record<string, string>>({}), [validation, setValidation] = useState('')
+ useServerDetailDraft('mapping-correction', !!reason.trim() || Object.entries(names).some(([id, name]) => name !== preview?.bindings.find(binding => binding.plan.physical_port_id === id)?.logical_name))
  const attempt = useRef({ body: '', key: '' }), mounted = useRef(true)
  useEffect(() => { mounted.current = true; return () => { mounted.current = false; onBusy(false) } }, [onBusy])
  useEffect(() => { onBusy(action.busy) }, [action.busy, onBusy])

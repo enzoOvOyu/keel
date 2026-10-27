@@ -30,7 +30,25 @@ type PortMonitorSummary struct {
 	Disabled   int `json:"disabled"`
 	Maintained int `json:"maintained"`
 }
+type PortMonitorPanelCell struct {
+	ID             string `json:"id"`
+	Label          string `json:"label"`
+	Row            int    `json:"row"`
+	Column         int    `json:"column"`
+	PhysicalPortID string `json:"physical_port_id"`
+	Reason         string `json:"reason"`
+}
+type PortMonitorPanel struct {
+	State            string                 `json:"state"`
+	ModelVersionID   string                 `json:"model_version_id"`
+	ModelVersion     int64                  `json:"model_version"`
+	ModelContentHash string                 `json:"model_content_hash"`
+	Rows             int                    `json:"rows"`
+	Columns          int                    `json:"columns"`
+	Cells            []PortMonitorPanelCell `json:"cells"`
+}
 type PortMonitorSnapshot struct {
+	Panel             *PortMonitorPanel  `json:"panel"`
 	MappingValidUntil *time.Time         `json:"mapping_valid_until"`
 	ResyncRequired    bool               `json:"resync_required"`
 	ProjectID         string             `json:"project_id"`
@@ -131,6 +149,10 @@ func (s *Store) portMonitorSnapshotTx(ctx context.Context, tx *sql.Tx, project, 
 	}
 	if len(out.Items) > 2048 {
 		return nil, apiError(409, "MONITOR_SCOPE_LIMIT", "Physical port scope exceeds snapshot limit")
+	}
+	out.Panel, e = portMonitorPanelTx(ctx, tx, project, asset, out.Items)
+	if e != nil {
+		return nil, e
 	}
 	// Source and method remain separate. Simulated data never supplies live lamps.
 	observed, e := tx.QueryContext(ctx, `SELECT `+monitorObservationFields+` FROM monitor_metric_latest latest JOIN monitor_metric_samples sample ON sample.sequence=latest.sample_sequence WHERE latest.project_id=$1 AND latest.machine_id=$2 AND sample.origin='real' AND sample.physical_port_id IS NOT NULL AND sample.mapping_revision_id=$3 ORDER BY sample.source,sample.method,sample.metric_key,sample.entity_key`, project, out.MachineID, out.MappingRevisionID)

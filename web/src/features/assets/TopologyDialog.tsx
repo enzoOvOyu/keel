@@ -1,3 +1,4 @@
+import { useServerDetailDraft } from './server-detail-drafts'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -20,6 +21,7 @@ import WiringDialog from './WiringDialog'
 export default function TopologyDialog({ asset, onClose, embedded = false, onBusy }: { asset: Pick<ProjectAsset, 'id' | 'hostname'>; onClose: () => void; embedded?: boolean; onBusy?: (busy: boolean) => void }) {
  const { t } = useTranslation(), session = useSession(), project = useProject(), action = useAction(), queries = useQueryClient()
  const [page, setPage] = useState(1), [selected, setSelected] = useState(''), [reason, setReason] = useState(''), [validation, setValidation] = useState(''), [now, setNow] = useState(Date.now())
+ useServerDetailDraft('topology', !!reason.trim())
  const [showWiring, setShowWiring] = useState(false)
  const mounted = useRef(true), attempt = useRef({ body: '', key: '' })
  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
@@ -48,7 +50,7 @@ export default function TopologyDialog({ asset, onClose, embedded = false, onBus
   const body = JSON.stringify({ scope_hash: scope.data.scope_hash, reason: reason.trim() })
   if (attempt.current.body !== body) attempt.current = { body, key: crypto.randomUUID() }
   const result = await action.run(() => validateTopology(project.id, asset.id, scope.data!.scope_hash, reason.trim(), session.csrf_token, attempt.current.key))
-  if (result.ok && mounted.current) { queries.setQueryData([...key, 'detail', result.value.id], result.value); setSelected(result.value.id); void list.refetch(); void scope.refetch() }
+  if (result.ok && mounted.current) { setReason(''); queries.setQueryData([...key, 'detail', result.value.id], result.value); setSelected(result.value.id); void list.refetch(); void scope.refetch() }
  }
  const wiringPorts = [...new Map((relations.data?.rows ?? []).filter(row => row.physical_port_id).map(row => [row.physical_port_id, { id: row.physical_port_id, name: row.interface, mac: row.permanent_mac }])).values()]
  const effective = record && Date.parse(record.valid_until) <= now ? 'BLOCKED' : record?.effective_verdict

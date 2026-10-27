@@ -2302,3 +2302,10 @@ ReadWiringCapture重新打开固定版本对象、核对SHA256/大小、重建�
 - 原始按需结果标记snapshot_only；有效期取原采集5分钟与原run有效期较早者，不因桥接延长。趋势和小时聚合不生成连续采样覆盖率，flapping不使用这些快照。预算复用全局与设备共享令牌桶，预算不足保留原来源待后续消费，单端口savepoint回滚不吞全局额度。
 - 重大来源里程碑检查：`go test ./internal/platform -run 'TestMonitorSwitch|TestPortMonitor' -count=1 -timeout=90s -v`、独立keel_test_agent_source_*库`go test ./internal/agentidentity -run TestMonitorPostgres -count=1 -timeout=90s -v`及前端`tsc --noEmit`均通过。证据`/tmp/keel-monitor-source-milestone-r8w5xyj2/`，临时库已删除；包含105条源码迁移（排除原026），来源拒绝链/mTLS/趋势/小时历史回归。没有伪造G3正向业务链，不作为真实来源/硬件或整体验收证据。
 - 108尚未应用运行库；3000仍7afda32，运行64条迁移/067，原草稿/netbom.xlsx保留。未构建镜像、部署或push。BMC来源、Agentless降级、portmon维修、版本布局和抽屉交互仍继续开发；维护期WP-4.8不提前实现。
+
+
+## 211. 绑定版本面板、自定义视图入口及未提交表单保护（源码）
+
+- portmon快照读取资产显式绑定的不可变型号版本/哈希/布局，不查最新型号版本。几何位置仅在槽位与实际NIC物理端口关系唯一时绑定灯；多端口/多单元歧义保持未知，全部实际端口仍保留在原列表，不缩小分母。未配置布局/无绑定版本明确缺失，不生成虚拟面板。
+- 自定义资产视图中的服务器名称接统一五标签详情抽屉，上下台范围限定当前页服务器；交换机不误进服务器详情。抽屉内预收集/拓扑/映射发布/名称修正按实际表单状态登记未提交修改，标签切换、上下台、关闭/路由离开给丢弃确认，刷新/关闭页签保护；只读筛选不误报修改。写请求期间仍阻断切换。
+- 本增量仅格式化/契约生成/源码差异检查，Go/DB/TS/浏览器均NOT_RUN，保留到下一重大里程碑统一检查。BMC ServerLampPanel与控制属于WP-3.12、维护期调度属于WP-4.8，不因抽屉收口提前实现后置工作；P2保留现有BMC资产采集入口。接续a9ad885，3000/运行库未变；原草稿和netbom.xlsx未动。
