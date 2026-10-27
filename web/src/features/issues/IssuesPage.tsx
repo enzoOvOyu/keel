@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../components/ui/dialog'
 import { useAction } from '../../lib/management'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
-import { actOnIssue, createIssue, getIssue, issueAssignees, issueLabels, issueSources, issueStates, issueTargets, listIssues, type Issue, type IssueAction, type IssueSearch, type NewIssue } from '../../lib/issues'
+import { actOnIssue, createIssue, getIssue, issueAssignees, issueLabels, issueSources, issueStates, issueTargets, listIssues, listFabricIssueObservations, type Issue, type IssueAction, type IssueSearch, type NewIssue } from '../../lib/issues'
 import '../../styles/issues.css'
 function useLabels(){ const {i18n}=useTranslation(); const labels=i18n.language.startsWith('en')?issueLabels.en:issueLabels.zh; return (key:string)=>labels[key as keyof typeof labels]??key }
 const repairActions=['reseat','replace_cable','replace_optic','replace_nic','rma_machine','switch_repair','configuration_fix','flash_bios','rma_board'] as const
@@ -60,6 +60,12 @@ function ActionForm({issue,kind,onClose,onDone}:{issue:Issue;kind:string;onClose
   <Label>{l('reason')}<Textarea value={reason} onChange={e=>setReason(e.target.value)} maxLength={2000} required disabled={action.busy}/></Label>
  </ActionDialog>
 }
+function FabricObservations({id}:{id:string}){
+ const l=useLabels(),session=useSession(),[page,setPage]=useState(1)
+ const query=useQuery({queryKey:['private',session.user.id,'issue-fabric-observations',id,page],queryFn:({signal})=>listFabricIssueObservations(id,page,signal),refetchInterval:15000})
+ useExpireOnUnauthorized(query.error)
+ return <section><h2>{l('observations')}</h2><p>{l('nS5Only')}</p><ActionError error={query.error}/>{query.isPending&&<p role="status">{l('loading')}</p>}{query.isSuccess&&!query.data.items.length&&<p>{l('noObservations')}</p>}<ol>{query.data?.items.map(v=><li key={v.id}><strong>{l(v.evidence_origin)}</strong> · {l(v.stale||Date.parse(v.valid_until)<=Date.now()?'stale':'current')}<p>{v.finding.issue_type} · {v.finding.reason} · {v.finding.rule_ref}</p><p>{l('observedAt')}: {new Date(v.observed_at).toLocaleString()}</p><p>{l('run')}: <code>{v.run_id}</code></p></li>)}</ol><nav className="pagination" aria-label={l('observations')}><Button variant="outline" disabled={page===1||query.isFetching} onClick={()=>setPage(page-1)}>{l('previous')}</Button><span>{page} · {query.data?.total??0}</span><Button variant="outline" disabled={!query.data||page*10>=query.data.total||query.isFetching} onClick={()=>setPage(page+1)}>{l('next')}</Button></nav></section>
+}
 function Detail({id,onClose,onAct}:{id:string;onClose:()=>void;onAct:(issue:Issue,kind:string)=>void}){
  const l=useLabels(),session=useSession()
  const detail=useQuery({queryKey:['private',session.user.id,'issue',id],queryFn:({signal})=>getIssue(id,signal)})
@@ -67,15 +73,18 @@ function Detail({id,onClose,onAct}:{id:string;onClose:()=>void;onAct:(issue:Issu
  const v=detail.data?.issue
  return <Dialog open onOpenChange={open=>{if(!open)onClose()}}><DialogContent className="issue-drawer"><DialogHeader><DialogTitle>{v?.title??l('detail')}</DialogTitle><DialogDescription>{v?`${v.category} · ${l(v.source)} · ${l(v.phase)} · ${l(v.state)}`:l('loading')}</DialogDescription></DialogHeader>
   <ActionError error={detail.error}/>{v&&<><dl className="action-target"><dt>{l('version')}</dt><dd>{v.version}</dd><dt>{l('responsible_domain')}</dt><dd>{l(v.responsible_domain)}</dd><dt>{l('expected')}</dt><dd>{v.evidence.expected||'—'}</dd><dt>{l('actual')}</dt><dd>{v.evidence.actual}</dd><dt>{l('sourceVersion')}</dt><dd>{v.evidence.source_version}</dd><dt>{l('observedAt')}</dt><dd>{new Date(v.evidence.observed_at).toLocaleString()}</dd><dt>{l('target')}</dt><dd>{v.anchors.map(a=><div key={a.kind+a.id}>{a.kind}: {a.id}</div>)}</dd></dl><p className="impact-notice">{l('revalidation')}</p><div className="issue-actions">{v.allowed_transitions.map(kind=><Button key={kind} variant="outline" onClick={()=>onAct(v,kind)}>{l(kind)}</Button>)}<Button variant="outline" onClick={()=>void detail.refetch()}>{l('reload')}</Button></div>
-  <h2>{l('timeline')}</h2><ol>{detail.data?.events.map(ev=><li key={ev.id}><strong>{l(ev.action==='create'?'created':ev.action)}</strong> · {new Date(ev.created_at).toLocaleString()} · {l('version')} {ev.version}{typeof ev.data.reason==='string'&&<p>{ev.data.reason}</p>}{typeof ev.data.repair_action==='string'&&ev.data.repair_action&&<p>{l(ev.data.repair_action)}</p>}{typeof ev.data.old_serial==='string'&&ev.data.old_serial&&<p>{l('oldSerial')}: {ev.data.old_serial}</p>}{typeof ev.data.new_serial==='string'&&ev.data.new_serial&&<p>{l('newSerial')}: {ev.data.new_serial}</p>}</li>)}</ol></>}
+  {v.source==='fabric'&&<FabricObservations key={v.id} id={v.id}/>}<h2>{l('timeline')}</h2><ol>{detail.data?.events.map(ev=><li key={ev.id}><strong>{l(ev.action==='create'?'created':ev.action)}</strong> · {new Date(ev.created_at).toLocaleString()} · {l('version')} {ev.version}{typeof ev.data.reason==='string'&&<p>{ev.data.reason}</p>}{typeof ev.data.repair_action==='string'&&ev.data.repair_action&&<p>{l(ev.data.repair_action)}</p>}{typeof ev.data.old_serial==='string'&&ev.data.old_serial&&<p>{l('oldSerial')}: {ev.data.old_serial}</p>}{typeof ev.data.new_serial==='string'&&ev.data.new_serial&&<p>{l('newSerial')}: {ev.data.new_serial}</p>}</li>)}</ol></>}
  </DialogContent></Dialog>
 }
 function IssuesContent(){
  const l=useLabels(),session=useSession(),client=useQueryClient(),navigate=useNavigate()
  const search=useSearch({from:'/issues'}),page=search.page??1
  const [dragging,setDragging]=useState<string|null>(null)
- const [view,setView]=useState<'list'|'board'>('list'),[creating,setCreating]=useState<string|null>(null),[detail,setDetail]=useState<string|null>(null),[selection,setSelection]=useState<{issue:Issue;kind:string}|null>(null)
- const list=useQuery({queryKey:['private',session.user.id,'issues',search],queryFn:({signal})=>listIssues(search,signal),refetchInterval:5000})
+ const [view,setView]=useState<'list'|'board'>('list'),[creating,setCreating]=useState<string|null>(null),[selection,setSelection]=useState<{issue:Issue;kind:string}|null>(null)
+ const detail=search.issue_id??null
+ const setDetail=(id:string|null)=>void navigate({to:'/issues',search:{...search,issue_id:id??undefined}})
+ const filtersForList={...search,issue_id:undefined}
+ const list=useQuery({queryKey:['private',session.user.id,'issues',filtersForList],queryFn:({signal})=>listIssues(filtersForList,signal),refetchInterval:5000})
  useExpireOnUnauthorized(list.error)
  const project=session.projects.find(v=>v.id===search.project_id),canCreate=!!project&&(session.user.is_admin||['Admin','DL','NE'].includes(project.role))
  useEffect(()=>{document.title=`${l('title')} · Keel`},[l('title')])

@@ -30,6 +30,7 @@ type FabricDeviceSummary struct {
 	Capabilities map[string]bool `json:"capabilities"`
 }
 type FabricCollectionReport struct {
+	IssueLinks     []FabricIssueLink     `json:"issue_links"`
 	ID             string                `json:"id,omitempty"`
 	PackageID      string                `json:"package_id"`
 	SourceHash     string                `json:"source_hash"`
@@ -192,7 +193,7 @@ func (s *Store) CollectFabric(ctx context.Context, a *AuthSession, p *ProjectSum
 		}
 		samples[sample.Serial] = sample
 	}
-	out := &FabricCollectionReport{ID: RandomID(), PackageID: pkg, SourceHash: fabricboot.ManagementPlanDigest(string(raw)), EvidenceSource: batch.EvidenceSource, Stage: "N-S5", NP3: "BLOCKED", CollectedAt: now, ValidUntil: now.Add(5 * time.Minute), Devices: devices, Findings: []fabricmon.Finding{}}
+	out := &FabricCollectionReport{ID: RandomID(), PackageID: pkg, SourceHash: fabricboot.ManagementPlanDigest(string(raw)), EvidenceSource: batch.EvidenceSource, Stage: "N-S5", NP3: "BLOCKED", CollectedAt: now, ValidUntil: now.Add(5 * time.Minute), Devices: devices, Findings: []fabricmon.Finding{}, IssueLinks: []FabricIssueLink{}}
 	for i := range out.Devices {
 		d := &out.Devices[i]
 		sample, ok := samples[d.Serial]
@@ -246,6 +247,13 @@ func (s *Store) CollectFabric(ctx context.Context, a *AuthSession, p *ProjectSum
 			return nil, e
 		}
 	}
+	if e = recordFabricIssueEvidenceTx(ctx, tx, a, p.ID, out, cables, samples, trace); e != nil {
+		return nil, e
+	}
+	out.IssueLinks, e = fabricIssueLinksTx(ctx, tx, p.ID, out.ID)
+	if e != nil {
+		return nil, e
+	}
 	if e = appendAudit(ctx, tx, a.User.ID, p.ID, "fabric.collection.read", out.ID, trace, map[string]any{"package_id": pkg, "source": out.EvidenceSource, "devices": len(samples), "np3": "BLOCKED"}); e != nil {
 		return nil, e
 	}
@@ -262,6 +270,10 @@ func latestFabricCollectionTx(ctx context.Context, tx *sql.Tx, project string) (
 	}
 	var out FabricCollectionReport
 	if e = json.Unmarshal(raw, &out); e != nil {
+		return nil, e
+	}
+	out.IssueLinks, e = fabricIssueLinksTx(ctx, tx, project, out.ID)
+	if e != nil {
 		return nil, e
 	}
 	current, _, _, e := fabricInventoryTx(ctx, tx, project)

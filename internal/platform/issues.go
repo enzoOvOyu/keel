@@ -212,6 +212,30 @@ func issueEventTx(ctx context.Context, tx *sql.Tx, a *AuthSession, item *Issue, 
 	}
 	return appendAudit(ctx, tx, a.User.ID, item.ProjectID, "issue."+action, item.ID, trace, map[string]any{"version": item.Version, "source": item.Source, "phase": item.Phase})
 }
+func insertIssueTx(ctx context.Context, tx *sql.Tx, a *AuthSession, project string, in CreateIssueInput, origin, trace string, refs map[string]any) (*Issue, error) {
+	anchors, e := json.Marshal(in.Anchors)
+	if e != nil {
+		return nil, e
+	}
+	evidence, e := json.Marshal(in.Evidence)
+	if e != nil {
+		return nil, e
+	}
+	now := time.Now().UTC()
+	v, e := scanIssue(tx.QueryRowContext(ctx, `INSERT INTO issues(id,project_id,title,category,source,phase,anchors,evidence,created_by,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10) RETURNING `+issueColumns, RandomID(), project, in.Title, in.Category, in.Source, in.Phase, anchors, evidence, a.User.ID, now))
+	if e != nil {
+		return nil, e
+	}
+	data := map[string]any{"origin": origin, "evidence": in.Evidence}
+	for k, v := range refs {
+		data[k] = v
+	}
+	if e = issueEventTx(ctx, tx, a, v, "create", trace, data); e != nil {
+		return nil, e
+	}
+	return v, nil
+}
+
 func (s *Store) CreateIssue(ctx context.Context, a *AuthSession, project string, in CreateIssueInput, key, trace string) (*Issue, error) {
 	if e := validIssueCreate(in); e != nil {
 		return nil, e
@@ -277,14 +301,9 @@ func (s *Store) CreateIssue(ctx context.Context, a *AuthSession, project string,
 			return nil, ErrNotFound
 		}
 	}
-	anchors, _ := json.Marshal(in.Anchors)
-	evidence, _ := json.Marshal(in.Evidence)
 	now := time.Now().UTC()
-	v, e := scanIssue(tx.QueryRowContext(ctx, `INSERT INTO issues(id,project_id,title,category,source,phase,anchors,evidence,created_by,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10) RETURNING `+issueColumns, RandomID(), project, in.Title, in.Category, in.Source, in.Phase, anchors, evidence, a.User.ID, now))
+	v, e := insertIssueTx(ctx, tx, a, project, in, "operator", trace, nil)
 	if e != nil {
-		return nil, e
-	}
-	if e = issueEventTx(ctx, tx, a, v, "create", trace, map[string]any{"origin": "operator", "evidence": in.Evidence}); e != nil {
 		return nil, e
 	}
 	response, _ := json.Marshal(map[string]string{"id": v.ID})

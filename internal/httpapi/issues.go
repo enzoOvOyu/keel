@@ -6,6 +6,22 @@ import (
 )
 
 func (a *authAPI) registerIssues(r *gin.Engine) {
+	r.GET("/api/v1/issues/:issueId/fabric-observations", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		page, ok := readPagination(c)
+		if !ok {
+			return
+		}
+		out, e := a.store.FabricIssueObservations(c.Request.Context(), actor, c.Param("issueId"), page)
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
 	r.GET("/api/v1/projects/:id/issues/targets", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {

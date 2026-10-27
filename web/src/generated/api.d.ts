@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/issues/{issueId}/fabric-observations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Immutable switch-side N-S5 observations associated by the trusted collector transaction. Current issue project membership required. Device and protocol-fixture origins remain distinct. Stale indicates expired evidence or changed network BOM; no observation here is a G2, NP-3 or issue-closure PASS. Reading does not request a device recollection. */
+        get: operations["listFabricIssueObservations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/issues/targets": {
         parameters: {
             query?: never;
@@ -3214,6 +3231,45 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FabricIssueLink: {
+            cable_uid: string;
+            issue_id: string;
+            category: string;
+            /** @enum {string} */
+            evidence_origin: "device" | "protocol_fixture";
+        };
+        FabricIssueFinding: {
+            cable_uid: string;
+            endpoint_a_uid: string;
+            endpoint_b_uid: string;
+            verdict: string;
+            issue_type: string;
+            reason: string;
+            source: string;
+            rule_ref: string;
+        };
+        FabricIssueObservation: {
+            id: string;
+            run_id: string;
+            package_id: string;
+            /** @enum {string} */
+            evidence_origin: "device" | "protocol_fixture";
+            observation_hash: string;
+            finding: components["schemas"]["FabricIssueFinding"];
+            /** Format: date-time */
+            observed_at: string;
+            /** Format: date-time */
+            valid_until: string;
+            /** Format: date-time */
+            recorded_at: string;
+            stale: boolean;
+        };
+        FabricIssueObservationPage: {
+            items: components["schemas"]["FabricIssueObservation"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
         IssueTarget: {
             /** @enum {string} */
             kind: "machine" | "component" | "port" | "switch" | "cable";
@@ -5013,6 +5069,7 @@ export interface components {
             };
         };
         FabricCollectionReport: {
+            issue_links: components["schemas"]["FabricIssueLink"][];
             id?: string;
             package_id: string;
             source_hash: string;
@@ -6782,6 +6839,35 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listFabricIssueObservations: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                issueId: components["schemas"]["EntityID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated provenance and observation history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FabricIssueObservationPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     listIssueTargets: {
         parameters: {
             query?: {
