@@ -2325,3 +2325,12 @@ ReadWiringCapture重新打开固定版本对象、核对SHA256/大小、重建�
 - 新增严格有界HostSnapshot契约与固定host.monitor操作，原命令/attempt/fence、授权到期、网络限定D1/D2、全快照D1～D6、明确截断与unknown；不支持BMC指标混入。独立helper开关KEEL_SSH_MONITOR_ENABLED默认关闭，不更改现有环境。
 - 原始快照写入私有目录、fsync后回执；共享既有只读分块回读，绑定原摘要与原命令，恢复不再采样；拒绝命令载荷、重复JSON键及越界窗口。无Agent时不会产生虚假心跳或实时翻转告警。
 - 当前只是底层，服务端领域准入/原文回收/统一入库、按需UI与5～15分钟调度尚在接线，不能声明FR-13.4完成。新增检查NOT_RUN，按用户要求待完整Agentless里程碑集中运行；仅gofmt和差异检查。运行版/数据库/原草稿保持原状，继续开发。
+
+
+## 214. Agentless原始快照入库、按需入口与持久策略调度
+
+- 接续c246318，固定host.monitor复用共享Execution/SSH信任、双资源租约、fence和原命令回收；专用准入拒绝在线Agent、维护态及泛型SSH/Flow绕行。109新增不可变请求/原始快照/逐样本回执，保留私有对象版本与原摘要；成功回执须对应原捕获，不把unknown重发为新采样。
+- 统一mon-svc消费原始host/ssh/real快照，来源期限/原时间/预算/当前物理映射独立核验，snapshot_only不伪造连续覆盖或心跳。截断明确记录缺口；维修/门禁不由快照直接授予PASS。
+- 监控和网口面板接按需入口；显式保存的监控策略由其当前作者权限持久委托5～15分钟D1/D2调度，不制造浏览器会话，策略更新/撤权/Agent上线/unknown/资源占用阻断后续新命令。worker只创建受控Execution；helper独立开关默认关闭。
+- 完整Agentless重大软件检查通过：monitor/hostmetrics/taskrunner/agentclient相关测试、隔离PG下execution/agentidentity/httpapi定向检查及前端类型检查，证据`/tmp/keel-agentless-milestone-irer0198/`。调度正向/无显式策略拒绝/浏览器退出后持久委托/重复抑制定向检查、worker和helper编译及TS通过，证据`/tmp/keel-agentless-scheduler-check-4kzudqk0/`。之后源码补充已撤权候选跳过，待P2集中回归覆盖；不重复全量检查。
+- 软件fixture验证原始捕获→回执→入库正向链，不作为硬件或完整P2验收。源码106条迁移/109，运行仍64/067，3000仍7afda32；原草稿/netbom.xlsx保持隔离。下一步portmon领域维修及拓扑交互/完整业务链收口。用户最新授权：P2功能完成后直接集中测试，通过后发布3000并提交；实际性能问题保留证据登记issue，不反复调优，不把未知原因写成性能PASS。

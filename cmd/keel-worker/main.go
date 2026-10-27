@@ -73,7 +73,7 @@ func main() {
 	if e = store.ConfigureProvisionInstall(os.Getenv("KEEL_PROVISION_INSTALL_ENABLED") == "true", os.Getenv("KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE")); e != nil {
 		fail("provision installer public trust configuration rejected")
 	}
-	if store.PrecollectEnabled || store.BMCInventoryEnabled || store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled || store.SSHScriptsEnabled || store.AgentScriptsEnabled || store.ArtifactTransfersEnabled {
+	if store.MonitorEnabled || store.PrecollectEnabled || store.BMCInventoryEnabled || store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled || store.SSHScriptsEnabled || store.AgentScriptsEnabled || store.ArtifactTransfersEnabled {
 		store.MediaObjects, e = mediaartifact.Load()
 		if e != nil || store.MediaObjects == nil {
 			fail("Provision preparation requires configured media storage")
@@ -199,6 +199,7 @@ func main() {
 	lastPrecollectTick := time.Time{}
 	lastMonitorTick := time.Time{}
 	lastMonitorHistory := time.Time{}
+	lastMonitorAgentless := time.Time{}
 	monitorOK := true
 	precollectOK := true
 	bmcPolicyOK := true
@@ -260,6 +261,9 @@ loop:
 				work, cancel := context.WithTimeout(ctx, 3*time.Second)
 				_, monitorErr := store.TickMonitorSources(work, 200)
 				if monitorErr == nil {
+					_, monitorErr = store.TickMonitorSSHSources(work, 200)
+				}
+				if monitorErr == nil {
 					monitorErr = store.TickMonitorFreshness(work)
 				}
 				if monitorErr == nil {
@@ -269,6 +273,16 @@ loop:
 				monitorOK = monitorErr == nil
 				if monitorErr != nil {
 					slog.Error("monitor freshness scan failed")
+				}
+			}
+			if store.MonitorEnabled && time.Since(lastMonitorAgentless) >= time.Minute {
+				lastMonitorAgentless = time.Now()
+				work, cancel := context.WithTimeout(ctx, 3*time.Second)
+				_, monitorErr := service.TickMonitorAgentless(work, 8)
+				cancel()
+				if monitorErr != nil {
+					monitorOK = false
+					slog.Error("Agentless monitor scheduling failed")
 				}
 			}
 			if store.MonitorEnabled && time.Since(lastMonitorHistory) >= time.Minute {

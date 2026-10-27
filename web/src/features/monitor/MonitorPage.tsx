@@ -49,7 +49,7 @@ function PolicyEditor() {
  useExpireOnUnauthorized(query.error)
  const denied = query.error instanceof ApiError && [401, 403, 404].includes(query.error.status), revision = query.data?.items.find(item => item.policy.stage === stage)
  return <section className="ui:grid ui:gap-3"><h2>{t('monitorPolicies')}</h2><ActionError error={query.error} />{!denied && <>
-  <p>{t('monitorPolicyHelp')}</p><Label htmlFor="monitor-stage">{t('monitorStage')}</Label><NativeSelect id="monitor-stage" value={stage} onChange={event => setStage(event.target.value)}>{['M1', 'M2', 'M3', 'M4', 'maintained'].map(value => <NativeSelectOption key={value} value={value}>{value}</NativeSelectOption>)}</NativeSelect>
+  <p>{t('monitorPolicyHelp')}</p><p className="field-hint">{t('monitorAgentlessPolicyHelp')}</p><Label htmlFor="monitor-stage">{t('monitorStage')}</Label><NativeSelect id="monitor-stage" value={stage} onChange={event => setStage(event.target.value)}>{['M1', 'M2', 'M3', 'M4', 'maintained'].map(value => <NativeSelectOption key={value} value={value}>{value}</NativeSelectOption>)}</NativeSelect>
   {query.data && <p>{!query.data.enabled && <strong>{t('monitorDisabled')} · </strong>}{t('monitorActiveDevices')}: {query.data.active_devices} · {t('monitorPayloadShare')}: {query.data.payload_share_bytes_per_second} B/s · {t('monitorGlobalBudget')}: {query.data.global_bytes_per_second * 8 / 1e9} Gbit/s</p>}
   {revision && <PolicyForm key={`${stage}:${revision.id}`} revision={revision} devices={query.data!.active_devices} share={query.data!.payload_share_bytes_per_second} onSaved={() => void query.refetch()} />}
  </>}</section>

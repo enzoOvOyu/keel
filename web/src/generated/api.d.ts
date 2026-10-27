@@ -4158,6 +4158,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/monitor/ssh-snapshots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Bounded original SSH snapshot; no heartbeat, continuous coverage or gate PASS. Periodic policy polling is D1/D2 only. */
+        post: operations["createMonitorSSHSnapshot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/monitor/policies": {
         parameters: {
             query?: never;
@@ -4788,6 +4805,11 @@ export interface components {
             rows: number;
             columns: number;
             cells: components["schemas"]["PortMonitorPanelCell"][];
+        };
+        MonitorSSHInput: {
+            asset_id: string;
+            network_only: boolean;
+            reason: string;
         };
         MonitorPolicy: {
             stage: string;
@@ -20210,6 +20232,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MappingCorrection"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    createMonitorSSHSnapshot: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MonitorSSHInput"];
+            };
+        };
+        responses: {
+            /** @description Source-backed precollection; no automatic topology or mapping publication. Historical verdict and current validity are separate. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
                 };
             };
             400: components["responses"]["InvalidRequest"];

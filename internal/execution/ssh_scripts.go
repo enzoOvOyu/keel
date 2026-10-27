@@ -78,7 +78,7 @@ func (s *Service) commitBoundedDispatchTx(ctx context.Context, tx *sql.Tx, c *Cl
 		return command, taskrunner.ErrUnknown
 	}
 	var claims int
-	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM exec_resource_leases WHERE attempt_id=$1 AND fencing_token=$2 AND (mode='exclusive' OR $5) AND state='held' AND expires_at>clock_timestamp() AND resource_id IN($3,$4)`, c.Attempt.ID, c.Attempt.FencingToken, "device:machine:"+c.Target.ResourceKey, c.Target.Mode+":machine:"+c.Target.ResourceKey, c.Task.Type == "host.precollect").Scan(&claims); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM exec_resource_leases WHERE attempt_id=$1 AND fencing_token=$2 AND (mode='exclusive' OR $5) AND state='held' AND expires_at>clock_timestamp() AND resource_id IN($3,$4)`, c.Attempt.ID, c.Attempt.FencingToken, "device:machine:"+c.Target.ResourceKey, c.Target.Mode+":machine:"+c.Target.ResourceKey, (c.Task.Type == "host.precollect" || c.Task.Type == "host.monitor")).Scan(&claims); err != nil {
 		return command, err
 	}
 	if claims != 2 {
@@ -89,7 +89,7 @@ func (s *Service) commitBoundedDispatchTx(ctx context.Context, tx *sql.Tx, c *Cl
 	// Read-only precollection can span renewed shared leases. Its initial
 	// authorization is still bounded by the task timeout; writes retain the
 	// stricter original lease deadline. Heartbeats cancel revoked captures.
-	if c.Task.Type != "host.precollect" && leaseDeadline.Before(deadline) {
+	if c.Task.Type != "host.precollect" && c.Task.Type != "host.monitor" && leaseDeadline.Before(deadline) {
 		deadline = leaseDeadline
 	}
 	if !deadline.After(now) {
@@ -139,7 +139,7 @@ func originalDispatchCommandTx(ctx context.Context, tx *sql.Tx, c *Claim, kind s
 	}
 	base.AuthorizationExpiresAt = original.AuthorizationExpiresAt
 	expiry := time.UnixMicro(original.AuthorizationExpiresAt)
-	if count != 1 || base != original || original.Validate() != nil || !expiry.After(authorizedAt) || expiry.After(authorizedAt.Add(time.Duration(c.Task.TimeoutMS)*time.Millisecond)) || c.Task.Type != "host.precollect" && expiry.After(leaseUntil.Add(-100*time.Millisecond)) {
+	if count != 1 || base != original || original.Validate() != nil || !expiry.After(authorizedAt) || expiry.After(authorizedAt.Add(time.Duration(c.Task.TimeoutMS)*time.Millisecond)) || c.Task.Type != "host.precollect" && c.Task.Type != "host.monitor" && expiry.After(leaseUntil.Add(-100*time.Millisecond)) {
 		return base, taskrunner.ErrUnknown
 	}
 	return original, nil

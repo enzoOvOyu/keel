@@ -14,16 +14,18 @@ import (
 )
 
 type SSHCreateInput struct {
-	ArtifactMediaID     string   `json:"artifact_media_id,omitempty"`
-	PreferScriptCache   bool     `json:"prefer_script_cache,omitempty"`
-	CacheCursor         string   `json:"cache_cursor,omitempty"`
-	CacheManifestSHA256 string   `json:"cache_manifest_sha256,omitempty"`
-	ScriptResultFormat  string   `json:"script_result_format,omitempty"`
-	ScriptMediaID       string   `json:"script_media_id,omitempty"`
-	MachineIDs          []string `json:"machine_ids"`
-	Operation           string   `json:"operation"`
-	TimeoutMS           int      `json:"timeout_ms"`
-	WaitMS              int      `json:"wait_ms"`
+	monitorDelegation   *monitorSSHDelegation
+	Monitor             *MonitorSSHInput `json:"monitor,omitempty"`
+	ArtifactMediaID     string           `json:"artifact_media_id,omitempty"`
+	PreferScriptCache   bool             `json:"prefer_script_cache,omitempty"`
+	CacheCursor         string           `json:"cache_cursor,omitempty"`
+	CacheManifestSHA256 string           `json:"cache_manifest_sha256,omitempty"`
+	ScriptResultFormat  string           `json:"script_result_format,omitempty"`
+	ScriptMediaID       string           `json:"script_media_id,omitempty"`
+	MachineIDs          []string         `json:"machine_ids"`
+	Operation           string           `json:"operation"`
+	TimeoutMS           int              `json:"timeout_ms"`
+	WaitMS              int              `json:"wait_ms"`
 }
 
 func (s *Service) sshTargetTx(ctx context.Context, tx *sql.Tx, project, machine string) (Target, error) {
@@ -56,6 +58,9 @@ func (s *Service) sshTargetForPrecollectTx(ctx context.Context, tx *sql.Tx, proj
 }
 
 func (s *Service) sshFrozenTx(ctx context.Context, tx *sql.Tx, t Target) error {
+	if t.Monitor {
+		return s.monitorSSHFrozenTx(ctx, tx, t)
+	}
 	if t.Precollect != nil {
 		return s.precollectFrozenTx(ctx, tx, t)
 	}
@@ -73,7 +78,7 @@ func (s *Service) sshFrozenTx(ctx context.Context, tx *sql.Tx, t Target) error {
 }
 
 func (s *Service) CreateSSH(ctx context.Context, a *Actor, project string, in SSHCreateInput, key, trace string) (*Execution, error) {
-	if in.ArtifactMediaID != "" || in.PreferScriptCache || in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" && in.Operation != "host.artifact.inventory" {
+	if in.Monitor != nil || in.ArtifactMediaID != "" || in.PreferScriptCache || in.ScriptMediaID != "" || in.ScriptResultFormat != "" || in.Operation != "host.identity" && in.Operation != "host.wait" && in.Operation != "host.cache.inventory" && in.Operation != "host.artifact.inventory" {
 		return nil, invalid("Only allowlisted bounded read-only host queries are admitted by this endpoint")
 	}
 	return s.createSSH(ctx, a, project, in, "", 0, key, trace)
@@ -94,6 +99,12 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 		return nil, err
 	}
 	check := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: project, MachineID: "00000000000000000000000000000000", CommandID: "00000000000000000000000000000000", AttemptID: "00000000000000000000000000000000", FencingToken: 1, Operation: in.Operation, TimeoutMS: in.TimeoutMS, WaitMS: in.WaitMS, CacheCursor: in.CacheCursor, CacheManifestSHA256: in.CacheManifestSHA256}
+	if in.Operation == "host.monitor" {
+		check.AuthorizationExpiresAt = 1
+		if in.Monitor == nil {
+			return nil, invalid("Monitor domain admission required")
+		}
+	}
 	if (in.Operation != "script.run" && in.Operation != "media.stage" && in.Operation != "media.fetch" && (in.PreferScriptCache || check.Validate() != nil)) || (in.Operation == "script.run" && (in.CacheCursor != "" || in.CacheManifestSHA256 != "" || in.ScriptResultFormat != "" && in.ScriptResultFormat != "json" || in.TimeoutMS < 100 || in.TimeoutMS > 30000 || in.WaitMS != 0 || requestID != "" || !opaqueID.MatchString(in.ScriptMediaID))) || (requestID == "" && len(in.MachineIDs) == 0) || len(in.MachineIDs) > 32 || in.CacheCursor != "" && len(in.MachineIDs) != 1 {
 		return nil, invalid("1..32 machine IDs and a bounded host.identity or host.wait operation are required")
 	}
@@ -111,12 +122,21 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 		}
 	}()
 	roles := []string{"Admin", "DE", "DL", "SRE"}
+	if in.Monitor != nil {
+		roles = append(roles, "NE")
+	}
 	if requestID != "" {
 		roles = []string{"Admin", "DL", "SRE"}
 	}
-	if e = authorize(ctx, tx, a, project, roles...); e != nil {
+	if in.monitorDelegation != nil {
+		e = monitorSSHDelegateTx(ctx, tx, a, project, in)
+	} else {
+		e = authorize(ctx, tx, a, project, roles...)
+	}
+	if e != nil {
 		return nil, e
 	}
+
 	ids := append([]string{}, in.MachineIDs...)
 	sort.Strings(ids)
 	in.MachineIDs = ids
@@ -136,6 +156,18 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 	if prior != nil {
 		x, e := decode[Execution](prior)
 		return &x, e
+	}
+	if in.Monitor != nil {
+		if e = advisory(ctx, tx, "monitor-ssh-admission:"+project+":"+in.Monitor.AssetID); e != nil {
+			return nil, e
+		}
+		var pending bool
+		if e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM monitor_ssh_requests request JOIN exec_executions execution ON execution.id=request.execution_id WHERE request.project_id=$1 AND request.asset_id=$2 AND (execution.state NOT IN('success','failed','killed','warning') OR EXISTS(SELECT 1 FROM exec_task_attempts attempt WHERE attempt.execution_id=execution.id AND attempt.state='unknown')))`, project, in.Monitor.AssetID).Scan(&pending); e != nil {
+			return nil, e
+		}
+		if pending {
+			return nil, failure(409, "MONITOR_SNAPSHOT_IN_FLIGHT", "Retain or reconcile the existing monitor snapshot before collecting again")
+		}
 	}
 	var artifact *platform.TaskArtifact
 	if in.Operation == "media.stage" || in.Operation == "media.fetch" {
@@ -196,6 +228,9 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 		var t Target
 		if requestID != "" {
 			t, e = s.sshTrustTargetTx(ctx, tx, project, requestID, "approved")
+		} else if in.Monitor != nil {
+			t, e = s.sshTargetForPrecollectTx(ctx, tx, project, machine, true)
+			t.Monitor = true
 		} else {
 			t, e = s.sshTargetTx(ctx, tx, project, machine)
 		}
@@ -232,6 +267,11 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 		return nil, e
 	}
 	params := map[string]any{"ssh_wait_ms": in.WaitMS}
+	if in.Monitor != nil {
+		params["monitor_kind"] = "snapshot"
+		params["monitor_network_only"] = in.Monitor.NetworkOnly
+		params["reason"] = in.Monitor.Reason
+	}
 	if in.CacheCursor != "" {
 		params["cache_cursor"] = in.CacheCursor
 	}
@@ -271,6 +311,13 @@ func (s *Service) createSSH(ctx context.Context, a *Actor, project string, in SS
 			return nil, e
 		}
 	}
+	if in.Monitor != nil {
+		for _, target := range targets {
+			if e = s.MediaStore.PrepareMonitorSSHRequestTx(ctx, tx, project, in.Monitor.AssetID, target.ResourceKey, x.ID, target.Revision, in.Monitor.NetworkOnly); e != nil {
+				return nil, e
+			}
+		}
+	}
 	if e = event(ctx, tx, x.ID, "execution.created", map[string]any{"mode": "ssh", "target_count": len(targets), "operation": in.Operation}); e != nil {
 		return nil, e
 	}
@@ -308,6 +355,9 @@ func sshCommand(c *Claim) taskrunner.TaskCommand {
 		wait = c.Task.WaitMS
 	}
 	command := taskrunner.TaskCommand{APIVersion: taskrunner.APIVersion, ProjectID: c.Target.ProjectID, MachineID: c.Target.ResourceKey, CommandID: c.Attempt.CommandID, AttemptID: c.Attempt.ID, FencingToken: c.Attempt.FencingToken, Operation: c.Task.Type, TimeoutMS: c.Task.TimeoutMS, WaitMS: wait}
+	if c.Task.Type == "host.monitor" {
+		command.MonitorNetworkOnly, _ = c.Parameters["monitor_network_only"].(bool)
+	}
 	command.CacheCursor, _ = c.Parameters["cache_cursor"].(string)
 	command.CacheManifestSHA256, _ = c.Parameters["cache_manifest_sha256"].(string)
 	if c.Target.SSHInstallKey != nil {
@@ -363,6 +413,12 @@ func (s *Service) recordSSH(ctx context.Context, o taskrunner.Observation) error
 }
 
 func (s *Service) recordHost(ctx context.Context, mode string, o taskrunner.Observation) error {
+	if o.Command.Operation == "host.monitor" {
+		if mode != "ssh" {
+			return taskrunner.ErrRejected
+		}
+		return s.recordMonitorSSHObservation(ctx, o)
+	}
 	if o.Command.Operation == "host.precollect" {
 		if mode != "ssh" {
 			return taskrunner.ErrRejected
@@ -431,13 +487,16 @@ func (s *Service) runHostClaim(ctx context.Context, c *Claim, mode string) error
 	}
 	if e == nil {
 		var ok bool
-		e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM exec_task_attempts a JOIN exec_executions x ON x.id=a.execution_id JOIN users u ON u.id=x.created_by JOIN projects p ON p.id=x.project_id WHERE a.id=$1 AND a.fencing_token=$2 AND a.lease_owner=$3 AND a.state='running' AND a.lease_until>now() AND x.desired_state='running' AND u.enabled AND p.state NOT IN('archived','delivered') AND (u.is_admin OR EXISTS(SELECT 1 FROM memberships m WHERE m.project_id=x.project_id AND m.user_id=u.id AND m.role IN('Admin','DE','DL','SRE'))))`, c.Attempt.ID, c.Attempt.FencingToken, c.Attempt.LeaseOwner).Scan(&ok)
+		e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM exec_task_attempts a JOIN exec_executions x ON x.id=a.execution_id JOIN users u ON u.id=x.created_by JOIN projects p ON p.id=x.project_id WHERE a.id=$1 AND a.fencing_token=$2 AND a.lease_owner=$3 AND a.state='running' AND a.lease_until>now() AND x.desired_state='running' AND u.enabled AND p.state NOT IN('archived','delivered') AND (u.is_admin OR EXISTS(SELECT 1 FROM memberships m WHERE m.project_id=x.project_id AND m.user_id=u.id AND (m.role IN('Admin','DE','DL','SRE') OR m.role='NE' AND x.parameters->>'monitor_kind'='snapshot'))))`, c.Attempt.ID, c.Attempt.FencingToken, c.Attempt.LeaseOwner).Scan(&ok)
 		if e == nil && !ok {
 			e = taskrunner.ErrRejected
 		}
 	}
-	if e == nil && (c.Task.Script != nil || c.Task.Artifact != nil || c.Task.Type == "host.precollect") {
+	if e == nil && (c.Task.Script != nil || c.Task.Artifact != nil || c.Task.Type == "host.precollect" || c.Task.Type == "host.monitor") {
 		kind := "script.dispatch_committed"
+		if c.Task.Type == "host.monitor" {
+			kind = "monitor.dispatch_committed"
+		}
 		if c.Task.Type == "host.precollect" {
 			kind = "precollect.dispatch_committed"
 		}
@@ -463,7 +522,7 @@ func (s *Service) runHostClaim(ctx context.Context, c *Claim, mode string) error
 		work, stop = context.WithDeadline(work, *c.Target.SSHTrustExpiresAt)
 		defer stop()
 	}
-	if c.Task.Artifact != nil || c.Task.Type == "host.precollect" {
+	if c.Task.Artifact != nil || c.Task.Type == "host.precollect" || c.Task.Type == "host.monitor" {
 		var deadlineCancel context.CancelFunc
 		work, deadlineCancel = context.WithDeadline(work, time.UnixMicro(command.AuthorizationExpiresAt))
 		defer deadlineCancel()
@@ -538,7 +597,7 @@ func (s *Service) runHostClaim(ctx context.Context, c *Claim, mode string) error
 		return taskrunner.ErrUnknown
 	}
 	finishBudget := 5 * time.Second
-	if command.Operation == "host.precollect" {
+	if command.Operation == "host.precollect" || command.Operation == "host.monitor" {
 		finishBudget = 15 * time.Second
 	}
 	finish, done := context.WithTimeout(context.Background(), finishBudget)
@@ -613,7 +672,7 @@ func (s *Service) FetchSSHReceipt(ctx context.Context, a *Actor, project, id, at
 			target = t
 		}
 	}
-	if target.Precollect != nil {
+	if target.Precollect != nil || target.Monitor {
 		e = s.precollectRecoveryBindingTx(ctx, tx, target)
 	} else {
 		e = s.sshFrozenTx(ctx, tx, target)
@@ -627,6 +686,12 @@ func (s *Service) FetchSSHReceipt(ctx context.Context, a *Actor, project, id, at
 	}
 	c := &Claim{Attempt: attempt, Target: target, Task: task, Parameters: x.Parameters}
 	command := sshCommand(c)
+	if task.Type == "host.monitor" {
+		command, e = originalDispatchCommandTx(ctx, tx, c, "monitor.dispatch_committed")
+		if e != nil {
+			return nil, e
+		}
+	}
 	if task.Type == "host.precollect" {
 		command, e = originalDispatchCommandTx(ctx, tx, c, "precollect.dispatch_committed")
 		if e != nil {

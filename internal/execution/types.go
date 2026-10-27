@@ -103,6 +103,7 @@ type FlowVersion struct {
 	CreatedAt   time.Time  `json:"created_at"`
 }
 type Target struct {
+	Monitor                 bool                          `json:"monitor,omitempty"`
 	Precollect              *platform.PrecollectScope     `json:"precollect,omitempty"`
 	ProvisionInstallationID string                        `json:"provision_installation_id,omitempty"`
 	ProvisionRequestID      string                        `json:"provision_request_id,omitempty"`

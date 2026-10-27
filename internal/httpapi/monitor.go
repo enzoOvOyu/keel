@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"github.com/enzoOvOyu/keel/internal/execution"
 	"github.com/enzoOvOyu/keel/internal/platform"
 	"github.com/gin-gonic/gin"
 	"strconv"
@@ -8,6 +9,23 @@ import (
 
 func (a *authAPI) registerMonitor(r *gin.Engine) {
 	base := "/api/v1/projects/:id/monitor"
+	r.POST(base+"/ssh-snapshots", func(c *gin.Context) {
+		actor, service, ok := a.executionProject(c, true)
+		if !ok {
+			return
+		}
+		service.MediaStore = a.store
+		var input execution.MonitorSSHInput
+		if !decodeExecutionBody(c, &input) {
+			return
+		}
+		out, err := service.CreateMonitorSSHSnapshot(c.Request.Context(), actor, c.Param("id"), input, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
+		if err != nil {
+			a.respondError(c, err)
+			return
+		}
+		c.JSON(202, out)
+	})
 	r.GET(base+"/policies", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok {

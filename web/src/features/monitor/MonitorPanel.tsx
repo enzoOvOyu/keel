@@ -1,3 +1,4 @@
+import AgentlessSnapshotControl from './AgentlessSnapshotControl'
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -24,7 +25,7 @@ export default function MonitorPanel({ assetId }: { assetId: string }) {
  const data = snapshot.data
  function freshness(item: MonitorObservation) { if (item.snapshot_only) return item.source_valid_until && Date.parse(item.source_valid_until) > now && item.freshness !== 'stale' ? 'fresh' : 'stale'; return item.freshness === 'stopped' ? 'stopped' : item.freshness === 'stale' || Date.parse(item.sample.observed_at) + item.stale_after_seconds * 1000 <= now || Date.parse(item.received_at) + item.stale_after_seconds * 1000 <= now ? 'stale' : 'fresh' }
  return <section className="ui:grid ui:gap-3"><h3>{t('monitorDetail')}</h3><p>{t('monitorSourceHelp')}</p><ActionError error={snapshot.error} /><ActionError error={trend.error} />
-  {!denied && <><Button variant="outline" disabled={snapshot.isFetching} onClick={() => { setNow(Date.now()); void snapshot.refetch(); if (selected) void trend.refetch() }}>{t('topologyRefresh')}</Button>
+  {!denied && <><AgentlessSnapshotControl key={assetId} assetId={assetId} /><Button variant="outline" disabled={snapshot.isFetching} onClick={() => { setNow(Date.now()); void snapshot.refetch(); if (selected) void trend.refetch() }}>{t('topologyRefresh')}</Button>
    {snapshot.isPending && <p role="status">{t('loadingRecords')}</p>}
    {data && <>
     {!data.collection_enabled && <p role="status">{t('monitorDisabled')}</p>}

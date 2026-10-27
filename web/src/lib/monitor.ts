@@ -1,4 +1,5 @@
 import type { components } from '../generated/api'
+import type { components as execution } from '../generated/execution'
 import { request } from './api'
 export type MonitorPolicy = components['schemas']['MonitorPolicy']
 export type MonitorPolicyRevision = components['schemas']['MonitorPolicyRevision']
@@ -13,3 +14,5 @@ export const suppressMonitorAlert = (project: string, id: string, body: componen
 const assetBase = (project: string, asset: string) => `/projects/${encodeURIComponent(project)}/assets/${encodeURIComponent(asset)}/monitor`
 export const monitorSnapshot = (project: string, asset: string, cursor: number, signal: AbortSignal) => request<components['schemas']['MonitorSnapshot']>(`${assetBase(project, asset)}?cursor=${cursor}`, { signal })
 export const monitorTrend = (project: string, asset: string, sample: MonitorObservation, window: string, signal: AbortSignal) => request<MonitorTrend>(`${assetBase(project, asset)}/trends?${new URLSearchParams({ key: sample.sample.key, entity: sample.sample.entity, source: sample.source, method: sample.method, origin: sample.origin, window })}`, { signal })
+
+export const createMonitorSSHSnapshot = (project: string, body: components['schemas']['MonitorSSHInput'], csrf: string, key: string) => request<execution['schemas']['Execution']>(`${monitorBase(project)}/ssh-snapshots`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify(body) })

@@ -189,27 +189,34 @@ func (s *Store) TickMonitorSources(ctx context.Context, limit int) (int, error) 
 	}
 	for key, ids := range frames {
 		c := scopes[key]
-		rows, e = tx.QueryContext(ctx, `SELECT `+monitorObservationFields+` FROM monitor_metric_samples sample JOIN monitor_metric_latest latest ON latest.sample_sequence=sample.sequence WHERE sample.project_id=$1 AND sample.machine_id=$2 AND sample.credential_id IS NULL AND sample.frame_id=ANY($3) ORDER BY sample.sequence`, c.Project, c.Machine, ids)
-		if e != nil {
-			return 0, e
-		}
-		observations := []MonitorObservation{}
-		for rows.Next() {
-			item, err := scanMonitorObservation(rows, now)
-			if err != nil {
-				rows.Close()
-				return 0, err
-			}
-			observations = append(observations, *item)
-		}
-		e = rows.Err()
-		rows.Close()
-		if e != nil {
-			return 0, e
-		}
-		if e = s.monitorEvaluateObservationsTx(ctx, tx, c.Project, c.Machine, observations, now); e != nil {
+		if e = s.monitorEvaluateSourceFramesTx(ctx, tx, c.Project, c.Machine, ids, now); e != nil {
 			return 0, e
 		}
 	}
 	return processed, tx.Commit()
+}
+
+func (s *Store) monitorEvaluateSourceFramesTx(ctx context.Context, tx *sql.Tx, project, machine string, ids []string, now time.Time) error {
+	rows, e := tx.QueryContext(ctx, `SELECT `+monitorObservationFields+` FROM monitor_metric_samples sample JOIN monitor_metric_latest latest ON latest.sample_sequence=sample.sequence WHERE sample.project_id=$1 AND sample.machine_id=$2 AND sample.credential_id IS NULL AND sample.frame_id=ANY($3) ORDER BY sample.sequence`, project, machine, ids)
+	if e != nil {
+		return e
+	}
+	observations := []MonitorObservation{}
+	for rows.Next() {
+		item, err := scanMonitorObservation(rows, now)
+		if err != nil {
+			rows.Close()
+			return err
+		}
+		observations = append(observations, *item)
+	}
+	e = rows.Err()
+	rows.Close()
+	if e != nil {
+		return e
+	}
+	if e = s.monitorEvaluateObservationsTx(ctx, tx, project, machine, observations, now); e != nil {
+		return e
+	}
+	return nil
 }
