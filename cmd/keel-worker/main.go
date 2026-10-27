@@ -12,6 +12,8 @@ import (
 	"github.com/enzoOvOyu/keel/internal/mediaartifact"
 	"github.com/enzoOvOyu/keel/internal/platform"
 	"github.com/enzoOvOyu/keel/internal/webhook"
+	"github.com/enzoOvOyu/keel/internal/wiring"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -105,6 +107,27 @@ func main() {
 	if store.FabricIssueVerificationEnabled && store.FabricProbes.CollectorConfigured() {
 		service.IssueStore = store
 	}
+	// Explicit development-only synthetic adapter; never fallback from real I/O.
+	if fixturePath := os.Getenv("KEEL_WIRING_FIXTURE_FILE"); fixturePath != "" {
+		if os.Getenv("KEEL_ENV") != "development" || !store.WiringEnabled {
+			fail("wiring fixtures require explicit development wiring mode")
+		}
+		fixtureFile, err := os.Open(fixturePath)
+		if err != nil {
+			fail("wiring fixture unavailable")
+		}
+		raw, err := io.ReadAll(io.LimitReader(fixtureFile, wiring.MaxCaptureBytes+1))
+		fixtureFile.Close()
+		if err != nil || len(raw) > wiring.MaxCaptureBytes {
+			fail("wiring fixture exceeds bounds")
+		}
+		adapters, err := execution.NewFixtureWiringAdapters(raw)
+		if err != nil {
+			fail("wiring fixture rejected")
+		}
+		service.WiringStore = store
+		service.WiringAdapters = adapters
+	}
 	agentConfig, e := agentidentity.Load(os.Getenv("KEEL_AGENT_WORKER_FILE"))
 	if e != nil || (agentConfig != nil && !agentConfig.TasksEnabled) {
 		fail("Agent worker configuration rejected")
@@ -162,7 +185,7 @@ func main() {
 		fail("Agent worker listener configuration rejected")
 	}
 	var refreshDone <-chan struct{}
-	if service.AgentRunner != nil || service.SSHRunner != nil {
+	if service.AgentRunner != nil || service.SSHRunner != nil || service.WiringAdapters != nil {
 		refreshDone = startHostReceiptRefresh(ctx, service)
 	}
 	listenerFailed := false

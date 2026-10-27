@@ -12,3 +12,5 @@ export const getWiringHandshake = (project: string, id: string, signal: AbortSig
 export type WiringBatch = components['schemas']['WiringBatch']
 export const createWiringBatch = (project: string, handshakeId: string, factsHash: string, reason: string, csrf: string, key: string) => request<WiringBatch>(`${base(project)}/batches`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify({ handshake_id: handshakeId, facts_hash: factsHash, reason }) })
 export const getWiringBatch = (project: string, id: string, signal: AbortSignal) => request<WiringBatch>(`${base(project)}/batches/${encodeURIComponent(id)}`, { signal })
+
+export const createWiringExecution = (project: string, body: components['schemas']['WiringRunInput'], csrf: string, key: string) => request<import('../generated/execution').components['schemas']['Execution']>(`${base(project)}/executions`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify(body) })

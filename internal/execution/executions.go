@@ -376,6 +376,10 @@ func (s *Service) Control(ctx context.Context, a *Actor, projectID, id string, i
 				return nil, platform.ErrForbidden
 			}
 		}
+	} else if kind, _ := x.Parameters["validation_kind"].(string); kind == "wiring" {
+		if e = authorize(ctx, tx, a, projectID, "Admin", "DE", "DL", "NE", "SRE"); e != nil {
+			return nil, e
+		}
 	} else if x.Mode == "kea" || x.Mode == "fabric" {
 		if e = authorize(ctx, tx, a, projectID, "Admin", "NDE"); e != nil {
 			return nil, e

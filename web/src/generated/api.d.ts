@@ -4012,6 +4012,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/validation/wiring/executions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Engineering roles admit an existing passing Step 1 batch with an exact fresh handshake. Each host refreshes readiness at dispatch and exclusively leases host and switch resources. No browser adapter selection, automatic retry, G2 or NP-3 publication. Simulated results remain blocked for real gates. */
+        post: operations["createWiringExecution"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/validation/wiring/batches": {
         parameters: {
             query?: never;
@@ -4062,6 +4079,22 @@ export interface components {
             switch_port: string;
             switch_chassis_ids: string[];
         };
+        WiringRunInput: {
+            batch_id: string;
+            handshake_id: string;
+            facts_hash: string;
+            reason: string;
+        };
+        WiringFinding: {
+            physical_port_id: string;
+            cable_id: string;
+            verdict: string;
+            category: string;
+            code: string;
+            step: number;
+            expected?: unknown;
+            actual?: unknown;
+        };
         WiringBatchInput: {
             handshake_id: string;
             facts_hash: string;
@@ -4072,7 +4105,12 @@ export interface components {
             step: number;
             verdict: string;
             topology_id: string;
-            relations: components["schemas"]["PciTopologyRelationTable"];
+            relations: components["schemas"]["PciTopologyRelationTable"] | null;
+            command_id?: string;
+            raw_sha256?: string;
+            host_origin?: string;
+            switch_origin?: string;
+            findings?: components["schemas"]["WiringFinding"][] | null;
         };
         WiringExpectation: {
             version: string;
@@ -18735,6 +18773,44 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
+    createWiringExecution: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WiringRunInput"];
+            };
+        };
+        responses: {
+            /** @description Shared Execution admitted; hardware result unproven */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     createWiringBatch: {
         parameters: {
             query?: never;
@@ -18753,7 +18829,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            /** @description Immutable Step 1 and current four-step timeline. A fresh exact handshake is consumed once; later LLDP execution requires separate admission and dispatch readiness. No automatic G2 or NP-3. */
             200: {
                 headers: {
                     [name: string]: unknown;

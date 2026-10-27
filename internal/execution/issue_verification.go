@@ -190,7 +190,7 @@ func (s *Service) applyIssueVerificationReceipt(ctx context.Context, tx *sql.Tx,
 }
 func lockIssueVerificationExecutionTx(ctx context.Context, tx *sql.Tx, id string) error {
 	var issue bool
-	if e := tx.QueryRowContext(ctx, `SELECT parameters ? 'issue_verification_id' FROM exec_executions WHERE id=$1`, id).Scan(&issue); e != nil {
+	if e := tx.QueryRowContext(ctx, `SELECT parameters ? 'issue_verification_id' OR coalesce(parameters->>'validation_kind','')='wiring' FROM exec_executions WHERE id=$1`, id).Scan(&issue); e != nil {
 		if errors.Is(e, sql.ErrNoRows) {
 			return platform.ErrNotFound
 		}

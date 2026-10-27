@@ -77,6 +77,9 @@ func startHostReceiptRefresh(ctx context.Context, service *execution.Service) <-
 				work, cancel = context.WithTimeout(ctx, 3*time.Second)
 				_, _ = service.RefreshAgentReceipts(work, 4)
 				cancel()
+				work, cancel = context.WithTimeout(ctx, 30*time.Second)
+				_, _ = service.RefreshWiringReceipts(work, 1)
+				cancel()
 			}
 		}
 	}()

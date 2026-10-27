@@ -231,7 +231,7 @@ func (s *Store) wiringHandshakeTx(ctx context.Context, tx *sql.Tx, project, id s
 		return nil, e
 	}
 	var dispatched bool
-	if e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM validation_wiring_commands WHERE handshake_id=$1)`, out.ID).Scan(&dispatched); e != nil {
+	if e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM validation_wiring_commands WHERE handshake_id=$1) OR EXISTS(SELECT 1 FROM validation_wiring_runs WHERE handshake_id=$1)`, out.ID).Scan(&dispatched); e != nil {
 		return nil, e
 	}
 	if out.BatchID != "" || dispatched {

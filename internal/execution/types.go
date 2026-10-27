@@ -25,6 +25,8 @@ import (
 )
 
 type Service struct {
+	WiringStore          *platform.Store
+	WiringAdapters       WiringAdapters
 	Queue                executionqueue.Transport
 	scriptProofMu        sync.Mutex
 	scriptProofCursor    int64

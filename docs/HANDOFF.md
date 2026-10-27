@@ -1,15 +1,17 @@
 # 当前开发状态
 
-更新：2026-10-27；当前集中测试结果见 [P1验证记录](P1-VALIDATION-2026-10-27.md) 与§160～162，性能待复验项见 [P1-001](issues/P1-001-test-host-resource-timeouts.md)。用户发布后决定P1带遗留项收口、允许进入P2（§164）；main已合并并推送至`1a96897`，当前P2分支`dev/p2-validation`接续§198；3000现为`7afda32`、数据库64条迁移（最后067），发布证据见§163。后续编号章节保留历史快照；操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
+更新：2026-10-27；当前集中测试结果见 [P1验证记录](P1-VALIDATION-2026-10-27.md) 与§160～162，性能待复验项见 [P1-001](issues/P1-001-test-host-resource-timeouts.md)。用户发布后决定P1带遗留项收口、允许进入P2（§164）；main已合并并推送至`1a96897`，当前P2分支`dev/p2-validation`接续§199；3000现为`7afda32`、数据库64条迁移（最后067），发布证据见§163。后续编号章节保留历史快照；操作方法见 [DEPLOYMENT](DEPLOYMENT.md)，开发契约见 [DEVELOPMENT](DEVELOPMENT.md)。
 
 ## 当前恢复入口（2026-10-27，集中测试检查点）
 
 当前P1逻辑设备扇出按200台。本轮执行容量200/200成功（8.235秒，sim），完整12组控制/恢复/权限检查通过；200逻辑ZTP仍因整包超时待复验。原2,000台后续优化，成功率/介质完整性/权限/恢复要求保留。
 
-### 低Token接续入口（2026-10-27，接续§198）
+### 低Token接续入口（2026-10-27，接续§199）
 
 P2工作包现状与下一开发顺序见[P2-PROGRESS](P2-PROGRESS.md)。重点：先用模拟适配器接通共同Execution准入/worker/原回执与Step2～4，再接G2/NP-3/G3；真实helper预留到PoC，不强推硬件前置。
 
+
+- §199：接通LLDP共同Execution准入/worker路由/全主机与交换机独占资源、执行前单主机新握手、固定开发模拟适配器、原回执绑定Step2/3版本报告、TTL/前驱失效、界面启动/报告入口与unknown原查询。091本地nonstart墓碑阻止晚到启动，不凭远端404释放；恢复只保留原回执，隔离资源仍需显式reconcile。源88条迁移（排除026），068～091未应用，新增用例NOT_RUN；下一步服务器布线工单/限定重跑、DL Step4/G2/NP-3，再G3。
 
 - §197接续4504314：注册命令内部Run/Query消费者、持久主机启动意图/独立停止归档、未知时只查询原采集器并合成历史证据源码；088待应用，源85条/运行64条。尚未接共享Execution创建/worker路由、真实特权helper、已完成runner回执消费或Step2～4发布。新用例NOT_RUN；09:05:21～11:05:21 UTC窗口已收尾，见§198。
 
@@ -2167,3 +2169,14 @@ ReadWiringCapture重新打开固定版本对象、核对SHA256/大小、重建�
 下一任务是用模拟适配器接共享Execution创建/worker/原runner回执，再开放Step2/3发布与限定重跑/开单，接DL确认、G2/NP-3及G3；真实helper保留到PoC，不能提前要求NP-3或P3健康链。监控、portmon、门禁豁免/KPI和完整服务器抽屉按依赖继续。
 
 本轮仅源码审查、gofmt、API类型生成和本地提交；全部新增功能/数据库/浏览器/硬件用例NOT_RUN，未编译/静态检查/构建镜像/执行授权或迁移/发布/推送。源85条迁移、运行64条最后067，3000仍7afda32；原两份草稿保留且未读取或修改。工作树仅余该两份原未跟踪草稿。
+
+
+## 199. P2 共同 LLDP Execution 与原回执 Step2/3（源码）
+
+- 用户最新指令为持续开发到P2完成，保持单Agent、里程碑集中验证。当前分支dev/p2-validation，工作区/opt/keel；本节是中间源码检查点，P2未闭环。
+- 新建域执行接口POST /projects/:id/validation/wiring/executions：精确冻结既有Step1批次，准入消耗新握手；worker实际派发前重新做单主机collector检查和最长30秒握手，绑定当前G1/拓扑/BOM/端口/Golden/管理与collector配置。动态采样ID更新不伪装为物理身份变化。
+- 共享fabric Execution绑定固定wiring.capture，零自动重试，主机及全部相关交换机device/ssh资源独占；worker显式开发配置KEEL_WIRING_FIXTURE_FILE只允许development及WiringEnabled，来源固定sim/protocol_fixture，非真实门禁PASS。
+- 原始停止归档反读后才可记录共同runner receipt；该回执只能消费对应原始哈希与Step2/3判据。Step2不PASS不产生Step3；报告版本/前驱/TTL与目录策略变化均保留历史并显示当前失效。
+- 本地未启动墓碑与command/host-start数据库屏障互斥；有未知启动意图时不能冒充未启动。后台unknown恢复只查询原命令/保存原回执，不Begin、不POST、不重试、不自动解除隔离，仍走原Execution显式reconcile。
+- 界面提供刷新就绪并启动LLDP、执行任务入口、报告刷新及原始差异。Step4/G2/NP-3、G3、服务器工单/限定重跑等仍待开发；真实受控helper留给硬件PoC。
+- 089～091待应用，源码迁移88条（排除原026），运行64条/最后067；3000仍7afda32。完成gofmt、API类型生成与git diff --check；新增单元/隔离PG用例已写未运行，编译/功能/数据库/浏览器/镜像验证均NOT_RUN。无部署、push或真实设备操作。原两份fabric_precheck草稿及netbom.xlsx原样保留、未纳入提交。

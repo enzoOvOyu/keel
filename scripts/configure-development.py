@@ -44,6 +44,8 @@ DO $keel$ BEGIN
   IF to_regclass('public.network_address_plans') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON network_address_plans,network_address_plan_approvals FROM keel_app; END IF;
   IF to_regclass('public.asset_view_revisions') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON asset_view_revisions FROM keel_app; REVOKE DELETE,TRUNCATE ON asset_views FROM keel_app; END IF;
   IF to_regclass('public.pci_topology_snapshots') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON pci_topology_snapshots,topology_diffs,topology_issue_bindings FROM keel_app; END IF;
+  IF to_regclass('public.validation_wiring_nonstarts') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON validation_wiring_nonstarts FROM keel_app; END IF;
+  IF to_regclass('public.validation_wiring_runs') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON validation_wiring_runs,validation_wiring_run_targets FROM keel_app; END IF;
   IF to_regclass('public.validation_wiring_host_proofs') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON validation_wiring_host_dispatches,validation_wiring_host_proofs FROM keel_app; END IF;
   IF to_regclass('public.validation_wiring_capture_records') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON validation_wiring_readback_queries,validation_wiring_capture_records FROM keel_app; END IF;
   IF to_regclass('public.validation_wiring_commands') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON validation_wiring_commands,validation_wiring_readback_windows,validation_wiring_readback_dispatches,validation_wiring_readback_results FROM keel_app; END IF;

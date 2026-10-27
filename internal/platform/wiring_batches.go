@@ -40,13 +40,19 @@ type WiringBatchTarget struct {
 	Reports     []WiringStepReport     `json:"reports"`
 }
 type WiringStepDetail struct {
-	Version    string                 `json:"version"`
-	Step       int                    `json:"step"`
-	Verdict    string                 `json:"verdict"`
-	TopologyID string                 `json:"topology_id"`
-	Relations  *TopologyRelationTable `json:"relations"`
+	CommandID    string                 `json:"command_id,omitempty"`
+	RawSHA256    string                 `json:"raw_sha256,omitempty"`
+	HostOrigin   string                 `json:"host_origin,omitempty"`
+	SwitchOrigin string                 `json:"switch_origin,omitempty"`
+	Findings     []wiring.Finding       `json:"findings"`
+	Version      string                 `json:"version"`
+	Step         int                    `json:"step"`
+	Verdict      string                 `json:"verdict"`
+	TopologyID   string                 `json:"topology_id"`
+	Relations    *TopologyRelationTable `json:"relations"`
 }
 type WiringStepReport struct {
+	PolicyHash         string           `json:"-"`
 	ValidUntil         *time.Time       `json:"valid_until"`
 	ID                 string           `json:"id"`
 	BatchID            string           `json:"batch_id"`
@@ -188,14 +194,14 @@ func (s *Store) wiringBatchTx(ctx context.Context, tx *sql.Tx, project, id strin
 	}
 	for i := range out.Targets {
 		target := &out.Targets[i]
-		rows, e = tx.QueryContext(ctx, `SELECT id,step,version,coalesce(parent_id,''),source_hash,verdict,detail,created_by,created_at FROM validation_wiring_step_reports WHERE batch_id=$1 AND asset_id=$2 ORDER BY step,version`, id, target.AssetID)
+		rows, e = tx.QueryContext(ctx, `SELECT id,step,version,coalesce(parent_id,''),source_hash,verdict,detail,created_by,created_at,valid_until,coalesce(policy_hash,'') FROM validation_wiring_step_reports WHERE batch_id=$1 AND asset_id=$2 ORDER BY step,version`, id, target.AssetID)
 		if e != nil {
 			return nil, e
 		}
 		for rows.Next() {
 			report := WiringStepReport{BatchID: id, AssetID: target.AssetID}
 			var raw []byte
-			if e = rows.Scan(&report.ID, &report.Step, &report.Version, &report.ParentID, &report.SourceHash, &report.Verdict, &raw, &report.CreatedBy, &report.CreatedAt); e != nil {
+			if e = rows.Scan(&report.ID, &report.Step, &report.Version, &report.ParentID, &report.SourceHash, &report.Verdict, &raw, &report.CreatedBy, &report.CreatedAt, &report.ValidUntil, &report.PolicyHash); e != nil {
 				rows.Close()
 				return nil, e
 			}
@@ -215,9 +221,24 @@ func (s *Store) wiringBatchTx(ctx context.Context, tx *sql.Tx, project, id strin
 		if e != nil {
 			return nil, e
 		}
+		var currentPolicy string
+		for _, r := range target.Reports {
+			if r.Step > 1 {
+				_, currentPolicy, e = wiringReportPolicyTx(ctx, tx, project)
+				if e != nil {
+					return nil, e
+				}
+				break
+			}
+		}
 		for j := range target.Reports {
 			report := &target.Reports[j]
-			report.ValidUntil = &topology.ValidUntil
+			if report.Step == 1 {
+				report.ValidUntil = &topology.ValidUntil
+			} else if report.ValidUntil == nil || !report.ValidUntil.After(time.Now()) || report.PolicyHash != currentPolicy || topology.EffectiveVerdict != "PASS" {
+				report.EffectiveVerdict = "BLOCKED"
+				report.InvalidationReason = "WIRING_EVIDENCE_EXPIRED_OR_CHANGED"
+			}
 			// Step 1's validity follows topology, independently of the original network
 			// handshake expiring. Fresh network proof is checked again at dispatch.
 			if report.Step == 1 && (topology.EffectiveVerdict != "PASS" || target.Relations == nil || topology.ScopeHash != target.Relations.ScopeHash) {
@@ -231,6 +252,7 @@ func (s *Store) wiringBatchTx(ctx context.Context, tx *sql.Tx, project, id strin
 			}
 		}
 	}
+	projectWiringBatch(&out, s.WiringEnabled)
 	return &out, nil
 }
 func (s *Store) GetWiringBatch(ctx context.Context, a *AuthSession, project, id string) (*WiringBatch, error) {
@@ -247,4 +269,58 @@ func (s *Store) GetWiringBatch(ctx context.Context, a *AuthSession, project, id 
 		return nil, e
 	}
 	return out, tx.Commit()
+}
+
+// Project historical reports against the latest exact predecessor, including
+// a newer failed Step 2 invalidating an older passing Step 3/confirmation.
+func projectWiringBatch(out *WiringBatch, enabled bool) {
+	out.CanStartStep2 = enabled
+	out.State = "awaiting_capture"
+	out.Code = "WIRING_CAPTURE_REQUIRED"
+	out.NextStep = 2
+	allThree := len(out.Targets) > 0
+	for i := range out.Targets {
+		t := &out.Targets[i]
+		latest := map[int]*WiringStepReport{}
+		for j := range t.Reports {
+			r := &t.Reports[j]
+			if old := latest[r.Step]; old == nil || old.Version < r.Version {
+				latest[r.Step] = r
+			}
+		}
+		one := latest[1]
+		if one == nil || one.EffectiveVerdict != "PASS" {
+			out.CanStartStep2 = false
+			out.State = "step1_blocked"
+			out.Code = "WIRING_STEP1_REQUIRED"
+			out.NextStep = 1
+		}
+		for step := 2; step <= 4; step++ {
+			for j := range t.Reports {
+				r := &t.Reports[j]
+				if r.Step != step {
+					continue
+				}
+				p := latest[step-1]
+				if p == nil || p.ID != r.ParentID || p.EffectiveVerdict != "PASS" {
+					r.EffectiveVerdict = "BLOCKED"
+					r.InvalidationReason = "WIRING_PREDECESSOR_CHANGED"
+				}
+			}
+		}
+		if latest[2] == nil || latest[2].EffectiveVerdict != "PASS" || latest[3] == nil || latest[3].EffectiveVerdict != "PASS" {
+			allThree = false
+		}
+	}
+	if allThree {
+		out.State = "awaiting_dl_confirmation"
+		out.NextStep = 4
+		out.Code = "WIRING_DL_CONFIRMATION_REQUIRED"
+	}
+	if !enabled {
+		out.CanStartStep2 = false
+		if out.NextStep != 1 {
+			out.Code = "WIRING_DISABLED"
+		}
+	}
 }
