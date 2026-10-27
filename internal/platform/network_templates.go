@@ -13,22 +13,28 @@ import (
 )
 
 type NetworkTemplateInput struct {
-	Name       string               `json:"name"`
-	SourceRef  string               `json:"source_ref"`
-	Definition netbaseline.Template `json:"definition"`
+	ParentVersionID    string               `json:"parent_version_id,omitempty"`
+	ExpectedParentHash string               `json:"expected_parent_hash,omitempty"`
+	ChangeReason       string               `json:"change_reason,omitempty"`
+	Name               string               `json:"name"`
+	SourceRef          string               `json:"source_ref"`
+	Definition         netbaseline.Template `json:"definition"`
 }
 type NetworkTemplateVersion struct {
-	ID          string                 `json:"id"`
-	ProjectID   string                 `json:"project_id"`
-	Name        string                 `json:"name"`
-	Version     int64                  `json:"version"`
-	State       string                 `json:"state"`
-	SourceRef   string                 `json:"source_ref"`
-	Definition  netbaseline.Template   `json:"definition"`
-	ContentHash string                 `json:"content_hash"`
-	TestReport  *NetworkTemplateReport `json:"test_report,omitempty"`
-	CreatedBy   string                 `json:"created_by"`
-	CreatedAt   time.Time              `json:"created_at"`
+	ParentVersionID string                 `json:"parent_version_id,omitempty"`
+	RollbackFromID  string                 `json:"rollback_from_id,omitempty"`
+	ChangeReason    string                 `json:"change_reason,omitempty"`
+	ID              string                 `json:"id"`
+	ProjectID       string                 `json:"project_id"`
+	Name            string                 `json:"name"`
+	Version         int64                  `json:"version"`
+	State           string                 `json:"state"`
+	SourceRef       string                 `json:"source_ref"`
+	Definition      netbaseline.Template   `json:"definition"`
+	ContentHash     string                 `json:"content_hash"`
+	TestReport      *NetworkTemplateReport `json:"test_report,omitempty"`
+	CreatedBy       string                 `json:"created_by"`
+	CreatedAt       time.Time              `json:"created_at"`
 }
 type NetworkPlanInput struct {
 	TemplateID  string `json:"template_id"`
@@ -60,12 +66,12 @@ type NetworkTemplateReport struct {
 	Checks         []netbaseline.OperationResult `json:"checks"`
 }
 
-const networkTemplateFields = "id,project_id,name,version,state,source_ref,definition,content_hash,test_report,created_by,created_at"
+const networkTemplateFields = "id,project_id,name,version,state,source_ref,definition,content_hash,test_report,created_by,created_at,coalesce(parent_version_id,''),coalesce(rollback_from_id,''),change_reason"
 
 func scanNetworkTemplate(row scanner) (*NetworkTemplateVersion, error) {
 	var v NetworkTemplateVersion
 	var raw, report []byte
-	e := row.Scan(&v.ID, &v.ProjectID, &v.Name, &v.Version, &v.State, &v.SourceRef, &raw, &v.ContentHash, &report, &v.CreatedBy, &v.CreatedAt)
+	e := row.Scan(&v.ID, &v.ProjectID, &v.Name, &v.Version, &v.State, &v.SourceRef, &raw, &v.ContentHash, &report, &v.CreatedBy, &v.CreatedAt, &v.ParentVersionID, &v.RollbackFromID, &v.ChangeReason)
 	if e != nil {
 		return nil, e
 	}
@@ -108,21 +114,29 @@ func (s *Store) CreateNetworkTemplate(ctx context.Context, a *AuthSession, p *Pr
 	if e = requireFabricPermission(ctx, tx, a, p.ID, "fabric:template:edit"); e != nil {
 		return nil, e
 	}
-	var version int64
-	if e = tx.QueryRowContext(ctx, `SELECT coalesce(max(version),0)+1 FROM network_template_versions WHERE project_id=$1 AND name=$2`, p.ID, input.Name).Scan(&version); e != nil {
-		return nil, e
+	input.ChangeReason = strings.TrimSpace(input.ChangeReason)
+	if len([]rune(input.ChangeReason)) > 1000 {
+		return nil, apiError(400, "NETWORK_TEMPLATE_INVALID", "Change reason exceeds 1000 characters")
 	}
-	v := &NetworkTemplateVersion{ID: RandomID(), ProjectID: p.ID, Name: input.Name, Version: version, State: "draft", SourceRef: input.SourceRef, Definition: input.Definition, ContentHash: netbaseline.ContentHash(input.Definition), CreatedBy: a.User.ID, CreatedAt: time.Now().UTC()}
-	raw, _ := json.Marshal(v.Definition)
-	_, e = tx.ExecContext(ctx, `INSERT INTO network_template_versions(id,project_id,name,version,state,source_ref,definition,content_hash,created_by,created_at,updated_at) VALUES($1,$2,$3,$4,'draft',$5,$6,$7,$8,$9,$9)`, v.ID, p.ID, v.Name, v.Version, v.SourceRef, raw, v.ContentHash, a.User.ID, v.CreatedAt)
+	head, e := latestNetworkTemplateTx(ctx, tx, p.ID, input.Name)
 	if e != nil {
 		return nil, e
 	}
-	if e = appendAudit(ctx, tx, a.User.ID, p.ID, "network.template.import", v.ID, trace, map[string]any{"version": version, "content_hash": v.ContentHash, "source_ref": v.SourceRef}); e != nil {
+	if input.ParentVersionID != "" || input.ExpectedParentHash != "" {
+		if head == nil || input.ParentVersionID != head.ID || input.ExpectedParentHash != head.ContentHash {
+			return nil, apiError(409, "NETWORK_TEMPLATE_HEAD_CHANGED", "Review the latest family version before creating a successor")
+		}
+	}
+	v, e := insertNetworkTemplateTx(ctx, tx, a, p.ID, input, head, "")
+	if e != nil {
+		return nil, e
+	}
+	if e = appendAudit(ctx, tx, a.User.ID, p.ID, "network.template.import", v.ID, trace, map[string]any{"version": v.Version, "content_hash": v.ContentHash, "source_ref": v.SourceRef, "parent_version_id": v.ParentVersionID, "change_reason": v.ChangeReason}); e != nil {
 		return nil, e
 	}
 	return v, tx.Commit()
 }
+
 func networkTemplateFactsTx(ctx context.Context, tx *sql.Tx, project string, input NetworkPlanInput) (*NetworkTemplateVersion, string, []NetworkPlannedDevice, error) {
 	if !bootRouteRef.MatchString(input.BatchRef) || !bomProfileVersionPattern.MatchString(input.BaselineRef) {
 		return nil, "", nil, apiError(400, "NETWORK_PLAN_INVALID", "Select an approved baseline and current batch")

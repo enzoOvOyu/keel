@@ -2376,6 +2376,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/fabric/templates/{templateId}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rollbackNetworkTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/fabric/templates/{templateId}/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["networkTemplateImpact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/fabric/templates/{templateId}/test": {
         parameters: {
             query?: never;
@@ -5199,11 +5231,18 @@ export interface components {
             };
         };
         NetworkTemplateInput: {
+            /** @description Optional reviewed family head; requires expected_parent_hash. */
+            parent_version_id?: string;
+            expected_parent_hash?: string;
+            change_reason?: string;
             name: string;
             source_ref: string;
             definition: components["schemas"]["NetworkTemplateDefinition"];
         };
         NetworkTemplateVersion: {
+            parent_version_id?: string;
+            rollback_from_id?: string;
+            change_reason?: string;
             id: string;
             project_id: string;
             name: string;
@@ -5217,6 +5256,52 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             test_report?: components["schemas"]["NetworkTemplateReport"];
+        };
+        NetworkTemplateRollbackInput: {
+            expected_head_id: string;
+            expected_head_hash: string;
+            reason: string;
+        };
+        NetworkTemplateImpact: {
+            /** @enum {string} */
+            version: "network-template-impact/v1";
+            project_id: string;
+            base_template_id: string;
+            base_content_hash: string;
+            candidate_template_id: string;
+            candidate_content_hash: string;
+            referencing_jobs: number;
+            referencing_batches: number;
+            referencing_devices: number;
+            /** @description Latest production attempt still references this base */
+            current_devices: number;
+            page: number;
+            page_size: number;
+            /** Format: date-time */
+            evaluated_at: string;
+            /** Format: date-time */
+            valid_until: string;
+            items: components["schemas"]["NetworkTemplateImpactDevice"][];
+        };
+        NetworkTemplateImpactDevice: {
+            switch_id: string;
+            serial: string;
+            job_id: string;
+            execution_id: string;
+            batch_ref: string;
+            baseline_ref: string;
+            previous_intended_hash: string;
+            candidate_intended_hash?: string;
+            /** @enum {string} */
+            verdict: "DIFF" | "UNCHANGED" | "BLOCKED";
+            reason?: string;
+            /** @enum {string} */
+            evidence_source?: "device" | "protocol_fixture";
+            changes: {
+                path: string;
+                /** @enum {string} */
+                severity: "Critical" | "Major" | "Minor";
+            }[];
         };
         NetworkPlannedDevice: {
             approved_variables?: {
@@ -13037,6 +13122,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NetworkTemplateVersion"];
+                };
+            };
+        };
+    };
+    rollbackNetworkTemplate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: string;
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NetworkTemplateRollbackInput"];
+            };
+        };
+        responses: {
+            /** @description Historical released content restored as a new untested draft; independent release and new production approvals remain required. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkTemplateVersion"];
+                };
+            };
+            /** @description Family head changed or rollback target is not a historical release. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    networkTemplateImpact: {
+        parameters: {
+            query?: {
+                /** @description Earlier family version; defaults to the immutable parent. */
+                base_template_id?: string;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Read-only potential Golden diff using current approved facts and retained production intent. No device I/O, approvals or configuration writes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkTemplateImpact"];
                 };
             };
         };

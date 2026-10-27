@@ -2674,6 +2674,42 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/NetworkTemplateVersion' }
+  /api/v1/projects/{id}/fabric/templates/{templateId}/rollback:
+    post:
+      operationId: rollbackNetworkTemplate
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: templateId, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NetworkTemplateRollbackInput' }
+      responses:
+        '201':
+          description: Historical released content restored as a new untested draft; independent release and new production approvals remain required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkTemplateVersion' }
+        '409': { description: Family head changed or rollback target is not a historical release. }
+  /api/v1/projects/{id}/fabric/templates/{templateId}/impact:
+    get:
+      operationId: networkTemplateImpact
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: templateId, in: path, required: true, schema: { type: string } }
+        - { name: base_template_id, in: query, schema: { type: string }, description: Earlier family version; defaults to the immutable parent. }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: page_size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Read-only potential Golden diff using current approved facts and retained production intent. No device I/O, approvals or configuration writes.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkTemplateImpact' }
   /api/v1/projects/{id}/fabric/templates/{templateId}/test:
     post:
       operationId: testNetworkTemplate
@@ -4080,6 +4116,9 @@ components:
       type: object
       required: [name, source_ref, definition]
       properties:
+        parent_version_id: { type: string, description: Optional reviewed family head; requires expected_parent_hash. }
+        expected_parent_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        change_reason: { type: string, maxLength: 1000 }
         name: { type: string, maxLength: 120 }
         source_ref: { type: string, maxLength: 300 }
         definition: { $ref: '#/components/schemas/NetworkTemplateDefinition' }
@@ -4087,6 +4126,9 @@ components:
       type: object
       required: [id, project_id, name, version, state, source_ref, definition, content_hash, created_by, created_at]
       properties:
+        parent_version_id: { type: string }
+        rollback_from_id: { type: string }
+        change_reason: { type: string }
         id: { type: string }
         project_id: { type: string }
         name: { type: string }
@@ -4098,6 +4140,55 @@ components:
         created_by: { type: string }
         created_at: { type: string, format: date-time }
         test_report: { $ref: '#/components/schemas/NetworkTemplateReport' }
+    NetworkTemplateRollbackInput:
+      type: object
+      required: [expected_head_id, expected_head_hash, reason]
+      properties:
+        expected_head_id: { type: string, pattern: '^[a-f0-9]{32}$' }
+        expected_head_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+    NetworkTemplateImpact:
+      type: object
+      required: [version, project_id, base_template_id, base_content_hash, candidate_template_id, candidate_content_hash, referencing_jobs, referencing_batches, referencing_devices, current_devices, page, page_size, evaluated_at, valid_until, items]
+      properties:
+        version: { type: string, enum: [network-template-impact/v1] }
+        project_id: { type: string }
+        base_template_id: { type: string }
+        base_content_hash: { type: string }
+        candidate_template_id: { type: string }
+        candidate_content_hash: { type: string }
+        referencing_jobs: { type: integer }
+        referencing_batches: { type: integer }
+        referencing_devices: { type: integer }
+        current_devices: { type: integer, description: Latest production attempt still references this base, including unresolved outcomes. }
+        page: { type: integer }
+        page_size: { type: integer }
+        evaluated_at: { type: string, format: date-time }
+        valid_until: { type: string, format: date-time }
+        items: { type: array, items: { $ref: '#/components/schemas/NetworkTemplateImpactDevice' } }
+    NetworkTemplateImpactDevice:
+      type: object
+      required: [switch_id, serial, job_id, execution_id, batch_ref, baseline_ref, previous_intended_hash, verdict, changes]
+      properties:
+        switch_id: { type: string }
+        serial: { type: string }
+        job_id: { type: string }
+        execution_id: { type: string }
+        batch_ref: { type: string }
+        baseline_ref: { type: string }
+        previous_intended_hash: { type: string }
+        candidate_intended_hash: { type: string }
+        verdict: { type: string, enum: [DIFF, UNCHANGED, BLOCKED] }
+        reason: { type: string }
+        evidence_source: { type: string, enum: [device, protocol_fixture] }
+        changes:
+          type: array
+          items:
+            type: object
+            required: [path, severity]
+            properties:
+              path: { type: string }
+              severity: { type: string, enum: [Critical, Major, Minor] }
     NetworkPlannedDevice:
       type: object
       required: [intended_id, id, serial, hostname, management_ip, model_version_id, credential_batch_ref, intended_hash]
