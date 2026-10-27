@@ -44,6 +44,7 @@ DO $keel$ BEGIN
   IF to_regclass('public.network_address_plans') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON network_address_plans,network_address_plan_approvals FROM keel_app; END IF;
   IF to_regclass('public.asset_view_revisions') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON asset_view_revisions FROM keel_app; REVOKE DELETE,TRUNCATE ON asset_views FROM keel_app; END IF;
   IF to_regclass('public.pci_topology_snapshots') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON pci_topology_snapshots,topology_diffs,topology_issue_bindings FROM keel_app; END IF;
+  IF to_regclass('public.topology_issue_retests') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON topology_issue_retests,topology_issue_escalations FROM keel_app; END IF;
   IF to_regclass('public.validation_precollect_requests') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON validation_precollect_requests,validation_precollect_records,validation_precollect_ports,validation_gate_evidence FROM keel_app; END IF;
   IF to_regclass('public.bmc_credential_verification_results') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON bmc_credential_verifications,bmc_credential_verification_targets,bmc_credential_verification_results FROM keel_app; END IF;
   IF to_regclass('public.bmc_policy_runs') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON bmc_policy_runs,bmc_inventory_events FROM keel_app; REVOKE DELETE,TRUNCATE ON bmc_collection_policies FROM keel_app; END IF;

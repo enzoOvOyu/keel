@@ -12,6 +12,7 @@ import (
 func TestAssetViewsPrivateSharingCASAndRetainedProjectionPostgres(t *testing.T) {
 	f := agentKernel(t)
 	other := agentKernel(t)
+	other.actor, other.username = ordinaryTestActor(t, f.store)
 	ctx := context.Background()
 	_, e := f.store.ControlCreateMember(ctx, f.actor, f.project, platform.CreateMemberInput{Username: other.username, Role: "DE"}, "asset-view-test")
 	mustAgent(t, e)

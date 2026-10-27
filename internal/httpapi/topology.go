@@ -7,6 +7,50 @@ import (
 
 func (a *authAPI) registerTopology(r *gin.Engine) {
 	base := "/api/v1/projects/:id/assets/:assetId/topology"
+	r.GET("/api/v1/issues/:issueId/topology-retests/scope", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		out, e := a.store.PreviewTopologyRetest(c.Request.Context(), actor, c.Param("issueId"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
+	r.GET("/api/v1/issues/:issueId/topology-retests", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		page, ok := readPagination(c)
+		if !ok {
+			return
+		}
+		out, e := a.store.ListTopologyRetests(c.Request.Context(), actor, c.Param("issueId"), page)
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
+	r.POST("/api/v1/issues/:issueId/topology-retests", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok || !a.writeAllowed(c) {
+			return
+		}
+		var in platform.TopologyRetestInput
+		if !decodeExecutionBody(c, &in) {
+			return
+		}
+		out, e := a.store.CreateTopologyRetest(c.Request.Context(), actor, c.Param("issueId"), in, c.GetHeader("Idempotency-Key"), c.GetString("trace_id"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
 	r.GET(base+"/scope", func(c *gin.Context) {
 		actor, _, ok := a.executionProject(c, false)
 		if !ok {

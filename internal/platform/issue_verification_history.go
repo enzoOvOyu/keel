@@ -96,6 +96,9 @@ func canConfirmIssueVerification(item *Issue, role, actor string) bool {
 	return role == "Admin" || role == "DL" || role == "NE" && item.AssigneeID == actor
 }
 func (s *Store) issueVerificationCloseEvidenceTx(ctx context.Context, tx *sql.Tx, item *Issue) (*IssueVerificationRequest, error) {
+	if item.Source == "topology" && item.Category == "T7" {
+		return s.topologyCloseEvidenceTx(ctx, tx, item)
+	}
 	var id, execution string
 	var expiry time.Time
 	e := tx.QueryRowContext(ctx, `SELECT q.id,q.execution_id,r.valid_until FROM issue_verification_results r JOIN issue_verification_requests q ON q.id=r.request_id JOIN exec_executions x ON x.id=q.execution_id WHERE q.issue_id=$1 AND r.verdict='PASS' AND r.applied_issue_version=$2 AND x.state='success' ORDER BY r.evaluated_at DESC,q.id DESC LIMIT 1`, item.ID, item.Version).Scan(&id, &execution, &expiry)

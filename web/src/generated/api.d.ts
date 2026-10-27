@@ -3900,10 +3900,85 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/issues/{issueId}/topology-retests/scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["previewTopologyRetest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/issues/{issueId}/topology-retests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listTopologyRetests"];
+        put?: never;
+        post: operations["createTopologyRetest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        PciTopologyRetestInput: {
+            version: number;
+            snapshot_id: string;
+            reason: string;
+        };
+        PciTopologyRetestScope: {
+            issue_id: string;
+            project_id: string;
+            asset_id: string;
+            issue_version: number;
+            repair_version: number;
+            repaired_at: string | null;
+            snapshot_id: string;
+            snapshot_verdict: string;
+            ready: boolean;
+            blockers: string[];
+        };
+        PciTopologyRetest: {
+            id: string;
+            issue_id: string;
+            project_id: string;
+            asset_id: string;
+            snapshot_id: string;
+            execution_id: string;
+            repair_version: number;
+            applied_issue_version: number;
+            scope_hash: string;
+            verdict: string;
+            reason: string;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            stale: boolean;
+            can_close: boolean;
+            escalated: boolean;
+            recipient_ids: string[];
+        };
+        PciTopologyRetestPage: {
+            items: components["schemas"]["PciTopologyRetest"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
         PciTopologyNode: {
             bdf: string;
             root: string;
@@ -18031,6 +18106,97 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PciTopologySnapshot"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    previewTopologyRetest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description T7 retest consumes new post-repair precollection and current G1/topology; PASS requires explicit common issue close confirmation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PciTopologyRetestScope"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listTopologyRetests: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                issueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description T7 retest consumes new post-repair precollection and current G1/topology; PASS requires explicit common issue close confirmation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PciTopologyRetestPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    createTopologyRetest: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+                "Idempotency-Key": string;
+            };
+            path: {
+                issueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PciTopologyRetestInput"];
+            };
+        };
+        responses: {
+            /** @description T7 retest consumes new post-repair precollection and current G1/topology; PASS requires explicit common issue close confirmation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PciTopologyRetest"];
                 };
             };
             400: components["responses"]["InvalidRequest"];

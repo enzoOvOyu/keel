@@ -6,9 +6,28 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/enzoOvOyu/keel/internal/pcitopology"
 )
 
 func pointer[T any](v T) *T { return &v }
+
+func TestIncompleteTopologyStillArchivesStoppedCapture(t *testing.T) {
+	now := time.Now().UTC()
+	b := Bundle{Version: Version, Origin: "sim", StartedAt: now.Add(-time.Second), CollectedAt: now, Serial: "fixture", Arch: "amd64", OSRelease: "ID=fixture", PCINodes: []pcitopology.Node{{BDF: "0000:03:00.0", Root: "pci0000:00", Upstream: []string{"0000:01:00.0"}}}}
+	raw, _ := json.Marshal(b)
+	decoded, e := Decode(raw, now)
+	if e != nil {
+		t.Fatal("bounded original capture rejected", e)
+	}
+	r, e := Normalize(decoded)
+	if e != nil {
+		t.Fatal("original stop proof cannot be archived", e)
+	}
+	if r.Topology == nil || r.Topology.Validate() != nil || len(r.Topology.Missing) == 0 {
+		t.Fatal("unsupported topology became valid evidence", r.Topology)
+	}
+}
 func completeReport(gpuCount int, arch string, now time.Time) (*Report, Expectation) {
 	e := Expectation{Serial: "POC-UNVERIFIED", Arch: arch, GPUCount: pointer(gpuCount), NICCount: pointer(1), Ports: []ExpectedPort{{ID: strings.Repeat("a", 32), ComponentID: strings.Repeat("b", 32), MAC: "02:00:00:00:00:01", PortIndex: "1"}}}
 	r := &Report{Version: Version, Origin: "real", Serial: e.Serial, Arch: arch, OSRelease: "ID=fixture", CollectedAt: now.Add(-time.Minute), ConfigUnchanged: true, PCITopology: "retained PCI tree", GPUTopology: "retained GPU matrix", NVLinkStatus: "retained NVLink state", RDMADevices: []string{"mlx5_0"}, GPUs: []GPU{}, NICs: []NIC{{Name: "enp1s0", BDF: "0000:01:00.0", PermanentMAC: e.Ports[0].MAC, Link: "yes", SpeedMbps: pointer(int64(100000)), Driver: "mlx5_core", DriverVersion: "fixture-driver", RDMALinks: []string{"mlx5_0/1"}, DOMState: "ready", ModulePresent: pointer(true), TemperatureC: pointer(35.0), RxPowerDBm: pointer(-2.0), TxPowerDBm: pointer(-1.0)}}}

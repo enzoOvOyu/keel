@@ -32,7 +32,7 @@ func (s *Store) IssueEscalationInbox(ctx context.Context, a *AuthSession, projec
 			return out, e
 		}
 	}
-	where := ` FROM issue_escalations n JOIN issues i ON i.id=n.issue_id WHERE ($3='' OR n.project_id=$3) AND ($2 OR (n.recipient_ids @> jsonb_build_array($1::text) AND EXISTS(SELECT 1 FROM memberships m WHERE m.user_id=$1 AND m.project_id=n.project_id AND m.role='DL')))`
+	where := ` FROM (SELECT request_id,issue_id,project_id,execution_id,recipient_ids,created_at FROM issue_escalations UNION ALL SELECT request_id,issue_id,project_id,execution_id,recipient_ids,created_at FROM topology_issue_escalations) n JOIN issues i ON i.id=n.issue_id WHERE ($3='' OR n.project_id=$3) AND ($2 OR (n.recipient_ids @> jsonb_build_array($1::text) AND EXISTS(SELECT 1 FROM memberships m WHERE m.user_id=$1 AND m.project_id=n.project_id AND m.role='DL')))`
 	if e = tx.QueryRowContext(ctx, "SELECT count(*)"+where, a.User.ID, a.User.IsAdmin, project).Scan(&out.Total); e != nil {
 		return out, e
 	}
