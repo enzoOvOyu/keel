@@ -30,7 +30,7 @@ curl --fail http://127.0.0.1:3000/healthz
 
 配置目录700、秘密文件600；不打印配置内容。PostgreSQL/Redis/MinIO 命名卷保留；更新不使用 `down -v`。数据服务可用不等于其上业务已实现。开发 MinIO 采用仓库固定的官方源码构建，生产维护/备份/授权按发布要求另行验证。
 
-### 可选 Redis Streams 执行队列（源码待集中验证）
+### 可选 Redis Streams 执行队列
 
 worker 未配置 `KEEL_EXECUTION_QUEUE_FILE` 时保持 PostgreSQL-only 模式，不能据此宣称 Redis 队列通过。启用需先按正式迁移流程应用066～067（本轮未执行），准备独占命名空间的 Redis 7+ 服务，并提供属主可读、无符号链接的0600配置文件：
 
@@ -44,7 +44,7 @@ PostgreSQL业务状态与outbox同事务。Redis只存版本化CloudEvent公共�
 
 配置Redis后故障不静默冒充DB-only成功：新created等待队列恢复，已scheduled任务仍走原Claim、fence和权限检查；租约回收继续运行，失败周期停止刷新健康心跳（原10秒时效，067将心跳绑定队列模式，DB-only不代替Redis健康）。缓存重建不生成TaskAttempt、不重放unknown副作用。非法/未知/投影不匹配引用先写无载荷的拒绝记录再ACK。没有故障自动删除数据库数据或放弃对账。
 
-后续集中验收可为Agent入口显式传 `--redis-address 127.0.0.1:16379`，只连接独立Redis测试服务，不启动或清空服务，随机命名空间仅清理自身两键。报告分别列PostgreSQL事务/去重、真实Redis协议与Redis+PostgreSQL串联组；未提供fixture或用例skip不算Redis通过。该入口及本批源码本轮均未执行，现有3000/数据库/Redis配置不变。
+集中验收可为Agent入口显式传 `--redis-address 127.0.0.1:16379`，只连接独立Redis测试服务，不启动或清空服务，随机命名空间仅清理自身两键。报告分别列PostgreSQL事务/去重、真实Redis协议与Redis+PostgreSQL串联组；未提供fixture或用例skip不算Redis通过。2026-10-27已完成独立协议及6项ExecutionStream定向检查，实际结果、整批状态和待复验项见 [P1验证记录](P1-VALIDATION-2026-10-27.md)。现有3000/业务数据库/Redis配置未变，启用仍需先按部署流程完成迁移和受控配置。
 
 当前环境直接访问loopback服务。只有从另一台电脑访问历史远端部署时才配置可选SSH隧道，本地开发不执行：
 

@@ -12,6 +12,8 @@
 
 日志：`agent-batch.log` 对应 `/tmp/keel-agent-integration-dxd9l_fe/go-integration.log`；需保留其中实际用例输出、失败边界、耗时及候选版本。测试日志可能包含一次性测试数据，不提交完整私有日志或凭据。
 
+原始临时目录的日志/结果已按白名单复制至持久目录`/home/ubuntu/.local/state/keel/evidence/p1-20261027/runs/`，保留原目录名；摘要索引为上级`evidence-index.json`。完整集中状态见[本轮验证记录](../P1-VALIDATION-2026-10-27.md)。
+
 ## 处置边界
 
 首批还有整包10分钟预算耗尽：execution包结束时`TestProvisionInstallationFirstSSHPostgres`仅运行11秒；platform包结束时`TestZTPP1LogicalBatch200Postgres`运行3分44秒，堆栈位于200条DUID预留的`MergeBootstrap136`计算，未发现锁等待证据。两者均不能据此判定单用例死锁或通过，保留待隔离复验，不直接提高整包预算。Agent浏览器子进程也在期限内被终止，虽然打印了部分成功断言，整项仍为未通过。
