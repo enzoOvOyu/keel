@@ -87,6 +87,7 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 		auth.registerExecutionRerun(r)
 		auth.registerFlowWorkbench(r)
 		auth.registerModels(r)
+		auth.registerBMCInventory(r)
 		auth.registerModelImports(r)
 		auth.registerBomImport(r)
 		auth.registerProvisionPreview(r)

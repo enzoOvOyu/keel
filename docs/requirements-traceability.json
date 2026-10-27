@@ -172,7 +172,14 @@
         "F-3.3",
         "H-2"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Bounded read-only L1/L2/L3 Redfish collector, explicit sim/real origins, pinned credential identity, exact versioned raw objects and JSONB evidence, immutable source migration076, scoped read APIs and static freshness now have source. Shared execution/manual admission, cron/event scheduling, encrypted batch provider, IPMI fallback and acceptance remain incomplete. New test sources are NOT_RUN; no database migration or deployment. See HANDOFF section178.",
+      "evidence_refs": [
+        "internal/bmc/collector.go",
+        "internal/platform/bmc_inventory.go",
+        "internal/platform/bmc_inventory_reads.go",
+        "docs/HANDOFF.md"
+      ]
     },
     {
       "id": "FR-4",
@@ -1827,7 +1834,14 @@
         "F-3.2",
         "F-3.4"
       ],
-      "implementation_status": "planned"
+      "implementation_status": "partial",
+      "implementation_notes": "Bounded read-only L1/L2/L3 Redfish collector, explicit sim/real origins, pinned credential identity, exact versioned raw objects and JSONB evidence, immutable source migration076, scoped read APIs and static freshness now have source. Shared execution/manual admission, cron/event scheduling, encrypted batch provider, IPMI fallback and acceptance remain incomplete. New test sources are NOT_RUN; no database migration or deployment. See HANDOFF section178.",
+      "evidence_refs": [
+        "internal/bmc/collector.go",
+        "internal/platform/bmc_inventory.go",
+        "internal/platform/bmc_inventory_reads.go",
+        "docs/HANDOFF.md"
+      ]
     },
     {
       "id": "WP-2.2",

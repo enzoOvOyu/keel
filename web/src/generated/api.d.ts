@@ -2360,6 +2360,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/assets/{assetId}/bmc/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Project-scoped immutable inventory history. This read never contacts a BMC. Quality, static freshness and sim/real origin do not constitute G1 or dynamic network readiness. */
+        get: operations["listBMCCollections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/bmc/collections/{collectionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getBMCCollection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/bmc/collections/{collectionId}/raw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Downloads only the exact resource recorded under this collection after fully verifying the pinned object version, byte count and SHA256. Arbitrary object keys are never accepted. */
+        get: operations["getBMCRawResource"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/fabric/devices/{deviceId}/configuration": {
         parameters: {
             query?: never;
@@ -5336,6 +5386,102 @@ export interface components {
                     after_present: boolean;
                 }[];
             }[];
+        };
+        BMCCollectionSummary: {
+            id: string;
+            project_id: string;
+            asset_id: string;
+            machine_id: string;
+            execution_id: string;
+            /** @enum {string} */
+            level: "L1" | "L2" | "L3";
+            /** @enum {string} */
+            origin: "sim" | "real";
+            /** @enum {string} */
+            state: "completed" | "partial" | "failed";
+            parser_version: string;
+            /** Format: date-time */
+            collected_at: string;
+            /** Format: date-time */
+            received_at: string;
+            content_hash: string;
+            identity_matched: boolean;
+            asset_current: boolean;
+            /** @enum {string} */
+            freshness: "fresh" | "aging" | "stale" | "unknown" | "unsupported";
+            /** Format: int64 */
+            freshness_max_age_seconds: number;
+            resource_count: number;
+            failure_count: number;
+        };
+        BMCCollectionPage: {
+            items: components["schemas"]["BMCCollectionSummary"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        BMCCollectionDetail: components["schemas"]["BMCCollectionSummary"] & {
+            report: components["schemas"]["BMCInventorySnapshot"];
+        };
+        BMCInventorySnapshot: {
+            /** @enum {string} */
+            version: "bmc-inventory/v1";
+            target: {
+                request_id: string;
+                project_id: string;
+                asset_id: string;
+                machine_id: string;
+                /** Format: int64 */
+                asset_version: number;
+                serial: string;
+                credential_batch_ref: string;
+                credential_version: string;
+            };
+            /** @enum {string} */
+            level: "L1" | "L2" | "L3";
+            /** @enum {string} */
+            origin: "sim" | "real";
+            /** @enum {string} */
+            source: "bmc";
+            parser_version: string;
+            /** @enum {string} */
+            state: "completed" | "partial" | "failed";
+            identity_matched: boolean;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            collected_at: string;
+            resources: {
+                path: string;
+                type: string;
+                data_sha256: string;
+                /** @enum {string} */
+                source: "bmc";
+                /** Format: date-time */
+                received_at: string;
+                data: {
+                    [key: string]: unknown;
+                };
+                raw: {
+                    key: string;
+                    version: string;
+                    sha256: string;
+                    /** Format: int64 */
+                    size: number;
+                };
+            }[];
+            failures: {
+                path: string;
+                /** @enum {string} */
+                class: "authentication_failed" | "timeout" | "version_unsupported" | "partial_failure";
+                code: string;
+                http_status?: number;
+                retryable: boolean;
+            }[];
+            capabilities: {
+                [key: string]: "unknown" | "advertised" | "collected" | "partial" | "unsupported" | "not_requested";
+            };
+            degraded: boolean;
         };
         NetworkDeviceConfiguration: {
             /** @enum {string} */
@@ -13430,6 +13576,85 @@ export interface operations {
                     "application/json": components["schemas"]["FabricDeviceEvidence"];
                 };
             };
+        };
+    };
+    listBMCCollections: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded metadata page without full raw documents. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BMCCollectionPage"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getBMCCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+                collectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retained structured inventory and fixed raw object references; no secret material or hardware action. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BMCCollectionDetail"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getBMCRawResource: {
+        parameters: {
+            query: {
+                path: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+                collectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact original bounded Redfish JSON, returned as a private no-store attachment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     networkDeviceConfiguration: {

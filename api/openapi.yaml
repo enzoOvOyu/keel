@@ -2643,6 +2643,52 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/FabricDeviceEvidence' }
 
+  /api/v1/projects/{id}/assets/{assetId}/bmc/collections:
+    get:
+      operationId: listBMCCollections
+      description: Project-scoped immutable inventory history. This read never contacts a BMC. Quality, static freshness and sim/real origin do not constitute G1 or dynamic network readiness.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: assetId, in: path, required: true, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 1000000, default: 1 } }
+        - { name: page_size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Bounded metadata page without full raw documents.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BMCCollectionPage' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/projects/{id}/assets/{assetId}/bmc/collections/{collectionId}:
+    get:
+      operationId: getBMCCollection
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: assetId, in: path, required: true, schema: { type: string } }
+        - { name: collectionId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Retained structured inventory and fixed raw object references; no secret material or hardware action.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BMCCollectionDetail' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/projects/{id}/assets/{assetId}/bmc/collections/{collectionId}/raw:
+    get:
+      operationId: getBMCRawResource
+      description: Downloads only the exact resource recorded under this collection after fully verifying the pinned object version, byte count and SHA256. Arbitrary object keys are never accepted.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: assetId, in: path, required: true, schema: { type: string } }
+        - { name: collectionId, in: path, required: true, schema: { type: string } }
+        - { name: path, in: query, required: true, schema: { type: string, maxLength: 2048 } }
+      responses:
+        '200':
+          description: Exact original bounded Redfish JSON, returned as a private no-store attachment.
+          content:
+            application/json:
+              schema: { type: string, format: binary }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/projects/{id}/fabric/devices/{deviceId}/configuration:
     get:
       operationId: networkDeviceConfiguration
@@ -4231,6 +4277,103 @@ components:
                     before_present: { type: boolean }
                     after_present: { type: boolean }
 
+    BMCCollectionSummary:
+      type: object
+      required: [id, project_id, asset_id, machine_id, execution_id, level, origin, state, parser_version, collected_at, received_at, content_hash, identity_matched, asset_current, freshness, freshness_max_age_seconds, resource_count, failure_count]
+      properties:
+        id: { type: string }
+        project_id: { type: string }
+        asset_id: { type: string }
+        machine_id: { type: string }
+        execution_id: { type: string }
+        level: { type: string, enum: [L1, L2, L3] }
+        origin: { type: string, enum: [sim, real] }
+        state: { type: string, enum: [completed, partial, failed] }
+        parser_version: { type: string }
+        collected_at: { type: string, format: date-time }
+        received_at: { type: string, format: date-time }
+        content_hash: { type: string }
+        identity_matched: { type: boolean }
+        asset_current: { type: boolean }
+        freshness: { type: string, enum: [fresh, aging, stale, unknown, unsupported] }
+        freshness_max_age_seconds: { type: integer, format: int64 }
+        resource_count: { type: integer }
+        failure_count: { type: integer }
+    BMCCollectionPage:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/BMCCollectionSummary' } }
+        total: { type: integer }
+        page: { type: integer }
+        page_size: { type: integer }
+    BMCCollectionDetail:
+      allOf:
+        - { $ref: '#/components/schemas/BMCCollectionSummary' }
+        - type: object
+          required: [report]
+          properties:
+            report: { $ref: '#/components/schemas/BMCInventorySnapshot' }
+    BMCInventorySnapshot:
+      type: object
+      required: [version, target, level, origin, source, parser_version, state, identity_matched, started_at, collected_at, resources, failures, capabilities, degraded]
+      properties:
+        version: { type: string, enum: [bmc-inventory/v1] }
+        target:
+          type: object
+          required: [request_id, project_id, asset_id, machine_id, asset_version, serial, credential_batch_ref, credential_version]
+          properties:
+            request_id: { type: string }
+            project_id: { type: string }
+            asset_id: { type: string }
+            machine_id: { type: string }
+            asset_version: { type: integer, format: int64 }
+            serial: { type: string }
+            credential_batch_ref: { type: string }
+            credential_version: { type: string }
+        level: { type: string, enum: [L1, L2, L3] }
+        origin: { type: string, enum: [sim, real] }
+        source: { type: string, enum: [bmc] }
+        parser_version: { type: string }
+        state: { type: string, enum: [completed, partial, failed] }
+        identity_matched: { type: boolean }
+        started_at: { type: string, format: date-time }
+        collected_at: { type: string, format: date-time }
+        resources:
+          type: array
+          maxItems: 4096
+          items:
+            type: object
+            required: [path, type, data_sha256, source, received_at, raw, data]
+            properties:
+              path: { type: string }
+              type: { type: string }
+              data_sha256: { type: string }
+              source: { type: string, enum: [bmc] }
+              received_at: { type: string, format: date-time }
+              data: { type: object, additionalProperties: true }
+              raw:
+                type: object
+                required: [key, version, sha256, size]
+                properties:
+                  key: { type: string }
+                  version: { type: string }
+                  sha256: { type: string }
+                  size: { type: integer, format: int64 }
+        failures:
+          type: array
+          maxItems: 256
+          items:
+            type: object
+            required: [path, class, code, retryable]
+            properties:
+              path: { type: string }
+              class: { type: string, enum: [authentication_failed, timeout, version_unsupported, partial_failure] }
+              code: { type: string }
+              http_status: { type: integer }
+              retryable: { type: boolean }
+        capabilities: { type: object, additionalProperties: { type: string, enum: [unknown, advertised, collected, partial, unsupported, not_requested] } }
+        degraded: { type: boolean }
     NetworkDeviceConfiguration:
       type: object
       required: [version, project_id, switch_id, serial, read_at, latest_production, latest_plan]
