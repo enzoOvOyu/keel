@@ -31,6 +31,9 @@ type PrecollectRecord struct {
 	Gate           *ValidationGateEvidence `json:"gate,omitempty"`
 }
 type ValidationGateEvidence struct {
+	EffectiveVerdict    string                `json:"effective_verdict"`
+	WaiverID            string                `json:"waiver_id"`
+	EffectiveValidUntil *time.Time            `json:"effective_valid_until"`
 	ID                  string                `json:"id"`
 	Gate                string                `json:"gate"`
 	PrecollectID        string                `json:"precollect_id"`

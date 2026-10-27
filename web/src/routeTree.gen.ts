@@ -28,6 +28,7 @@ import { Route as PProjectIdDeliveryRouteImport } from './routes/p_.$projectId.d
 import { Route as PProjectIdExecutionsRouteImport } from './routes/p_.$projectId.executions'
 import { Route as PProjectIdFabricRouteImport } from './routes/p_.$projectId.fabric'
 import { Route as PProjectIdFlowsRouteImport } from './routes/p_.$projectId.flows'
+import { Route as PProjectIdGatesRouteImport } from './routes/p_.$projectId.gates'
 import { Route as PProjectIdHealthRouteImport } from './routes/p_.$projectId.health'
 import { Route as PProjectIdMediaRouteImport } from './routes/p_.$projectId.media'
 import { Route as PProjectIdMembersRouteImport } from './routes/p_.$projectId.members'
@@ -133,6 +134,11 @@ const PProjectIdFlowsRoute = PProjectIdFlowsRouteImport.update({
   path: '/p/$projectId/flows',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PProjectIdGatesRoute = PProjectIdGatesRouteImport.update({
+  id: '/p_/$projectId/gates',
+  path: '/p/$projectId/gates',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PProjectIdHealthRoute = PProjectIdHealthRouteImport.update({
   id: '/p_/$projectId/health',
   path: '/p/$projectId/health',
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/p/$projectId/executions': typeof PProjectIdExecutionsRoute
   '/p/$projectId/fabric': typeof PProjectIdFabricRoute
   '/p/$projectId/flows': typeof PProjectIdFlowsRoute
+  '/p/$projectId/gates': typeof PProjectIdGatesRoute
   '/p/$projectId/health': typeof PProjectIdHealthRoute
   '/p/$projectId/media': typeof PProjectIdMediaRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
@@ -230,6 +237,7 @@ export interface FileRoutesByTo {
   '/p/$projectId/executions': typeof PProjectIdExecutionsRoute
   '/p/$projectId/fabric': typeof PProjectIdFabricRoute
   '/p/$projectId/flows': typeof PProjectIdFlowsRoute
+  '/p/$projectId/gates': typeof PProjectIdGatesRoute
   '/p/$projectId/health': typeof PProjectIdHealthRoute
   '/p/$projectId/media': typeof PProjectIdMediaRoute
   '/p/$projectId/members': typeof PProjectIdMembersRoute
@@ -261,6 +269,7 @@ export interface FileRoutesById {
   '/p_/$projectId/executions': typeof PProjectIdExecutionsRoute
   '/p_/$projectId/fabric': typeof PProjectIdFabricRoute
   '/p_/$projectId/flows': typeof PProjectIdFlowsRoute
+  '/p_/$projectId/gates': typeof PProjectIdGatesRoute
   '/p_/$projectId/health': typeof PProjectIdHealthRoute
   '/p_/$projectId/media': typeof PProjectIdMediaRoute
   '/p_/$projectId/members': typeof PProjectIdMembersRoute
@@ -293,6 +302,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/executions'
     | '/p/$projectId/fabric'
     | '/p/$projectId/flows'
+    | '/p/$projectId/gates'
     | '/p/$projectId/health'
     | '/p/$projectId/media'
     | '/p/$projectId/members'
@@ -323,6 +333,7 @@ export interface FileRouteTypes {
     | '/p/$projectId/executions'
     | '/p/$projectId/fabric'
     | '/p/$projectId/flows'
+    | '/p/$projectId/gates'
     | '/p/$projectId/health'
     | '/p/$projectId/media'
     | '/p/$projectId/members'
@@ -353,6 +364,7 @@ export interface FileRouteTypes {
     | '/p_/$projectId/executions'
     | '/p_/$projectId/fabric'
     | '/p_/$projectId/flows'
+    | '/p_/$projectId/gates'
     | '/p_/$projectId/health'
     | '/p_/$projectId/media'
     | '/p_/$projectId/members'
@@ -384,6 +396,7 @@ export interface RootRouteChildren {
   PProjectIdExecutionsRoute: typeof PProjectIdExecutionsRoute
   PProjectIdFabricRoute: typeof PProjectIdFabricRoute
   PProjectIdFlowsRoute: typeof PProjectIdFlowsRoute
+  PProjectIdGatesRoute: typeof PProjectIdGatesRoute
   PProjectIdHealthRoute: typeof PProjectIdHealthRoute
   PProjectIdMediaRoute: typeof PProjectIdMediaRoute
   PProjectIdMembersRoute: typeof PProjectIdMembersRoute
@@ -530,6 +543,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectIdFlowsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p_/$projectId/gates': {
+      id: '/p_/$projectId/gates'
+      path: '/p/$projectId/gates'
+      fullPath: '/p/$projectId/gates'
+      preLoaderRoute: typeof PProjectIdGatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p_/$projectId/health': {
       id: '/p_/$projectId/health'
       path: '/p/$projectId/health'
@@ -616,6 +636,7 @@ const rootRouteChildren: RootRouteChildren = {
   PProjectIdExecutionsRoute: PProjectIdExecutionsRoute,
   PProjectIdFabricRoute: PProjectIdFabricRoute,
   PProjectIdFlowsRoute: PProjectIdFlowsRoute,
+  PProjectIdGatesRoute: PProjectIdGatesRoute,
   PProjectIdHealthRoute: PProjectIdHealthRoute,
   PProjectIdMediaRoute: PProjectIdMediaRoute,
   PProjectIdMembersRoute: PProjectIdMembersRoute,

@@ -54,7 +54,7 @@ func agentTarget(ctx context.Context, tx *sql.Tx, project, machine string) (stri
 // delivery. Gate and operation authority are still checked by each consumer.
 func agentMonitoringStage(state string) bool {
 	switch state {
-	case "provisioned", "lldp", "mapped", "configured", "netverified", "tested":
+	case "provisioned", "trust_established", "collected", "lldp", "mapped", "configured", "netverified", "tested":
 		return true
 	}
 	return false

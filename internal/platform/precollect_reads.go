@@ -77,8 +77,10 @@ func (s *Store) precollectGateTx(ctx context.Context, tx *sql.Tx, project, asset
 		return nil, e
 	}
 	g.Validity = "fresh"
+	g.EffectiveVerdict = g.Verdict
 	if !g.ValidUntil.After(time.Now()) {
 		g.Validity = "stale"
+		g.EffectiveVerdict = "BLOCKED"
 		g.InvalidationReason = "G1_EVIDENCE_EXPIRED"
 		return &g, nil
 	}
@@ -89,14 +91,31 @@ func (s *Store) precollectGateTx(ctx context.Context, tx *sql.Tx, project, asset
 			return nil, e
 		}
 		g.Validity = "invalidated"
+		g.EffectiveVerdict = "BLOCKED"
 		g.InvalidationReason = domain.Code
 		return &g, nil
 	}
 	if !current.Ready || current.ScopeHash != g.ScopeHash {
 		g.Validity = "invalidated"
+		g.EffectiveVerdict = "BLOCKED"
 		g.InvalidationReason = "PRECOLLECT_SCOPE_CHANGED"
 		if !current.Ready {
 			g.InvalidationReason = current.Code
+		}
+	}
+	if g.Validity == "fresh" && g.Verdict == "BLOCKED" {
+		var waiver sql.NullString
+		if e = tx.QueryRowContext(ctx, `SELECT keel_current_g1_waiver($1)`, g.ID).Scan(&waiver); e != nil {
+			return nil, e
+		}
+		if waiver.Valid {
+			var until time.Time
+			if e = tx.QueryRowContext(ctx, `SELECT valid_until FROM gate_waivers WHERE id=$1`, waiver.String).Scan(&until); e != nil {
+				return nil, e
+			}
+			g.WaiverID = waiver.String
+			g.EffectiveVerdict = "WAIVED"
+			g.EffectiveValidUntil = &until
 		}
 	}
 	return &g, nil
@@ -143,7 +162,6 @@ type CurrentG1 struct {
 }
 
 func (s *Store) CurrentG1(ctx context.Context, a *AuthSession, project, asset string) (*CurrentG1, error) {
-	out := &CurrentG1{Gate: "G1", EffectiveVerdict: "BLOCKED", Reason: "G1_EVIDENCE_REQUIRED"}
 	tx, e := s.beginControlRead(ctx, a)
 	if e != nil {
 		return nil, e
@@ -152,6 +170,11 @@ func (s *Store) CurrentG1(ctx context.Context, a *AuthSession, project, asset st
 	if e = precollectReadScope(ctx, tx, a, project, asset); e != nil {
 		return nil, e
 	}
+	return s.currentG1Tx(ctx, tx, project, asset)
+}
+func (s *Store) currentG1Tx(ctx context.Context, tx *sql.Tx, project, asset string) (*CurrentG1, error) {
+	out := &CurrentG1{Gate: "G1", EffectiveVerdict: "BLOCKED", Reason: "G1_EVIDENCE_REQUIRED"}
+	var e error
 	var id string
 	var scopeJSON []byte
 	e = tx.QueryRowContext(ctx, `SELECT q.id,q.scope FROM validation_gate_evidence g JOIN validation_precollect_requests q ON q.id=g.precollect_id WHERE g.project_id=$1 AND g.asset_id=$2 AND g.gate='G1' ORDER BY g.created_at DESC,g.id DESC LIMIT 1`, project, asset).Scan(&id, &scopeJSON)
@@ -172,7 +195,7 @@ func (s *Store) CurrentG1(ctx context.Context, a *AuthSession, project, asset st
 	if out.Evidence != nil {
 		out.Reason = out.Evidence.InvalidationReason
 		if out.Evidence.Validity == "fresh" {
-			out.EffectiveVerdict = out.Evidence.Verdict
+			out.EffectiveVerdict = out.Evidence.EffectiveVerdict
 			out.Reason = ""
 		}
 	}

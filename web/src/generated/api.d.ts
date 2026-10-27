@@ -4255,6 +4255,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/assets/{assetId}/gates/G1/waivers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listGateWaivers"];
+        put?: never;
+        post: operations["approveGateWaiver"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/gates/G1/waivers/scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["gateWaiverScope"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/assets/{assetId}/gates/G1/waivers/{waiverId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["revokeGateWaiver"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/gates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["gateDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/assets/{assetId}/ports": {
         parameters: {
             query?: never;
@@ -4614,6 +4678,98 @@ export interface components {
             /** Format: date-time */
             as_of: string;
             items: components["schemas"]["PortMonitorFleetItem"][];
+        };
+        GateDashboardCard: {
+            waiver_id: string;
+            gate: string;
+            original_verdict: string;
+            effective_verdict: string;
+            evidence_id: string;
+            scope_hash: string;
+            /** Format: date-time */
+            observed_at: string | null;
+            /** Format: date-time */
+            valid_until: string | null;
+            origin: string;
+            reason: string;
+        };
+        GateDashboardAsset: {
+            asset_id: string;
+            machine_id: string;
+            hostname: string;
+            state: string;
+            cards: components["schemas"]["GateDashboardCard"][];
+            network: components["schemas"]["PortMonitorFleetItem"];
+        };
+        GateDashboardKPI: {
+            assets: number;
+            network_normal: number;
+            network_abnormal: number;
+            network_unknown: number;
+            maintained: number;
+            open_issues: number;
+            trust_anomalies: number;
+        };
+        GateDashboard: {
+            project_id: string;
+            /** Format: date-time */
+            as_of: string;
+            kpi: components["schemas"]["GateDashboardKPI"];
+            items: components["schemas"]["GateDashboardAsset"][];
+        };
+        GateWaiverScope: {
+            project_id: string;
+            asset_id: string;
+            gate: string;
+            evidence_id: string;
+            scope_hash: string;
+            revision_fingerprint: string;
+            policy_id: string;
+            policy_hash: string;
+            source_hash: string;
+            findings: components["schemas"]["PrecollectFinding"][];
+            /** Format: date-time */
+            valid_until: string | null;
+            can_approve: boolean;
+            blockers: string[];
+        };
+        GateWaiverInput: {
+            source_hash: string;
+            reason: string;
+            remediation_plan: string;
+            /** Format: date-time */
+            valid_until: string;
+        };
+        GateWaiver: {
+            id: string;
+            project_id: string;
+            asset_id: string;
+            gate: string;
+            evidence_id: string;
+            source_hash: string;
+            scope_hash: string;
+            revision_fingerprint: string;
+            policy_id: string;
+            policy_hash: string;
+            findings: components["schemas"]["PrecollectFinding"][];
+            reason: string;
+            remediation_plan: string;
+            approved_by: string;
+            /** Format: date-time */
+            approved_at: string;
+            /** Format: date-time */
+            valid_until: string;
+            /** Format: date-time */
+            revoked_at: string | null;
+        };
+        GateWaiverPage: {
+            items: components["schemas"]["GateWaiver"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        GateWaiverRevocationInput: {
+            reason: string;
         };
         MonitorPolicy: {
             stage: string;
@@ -5068,6 +5224,7 @@ export interface components {
             topology_scope_hash: string;
             asset_version: number;
             ports: components["schemas"]["WiringPort"][];
+            g1_waiver_id?: string;
         };
         WiringGate: {
             id: string;
@@ -5320,6 +5477,7 @@ export interface components {
             scope_hash: string;
             ready: boolean;
             code: string;
+            g1_waiver_id?: string;
         };
         PciTopologyFinding: {
             category: string;
@@ -5569,6 +5727,11 @@ export interface components {
             /** Format: date-time */
             valid_until: string;
             evaluation: components["schemas"]["PrecollectEvaluation"];
+            /** @enum {string} */
+            effective_verdict: "PASS" | "FAIL" | "BLOCKED" | "WAIVED";
+            waiver_id: string;
+            /** Format: date-time */
+            effective_valid_until: string | null;
         };
         PrecollectGPU: {
             uuid: string;
@@ -20214,6 +20377,160 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectAssetSummary"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listGateWaivers: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GateWaiverPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    approveGateWaiver: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GateWaiverInput"];
+            };
+        };
+        responses: {
+            /** @description Immutable Step 1 and current four-step timeline. A fresh exact handshake is consumed once; later LLDP execution requires separate admission and dispatch readiness. No automatic G2 or NP-3. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GateWaiver"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    gateWaiverScope: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GateWaiverScope"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    revokeGateWaiver: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: string;
+                assetId: string;
+                waiverId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GateWaiverRevocationInput"];
+            };
+        };
+        responses: {
+            /** @description Revoked; immutable original evidence retained */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    gateDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable Step 1 and four-step timeline scaffold. An exact fresh handshake is consumed once. Step 2 execution is blocked until its controlled adapter and retained receipt binding are implemented. No G2 or NP-3 publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GateDashboard"];
                 };
             };
             400: components["responses"]["InvalidRequest"];

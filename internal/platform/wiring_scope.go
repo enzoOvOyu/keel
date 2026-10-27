@@ -43,6 +43,7 @@ type WiringHost struct {
 	Serial            string       `json:"serial"`
 	AssetVersion      int64        `json:"asset_version"`
 	BOMPackageID      string       `json:"bom_package_id"`
+	G1WaiverID        string       `json:"g1_waiver_id,omitempty"`
 	G1ID              string       `json:"g1_id"`
 	PrecollectID      string       `json:"precollect_id"`
 	TopologyID        string       `json:"topology_id"`
@@ -187,6 +188,9 @@ func (s *Store) wiringFactsTx(ctx context.Context, tx *sql.Tx, project string, t
 		host.TopologyID = topology.ID
 		host.TopologyScopeHash = topology.ScopeHash
 		host.G1ID = topology.G1ID
+		if topology.Scope != nil {
+			host.G1WaiverID = topology.Scope.G1WaiverID
+		}
 		host.PrecollectID = topology.PrecollectID
 		if topology.EffectiveVerdict != "PASS" {
 			block("WIRING_CURRENT_G1_TOPOLOGY_REQUIRED:" + target.AssetID)

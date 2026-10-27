@@ -6,9 +6,10 @@ import type { Project, Session } from '../lib/api'
 import { useSession } from '../lib/session'
 import { Icon, type IconName } from './Icon'
 
-type ProjectPage = '/p/$projectId/monitor' | '/p/$projectId/deploy/provision' | '/p/$projectId/delivery' | '/p/$projectId/flows' | '/p/$projectId/health' | '/p/$projectId/configuration' | '/p/$projectId/fabric' | '/p/$projectId' | '/p/$projectId/members' | '/p/$projectId/audits' | '/p/$projectId/assets' | '/p/$projectId/ztp' | '/p/$projectId/executions' | '/p/$projectId/models' | '/p/$projectId/media' | '/p/$projectId/params'
+type ProjectPage = '/p/$projectId/gates' | '/p/$projectId/monitor' | '/p/$projectId/deploy/provision' | '/p/$projectId/delivery' | '/p/$projectId/flows' | '/p/$projectId/health' | '/p/$projectId/configuration' | '/p/$projectId/fabric' | '/p/$projectId' | '/p/$projectId/members' | '/p/$projectId/audits' | '/p/$projectId/assets' | '/p/$projectId/ztp' | '/p/$projectId/executions' | '/p/$projectId/models' | '/p/$projectId/media' | '/p/$projectId/params'
 type Item = { to: ProjectPage; label: string; icon: IconName; permission?: string; admin?: boolean; roles?: string[] }
 const deployment: Item[] = [
+ {to:'/p/$projectId/gates',label:'gatesTitle',icon:'overview'},
   { to: '/p/$projectId/deploy/provision',label:'provisionTitle',icon:'play',roles:['Admin','DE','DL','SRE'] },
   { to: '/p/$projectId', label: 'overviewTab', icon: 'overview' },
   { to: '/p/$projectId/assets', label: 'bomTab', icon: 'box', permission: 'model:read' },

@@ -94,6 +94,8 @@ func newRouter(version, staticDir string, store *platform.Store, config platform
 		auth.registerMapping(r)
 		auth.registerMonitor(r)
 		auth.registerPortMonitor(r)
+		auth.registerGateDashboard(r)
+		auth.registerGateWaivers(r)
 		auth.registerAssetViews(r)
 		auth.registerModelImports(r)
 		auth.registerBomImport(r)

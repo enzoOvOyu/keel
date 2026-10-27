@@ -2271,3 +2271,15 @@ ReadWiringCapture重新打开固定版本对象、核对SHA256/大小、重建�
 - 集中检查首轮中规则/队列/CPU/portmon聚合、通知公开字段拒绝泄漏及项目伪造、全部新路由注册通过。失联用例先错误尝试续用超时连接，后又试图改写不可变connected_at，均被既有约束拒绝；现用同证书合法重连并遵守1秒准入节流，不修改约束。进一步发现并修复真实告警恢复UPDATE中$6在varchar赋值和CASE表达式间推断冲突，显式类型后通过。
 - 最终定向 `go test ./internal/agentidentity -run TestMonitorPostgres -count=1 -timeout=90s -v` PASS：新增portmon未映射拒绝推断、批量scope/资产详情、失联dedupe/重连恢复、历史小时聚合，仍含原mTLS/策略/ACK用例；前端 `tsc --noEmit` PASS。原全目标日志 `/tmp/keel-portmon-milestone-xc799d8y/`，最终定向证据 `/tmp/keel-portmon-milestone-qm83rse6/`；中间失败原证据保留，均为确定性约束/SQL问题，未归咎性能、未扩大期限。所有自建测试库已删。未执行浏览器/镜像/设备/性能验证，通知真实投递、端口维修重验/关闭/升级仍需补齐。
 - 运行版不变：3000仍7afda32，运行64条迁移/067，源码102条/最后105（隔离026）；原两草稿及netbom.xlsx保留。下一步监控SSH降级/源桥接、端口工单闭环、门禁限定豁免/KPI、剩余抽屉入口及PoC包与P2集中收口。不以源码覆盖估算替代验收百分比。
+
+
+## 208. 门禁/KPI 与限定 G1 豁免（源码增量）
+
+- 接续d4c6dd5，保持 `/opt/keel` / `dev/p2-validation` 单Agent开发。门禁看板以同一读事务查询目标级G1/G2/G3当前有效证据、原始结论/来源/期限，聚合网络正常/异常/未知/维护、开放工单及SSH互信异常；上限200逻辑资产。G4～G6明确后置域未实现，不从设备阶段编造PASS。
+- 106新增不可变G1豁免/撤销账本。Admin/DL显式批准原证据与策略精确hash，必须保存理由、整改计划和不晚于原证据的期限。原G1始终保留BLOCKED，当前结论单独为WAIVED；仅支持显式策略授权的nic.dom、nic.driver_version、gpu.hbm_ecc_observation、system.os_release缺失项。永久MAC/身份/其他失败、模拟、陈旧/失效证据、维护通道及资源互斥均不可豁免。
+- 使用已有参数目录 `gate.g1.waiver_fields`（string类型、值为精确字段JSON数组，例如 `["nic.dom"]`），缺失策略默认不允许。项目覆盖/停用优先于全局；策略版本、原证据、资产/型号、审批资格、期限与撤销均参与当前消费检查，最新记录失效不会重新激活旧豁免。拓扑和布线范围显式携带waiver ID并限缩有效期；原证据不修改。其余门禁的豁免没有借此提前实现。
+- 前端提供门禁矩阵/KPI、证据抽屉入口、豁免批准确认/历史/撤销；批准绑定确认时scope hash，写期间锁定切换目标。原G1详情保留历史结论并显示当前WAIVED引用及期限；到期在界面转为阻断。
+- 修正Agent有效交付阶段遗漏trust_established/collected：前者按M1、后者按M2，证书/资产版本/撤销等原约束保留。否则正常预收集状态切换可能使心跳中断。
+- 本轮集中软件检查：隔离数据库执行 `go test ./internal/execution ./internal/platform ./internal/agentidentity ./internal/httpapi -run 'TestGate|TestMonitorPostgres|TestPortMonitorRoutes' -count=1 -timeout=90s -v` PASS，覆盖全103条源码迁移（通过106，排除原026）、缺证据不制造豁免/门禁、跨项目拒绝、参数项目覆盖/停用与版本变化、mTLS阶段切换及路由共存；platform本命令仅编译，没有匹配业务用例。前端 `tsc --noEmit` PASS，日志 `/tmp/keel-gates-milestone-1qqvhof8/`。首轮Go审计参数类型错误已修正，原失败日志保留于7r27nd7r。
+- 随后统一数据库与API的项目Admin/DL权限判定，新增SQL变更仅定向重跑隔离execution的TestGateDashboardAndWaiver，PASS，日志 `/tmp/keel-gates-milestone-_9teatgf/`；未重复TS/浏览器/镜像。以上不证明G1豁免完整正向业务链、真实G2全链或硬件PoC已通过，仍在P2收口清单。
+- 运行3000仍7afda32，数据库64条/067，068～106未应用到运行库；未部署/push/操作真实设备。原两份fabric_precheck草稿和netbom.xlsx保持隔离。继续端口T3/T4/T5分类/领域维修、Agentless/source桥接、详情剩余交互和完整P2集中验证。

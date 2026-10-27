@@ -13,6 +13,7 @@ import (
 )
 
 type TopologyScope struct {
+	G1WaiverID          string                   `json:"g1_waiver_id,omitempty"`
 	Version             string                   `json:"version"`
 	RuleVersion         string                   `json:"rule_version"`
 	ProjectID           string                   `json:"project_id"`
@@ -73,9 +74,13 @@ func (s *Store) topologyScopeTx(ctx context.Context, tx *sql.Tx, project, asset 
 	if e != nil {
 		return nil, nil, e
 	}
-	if gate == nil || gate.Verdict != "PASS" || gate.Validity != "fresh" || !current.Ready || current.ScopeHash != out.PrecollectScopeHash {
+	if gate == nil || (gate.EffectiveVerdict != "PASS" && gate.EffectiveVerdict != "WAIVED") || gate.Validity != "fresh" || !current.Ready || current.ScopeHash != out.PrecollectScopeHash {
 		block("TOPOLOGY_G1_NOT_CURRENT")
 		return finish(nil)
+	}
+	out.G1WaiverID = gate.WaiverID
+	if gate.EffectiveValidUntil != nil && gate.EffectiveValidUntil.Before(out.ValidUntil) {
+		out.ValidUntil = *gate.EffectiveValidUntil
 	}
 	out.ModelVersionID = current.ModelVersion
 	out.ModelContentHash = current.ModelContentHash

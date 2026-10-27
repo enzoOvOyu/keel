@@ -35,7 +35,7 @@ type MonitorPolicies struct {
 
 func monitorStage(state string) string {
 	switch state {
-	case "lldp", "mapped":
+	case "collected", "lldp", "mapped":
 		return "M2"
 	case "configured":
 		return "M3"

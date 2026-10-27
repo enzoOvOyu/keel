@@ -88,6 +88,17 @@ func TestMonitorPostgresMTLSDurableReplayPolicyHistoryAndStageTransition(t *test
 		t.Fatal("queued sample rewritten under new intervals", interval)
 	}
 	// Stage advancement keeps the same certificate identity and changes policy.
+	_, err = f.store.DB.ExecContext(ctx, `UPDATE project_assets SET state='trust_established' WHERE project_id=$1 AND machine_id=$2`, f.project, machine)
+	requireNoError(t, err)
+	if assignment := decodePolicy(send(nil)); assignment.Policy.Stage != "M1" {
+		t.Fatal("trust stage disconnected identity")
+	}
+	_, err = f.store.DB.ExecContext(ctx, `UPDATE project_assets SET state='collected' WHERE project_id=$1 AND machine_id=$2`, f.project, machine)
+	requireNoError(t, err)
+	if assignment := decodePolicy(send(nil)); assignment.Policy.Stage != "M2" {
+		t.Fatal("G1 collected stage disconnected identity")
+	}
+
 	_, err = f.store.DB.ExecContext(ctx, `UPDATE project_assets SET state='lldp' WHERE project_id=$1 AND machine_id=$2`, f.project, machine)
 	requireNoError(t, err)
 	if assignment := decodePolicy(send(nil)); assignment.Policy.Stage != "M2" {
