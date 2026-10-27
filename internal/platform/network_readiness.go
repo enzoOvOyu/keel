@@ -43,7 +43,13 @@ func (s *Store) networkReadinessTx(ctx context.Context, tx *sql.Tx, project stri
 		return nil, e
 	}
 	np2 := networkGate("NP-2", "PASS", "")
-	np3 := networkGate("NP-3", "BLOCKED", "server_three_source_G2_evidence_required")
+	np3, np3Until, e := s.wiringNP3Tx(ctx, tx, project, cables)
+	if e != nil {
+		return nil, e
+	}
+	if np3Until != nil && np3Until.Before(out.ValidUntil) {
+		out.ValidUntil = *np3Until
+	}
 	np4 := networkGate("NP-4", "PASS", "")
 	np5 := health.NS7
 	np5.ID = "NP-5"

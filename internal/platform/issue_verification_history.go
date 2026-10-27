@@ -96,6 +96,9 @@ func canConfirmIssueVerification(item *Issue, role, actor string) bool {
 	return role == "Admin" || role == "DL" || role == "NE" && item.AssigneeID == actor
 }
 func (s *Store) issueVerificationCloseEvidenceTx(ctx context.Context, tx *sql.Tx, item *Issue) (*IssueVerificationRequest, error) {
+	if item.Source == "g2" {
+		return s.wiringCloseEvidenceTx(ctx, tx, item)
+	}
 	if item.Source == "topology" && item.Category == "T7" {
 		return s.topologyCloseEvidenceTx(ctx, tx, item)
 	}
@@ -155,7 +158,7 @@ func (s *Store) issueVerificationTransitionsTx(ctx context.Context, tx *sql.Tx, 
 }
 func issueVerificationRepairAllowedTx(ctx context.Context, tx *sql.Tx, item *Issue) error {
 	var active bool
-	e := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM issue_verification_requests q JOIN exec_executions x ON x.id=q.execution_id WHERE q.issue_id=$1 AND (x.state NOT IN('success','failed','killed','warning') OR EXISTS(SELECT 1 FROM exec_task_attempts a JOIN exec_resource_leases l ON l.attempt_id=a.id WHERE a.execution_id=x.id AND l.state IN('held','reconciling'))))`, item.ID).Scan(&active)
+	e := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM issue_verification_requests q JOIN exec_executions x ON x.id=q.execution_id WHERE q.issue_id=$1 AND (x.state NOT IN('success','failed','killed','warning') OR EXISTS(SELECT 1 FROM exec_task_attempts a JOIN exec_resource_leases l ON l.attempt_id=a.id WHERE a.execution_id=x.id AND l.state IN('held','reconciling')))) OR EXISTS(SELECT 1 FROM validation_wiring_issue_bindings b JOIN validation_wiring_run_targets target ON target.asset_id=b.asset_id JOIN exec_executions x ON x.id=target.execution_id WHERE b.issue_id=$1 AND EXISTS(SELECT 1 FROM jsonb_array_elements(target.scope#>'{expectation,ports}') port WHERE port->>'physical_port_id'=b.physical_port_id) AND (x.state NOT IN('success','failed','killed','warning') OR EXISTS(SELECT 1 FROM exec_task_attempts a JOIN exec_resource_leases l ON l.attempt_id=a.id WHERE a.execution_id=x.id AND l.state IN('held','reconciling'))))`, item.ID).Scan(&active)
 	if e != nil {
 		return e
 	}

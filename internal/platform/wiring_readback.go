@@ -17,14 +17,16 @@ import (
 // It consumes a NEW one-host readiness handshake; the earlier Step 1 lease is
 // historical evidence and cannot authorize later hardware work.
 type WiringCommand struct {
-	HostOrigin  string                 `json:"host_origin"`
-	BatchID     string                 `json:"batch_id"`
-	AssetID     string                 `json:"asset_id"`
-	HandshakeID string                 `json:"handshake_id"`
-	ParentID    string                 `json:"parent_id"`
-	Binding     wiring.ReadbackBinding `json:"binding"`
-	Expectation wiring.Expectation     `json:"expectation"`
-	Plan        wiring.Plan            `json:"plan"`
+	PolicyHash     string                 `json:"policy_hash"`
+	GateTTLSeconds int64                  `json:"gate_ttl_seconds"`
+	HostOrigin     string                 `json:"host_origin"`
+	BatchID        string                 `json:"batch_id"`
+	AssetID        string                 `json:"asset_id"`
+	HandshakeID    string                 `json:"handshake_id"`
+	ParentID       string                 `json:"parent_id"`
+	Binding        wiring.ReadbackBinding `json:"binding"`
+	Expectation    wiring.Expectation     `json:"expectation"`
+	Plan           wiring.Plan            `json:"plan"`
 }
 
 func (s *Store) RegisterWiringCommandTx(ctx context.Context, tx *sql.Tx, batch, asset, handshake, hostOrigin string, binding wiring.ReadbackBinding) (*WiringCommand, error) {
@@ -79,6 +81,12 @@ func (s *Store) RegisterWiringCommandTx(ctx context.Context, tx *sql.Tx, batch, 
 	if _, e = wiring.BuildReadbackRequests(binding, wiring.ReadbackScope{PlanDigest: plan.Digest, CommandID: binding.CommandID, ScopeHash: out.Expectation.ScopeHash, AdvertisingAt: time.Now().UTC(), Ports: out.Expectation.Ports}); e != nil {
 		return nil, e
 	}
+	duration, policy, e := wiringReportPolicyTx(ctx, tx, binding.ProjectID)
+	if e != nil {
+		return nil, e
+	}
+	out.PolicyHash = policy
+	out.GateTTLSeconds = int64(duration / time.Second)
 	out.Plan = *plan
 	_, e = tx.ExecContext(ctx, `INSERT INTO validation_wiring_commands(command_id,attempt_id,execution_id,project_id,batch_id,asset_id,handshake_id,parent_id,fencing_token,origin,plan_digest,command,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,statement_timestamp())`, binding.CommandID, binding.AttemptID, binding.ExecutionID, binding.ProjectID, batch, asset, handshake, out.ParentID, binding.FencingToken, binding.Origin, plan.Digest, networkJSON(out))
 	if e != nil {

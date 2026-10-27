@@ -4012,6 +4012,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/validation/wiring/batches/{batchId}/confirmations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Admin/DL explicitly confirm the latest settled real three-source Step 3, with current Step 1, unchanged scope/policy, NP-1/2/4 and no open affected wiring issues. Atomically retain Step 4 and every selected stable endpoint pair. Simulation, stale, partial and unknown are blocked. Asset stays lldp until G3. */
+        post: operations["confirmWiring"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/validation/wiring/confirmations/{confirmationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getWiringConfirmation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/issues/{issueId}/wiring-retests/scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["previewWiringRetest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/issues/{issueId}/wiring-retests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listWiringRetests"];
+        put?: never;
+        post: operations["createWiringRetest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/validation/wiring/executions": {
         parameters: {
             query?: never;
@@ -4079,6 +4144,77 @@ export interface components {
             switch_port: string;
             switch_chassis_ids: string[];
         };
+        WiringRetestInput: {
+            report_id: string;
+            reason: string;
+            version: number;
+        };
+        WiringRetestScope: {
+            issue_id: string;
+            asset_id: string;
+            physical_port_id: string;
+            batch_id: string;
+            report_id: string;
+            command_id: string;
+            execution_id: string;
+            verdict: string;
+            issue_version: number;
+            repair_version: number;
+            /** Format: date-time */
+            repaired_at: string | null;
+            ready: boolean;
+            blockers: string[];
+        };
+        WiringRetest: {
+            id: string;
+            issue_id: string;
+            project_id: string;
+            report_id: string;
+            command_id: string;
+            execution_id: string;
+            verdict: string;
+            reason: string;
+            created_by: string;
+            repair_version: number;
+            applied_issue_version: number;
+            /** Format: date-time */
+            created_at: string;
+            stale: boolean;
+            can_close: boolean;
+            escalated: boolean;
+            recipient_ids: string[];
+        };
+        WiringRetestPage: {
+            items: components["schemas"]["WiringRetest"][];
+            page: number;
+            page_size: number;
+            total: number;
+        };
+        WiringConfirmationInput: {
+            asset_id: string;
+            step3_id: string;
+            reason: string;
+        };
+        WiringConfirmation: {
+            id: string;
+            project_id: string;
+            batch_id: string;
+            asset_id: string;
+            step3_id: string;
+            step4_id: string;
+            command_id: string;
+            source_hash: string;
+            scope_hash: string;
+            created_by: string;
+            reason: string;
+            effective_verdict: string;
+            invalidation_reason: string;
+            /** Format: date-time */
+            valid_until: string;
+            /** Format: date-time */
+            created_at: string;
+            ports: components["schemas"]["WiringExpectedPort"][];
+        };
         WiringRunInput: {
             batch_id: string;
             handshake_id: string;
@@ -4111,6 +4247,7 @@ export interface components {
             host_origin?: string;
             switch_origin?: string;
             findings?: components["schemas"]["WiringFinding"][] | null;
+            confirmation_id?: string;
         };
         WiringExpectation: {
             version: string;
@@ -18764,6 +18901,168 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WiringHandshake"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    confirmWiring: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+                batchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WiringConfirmationInput"];
+            };
+        };
+        responses: {
+            /** @description Immutable scoped G2/NP-3 confirmation and its current validity; G3 remains separate */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WiringConfirmation"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getWiringConfirmation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                confirmationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable scoped G2/NP-3 confirmation and its current validity; G3 remains separate */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WiringConfirmation"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    previewWiringRetest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Original post-repair wiring evidence; never resends capture or creates G2 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WiringRetestScope"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listWiringRetests: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                issueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Original post-repair wiring evidence; never resends capture or creates G2 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WiringRetestPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    createWiringRetest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                issueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WiringRetestInput"];
+            };
+        };
+        responses: {
+            /** @description Original post-repair wiring evidence; never resends capture or creates G2 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WiringRetest"];
                 };
             };
             400: components["responses"]["InvalidRequest"];

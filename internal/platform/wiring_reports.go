@@ -33,9 +33,9 @@ func (s *Store) ApplyWiringCaptureTx(ctx context.Context, tx *sql.Tx, attempt, c
 	if e = lockKey(ctx, tx, "wiring-reports:"+c.BatchID+":"+c.AssetID); e != nil {
 		return e
 	}
-	duration, policy, e := wiringReportPolicyTx(ctx, tx, c.Binding.ProjectID)
-	if e != nil {
-		return e
+	duration, policy := time.Duration(c.GateTTLSeconds)*time.Second, c.PolicyHash
+	if duration < time.Second || duration > 24*time.Hour || len(policy) != 64 {
+		return wiring.ErrCaptureRejected
 	}
 	until := stopped.Add(duration)
 	var topologyDeadline time.Time
@@ -75,7 +75,10 @@ func (s *Store) ApplyWiringCaptureTx(ctx context.Context, tx *sql.Tx, attempt, c
 		}
 		parent = id
 	}
-	return nil
+	if !until.After(time.Now()) {
+		return nil
+	}
+	return recordWiringIssuesTx(ctx, tx, &c, result, owner, stopped, sha)
 }
 
 func wiringReportPolicyTx(ctx context.Context, tx *sql.Tx, project string) (time.Duration, string, error) {

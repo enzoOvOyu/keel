@@ -67,3 +67,21 @@ func TestWiringNewFailedStepTwoInvalidatesOldStepThree(t *testing.T) {
 		t.Fatal("invalid Step 1 still permits dispatch")
 	}
 }
+
+func TestWiringConfirmationStageDoesNotClaimMappingPublication(t *testing.T) {
+	b := &WiringBatch{Targets: []WiringBatchTarget{{Reports: []WiringStepReport{
+		{ID: "one", Step: 1, Version: 1, EffectiveVerdict: "PASS"},
+		{ID: "two", Step: 2, Version: 1, ParentID: "one", EffectiveVerdict: "PASS"},
+		{ID: "three", Step: 3, Version: 1, ParentID: "two", EffectiveVerdict: "PASS"},
+		{ID: "four", Step: 4, Version: 1, ParentID: "three", EffectiveVerdict: "PASS"},
+	}}}}
+	projectWiringBatch(b, true)
+	if b.State != "confirmed" || b.NextStep != 0 {
+		t.Fatal("complete observation/confirmation chain not projected")
+	}
+	b.Targets[0].Reports[1].EffectiveVerdict = "BLOCKED"
+	projectWiringBatch(b, true)
+	if b.State == "confirmed" || b.Targets[0].Reports[3].EffectiveVerdict != "BLOCKED" {
+		t.Fatal("obsolete Step 4 survived invalid Step 2")
+	}
+}

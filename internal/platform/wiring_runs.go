@@ -22,14 +22,16 @@ type WiringRunInput struct {
 	Reason      string `json:"reason"`
 }
 type WiringRunScope struct {
-	ProjectID    string             `json:"project_id"`
-	BatchID      string             `json:"batch_id"`
-	AssetID      string             `json:"asset_id"`
-	MachineID    string             `json:"machine_id"`
-	ParentID     string             `json:"parent_id"`
-	TopologyID   string             `json:"topology_id"`
-	IdentityHash string             `json:"identity_hash"`
-	Expectation  wiring.Expectation `json:"expectation"`
+	PolicyHash     string             `json:"policy_hash"`
+	GateTTLSeconds int64              `json:"gate_ttl_seconds"`
+	ProjectID      string             `json:"project_id"`
+	BatchID        string             `json:"batch_id"`
+	AssetID        string             `json:"asset_id"`
+	MachineID      string             `json:"machine_id"`
+	ParentID       string             `json:"parent_id"`
+	TopologyID     string             `json:"topology_id"`
+	IdentityHash   string             `json:"identity_hash"`
+	Expectation    wiring.Expectation `json:"expectation"`
 }
 
 // Fresh sample IDs, their deadlines and NP gate display strings are not physical
@@ -90,8 +92,8 @@ func (s *Store) PrepareWiringRunTx(ctx context.Context, tx *sql.Tx, a *AuthSessi
 	if e != nil {
 		return nil, e
 	}
-	if !h.Ready || h.Facts == nil || h.Facts.FactsHash != in.FactsHash || len(h.Facts.Targets) != len(batch.Targets) {
-		return nil, apiError(409, "WIRING_SCOPE_CHANGED", "Admission requires a fresh handshake for exactly the frozen batch targets")
+	if !h.Ready || h.Facts == nil || h.Facts.FactsHash != in.FactsHash || len(h.Facts.Targets) == 0 || len(h.Facts.Targets) > len(batch.Targets) {
+		return nil, apiError(409, "WIRING_SCOPE_CHANGED", "Admission requires a fresh handshake for explicit frozen batch hosts")
 	}
 	current, e := s.wiringFactsTx(ctx, tx, project, wiringTargetsFromFacts(h.Facts), true)
 	if e != nil {
@@ -100,9 +102,16 @@ func (s *Store) PrepareWiringRunTx(ctx context.Context, tx *sql.Tx, a *AuthSessi
 	if !current.Ready || current.FactsHash != in.FactsHash || !h.ValidUntil.After(time.Now()) {
 		return nil, apiError(409, "WIRING_SCOPE_CHANGED", "Readiness changed during admission")
 	}
+	duration, policy, e := wiringReportPolicyTx(ctx, tx, project)
+	if e != nil {
+		return nil, e
+	}
 	scopes := make([]WiringRunScope, 0, len(batch.Targets))
 	for _, t := range batch.Targets {
 		host := wiringHostFacts(current, t.AssetID)
+		if len(host.Targets) == 0 {
+			continue
+		}
 		expected, err := WiringExpectation(host, t.AssetID)
 		if err != nil {
 			return nil, err
@@ -123,7 +132,10 @@ func (s *Store) PrepareWiringRunTx(ctx context.Context, tx *sql.Tx, a *AuthSessi
 		if parent == "" {
 			return nil, apiError(409, "WIRING_STEP1_REQUIRED", "Current passing Step 1 required")
 		}
-		scopes = append(scopes, WiringRunScope{project, in.BatchID, t.AssetID, t.MachineID, parent, t.TopologyID, wiringIdentityHash(host), t.Expectation})
+		scopes = append(scopes, WiringRunScope{ProjectID: project, BatchID: in.BatchID, AssetID: t.AssetID, MachineID: t.MachineID, ParentID: parent, TopologyID: t.TopologyID, IdentityHash: wiringIdentityHash(host), Expectation: t.Expectation, PolicyHash: policy, GateTTLSeconds: int64(duration / time.Second)})
+	}
+	if len(scopes) != len(current.Targets) {
+		return nil, apiError(409, "WIRING_SCOPE_CHANGED", "Selected hosts must belong to the existing Step 1 batch")
 	}
 	return scopes, nil
 }
@@ -224,6 +236,13 @@ func (s *Store) wiringDispatchFactsTx(ctx context.Context, tx *sql.Tx, b wiring.
 	}
 	if !facts.Ready || wiringIdentityHash(facts) != scope.IdentityHash {
 		return nil, nil, "", apiError(409, "WIRING_SCOPE_CHANGED", "Current dispatch identities or network prerequisites differ from admission")
+	}
+	duration, policy, e := wiringReportPolicyTx(ctx, tx, b.ProjectID)
+	if e != nil {
+		return nil, nil, "", e
+	}
+	if policy != scope.PolicyHash || int64(duration/time.Second) != scope.GateTTLSeconds {
+		return nil, nil, "", apiError(409, "WIRING_POLICY_CHANGED", "Gate evidence policy changed after admission")
 	}
 	return scope, facts, owner, nil
 }

@@ -13,7 +13,7 @@ import { useProject } from '../../components/ProjectWorkspace'
 import { ApiError } from '../../lib/api'
 import { useAction } from '../../lib/management'
 import { useExpireOnUnauthorized, useSession } from '../../lib/session'
-import { createWiringBatch, createWiringExecution, getWiringBatch, createWiringHandshake, getWiringHandshake, listWiringHandshakes, previewWiring, type WiringFacts, type WiringTarget } from '../../lib/wiring'
+import { createWiringBatch, createWiringExecution, confirmWiring, getWiringBatch, createWiringHandshake, getWiringHandshake, listWiringHandshakes, previewWiring, type WiringFacts, type WiringTarget } from '../../lib/wiring'
 
 import WiringTimeline from './WiringTimeline'
 
@@ -21,6 +21,7 @@ type PortChoice = { id: string; name: string; mac: string }
 export default function WiringDialog({ asset, ports, onClose }: { asset: { id: string; hostname: string }; ports: PortChoice[]; onClose: () => void }) {
  const { t } = useTranslation(), { session } = useSession(), { project } = useProject(), action = useAction(), queries = useQueryClient()
  const [chosen, setChosen] = useState(() => new Set(ports.map(port => port.id))), [scope, setScope] = useState<WiringFacts | null>(null), [reason, setReason] = useState(''), [page, setPage] = useState(1), [selected, setSelected] = useState(''), [validation, setValidation] = useState(''), [now, setNow] = useState(Date.now())
+ const confirmAttempt = useRef({ body: '', key: '' })
  const [executionId, setExecutionId] = useState(''), runAttempt = useRef({ body: '', key: '' })
  const [batchId, setBatchId] = useState(''), batchAttempt = useRef({ body: '', key: '' })
  const mounted = useRef(true), attempt = useRef({ body: '', key: '' })
@@ -74,6 +75,15 @@ export default function WiringDialog({ asset, ports, onClose }: { asset: { id: s
    void list.refetch()
   }
  }
+ async function confirmTarget(assetId: string, step3Id: string) {
+  if (!batch.data || !canWrite || !(session.user.is_admin || ['Admin', 'DL'].includes(project.role))) return
+  const count = Array.from(reason.trim()).length
+  if (count < 3 || count > 1000) { setValidation(t('wiringInvalidReason')); return }
+  const input = { asset_id: assetId, step3_id: step3Id, reason: reason.trim() }, body = JSON.stringify(input)
+  if (confirmAttempt.current.body !== body) confirmAttempt.current = { body, key: crypto.randomUUID() }
+  const result = await action.run(() => confirmWiring(project.id, batch.data!.id, input, session.csrf_token, confirmAttempt.current.key))
+  if (result.ok && mounted.current) { void batch.refetch(); void queries.invalidateQueries({ queryKey: ['private', session.user.id, 'project', project.id, 'assets'] }) }
+ }
  async function startCapture() {
   const frozen = batch.data
   if (!frozen || !canWrite || !frozen.can_start_step2) return
@@ -110,7 +120,7 @@ export default function WiringDialog({ asset, ports, onClose }: { asset: { id: s
     {list.isPending && <p role="status">{t('loadingRecords')}</p>}{list.data && !list.isError && <><Table><TableHeader><TableRow><TableHead>{t('wiringReadinessAt')}</TableHead><TableHead>{t('wiringValidUntil')}</TableHead><TableHead>{t('wiringDetail')}</TableHead></TableRow></TableHeader><TableBody>{list.data.items.map(row => <TableRow key={row.id}><TableCell>{new Date(row.readiness_at).toLocaleString()}</TableCell><TableCell>{new Date(row.valid_until).toLocaleString()}</TableCell><TableCell><Button variant="outline" size="sm" onClick={() => { setNow(Date.now()); setSelected(row.id); if (selected === row.id) void detail.refetch() }}>{t('wiringDetail')}</Button></TableCell></TableRow>)}</TableBody></Table>{!list.data.items.length && <p>{t('wiringEmpty')}</p>}<Pagination offset={(page - 1) * list.data.page_size} limit={list.data.page_size} total={list.data.total} busy={list.isFetching} onChange={offset => setPage(Math.floor(offset / (list.data?.page_size ?? 10)) + 1)} /></>}
    </section>
    {lease && !detail.isError && <section aria-live="polite"><h3>{t('wiringLease')}: {t(liveLease ? 'wiringLeaseReady' : 'wiringLeaseExpired')}</h3><code className="cell-subtitle">{lease.id}</code><p>{t('wiringCollector')}: {lease.collector.state} · {lease.collector.duration_ms}ms</p><p>{t('wiringValidUntil')}: {new Date(lease.valid_until).toLocaleString()}</p>{!liveLease && <code>{lease.invalidation_reason === 'WIRING_HANDSHAKE_CONSUMED' ? t('wiringConsumed') : lease.invalidation_reason || 'WIRING_HANDSHAKE_EXPIRED'}</code>}<details><summary>{t('wiringCurrentSelection')}</summary>{lease.facts.targets.map(host => <p key={host.asset_id}>{host.hostname}: {host.ports.map(port => `${port.interface} → ${port.switch_serial}/${port.switch_port}`).join(', ')}</p>)}</details>{liveLease && canWrite && <Button disabled={action.busy} onClick={() => void publishStep1()}>{t('wiringStep1Publish')}</Button>}{lease.batch_id && <Button variant="outline" onClick={() => setBatchId(lease.batch_id)}>{t('wiringViewBatch')}</Button>}</section>}
-   {batch.data && !batch.isError && <><WiringTimeline batch={batch.data} now={now} /><div className="action-row"><Button disabled={action.busy || !canWrite || !batch.data.can_start_step2} onClick={() => void startCapture()}>{t('wiringStartCapture')}</Button><Button variant="outline" disabled={batch.isFetching} onClick={() => void batch.refetch()}>{t('wiringRefreshReports')}</Button>{executionId && <Link to="/p/$projectId/executions" params={{ projectId: project.id }} search={{ execution: executionId }}>{t('wiringViewExecution')}</Link>}</div></>}
+   {batch.data && !batch.isError && <><WiringTimeline batch={batch.data} now={now} canConfirm={canWrite && (session.user.is_admin || ['Admin', 'DL'].includes(project.role))} busy={action.busy} onConfirm={(assetId, step3Id) => void confirmTarget(assetId, step3Id)} /><div className="action-row"><Button disabled={action.busy || !canWrite || !batch.data.can_start_step2} onClick={() => void startCapture()}>{t('wiringStartCapture')}</Button><Button variant="outline" disabled={batch.isFetching} onClick={() => void batch.refetch()}>{t('wiringRefreshReports')}</Button>{executionId && <Link to="/p/$projectId/executions" params={{ projectId: project.id }} search={{ execution: executionId }}>{t('wiringViewExecution')}</Link>}</div></>}
   </>}
   <p className="field-hint">{t('wiringNoExecution')}</p><Button variant="outline" disabled={action.busy} onClick={onClose}>{t('bmcClose')}</Button>
  </DialogContent></Dialog>

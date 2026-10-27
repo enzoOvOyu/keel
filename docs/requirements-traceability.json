@@ -1923,7 +1923,7 @@
         "F-4.6"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Target-scoped G1/topology/NP-1/2/4 readiness, fixed mTLS health handshake, independently bound switch MACs, strict json0 and three-source Step2/3 rules have source. Live-advertising readback, durable original-command ledger, original terminal queries, separate host-start/stop proof, version-pinned archives, no-restart recovery and independent dual-NIC/dual-switch protocol fixtures are authored. Registered-command Run/Query consumers are internal only: common Execution admission/worker routing and the real privileged driver are not connected. Steps2–4 remain database-blocked; no G2/NP-3. Migrations084–088 and all added checks NOT_RUN.",
+      "implementation_notes": "Source now includes domain-owned shared Execution admission/worker routing, per-dispatch readiness refresh, exclusive host/switch resources, immutable original capture receipts, Step2/3 reports and DL Step4/G2/NP-3 consumption. Fixed development adapters remain sim/protocol_fixture and cannot pass real gates. Real privileged helper remains a separate PoC adapter. Exact same-host port/rail incremental aggregation and concentrated positive integration validation remain pending. Migrations084–095 and new checks NOT_RUN; not deployed. See HANDOFF199–200.",
       "evidence_refs": [
         "internal/wiring/capture.go",
         "internal/wiring/recollect.go",
@@ -2098,7 +2098,7 @@
         "F-4.17"
       ],
       "implementation_status": "partial",
-      "implementation_notes": "Immutable batches/target relations/StepReport and one-time handshake consumption publish Step1 only. Current Step1 follows G1/model/topology validity independently of the original network lease. Four-step UI shows later steps not started. Step2/3 pure rules and registered-command evidence consumers have source, but common Execution admission/routing, receipt-bound Step2/3 publication, rerun and DL Step4 confirmation remain incomplete. No G2/NP-3/Mapping. Migration085 and added cases NOT_RUN.",
+      "implementation_notes": "Source now retains Step1–4 reports and predecessor/policy/TTL invalidation, original capture consumption, concrete port issue discovery, post-repair retests/explicit closure/two-failure DL escalation and immutable DL confirmation. Frozen gate TTL is never renewed by recovery. Explicit host subsets can rerun within the same Step1 batch. Exact same-host selected-port/rail aggregation remains pending; no claim of full WP closure. All added checks NOT_RUN; not deployed. See HANDOFF199–200.",
       "evidence_refs": [
         "internal/platform/wiring_batches.go",
         "internal/platform/migrations/085_wiring_step_reports.sql",

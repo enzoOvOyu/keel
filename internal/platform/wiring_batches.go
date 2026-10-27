@@ -40,16 +40,17 @@ type WiringBatchTarget struct {
 	Reports     []WiringStepReport     `json:"reports"`
 }
 type WiringStepDetail struct {
-	CommandID    string                 `json:"command_id,omitempty"`
-	RawSHA256    string                 `json:"raw_sha256,omitempty"`
-	HostOrigin   string                 `json:"host_origin,omitempty"`
-	SwitchOrigin string                 `json:"switch_origin,omitempty"`
-	Findings     []wiring.Finding       `json:"findings"`
-	Version      string                 `json:"version"`
-	Step         int                    `json:"step"`
-	Verdict      string                 `json:"verdict"`
-	TopologyID   string                 `json:"topology_id"`
-	Relations    *TopologyRelationTable `json:"relations"`
+	ConfirmationID string                 `json:"confirmation_id,omitempty"`
+	CommandID      string                 `json:"command_id,omitempty"`
+	RawSHA256      string                 `json:"raw_sha256,omitempty"`
+	HostOrigin     string                 `json:"host_origin,omitempty"`
+	SwitchOrigin   string                 `json:"switch_origin,omitempty"`
+	Findings       []wiring.Finding       `json:"findings"`
+	Version        string                 `json:"version"`
+	Step           int                    `json:"step"`
+	Verdict        string                 `json:"verdict"`
+	TopologyID     string                 `json:"topology_id"`
+	Relations      *TopologyRelationTable `json:"relations"`
 }
 type WiringStepReport struct {
 	PolicyHash         string           `json:"-"`
@@ -117,7 +118,7 @@ func (s *Store) CreateWiringBatch(ctx context.Context, a *AuthSession, project s
 	if !current.Ready || current.FactsHash != in.FactsHash || !handshake.ValidUntil.After(time.Now()) {
 		return nil, apiError(409, "WIRING_SCOPE_CHANGED", "Current evidence no longer matches the handshake")
 	}
-	out := &WiringBatch{ID: RandomID(), ProjectID: project, HandshakeID: handshake.ID, FactsHash: current.FactsHash, CreatedBy: a.User.ID, CreatedAt: time.Now().UTC(), Reason: in.Reason, Targets: []WiringBatchTarget{}, State: "awaiting_lldp_adapter", NextStep: 2, Code: "WIRING_LLDP_ADAPTER_NOT_CONNECTED"}
+	out := &WiringBatch{ID: RandomID(), ProjectID: project, HandshakeID: handshake.ID, FactsHash: current.FactsHash, CreatedBy: a.User.ID, CreatedAt: time.Now().UTC(), Reason: in.Reason, Targets: []WiringBatchTarget{}, State: "awaiting_capture", NextStep: 2, CanStartStep2: s.WiringEnabled, Code: "WIRING_CAPTURE_REQUIRED"}
 	if _, e = tx.ExecContext(ctx, `INSERT INTO validation_wiring_batches(id,project_id,handshake_id,facts_hash,created_by,reason,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)`, out.ID, project, handshake.ID, current.FactsHash, a.User.ID, in.Reason, out.CreatedAt); e != nil {
 		return nil, e
 	}
@@ -239,6 +240,18 @@ func (s *Store) wiringBatchTx(ctx context.Context, tx *sql.Tx, project, id strin
 				report.EffectiveVerdict = "BLOCKED"
 				report.InvalidationReason = "WIRING_EVIDENCE_EXPIRED_OR_CHANGED"
 			}
+			if report.Step == 4 && report.EffectiveVerdict == "PASS" {
+				_, _, scopeErr := s.wiringObservedScopeTx(ctx, tx, project, report.Detail.CommandID)
+				if scopeErr != nil {
+					var domain *Error
+					if errors.As(scopeErr, &domain) && (domain.Status == 409 || domain.Status == 404) {
+						report.EffectiveVerdict = "BLOCKED"
+						report.InvalidationReason = domain.Code
+					} else {
+						return nil, scopeErr
+					}
+				}
+			}
 			// Step 1's validity follows topology, independently of the original network
 			// handshake expiring. Fresh network proof is checked again at dispatch.
 			if report.Step == 1 && (topology.EffectiveVerdict != "PASS" || target.Relations == nil || topology.ScopeHash != target.Relations.ScopeHash) {
@@ -279,6 +292,7 @@ func projectWiringBatch(out *WiringBatch, enabled bool) {
 	out.Code = "WIRING_CAPTURE_REQUIRED"
 	out.NextStep = 2
 	allThree := len(out.Targets) > 0
+	allFour := len(out.Targets) > 0
 	for i := range out.Targets {
 		t := &out.Targets[i]
 		latest := map[int]*WiringStepReport{}
@@ -308,6 +322,9 @@ func projectWiringBatch(out *WiringBatch, enabled bool) {
 				}
 			}
 		}
+		if latest[4] == nil || latest[4].EffectiveVerdict != "PASS" {
+			allFour = false
+		}
 		if latest[2] == nil || latest[2].EffectiveVerdict != "PASS" || latest[3] == nil || latest[3].EffectiveVerdict != "PASS" {
 			allThree = false
 		}
@@ -316,6 +333,11 @@ func projectWiringBatch(out *WiringBatch, enabled bool) {
 		out.State = "awaiting_dl_confirmation"
 		out.NextStep = 4
 		out.Code = "WIRING_DL_CONFIRMATION_REQUIRED"
+	}
+	if allThree && allFour {
+		out.State = "confirmed"
+		out.NextStep = 0
+		out.Code = "WIRING_G2_CONFIRMED"
 	}
 	if !enabled {
 		out.CanStartStep2 = false
