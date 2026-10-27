@@ -1,0 +1,445 @@
+{
+  "schema": "keel.redfish-fixture/v1",
+  "documents": {
+    "/redfish/v1/": {
+      "@odata.id": "/redfish/v1/",
+      "@odata.type": "#ServiceRoot.v1_0_0.ServiceRoot",
+      "Name": "SIMULATION ONLY ServiceRoot",
+      "RedfishVersion": "1.0.0",
+      "Systems": {
+        "@odata.id": "/redfish/v1/Systems"
+      },
+      "Managers": {
+        "@odata.id": "/redfish/v1/Managers"
+      },
+      "Chassis": {
+        "@odata.id": "/redfish/v1/Chassis"
+      },
+      "UpdateService": {
+        "@odata.id": "/redfish/v1/UpdateService"
+      }
+    },
+    "/redfish/v1/Systems": {
+      "@odata.id": "/redfish/v1/Systems",
+      "@odata.type": "#ComputerSystemCollection.ComputerSystemCollection",
+      "Name": "SIMULATION ONLY ComputerSystem collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Systems/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Managers": {
+      "@odata.id": "/redfish/v1/Managers",
+      "@odata.type": "#ManagerCollection.ManagerCollection",
+      "Name": "SIMULATION ONLY Manager collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Managers/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Chassis": {
+      "@odata.id": "/redfish/v1/Chassis",
+      "@odata.type": "#ChassisCollection.ChassisCollection",
+      "Name": "SIMULATION ONLY Chassis collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Chassis/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Systems/sim": {
+      "@odata.id": "/redfish/v1/Systems/sim",
+      "@odata.type": "#ComputerSystem.v1_0_0.ComputerSystem",
+      "Name": "SIMULATION ONLY ComputerSystem",
+      "Id": "sim",
+      "SerialNumber": "SIM-BMC-0001",
+      "Processors": {
+        "@odata.id": "/redfish/v1/Systems/sim/Processors"
+      },
+      "Memory": {
+        "@odata.id": "/redfish/v1/Systems/sim/Memory"
+      },
+      "Storage": {
+        "@odata.id": "/redfish/v1/Systems/sim/Storage"
+      },
+      "NetworkInterfaces": {
+        "@odata.id": "/redfish/v1/Systems/sim/NetworkInterfaces"
+      },
+      "EthernetInterfaces": {
+        "@odata.id": "/redfish/v1/Systems/sim/EthernetInterfaces"
+      },
+      "Bios": {
+        "@odata.id": "/redfish/v1/Systems/sim/Bios"
+      },
+      "Boot": {
+        "BootOptions": {
+          "@odata.id": "/redfish/v1/Systems/sim/BootOptions"
+        }
+      }
+    },
+    "/redfish/v1/Systems/sim/Processors": {
+      "@odata.id": "/redfish/v1/Systems/sim/Processors",
+      "@odata.type": "#ProcessorCollection.ProcessorCollection",
+      "Name": "SIMULATION ONLY Processor collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Systems/sim/Processors/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Systems/sim/Processors/sim": {
+      "@odata.id": "/redfish/v1/Systems/sim/Processors/sim",
+      "@odata.type": "#Processor.v1_0_0.Processor",
+      "Name": "SIMULATION ONLY Processor",
+      "Id": "sim",
+      "ProcessorType": "CPU",
+      "InstructionSet": "x86-64",
+      "TotalCores": 1
+    },
+    "/redfish/v1/Systems/sim/Memory": {
+      "@odata.id": "/redfish/v1/Systems/sim/Memory",
+      "@odata.type": "#MemoryCollection.MemoryCollection",
+      "Name": "SIMULATION ONLY Memory collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Systems/sim/Memory/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Systems/sim/Memory/sim": {
+      "@odata.id": "/redfish/v1/Systems/sim/Memory/sim",
+      "@odata.type": "#Memory.v1_0_0.Memory",
+      "Name": "SIMULATION ONLY Memory",
+      "Id": "sim",
+      "CapacityMiB": 1024
+    },
+    "/redfish/v1/Systems/sim/BootOptions": {
+      "@odata.id": "/redfish/v1/Systems/sim/BootOptions",
+      "@odata.type": "#BootOptionCollection.BootOptionCollection",
+      "Name": "SIMULATION ONLY BootOption collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Systems/sim/BootOptions/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Systems/sim/BootOptions/sim": {
+      "@odata.id": "/redfish/v1/Systems/sim/BootOptions/sim",
+      "@odata.type": "#BootOption.v1_0_0.BootOption",
+      "Name": "SIMULATION ONLY BootOption",
+      "Id": "sim",
+      "BootOptionReference": "BootSIM",
+      "DisplayName": "SIM boot device"
+    },
+    "/redfish/v1/Systems/sim/Bios": {
+      "@odata.id": "/redfish/v1/Systems/sim/Bios",
+      "@odata.type": "#Bios.v1_0_0.Bios",
+      "Name": "SIMULATION ONLY Bios",
+      "Id": "Bios",
+      "AttributeRegistry": "SIM-only",
+      "Attributes": {
+        "SimulationOnly": true
+      }
+    },
+    "/redfish/v1/Systems/sim/Storage": {
+      "@odata.id": "/redfish/v1/Systems/sim/Storage",
+      "@odata.type": "#StorageCollection.StorageCollection",
+      "Name": "SIMULATION ONLY Storage collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Systems/sim/Storage/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Systems/sim/Storage/sim": {
+      "@odata.id": "/redfish/v1/Systems/sim/Storage/sim",
+      "@odata.type": "#Storage.v1_0_0.Storage",
+      "Name": "SIMULATION ONLY Storage",
+      "Id": "sim",
+      "Drives": [
+        {
+          "@odata.id": "/redfish/v1/Systems/sim/Storage/sim/Drives/sim"
+        }
+      ],
+      "StorageControllers": [
+        {
+          "MemberId": "sim",
+          "Name": "SIM controller"
+        }
+      ]
+    },
+    "/redfish/v1/Systems/sim/Storage/sim/Drives/sim": {
+      "@odata.id": "/redfish/v1/Systems/sim/Storage/sim/Drives/sim",
+      "@odata.type": "#Drive.v1_0_0.Drive",
+      "Name": "SIMULATION ONLY Drive",
+      "Id": "sim",
+      "SerialNumber": "SIM-DRIVE-0001",
+      "CapacityBytes": 1073741824
+    },
+    "/redfish/v1/Systems/sim/NetworkInterfaces": {
+      "@odata.id": "/redfish/v1/Systems/sim/NetworkInterfaces",
+      "@odata.type": "#NetworkInterfaceCollection.NetworkInterfaceCollection",
+      "Name": "SIMULATION ONLY NetworkInterface collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Systems/sim/NetworkInterfaces/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Systems/sim/NetworkInterfaces/sim": {
+      "@odata.id": "/redfish/v1/Systems/sim/NetworkInterfaces/sim",
+      "@odata.type": "#NetworkInterface.v1_0_0.NetworkInterface",
+      "Name": "SIMULATION ONLY NetworkInterface",
+      "Id": "sim",
+      "Links": {
+        "NetworkAdapter": {
+          "@odata.id": "/redfish/v1/Chassis/sim/NetworkAdapters/sim"
+        }
+      }
+    },
+    "/redfish/v1/Chassis/sim/NetworkAdapters": {
+      "@odata.id": "/redfish/v1/Chassis/sim/NetworkAdapters",
+      "@odata.type": "#NetworkAdapterCollection.NetworkAdapterCollection",
+      "Name": "SIMULATION ONLY NetworkAdapter collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Chassis/sim/NetworkAdapters/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Chassis/sim/NetworkAdapters/sim": {
+      "@odata.id": "/redfish/v1/Chassis/sim/NetworkAdapters/sim",
+      "@odata.type": "#NetworkAdapter.v1_0_0.NetworkAdapter",
+      "Name": "SIMULATION ONLY NetworkAdapter",
+      "Id": "sim",
+      "NetworkDeviceFunctions": {
+        "@odata.id": "/redfish/v1/Chassis/sim/NetworkAdapters/sim/NetworkDeviceFunctions"
+      },
+      "Ports": {
+        "@odata.id": "/redfish/v1/Chassis/sim/NetworkAdapters/sim/Ports"
+      }
+    },
+    "/redfish/v1/Chassis/sim/NetworkAdapters/sim/NetworkDeviceFunctions": {
+      "@odata.id": "/redfish/v1/Chassis/sim/NetworkAdapters/sim/NetworkDeviceFunctions",
+      "@odata.type": "#NetworkDeviceFunctionCollection.NetworkDeviceFunctionCollection",
+      "Name": "SIMULATION ONLY NetworkDeviceFunction collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Chassis/sim/NetworkAdapters/sim/NetworkDeviceFunctions/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Chassis/sim/NetworkAdapters/sim/NetworkDeviceFunctions/sim": {
+      "@odata.id": "/redfish/v1/Chassis/sim/NetworkAdapters/sim/NetworkDeviceFunctions/sim",
+      "@odata.type": "#NetworkDeviceFunction.v1_0_0.NetworkDeviceFunction",
+      "Name": "SIMULATION ONLY NetworkDeviceFunction",
+      "Id": "sim",
+      "Ethernet": {
+        "PermanentMACAddress": "02:00:00:00:00:01"
+      }
+    },
+    "/redfish/v1/Chassis/sim/NetworkAdapters/sim/Ports": {
+      "@odata.id": "/redfish/v1/Chassis/sim/NetworkAdapters/sim/Ports",
+      "@odata.type": "#PortCollection.PortCollection",
+      "Name": "SIMULATION ONLY Port collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Chassis/sim/NetworkAdapters/sim/Ports/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Chassis/sim/NetworkAdapters/sim/Ports/sim": {
+      "@odata.id": "/redfish/v1/Chassis/sim/NetworkAdapters/sim/Ports/sim",
+      "@odata.type": "#Port.v1_0_0.Port",
+      "Name": "SIMULATION ONLY Port",
+      "Id": "sim",
+      "PortId": "SIM-1",
+      "CurrentSpeedGbps": 0
+    },
+    "/redfish/v1/Systems/sim/EthernetInterfaces": {
+      "@odata.id": "/redfish/v1/Systems/sim/EthernetInterfaces",
+      "@odata.type": "#EthernetInterfaceCollection.EthernetInterfaceCollection",
+      "Name": "SIMULATION ONLY EthernetInterface collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Systems/sim/EthernetInterfaces/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Systems/sim/EthernetInterfaces/sim": {
+      "@odata.id": "/redfish/v1/Systems/sim/EthernetInterfaces/sim",
+      "@odata.type": "#EthernetInterface.v1_0_0.EthernetInterface",
+      "Name": "SIMULATION ONLY EthernetInterface",
+      "Id": "sim",
+      "PermanentMACAddress": "02:00:00:00:00:01",
+      "MACAddress": "02:00:00:00:00:01"
+    },
+    "/redfish/v1/Managers/sim/EthernetInterfaces": {
+      "@odata.id": "/redfish/v1/Managers/sim/EthernetInterfaces",
+      "@odata.type": "#EthernetInterfaceCollection.EthernetInterfaceCollection",
+      "Name": "SIMULATION ONLY EthernetInterface collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Managers/sim/EthernetInterfaces/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Managers/sim/EthernetInterfaces/sim": {
+      "@odata.id": "/redfish/v1/Managers/sim/EthernetInterfaces/sim",
+      "@odata.type": "#EthernetInterface.v1_0_0.EthernetInterface",
+      "Name": "SIMULATION ONLY EthernetInterface",
+      "Id": "sim",
+      "PermanentMACAddress": "02:00:00:00:00:02",
+      "MACAddress": "02:00:00:00:00:02"
+    },
+    "/redfish/v1/Managers/sim": {
+      "@odata.id": "/redfish/v1/Managers/sim",
+      "@odata.type": "#Manager.v1_0_0.Manager",
+      "Name": "SIMULATION ONLY Manager",
+      "Id": "sim",
+      "ManagerType": "BMC",
+      "FirmwareVersion": "SIM-only",
+      "EthernetInterfaces": {
+        "@odata.id": "/redfish/v1/Managers/sim/EthernetInterfaces"
+      }
+    },
+    "/redfish/v1/Chassis/sim": {
+      "@odata.id": "/redfish/v1/Chassis/sim",
+      "@odata.type": "#Chassis.v1_0_0.Chassis",
+      "Name": "SIMULATION ONLY Chassis",
+      "Id": "sim",
+      "ChassisType": "RackMount",
+      "NetworkAdapters": {
+        "@odata.id": "/redfish/v1/Chassis/sim/NetworkAdapters"
+      },
+      "PowerSubsystem": {
+        "@odata.id": "/redfish/v1/Chassis/sim/PowerSubsystem"
+      },
+      "ThermalSubsystem": {
+        "@odata.id": "/redfish/v1/Chassis/sim/ThermalSubsystem"
+      },
+      "Sensors": {
+        "@odata.id": "/redfish/v1/Chassis/sim/Sensors"
+      }
+    },
+    "/redfish/v1/Chassis/sim/PowerSubsystem": {
+      "@odata.id": "/redfish/v1/Chassis/sim/PowerSubsystem",
+      "@odata.type": "#PowerSubsystem.v1_0_0.PowerSubsystem",
+      "Name": "SIMULATION ONLY PowerSubsystem",
+      "Id": "PowerSubsystem",
+      "PowerSupplies": {
+        "@odata.id": "/redfish/v1/Chassis/sim/PowerSubsystem/PowerSupplies"
+      }
+    },
+    "/redfish/v1/Chassis/sim/PowerSubsystem/PowerSupplies": {
+      "@odata.id": "/redfish/v1/Chassis/sim/PowerSubsystem/PowerSupplies",
+      "@odata.type": "#PowerSupplyCollection.PowerSupplyCollection",
+      "Name": "SIMULATION ONLY PowerSupply collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Chassis/sim/PowerSubsystem/PowerSupplies/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Chassis/sim/PowerSubsystem/PowerSupplies/sim": {
+      "@odata.id": "/redfish/v1/Chassis/sim/PowerSubsystem/PowerSupplies/sim",
+      "@odata.type": "#PowerSupply.v1_0_0.PowerSupply",
+      "Name": "SIMULATION ONLY PowerSupply",
+      "Id": "sim",
+      "SerialNumber": "SIM-PSU-0001",
+      "PowerCapacityWatts": 1
+    },
+    "/redfish/v1/Chassis/sim/ThermalSubsystem": {
+      "@odata.id": "/redfish/v1/Chassis/sim/ThermalSubsystem",
+      "@odata.type": "#ThermalSubsystem.v1_0_0.ThermalSubsystem",
+      "Name": "SIMULATION ONLY ThermalSubsystem",
+      "Id": "ThermalSubsystem",
+      "Fans": {
+        "@odata.id": "/redfish/v1/Chassis/sim/ThermalSubsystem/Fans"
+      }
+    },
+    "/redfish/v1/Chassis/sim/ThermalSubsystem/Fans": {
+      "@odata.id": "/redfish/v1/Chassis/sim/ThermalSubsystem/Fans",
+      "@odata.type": "#FanCollection.FanCollection",
+      "Name": "SIMULATION ONLY Fan collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Chassis/sim/ThermalSubsystem/Fans/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Chassis/sim/ThermalSubsystem/Fans/sim": {
+      "@odata.id": "/redfish/v1/Chassis/sim/ThermalSubsystem/Fans/sim",
+      "@odata.type": "#Fan.v1_0_0.Fan",
+      "Name": "SIMULATION ONLY Fan",
+      "Id": "sim",
+      "SpeedRPM": 0
+    },
+    "/redfish/v1/Chassis/sim/Sensors": {
+      "@odata.id": "/redfish/v1/Chassis/sim/Sensors",
+      "@odata.type": "#SensorCollection.SensorCollection",
+      "Name": "SIMULATION ONLY Sensor collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/Chassis/sim/Sensors/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/Chassis/sim/Sensors/sim": {
+      "@odata.id": "/redfish/v1/Chassis/sim/Sensors/sim",
+      "@odata.type": "#Sensor.v1_0_0.Sensor",
+      "Name": "SIMULATION ONLY Sensor",
+      "Id": "sim",
+      "ReadingType": "Temperature",
+      "Reading": 0,
+      "ReadingUnits": "Cel"
+    },
+    "/redfish/v1/UpdateService": {
+      "@odata.id": "/redfish/v1/UpdateService",
+      "@odata.type": "#UpdateService.v1_0_0.UpdateService",
+      "Name": "SIMULATION ONLY UpdateService",
+      "Id": "UpdateService",
+      "FirmwareInventory": {
+        "@odata.id": "/redfish/v1/UpdateService/FirmwareInventory"
+      }
+    },
+    "/redfish/v1/UpdateService/FirmwareInventory": {
+      "@odata.id": "/redfish/v1/UpdateService/FirmwareInventory",
+      "@odata.type": "#SoftwareInventoryCollection.SoftwareInventoryCollection",
+      "Name": "SIMULATION ONLY SoftwareInventory collection",
+      "Members": [
+        {
+          "@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/sim"
+        }
+      ],
+      "Members@odata.count": 1
+    },
+    "/redfish/v1/UpdateService/FirmwareInventory/sim": {
+      "@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/sim",
+      "@odata.type": "#SoftwareInventory.v1_0_0.SoftwareInventory",
+      "Name": "SIMULATION ONLY SoftwareInventory",
+      "Id": "sim",
+      "Version": "SIM-only",
+      "Updateable": false
+    }
+  },
+  "failures": {}
+}

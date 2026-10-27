@@ -2026,3 +2026,11 @@ API及生成类型、共享UI入口与工单内分页诊断历史已接入，页
 - API/OpenAPI/生成TS与按需展开的批次列表、范围预览、创建、分页历史及有界目标进度面板已接线；无自动轮询，不上传/展示密码。控件沿用shadcn/ui和既有等宽字体。
 - 新增隔离PG/HTTPS协议mock用例源码：真实分支/模拟隔离、head轮换存量版本保留、范围新增拒旧预览、单台成功不能替全批、伪造结果/跨项目/不可变、unknown不重放、201台整批拒绝，全部NOT_RUN。real分支协议mock不是硬件PoC。
 - 只执行源码审查、受overlay/内存限制的gofmt及npm run api:generate --prefix web（生成成功，/tmp/keel-bmc-credential-api-generation.log）；未运行编译/测试/静态/类型/DB/浏览器/镜像，未迁移/授权/部署/推送。源76条迁移（排除原026），068～079待应用，运行仍64/最后067，3000仍7afda32；所有新开关未启用。WP-2.1/FR-3保持partial，下一块完整型号硬件覆盖，再接WP-2.3预收集/G1；两份原草稿保留。
+
+## 183. WP-2.1 L1～L3库存图覆盖与完整性（2026-10-27，源码）
+
+- 接续4f9beb7，仍在本轮两小时开发中。补充有界库存envelope校验：HTTP 200还必须匹配资源类型、@odata.id、Members/count/nextLink；缺成员/缺页、分页循环、计数不一致和原始成员缺失均partial，保留原始异常文档与分类，不把“首个页面成功”当全量。
+- 递归、HTTPS发出密码前、原始路径及fixture均限制Systems/Managers/Chassis/UpdateService库存树，拒绝Account/Session/Actions/OEM/Task/Log/Settings；补上NetworkAdapter/NetworkDeviceFunction等标准单数链接。unsupported能力不被后续成功页抹成collected。完整快照根据保留的类型及集合图重核覆盖，不能只改capabilities字典伪造完整。
+- 默认sim仍仅确认身份，修正其DMTF集合类型；另加显式redfish-l3-sim.json合成样本，覆盖PRD所有级别与现代Power/Thermal子系统、网卡端口/设备函数、BIOS/启动项/固件。数量/容量/版本为SIM-only，不用于实际型号规格。库存对话框追加四类失败计数，复用原逐项原因与质量/保鲜状态。
+- 已写分级完整图、缺失/类型/身份错误、成员计数、循环/截断分页、不可进入账号/OEM/动作、伪造能力字典的用例，全部NOT_RUN。只做源码审查/gofmt，无测试/编译/类型/DB/浏览器/镜像，无迁移/授权/部署/推送；外部只读核对DMTF公开schema，链接记入BMC-INVENTORY.md。
+- 仍76条源迁移（排除原026），运行64/最后067，3000保持7afda32、新开关未启用。WP-2.1/FR-3仍partial，真实型号/兼容性与H-2未验证；下一块按WP-2.3做预收集/G1，WP-2.2视图/导出仍待实现，原fabric两草稿保留。

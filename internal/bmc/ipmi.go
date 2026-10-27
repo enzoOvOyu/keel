@@ -25,7 +25,7 @@ func InventoryPath(path string) (string, error) {
 			return path, nil
 		}
 	}
-	return CanonicalPath("/redfish/v1/", path)
+	return RedfishInventoryPath(path)
 }
 
 type IPMIReader interface {

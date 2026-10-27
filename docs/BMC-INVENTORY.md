@@ -73,3 +73,14 @@ worker启用BMC后每5秒有界扫描（每批20条、3秒上下文），创建�
 手动执行、证据查询、cron/事件/有限重试、受限IPMI回退及UI已有源码；整批轮换复验已有源码和NOT_RUN用例；完整型号硬件覆盖及WP-2.2 JSONPath视图/导出待开发。G1、拓扑、四步G2和G3仍属其各自WP，不以接口存在冒充完成。
 
 新增纯逻辑、HTTPS、加密、PostgreSQL租约/作用域/回执/凭据轮换用例均仅编写、NOT_RUN。按用户要求，重大里程碑集中测试；源码格式化和API生成成功不算测试通过。真实H-2/硬件结果NOT_RUN。
+
+
+## L1～L3覆盖与输入质量（源码）
+
+递归仅取Systems/Managers/Chassis/UpdateService库存树，禁止通过Members或其他库存链接进入账号、会话、Action、OEM、任务、日志及待应用Settings。HTTP客户端在解析密码前执行同样限制；原始证据路径与fixture载入也遵守该边界。同源绝对链接仍由客户端验证来源，保留快照只验证已认证GET对应的路径，不重新访问设备。
+
+每份成功HTTP响应仍须核对库存类型、@odata.id、集合Members/count/nextLink。声明未返回的成员、缺页、计数变动、循环分页、无原始成员文档均保留partial与原因，不能以首个200响应推定完整。完整快照重新核对原始类型和集合图，伪造capabilities字典不能补齐缺少的硬件证据。不支持的资源明确unsupported，其他能力不因此推定正常。页面显示四类失败计数和逐项原因。
+
+`sim/fixtures/bmc/redfish-l3-sim.json`是显式合成样本，覆盖基础BMC、CPU/内存/磁盘、网卡/物理端口/设备函数、BMC和系统以太网、供电/风扇/传感器、BIOS/启动项/固件。其SN为SIM-BMC-0001，容量/数量/版本仅用于协议图覆盖，不能作为HGX/GB300或其他真实型号规格。操作员必须复制为当前属主0600并显式选择sim fixture；默认NewSimReader仍只确认身份。此样本及分级/质量/分页/越界用例尚未运行。
+
+Envelope规则参考DMTF [ComputerSystemCollection](https://redfish.dmtf.org/schemas/v1/ComputerSystemCollection.json)、[NetworkInterfaceCollection](https://redfish.dmtf.org/schemas/v1/NetworkInterfaceCollection.json)及[PowerSubsystem](https://redfish.dmtf.org/schemas/v1/PowerSubsystem.json)；当前实现是有界库存检查，不声称完整JSON Schema校验或所有厂商兼容性验证。

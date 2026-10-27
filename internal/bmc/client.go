@@ -136,6 +136,9 @@ func (c *Client) Resolve(parent, reference string) (string, error) {
 func (c *Client) Read(ctx context.Context, reference string) (Document, error) {
 	var empty Document
 	resource, e := c.Resolve("/redfish/v1/", reference)
+	if e == nil {
+		resource, e = RedfishInventoryPath(resource)
+	}
 	if e != nil {
 		return empty, failure("", "partial_failure", "invalid_resource_link", false)
 	}

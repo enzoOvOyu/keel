@@ -31,7 +31,7 @@ var levelFeatures = map[string][]string{
 	"L2": {"Systems", "Managers", "Chassis", "NetworkInterfaces", "EthernetInterfaces"},
 	"L3": {"Systems", "Managers", "Chassis", "NetworkInterfaces", "EthernetInterfaces", "Processors", "Memory", "Storage", "Power", "Thermal", "Bios", "BootOptions", "FirmwareInventory"},
 }
-var featureAliases = map[string]string{"Drives": "Storage", "Volumes": "Storage", "Controllers": "Storage", "StorageControllers": "Storage", "Ports": "NetworkInterfaces", "NetworkDeviceFunctions": "NetworkInterfaces", "NetworkAdapters": "NetworkInterfaces", "PowerSubsystem": "Power", "PowerSupplies": "Power", "ThermalSubsystem": "Thermal", "Fans": "Thermal", "Sensors": "Thermal", "BootOption": "BootOptions", "UpdateService": "FirmwareInventory", "NetworkPorts": "NetworkInterfaces"}
+var featureAliases = map[string]string{"Drives": "Storage", "Volumes": "Storage", "Controllers": "Storage", "StorageControllers": "Storage", "Ports": "NetworkInterfaces", "NetworkDeviceFunctions": "NetworkInterfaces", "NetworkAdapters": "NetworkInterfaces", "NetworkAdapter": "NetworkInterfaces", "NetworkDeviceFunction": "NetworkInterfaces", "NetworkPort": "NetworkInterfaces", "PowerSubsystem": "Power", "PowerSupplies": "Power", "ThermalSubsystem": "Thermal", "Fans": "Thermal", "Sensors": "Thermal", "BootOption": "BootOptions", "UpdateService": "FirmwareInventory", "NetworkPorts": "NetworkInterfaces"}
 
 func versionParts(value string) ([3]int, bool) {
 	var out [3]int
@@ -100,6 +100,9 @@ func (c *Collector) Collect(ctx context.Context, target Target, level string) (*
 	}
 	enqueue := func(parent, reference, feature string, depth int) {
 		location, e := c.Reader.Resolve(parent, reference)
+		if e == nil {
+			location, e = RedfishInventoryPath(location)
+		}
 		if e != nil {
 			addFailure(*failure(parent, "partial_failure", "invalid_resource_link", false))
 			out.Capabilities[feature] = "partial"
@@ -133,6 +136,9 @@ func (c *Collector) Collect(ctx context.Context, target Target, level string) (*
 			copy.Path = item.path
 			addFailure(copy)
 			out.Capabilities[item.feature] = "partial"
+			if f.Class == "version_unsupported" {
+				out.Capabilities[item.feature] = "unsupported"
+			}
 			if f.Class == "authentication_failed" {
 				break
 			}
@@ -169,15 +175,20 @@ func (c *Collector) Collect(ctx context.Context, target Target, level string) (*
 		}
 		resourceType, _ := data["@odata.type"].(string)
 		out.Resources = append(out.Resources, Resource{Path: item.path, Type: resourceType, Source: "bmc", ReceivedAt: doc.ReceivedAt, Raw: raw, DataSHA256: structuredDigest, Data: append(json.RawMessage(nil), doc.Body...)})
-		if out.Capabilities[item.feature] != "partial" {
-			out.Capabilities[item.feature] = "collected"
-		}
 		if item.feature == "ServiceRoot" {
 			version, _ := data["RedfishVersion"].(string)
 			if !versionAtLeast(version, cfg.MinimumVersion) {
 				addFailure(*failure(item.path, "version_unsupported", "redfish_version_unsupported", false))
 				break
 			}
+		}
+		if code := inventoryDocumentCode(item.path, item.feature, data, c.Reader.Resolve); code != "" {
+			addFailure(*failure(item.path, "partial_failure", code, false))
+			out.Capabilities[item.feature] = "partial"
+			continue
+		}
+		if out.Capabilities[item.feature] != "partial" && out.Capabilities[item.feature] != "unsupported" {
+			out.Capabilities[item.feature] = "collected"
 		}
 		if strings.HasPrefix(resourceType, "#ComputerSystem.") {
 			serial, _ := data["SerialNumber"].(string)
@@ -250,6 +261,12 @@ func (c *Collector) Collect(ctx context.Context, target Target, level string) (*
 			}
 		}
 		links(data)
+	}
+	for _, f := range collectionCoverageFailures(out.Resources) {
+		addFailure(f.Failure)
+		if f.Feature != "" {
+			out.Capabilities[f.Feature] = "partial"
+		}
 	}
 	c.collectIPMISupplement(ctx, out, &total)
 	out.CollectedAt = time.Now().UTC()
@@ -400,6 +417,7 @@ func (s Snapshot) Validate() error {
 	}
 	seen := map[string]bool{}
 	identityMatched := false
+	validatedFeatures := map[string]bool{}
 	var total int64
 	for _, r := range s.Resources {
 		if !sha256Pattern.MatchString(r.Raw.SHA256) || r.Raw.Key != RawKey(s.Target, r.Path, r.Raw.SHA256) || (r.Raw.Version == "" || r.Raw.Version == "null") || r.Raw.Size < 1 || r.Raw.Size > MaxResourceBytes || r.Source != "bmc" || r.ReceivedAt.IsZero() || r.ReceivedAt.Before(s.StartedAt.Add(-5*time.Second)) || r.ReceivedAt.After(s.CollectedAt) || seen[r.Path] || r.DataSHA256 == "" || CanonicalDigest(r.Data) != r.DataSHA256 {
@@ -427,14 +445,49 @@ func (s Snapshot) Validate() error {
 		var resourceType, serial string
 		_ = json.Unmarshal(object["@odata.type"], &resourceType)
 		_ = json.Unmarshal(object["SerialNumber"], &serial)
+		decoder := json.NewDecoder(bytes.NewReader(r.Data))
+		decoder.UseNumber()
+		var data map[string]any
+		if decoder.Decode(&data) != nil {
+			return errors.New("invalid inventory document")
+		}
+		validEnvelope := false
+		if s.State == "completed" && strings.HasPrefix(resourceType, "#ServiceRoot.") {
+			version, _ := data["RedfishVersion"].(string)
+			if !versionAtLeast(version, "1.0.0") {
+				return errors.New("complete inventory has unsupported service root version")
+			}
+		}
+		for feature := range inventoryTypes {
+			if inventoryType(feature, resourceType) && inventoryDocumentCode(r.Path, feature, data, retainedInventoryResolve) == "" {
+				validatedFeatures[feature] = true
+				validEnvelope = true
+			}
+		}
+		if s.State == "completed" && !validEnvelope {
+			return errors.New("complete inventory contains invalid resource metadata")
+		}
 		if resourceType != r.Type {
 			return errors.New("BMC resource type does not match raw evidence")
 		}
-		if strings.HasPrefix(resourceType, "#ComputerSystem.") && strings.TrimSpace(serial) == s.Target.Serial {
+		if validEnvelope && strings.HasPrefix(resourceType, "#ComputerSystem.") && strings.TrimSpace(serial) == s.Target.Serial {
 			identityMatched = true
 		}
 		seen[r.Path] = true
 		total += r.Raw.Size
+	}
+	if s.State == "completed" {
+		if !validatedFeatures["ServiceRoot"] {
+			return errors.New("complete inventory lacks its retained service root")
+		}
+		if len(collectionCoverageFailures(s.Resources)) > 0 {
+			return errors.New("complete inventory has missing or cyclic collection pages/members")
+		}
+		for _, feature := range levelFeatures[s.Level] {
+			if !validatedFeatures[feature] {
+				return errors.New("complete capability lacks retained typed inventory evidence")
+			}
+		}
 	}
 	if s.Fallback != nil {
 		count := 0

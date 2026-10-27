@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"strings"
 	"time"
 )
 
@@ -34,6 +33,9 @@ func (f *FixtureReader) Resolve(parent, reference string) (string, error) {
 	return CanonicalPath(parent, reference)
 }
 func (f *FixtureReader) Read(ctx context.Context, path string) (Document, error) {
+	if _, e := RedfishInventoryPath(path); e != nil {
+		return Document{}, e
+	}
 	if e := ctx.Err(); e != nil {
 		return Document{}, e
 	}
@@ -59,11 +61,12 @@ func NewSimReader(target Target) (*FixtureReader, error) {
 	add := func(path string, value any) { raw, _ := json.Marshal(value); documents[path] = raw }
 	add("/redfish/v1/", map[string]any{"@odata.id": "/redfish/v1/", "@odata.type": "#ServiceRoot.v1_0_0.ServiceRoot", "RedfishVersion": "1.0.0", "Systems": map[string]string{"@odata.id": "/redfish/v1/Systems"}, "Managers": map[string]string{"@odata.id": "/redfish/v1/Managers"}, "Chassis": map[string]string{"@odata.id": "/redfish/v1/Chassis"}})
 	for _, kind := range []string{"Systems", "Managers", "Chassis"} {
+		memberType := map[string]string{"Systems": "ComputerSystem", "Managers": "Manager", "Chassis": "Chassis"}[kind]
 		members := []map[string]string{}
 		if kind == "Systems" {
 			members = append(members, map[string]string{"@odata.id": "/redfish/v1/Systems/sim"})
 		}
-		add("/redfish/v1/"+kind, map[string]any{"@odata.id": "/redfish/v1/" + kind, "@odata.type": "#" + strings.TrimSuffix(kind, "s") + "Collection.Collection", "Members": members, "Members@odata.count": len(members)})
+		add("/redfish/v1/"+kind, map[string]any{"@odata.id": "/redfish/v1/" + kind, "@odata.type": "#" + memberType + "Collection." + memberType + "Collection", "Members": members, "Members@odata.count": len(members)})
 	}
 	add("/redfish/v1/Systems/sim", map[string]any{"@odata.id": "/redfish/v1/Systems/sim", "@odata.type": "#ComputerSystem.v1_0_0.ComputerSystem", "Id": "sim", "SerialNumber": target.Serial})
 	return NewFixtureReader(documents, nil), nil
@@ -87,13 +90,13 @@ func loadInventoryFixture(path string) (*FixtureReader, string, error) {
 	}
 	documents := map[string][]byte{}
 	for p, v := range source.Documents {
-		if canonical, e := CanonicalPath("/redfish/v1/", p); e != nil || canonical != p || len(v) > MaxResourceBytes {
+		if canonical, e := RedfishInventoryPath(p); e != nil || canonical != p || len(v) > MaxResourceBytes {
 			return nil, "", errors.New("invalid fixture resource path or size")
 		}
 		documents[p] = v
 	}
 	for p, f := range source.Failures {
-		if canonical, e := CanonicalPath("/redfish/v1/", p); e != nil || canonical != p || len(f.Code) == 0 || len(f.Code) > 120 {
+		if canonical, e := RedfishInventoryPath(p); e != nil || canonical != p || len(f.Code) == 0 || len(f.Code) > 120 {
 			return nil, "", errors.New("invalid fixture failure")
 		}
 		switch f.Class {

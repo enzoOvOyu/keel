@@ -74,8 +74,8 @@ func TestSimCollectorPreservesIdentityOriginAndEvidence(t *testing.T) {
 func TestCollectorPagingDeduplicatesAndRetainsPartialFailures(t *testing.T) {
 	target := testTarget()
 	reader, _ := NewSimReader(target)
-	reader.documents["/redfish/v1/Systems"] = []byte(`{"Members":[{"@odata.id":"/redfish/v1/Systems/sim"}],"Members@odata.nextLink":"/redfish/v1/Systems?$skip=1"}`)
-	reader.documents["/redfish/v1/Systems?$skip=1"] = []byte(`{"Members":[{"@odata.id":"/redfish/v1/Systems/sim"}],"Members@odata.nextLink":"/redfish/v1/Systems"}`)
+	reader.documents["/redfish/v1/Systems"] = []byte(`{"@odata.id":"/redfish/v1/Systems","@odata.type":"#ComputerSystemCollection.ComputerSystemCollection","Members":[{"@odata.id":"/redfish/v1/Systems/sim"}],"Members@odata.count":1,"Members@odata.nextLink":"/redfish/v1/Systems?$skip=1"}`)
+	reader.documents["/redfish/v1/Systems?$skip=1"] = []byte(`{"@odata.id":"/redfish/v1/Systems","@odata.type":"#ComputerSystemCollection.ComputerSystemCollection","Members":[{"@odata.id":"/redfish/v1/Systems/sim"}],"Members@odata.count":1,"Members@odata.nextLink":"/redfish/v1/Systems"}`)
 	reader.failures["/redfish/v1/Chassis"] = Failure{Class: "timeout", Code: "request_timeout", Retryable: true}
 	out, e := (&Collector{Reader: reader, Raw: &testRawSink{}, Config: DefaultConfig()}).Collect(context.Background(), target, "L1")
 	if e != nil {
