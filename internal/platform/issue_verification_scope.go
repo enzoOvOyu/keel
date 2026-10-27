@@ -15,26 +15,27 @@ import (
 // A scope preview is not an execution or successful verification. Its digest
 // identifies current business facts; admission must reproduce them atomically.
 type IssueVerificationScope struct {
-	ManagementHash     string                       `json:"management_hash"`
-	RuleRef            string                       `json:"rule_ref"`
-	Version            string                       `json:"version"`
-	IssueID            string                       `json:"issue_id"`
-	ProjectID          string                       `json:"project_id"`
-	IssueVersion       int                          `json:"issue_version"`
-	RepairVersion      int                          `json:"repair_version"`
-	Category           string                       `json:"category"`
-	PackageID          string                       `json:"package_id"`
-	EvidenceOrigin     string                       `json:"evidence_origin"`
-	CableUID           string                       `json:"cable_uid"`
-	PortUID            string                       `json:"port_uid"`
-	Targets            []fabricboot.CollectorTarget `json:"targets"`
-	RequiredChecks     []string                     `json:"required_checks"`
-	Blockers           []string                     `json:"blockers"`
-	PolicyHash         string                       `json:"policy_hash"`
-	IntentHash         string                       `json:"intent_hash"`
-	ScopeHash          string                       `json:"scope_hash"`
-	ValidUntil         time.Time                    `json:"valid_until"`
-	ExecutionAvailable bool                         `json:"execution_available"`
+	PortMonitor        *PortMonitorVerificationScope `json:"port_monitor,omitempty"`
+	ManagementHash     string                        `json:"management_hash"`
+	RuleRef            string                        `json:"rule_ref"`
+	Version            string                        `json:"version"`
+	IssueID            string                        `json:"issue_id"`
+	ProjectID          string                        `json:"project_id"`
+	IssueVersion       int                           `json:"issue_version"`
+	RepairVersion      int                           `json:"repair_version"`
+	Category           string                        `json:"category"`
+	PackageID          string                        `json:"package_id"`
+	EvidenceOrigin     string                        `json:"evidence_origin"`
+	CableUID           string                        `json:"cable_uid"`
+	PortUID            string                        `json:"port_uid"`
+	Targets            []fabricboot.CollectorTarget  `json:"targets"`
+	RequiredChecks     []string                      `json:"required_checks"`
+	Blockers           []string                      `json:"blockers"`
+	PolicyHash         string                        `json:"policy_hash"`
+	IntentHash         string                        `json:"intent_hash"`
+	ScopeHash          string                        `json:"scope_hash"`
+	ValidUntil         time.Time                     `json:"valid_until"`
+	ExecutionAvailable bool                          `json:"execution_available"`
 }
 
 func issueVerificationChecks(category string) []string {
@@ -97,6 +98,9 @@ func (s *Store) issueVerificationScopeTx(ctx context.Context, tx *sql.Tx, a *Aut
 	}
 	if out.RepairVersion == 0 || out.RepairVersion <= assignmentVersion {
 		block("current_repair_record_required")
+	}
+	if item.Source == "portmon" {
+		return s.portMonitorVerificationScopeTx(ctx, tx, item, out)
 	}
 	if item.Source != "fabric" {
 		block("source_verification_adapter_pending")

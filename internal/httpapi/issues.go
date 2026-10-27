@@ -7,6 +7,19 @@ import (
 )
 
 func (a *authAPI) registerIssues(r *gin.Engine) {
+	a.registerTopologyFirmwareMock(r)
+	r.GET("/api/v1/issues/:issueId/monitor-evidence", func(c *gin.Context) {
+		actor, ok := a.authenticated(c)
+		if !ok {
+			return
+		}
+		out, e := a.store.PortMonitorIssueEvidence(c.Request.Context(), actor, c.Param("issueId"))
+		if e != nil {
+			a.respondError(c, e)
+			return
+		}
+		c.JSON(200, out)
+	})
 	r.POST("/api/v1/projects/:id/executions/:executionId/attempts/:attemptId/issue-verification-receipt", func(c *gin.Context) {
 		actor, ok := a.authenticated(c)
 		if !ok || !a.writeAllowed(c) {

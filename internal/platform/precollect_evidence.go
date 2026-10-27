@@ -136,7 +136,9 @@ func (s *Store) RecordPrecollect(ctx context.Context, o taskrunner.Observation, 
 			return "", "", apiError(409, "PRECOLLECT_FENCE_LOST", "Original fenced attempt no longer owns capture authority")
 		}
 	}
-	_, e = tx.ExecContext(ctx, `INSERT INTO validation_precollect_records(id,attempt_id,command_id,fencing_token,origin,collected_at,raw_key,raw_version,raw_sha256,raw_size,report,received_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,statement_timestamp())`, id, o.Command.AttemptID, o.Command.CommandID, o.Command.FencingToken, bundle.Origin, bundle.CollectedAt, key, version, sha, len(raw), networkJSON(report))
+	// Parse the original nanosecond timestamp in PostgreSQL just as the JSON
+	// scope trigger does; native pgx time encoding truncates rather than rounds.
+	_, e = tx.ExecContext(ctx, `INSERT INTO validation_precollect_records(id,attempt_id,command_id,fencing_token,origin,collected_at,raw_key,raw_version,raw_sha256,raw_size,report,received_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,statement_timestamp())`, id, o.Command.AttemptID, o.Command.CommandID, o.Command.FencingToken, bundle.Origin, bundle.CollectedAt.Format(time.RFC3339Nano), key, version, sha, len(raw), networkJSON(report))
 	if e != nil {
 		return "", "", e
 	}

@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"encoding/json"
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
+	"github.com/enzoOvOyu/keel/internal/portdiag"
 )
 
 func TestVerificationScopeIdentityExcludesReadTimeButPinsAdmissionFacts(t *testing.T) {
@@ -50,6 +52,22 @@ func TestVerificationChecksRequireConnectivityAndTopologyByCategory(t *testing.T
 	for _, check := range []string{"pcie_topology", "host_precollect_incremental"} {
 		if !slices.Contains(issueVerificationChecks("T7"), check) {
 			t.Fatal("T7 omitted topology or precollection")
+		}
+	}
+}
+
+func TestPortMonitorScopePinsRepairTransportMappingAndThresholds(t *testing.T) {
+	scope := IssueVerificationScope{Version: "issue-verification-scope/v1", IssueID: "issue", ProjectID: "project", IssueVersion: 7, RepairVersion: 6, PortMonitor: &PortMonitorVerificationScope{AssetID: "asset", AssetVersion: 4, MappingRevisionID: "mapping", HostTrustHash: "trust", Diagnostic: portdiag.Scope{Source: "switch", Method: "collector", Origin: "real", PhysicalPortID: "port", Interface: "eth0", SwitchPort: "swp1", RepairedAt: time.Now().UTC()}}}
+	base := finishIssueVerificationScope(&scope).ScopeHash
+	for _, change := range []func(*PortMonitorVerificationScope){
+		func(v *PortMonitorVerificationScope) { v.AssetVersion++ }, func(v *PortMonitorVerificationScope) { v.MappingRevisionID = "replacement" }, func(v *PortMonitorVerificationScope) { v.HostTrustHash = "revoked" }, func(v *PortMonitorVerificationScope) { v.Diagnostic.Source = "host" }, func(v *PortMonitorVerificationScope) { v.Diagnostic.Method = "agent" }, func(v *PortMonitorVerificationScope) { v.Diagnostic.PhysicalPortID = "other" }, func(v *PortMonitorVerificationScope) { v.Diagnostic.SwitchPort = "swp2" }, func(v *PortMonitorVerificationScope) { v.Diagnostic.ExpectedConfigurationHash = "new-policy" },
+	} {
+		raw, _ := json.Marshal(scope)
+		var changed IssueVerificationScope
+		_ = json.Unmarshal(raw, &changed)
+		change(changed.PortMonitor)
+		if finishIssueVerificationScope(&changed).ScopeHash == base {
+			t.Fatal("changed physical repair reused the accepted scope")
 		}
 	}
 }

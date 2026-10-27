@@ -153,7 +153,7 @@ func (s *Store) RecordFabricDiagnostics(ctx context.Context, a *AuthSession, p *
 	if e != nil {
 		return nil, e
 	}
-	out := &FabricDiagnosticRecord{ID: RandomID(), ContentHash: hash, PortScope: port, RecordedAt: time.Now().UTC(), Report: report, IssueIDs: []string{}}
+	out := &FabricDiagnosticRecord{ID: RandomID(), ContentHash: hash, PortScope: port, RecordedAt: time.Now().UTC().Truncate(time.Microsecond), Report: report, IssueIDs: []string{}}
 	var prior []byte
 	var expiry time.Time
 	e = tx.QueryRowContext(ctx, `SELECT id,report,valid_until,recorded_at FROM fabric_diagnostic_records WHERE project_id=$1 AND device_id=$2 AND port_scope=$3 AND evidence_origin=$4 AND content_hash=$5`, p.ID, device, port, report.EvidenceSource, hash).Scan(&out.ID, &prior, &expiry, &out.RecordedAt)

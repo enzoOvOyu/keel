@@ -8,6 +8,7 @@ COPY api ./api
 RUN npm run build
 
 FROM golang:1.27.2-bookworm AS backend
+ENV GOFLAGS=-p=1 GOMEMLIMIT=768MiB GOMAXPROCS=2
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download

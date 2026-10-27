@@ -103,7 +103,7 @@ func (s *Store) networkReadinessTx(ctx context.Context, tx *sql.Tx, project stri
 	if out.EvidenceSource != "device" {
 		mergeNetworkGate(&np6, networkGate("source", "BLOCKED", "device_evidence_required"))
 	}
-	if seconds := int(out.ValidUntil.Sub(out.ReadinessAt) / time.Second); seconds < out.TTLSeconds {
+	if seconds := max(0, int(out.ValidUntil.Sub(out.ReadinessAt)/time.Second)); seconds < out.TTLSeconds {
 		out.TTLSeconds = seconds
 	}
 	out.Gates = []NetworkGate{np1, np2, np3, np4, np5, np6}

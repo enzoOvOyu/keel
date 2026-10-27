@@ -61,6 +61,7 @@ func main() {
 		store.PrecollectEnabled = os.Getenv("KEEL_PRECOLLECT_ENABLED") == "true"
 		store.WiringEnabled = os.Getenv("KEEL_WIRING_ENABLED") == "true"
 		store.MonitorEnabled = os.Getenv("KEEL_MONITOR_ENABLED") == "true"
+		store.TopologyFirmwareMockEnabled = os.Getenv("KEEL_ENV") == "development" && os.Getenv("KEEL_TOPOLOGY_FIRMWARE_MOCK_ENABLED") == "true"
 		store.BMCInventoryEnabled = os.Getenv("KEEL_BMC_INVENTORY_ENABLED") == "true"
 		if err := store.ConfigureBMCInventory(os.Getenv("KEEL_BMC_INVENTORY_FILE"), os.Getenv("KEEL_DEVICE_CREDENTIAL_MASTER_KEY_FILE")); err != nil {
 			slog.Error("BMC inventory configuration rejected")

@@ -2,7 +2,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 test -f .env || { echo 'Create .env from .env.example first' >&2; exit 1; }
-test -z "$(git status --porcelain)" || { echo 'Commit or stash changes before deploying' >&2; exit 1; }
+python3 scripts/check-release-workspace.py
 mkdir .deploy-lock 2>/dev/null || { echo 'Deployment already in progress; check .deploy-lock' >&2; exit 1; }
 env_tmp=
 trap 'if [ -n "$env_tmp" ]; then rm -f "$env_tmp"; fi; rmdir .deploy-lock' EXIT

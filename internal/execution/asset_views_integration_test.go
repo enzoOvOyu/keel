@@ -16,6 +16,11 @@ func TestAssetViewsPrivateSharingCASAndRetainedProjectionPostgres(t *testing.T) 
 	ctx := context.Background()
 	_, e := f.store.ControlCreateMember(ctx, f.actor, f.project, platform.CreateMemberInput{Username: other.username, Role: "DE"}, "asset-view-test")
 	mustAgent(t, e)
+	// Membership changes revoke prior sessions; exercise sharing with a fresh login.
+	pre, _, e := f.store.NewPreSession(ctx)
+	mustAgent(t, e)
+	_, other.actor, e = f.store.Login(ctx, pre, platform.CSRFToken(pre), platform.LoginInput{Username: other.username, Password: "isolated-scoped-user-test-password", Method: "local"}, "198.51.100.188", "asset-view-test")
+	mustAgent(t, e)
 	id := platform.RandomID()
 	in := platform.AssetViewInput{Name: "Private inventory", Visibility: "personal", Reason: "Initial inventory view", Definition: assetview.Definition{Columns: []assetview.Column{{ID: "host", Title: "Hostname", Source: "asset", Path: "$.hostname"}}, SortColumn: "host", SortDirection: "asc"}}
 	saved, e := f.store.SaveAssetView(ctx, f.actor, f.project, id, in, "view-test")

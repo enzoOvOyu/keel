@@ -106,7 +106,11 @@ func issueVerificationKernel(t *testing.T) *issueVerificationFixture {
 			remote := request.Targets[(i+1)%len(request.Targets)]
 			sample := fabricmon.Snapshot{Version: "fabric-snapshot/v1", Source: "switch", Provider: "p2-protocol-fixture", Serial: target.Serial, CollectedAt: time.Now().UTC(), Capabilities: map[string]bool{"interfaces": true, "lldp": true}}
 			for _, port := range target.Ports {
-				sample.Ports = append(sample.Ports, fabricmon.Port{Name: port, LinkUp: &up, LLDPReadable: true, Neighbor: &fabricmon.Neighbor{Serial: remote.Serial, PortID: remote.Ports[0]}})
+				var neighbor *fabricmon.Neighbor
+				if up {
+					neighbor = &fabricmon.Neighbor{Serial: remote.Serial, PortID: remote.Ports[0]}
+				}
+				sample.Ports = append(sample.Ports, fabricmon.Port{Name: port, LinkUp: &up, LLDPReadable: true, Neighbor: neighbor})
 			}
 			out.Devices = append(out.Devices, sample)
 		}
@@ -164,7 +168,7 @@ func issueVerificationKernel(t *testing.T) *issueVerificationFixture {
 	f.issue = issue.ID
 	exec(`INSERT INTO fabric_issue_bindings(issue_id,project_id,cable_uid,category,evidence_origin,created_at) VALUES($1,$2,$3,'T1','protocol_fixture',now())`, issue.ID, project.ID, cable)
 	run := platform.RandomID()
-	report, _ := json.Marshal(map[string]any{"evidence_source": "protocol_fixture"})
+	report, _ := json.Marshal(platform.FabricCollectionReport{ProjectID: project.ID, ID: run, PackageID: pkg, SourceHash: strings.Repeat("a", 64), EvidenceSource: "protocol_fixture", Stage: "N-S5", NP3: "BLOCKED", CollectedAt: observed, ValidUntil: observed.Add(5 * time.Minute)})
 	finding, _ := json.Marshal(fabricmon.Finding{CableUID: cable, A: portA, B: portB, Verdict: "anomaly", IssueType: "T1", Source: "switch", RuleRef: fabricmon.CableComparisonRuleRef})
 	exec(`INSERT INTO fabric_collection_runs(id,project_id,package_id,report,source_hash,collected_at,valid_until,created_by) VALUES($1,$2,$3,$4,repeat('a',64),$5,$6,$7)`, run, project.ID, pkg, report, observed, observed.Add(5*time.Minute), root.User.ID)
 	exec(`INSERT INTO fabric_issue_observations(id,issue_id,project_id,evidence_origin,run_id,package_id,observation_hash,finding,observed_at,valid_until,recorded_at) VALUES($1,$2,$3,'protocol_fixture',$4,$5,repeat('b',64),$6,$7,$8,now())`, platform.RandomID(), issue.ID, project.ID, run, pkg, finding, observed, observed.Add(5*time.Minute))
@@ -368,6 +372,6 @@ func TestNetworkReadinessSeparatesModelingFromFreshDeviceEvidencePostgres(t *tes
 	readiness, e = f.store.NetworkReadiness(ctx, f.root, project, "test")
 	mustAgent(t, e)
 	if readiness.TTLSeconds != 10 || readiness.ValidUntil.After(readiness.ReadinessAt.Add(10*time.Second)) {
-		t.Fatal("catalog readiness TTL was ignored")
+		t.Fatalf("catalog readiness TTL mismatch: seconds=%d readiness=%s until=%s delta=%s", readiness.TTLSeconds, readiness.ReadinessAt.Format(time.RFC3339Nano), readiness.ValidUntil.Format(time.RFC3339Nano), readiness.ValidUntil.Sub(readiness.ReadinessAt))
 	}
 }

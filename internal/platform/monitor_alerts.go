@@ -33,26 +33,9 @@ func (s *Store) monitorEvaluateFrameTx(ctx context.Context, tx *sql.Tx, project,
 	return s.monitorEvaluateObservationsTx(ctx, tx, project, machine, observations, now)
 }
 func (s *Store) monitorEvaluateObservationsTx(ctx context.Context, tx *sql.Tx, project, machine string, observations []MonitorObservation, now time.Time) error {
-	thresholds, e := fabricDDMLimitsTx(ctx, tx, project)
+	limits, e := monitorLimitsTx(ctx, tx, project)
 	if e != nil {
 		return e
-	}
-	limits := map[string]monitor.Limit{}
-	for key, value := range thresholds {
-		limits[key] = monitor.Limit{WarnMin: value.WarnMin, WarnMax: value.WarnMax, CriticalMin: value.CriticalMin, CriticalMax: value.CriticalMax}
-	}
-	// PFC growth has no invented default threshold. It remains unknown until
-	// the shared catalog supplies an explicit approved project/global value.
-	values, e := catalogDefaultsTx(ctx, tx, project, "mon.pfc_pause_delta.critical_max")
-	if e != nil {
-		return e
-	}
-	if raw := values["mon.pfc_pause_delta.critical_max"]; raw != "" {
-		var value float64
-		if json.Unmarshal([]byte(raw), &value) != nil {
-			return apiError(409, "MONITOR_THRESHOLD_INVALID", "PFC threshold must be numeric")
-		}
-		limits["pfc_pause_delta"] = monitor.Limit{CriticalMax: &value}
 	}
 	var current *MappingRevision
 	e = tx.QueryRowContext(ctx, `SELECT id FROM project_assets WHERE project_id=$1 AND machine_id=$2`, project, machine).Scan(new(string))
@@ -158,6 +141,7 @@ func recordMonitorFindingTx(ctx context.Context, tx *sql.Tx, project, machine st
 			issue = ""
 		}
 	}
+	createdIssue := false
 	if finding.State == "firing" && finding.Severity == "critical" && issue == "" && finding.Category != "" {
 		input := CreateIssueInput{Title: finding.RuleID + " · " + sample.Sample.Entity, Category: finding.Category, Source: "portmon", Phase: "delivery", Anchors: []IssueAnchor{{Kind: "machine", ID: machine}}, Evidence: IssueEvidence{ObservedAt: sample.Sample.ObservedAt, SourceVersion: ruleVersion, Expected: "enabled role port healthy", Actual: string(networkJSON(finding.Context))}}
 		if sample.PhysicalPortID != "" {
@@ -168,6 +152,7 @@ func recordMonitorFindingTx(ctx context.Context, tx *sql.Tx, project, machine st
 			return e
 		}
 		issue = created.ID
+		createdIssue = true
 	}
 	if fresh {
 		id = RandomID()
@@ -183,8 +168,46 @@ func recordMonitorFindingTx(ctx context.Context, tx *sql.Tx, project, machine st
 	if _, e = tx.ExecContext(ctx, `INSERT INTO monitor_alert_events(id,alert_id,version,state,severity,sample_sequence,context,observed_at)VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, RandomID(), id, version, state, finding.Severity, sampleSequence, networkJSON(finding.Context), sample.Sample.ObservedAt); e != nil {
 		return e
 	}
+	if createdIssue && sample.PhysicalPortID != "" {
+		binding, err := tx.ExecContext(ctx, `INSERT INTO portmon_issue_bindings(issue_id,project_id,asset_id,machine_id,asset_version,physical_port_id,mapping_revision_id,alert_id,sample_sequence,rule_id,rule_version) SELECT $1::varchar,$2::varchar,asset.id,$3::varchar,asset.version,$4::varchar,$5::varchar,$6::varchar,$7::bigint,$8::varchar,$9::text FROM project_assets asset WHERE asset.project_id=$2 AND asset.machine_id=$3`, issue, project, machine, sample.PhysicalPortID, sample.MappingRevisionID, id, sample.Sequence, finding.RuleID, ruleVersion)
+		if err != nil {
+			return err
+		}
+		count, err := binding.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if count != 1 {
+			return apiError(409, "PORTMON_DISCOVERY_SCOPE_CHANGED", "Original asset scope changed during port discovery")
+		}
+	}
 	if state == "firing" && (fresh || oldState != "firing" || oldSeverity != finding.Severity) {
 		_, e = tx.ExecContext(ctx, `INSERT INTO monitor_notification_outbox(id,project_id,alert_id,aggregate_version,event_type,severity,source,issue_id,created_at)VALUES($1,$2,$3,$4,'monitor.alert',$5,$6,$7,$8)`, RandomID(), project, id, version, finding.Severity, sample.Source, nullBOMString(issue), now)
 	}
 	return e
+}
+
+func monitorLimitsTx(ctx context.Context, tx *sql.Tx, project string) (map[string]monitor.Limit, error) {
+	thresholds, e := fabricDDMLimitsTx(ctx, tx, project)
+	if e != nil {
+		return nil, e
+	}
+	limits := map[string]monitor.Limit{}
+	for key, value := range thresholds {
+		limits[key] = monitor.Limit{WarnMin: value.WarnMin, WarnMax: value.WarnMax, CriticalMin: value.CriticalMin, CriticalMax: value.CriticalMax}
+	}
+	// PFC growth has no invented default threshold. It remains unknown until
+	// the shared catalog supplies an explicit approved project/global value.
+	values, e := catalogDefaultsTx(ctx, tx, project, "mon.pfc_pause_delta.critical_max")
+	if e != nil {
+		return nil, e
+	}
+	if raw := values["mon.pfc_pause_delta.critical_max"]; raw != "" {
+		var value float64
+		if json.Unmarshal([]byte(raw), &value) != nil {
+			return nil, apiError(409, "MONITOR_THRESHOLD_INVALID", "PFC threshold must be numeric")
+		}
+		limits["pfc_pause_delta"] = monitor.Limit{CriticalMax: &value}
+	}
+	return limits, nil
 }

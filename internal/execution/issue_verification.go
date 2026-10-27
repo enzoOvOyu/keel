@@ -76,7 +76,11 @@ func (s *Service) CreateIssueVerification(ctx context.Context, a *Actor, project
 	params := map[string]any{"issue_verification_id": requestID, "issue_id": issue, "scope_hash": scope.ScopeHash, "scope": scope}
 	targetHash := hash(jsonBytes(scope.Targets))
 	out := &Execution{ID: platform.RandomID(), ProjectID: project, FlowVersionID: versionID, Mode: "fabric", State: "created", StateVersion: 1, DesiredState: "running", Parameters: params, TargetSetHash: targetHash, Concurrency: 1, CircuitBreakerPercent: 100, CreatedBy: a.User.ID, CreatedAt: now}
-	out.Snapshot = Snapshot{Mode: "fabric", Flow: flow, Targets: []Target{target}, Parameters: params, TargetSetHash: targetHash, Admission: "Scoped N-S5 T1/T2 read-only verification; immutable issue/repair/BOM/origin, both switch resources, no G2/NP-3 or production configuration mutation", FrozenAt: now}
+	admission := "Scoped N-S5 T1/T2 read-only verification; immutable issue/repair/BOM/origin, both switch resources, no G2/NP-3 or production configuration mutation"
+	if scope.PortMonitor != nil {
+		admission = "Scoped physical-port repair verification; frozen host/peer/repair/rule, complete exclusive resources, original stopped evidence; no delivery gate approval"
+	}
+	out.Snapshot = Snapshot{Mode: "fabric", Flow: flow, Targets: []Target{target}, Parameters: params, TargetSetHash: targetHash, Admission: admission, FrozenAt: now}
 	if _, e = tx.ExecContext(ctx, `INSERT INTO exec_executions(id,project_id,flow_version_id,mode,parameters,snapshot,target_set_hash,concurrency,circuit_breaker_percent,created_by,created_at) VALUES($1,$2,$3,'fabric',$4,$5,$6,1,100,$7,$8)`, out.ID, project, versionID, jsonBytes(params), jsonBytes(out.Snapshot), targetHash, a.User.ID, now); e != nil {
 		return nil, e
 	}
@@ -190,7 +194,7 @@ func (s *Service) applyIssueVerificationReceipt(ctx context.Context, tx *sql.Tx,
 }
 func lockIssueVerificationExecutionTx(ctx context.Context, tx *sql.Tx, id string) error {
 	var issue bool
-	if e := tx.QueryRowContext(ctx, `SELECT parameters ? 'issue_verification_id' OR coalesce(parameters->>'validation_kind','')='wiring' FROM exec_executions WHERE id=$1`, id).Scan(&issue); e != nil {
+	if e := tx.QueryRowContext(ctx, `SELECT parameters ? 'issue_verification_id' OR parameters ? 'topology_firmware_plan_id' OR coalesce(parameters->>'validation_kind','')='wiring' FROM exec_executions WHERE id=$1`, id).Scan(&issue); e != nil {
 		if errors.Is(e, sql.ErrNoRows) {
 			return platform.ErrNotFound
 		}

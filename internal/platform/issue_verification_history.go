@@ -9,9 +9,11 @@ import (
 	"time"
 
 	"github.com/enzoOvOyu/keel/internal/fabricmon"
+	"github.com/enzoOvOyu/keel/internal/portdiag"
 )
 
 type IssueVerificationStatus struct {
+	PortChecks          []portdiag.Check         `json:"port_checks"`
 	Escalated           bool                     `json:"escalated"`
 	RecipientIDs        []string                 `json:"recipient_ids"`
 	Request             IssueVerificationRequest `json:"request"`
@@ -50,15 +52,19 @@ func (s *Store) IssueVerifications(ctx context.Context, a *AuthSession, id strin
 	if e = tx.QueryRowContext(ctx, "SELECT count(*) FROM issue_verification_requests WHERE issue_id=$1", id).Scan(&out.Total); e != nil {
 		return out, e
 	}
-	rows, e := tx.QueryContext(ctx, `SELECT q.id,q.issue_id,q.project_id,q.execution_id,q.issue_version,q.scope_hash,q.snapshot,q.reason,q.created_by,q.created_at,x.state,coalesce(r.verdict,''),coalesce(r.code,''),coalesce(r.evidence_id,''),coalesce(r.finding,'null'),r.valid_until,r.applied_issue_version,EXISTS(SELECT 1 FROM issue_escalations e WHERE e.request_id=q.id),coalesce((SELECT e.recipient_ids FROM issue_escalations e WHERE e.request_id=q.id),'[]') FROM issue_verification_requests q JOIN exec_executions x ON x.id=q.execution_id LEFT JOIN issue_verification_results r ON r.request_id=q.id WHERE q.issue_id=$1 ORDER BY q.created_at DESC,q.id DESC LIMIT $2 OFFSET $3`, id, p.PageSize, p.Offset())
+	rows, e := tx.QueryContext(ctx, `SELECT q.id,q.issue_id,q.project_id,q.execution_id,q.issue_version,q.scope_hash,q.snapshot,q.reason,q.created_by,q.created_at,x.state,coalesce(r.verdict,''),coalesce(r.code,''),coalesce(r.evidence_id,''),coalesce(r.finding,'null'),r.valid_until,r.applied_issue_version,EXISTS(SELECT 1 FROM issue_escalations e WHERE e.request_id=q.id),coalesce((SELECT e.recipient_ids FROM issue_escalations e WHERE e.request_id=q.id),'[]'),coalesce(r.port_checks,'[]') FROM issue_verification_requests q JOIN exec_executions x ON x.id=q.execution_id LEFT JOIN issue_verification_results r ON r.request_id=q.id WHERE q.issue_id=$1 ORDER BY q.created_at DESC,q.id DESC LIMIT $2 OFFSET $3`, id, p.PageSize, p.Offset())
 	if e != nil {
 		return out, e
 	}
 	for rows.Next() {
 		var v IssueVerificationStatus
-		var snapshot, finding, recipients []byte
+		var snapshot, finding, recipients, portChecks []byte
 		q := &v.Request
-		if e = rows.Scan(&q.ID, &q.IssueID, &q.ProjectID, &q.ExecutionID, &q.IssueVersion, &q.ScopeHash, &snapshot, &q.Reason, &q.CreatedBy, &q.CreatedAt, &v.ExecutionState, &v.Verdict, &v.Code, &v.EvidenceID, &finding, &v.ValidUntil, &v.AppliedIssueVersion, &v.Escalated, &recipients); e != nil {
+		if e = rows.Scan(&q.ID, &q.IssueID, &q.ProjectID, &q.ExecutionID, &q.IssueVersion, &q.ScopeHash, &snapshot, &q.Reason, &q.CreatedBy, &q.CreatedAt, &v.ExecutionState, &v.Verdict, &v.Code, &v.EvidenceID, &finding, &v.ValidUntil, &v.AppliedIssueVersion, &v.Escalated, &recipients, &portChecks); e != nil {
+			rows.Close()
+			return out, e
+		}
+		if e = json.Unmarshal(portChecks, &v.PortChecks); e != nil {
 			rows.Close()
 			return out, e
 		}
@@ -131,7 +137,7 @@ func (s *Store) issueVerificationTransitionsTx(ctx context.Context, tx *sql.Tx, 
 	if !canConfirmIssueVerification(item, role, a.User.ID) {
 		return nil
 	}
-	if item.State == "in_repair" && s.FabricIssueVerificationEnabled && item.Source == "fabric" {
+	if item.State == "in_repair" && s.FabricIssueVerificationEnabled && (item.Source == "fabric" || item.Source == "portmon") {
 		scope, e := s.issueVerificationScopeTx(ctx, tx, a, item, role)
 		if e != nil {
 			return e

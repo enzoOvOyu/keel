@@ -14,7 +14,7 @@ func TestPortMonitorRoutesCoexistWithAssetMappingAndMonitoring(t *testing.T) {
 			paths[route.Path] = true
 		}
 	}
-	for _, path := range []string{"/api/v1/projects/:id/assets/:assetId", "/api/v1/projects/:id/ports", "/api/v1/projects/:id/assets/:assetId/ports", "/api/v1/projects/:id/assets/:assetId/ports/stream", "/api/v1/projects/:id/assets/:assetId/ports/:portId/events", "/api/v1/projects/:id/assets/:assetId/monitor", "/api/v1/projects/:id/assets/:assetId/mapping/preview"} {
+	for _, path := range []string{"/api/v1/issues/:issueId/monitor-evidence", "/api/v1/projects/:id/assets/:assetId", "/api/v1/projects/:id/ports", "/api/v1/projects/:id/assets/:assetId/ports", "/api/v1/projects/:id/assets/:assetId/ports/stream", "/api/v1/projects/:id/assets/:assetId/ports/:portId/events", "/api/v1/projects/:id/assets/:assetId/monitor", "/api/v1/projects/:id/assets/:assetId/mapping/preview"} {
 		if !paths[path] {
 			t.Fatal("missing scoped route", path)
 		}

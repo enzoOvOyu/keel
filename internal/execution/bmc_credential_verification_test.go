@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -18,6 +19,8 @@ import (
 )
 
 type bmcVerificationFixture struct {
+	documentsMu sync.RWMutex
+	documents   map[string][]byte
 	*agentKernelFixture
 	asset      string
 	identity   credentialvault.SecretIdentity
@@ -53,6 +56,14 @@ func credentialVerificationFixture(t *testing.T, origin string) *bmcVerification
 		user, password, ok := r.BasicAuth()
 		if !ok || user != "reader" || password != "fixture-password" {
 			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		v.documentsMu.RLock()
+		raw, found := v.documents[r.URL.RequestURI()]
+		v.documentsMu.RUnlock()
+		if found {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write(raw)
 			return
 		}
 		doc, e := fixture.Read(r.Context(), r.URL.RequestURI())

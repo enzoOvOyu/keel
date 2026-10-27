@@ -30,6 +30,7 @@ type monitorSSHFixtureRunner struct {
 	observation taskrunner.Observation
 	raw         []byte
 	runs        int
+	samples     []monitor.Sample
 }
 
 func (runner *monitorSSHFixtureRunner) Binding(string, string) (taskrunner.Binding, error) {
@@ -44,6 +45,12 @@ func (runner *monitorSSHFixtureRunner) Do(_ context.Context, request taskrunner.
 		started := time.Now().UTC().Truncate(time.Microsecond)
 		observed := time.Now().UTC()
 		snapshot := monitor.HostSnapshot{Version: monitor.HostSnapshotVersion, NetworkOnly: request.Command.MonitorNetworkOnly, StartedAt: started, CollectedAt: observed, Samples: []monitor.Sample{{Key: "link.state", Entity: "nic0", Quality: "unknown", ObservedAt: observed}, {Key: "dom.rx_power", Entity: "nic0", Quality: "unknown", ObservedAt: observed}}}
+		if runner.samples != nil {
+			snapshot.Samples = append([]monitor.Sample{}, runner.samples...)
+			for i := range snapshot.Samples {
+				snapshot.Samples[i].ObservedAt = observed
+			}
+		}
 		runner.raw, _ = json.Marshal(snapshot)
 		runner.observation = taskrunner.Observation{Command: request.Command, State: "success", StartedAt: started, FinishedAt: time.Now().UTC().Add(time.Microsecond), Output: map[string]any{"stopped": true, "reason": "monitor_observed", "monitor_version": monitor.HostSnapshotVersion, "monitor_sha256": precollect.Hash(runner.raw), "monitor_size": len(runner.raw)}}
 	}

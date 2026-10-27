@@ -9,6 +9,7 @@ import (
 
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/netbaseline"
+	"github.com/enzoOvOyu/keel/internal/portdiag"
 )
 
 func persistIssueVerificationDispatchTx(ctx context.Context, tx *sql.Tx, id string, request *fabricboot.CollectorRecollectRequest) error {
@@ -91,6 +92,13 @@ func (s *Store) UndispatchedIssueVerificationTx(ctx context.Context, tx *sql.Tx,
 		return nil, nil, e
 	}
 	request := &fabricboot.CollectorRecollectRequest{Version: "fabric-recollect/v1", ProjectID: frozen.ProjectID, ExecutionID: execution, CommandID: command, FencingToken: fence, ScopeHash: frozen.ScopeHash, EvidenceSource: frozen.Snapshot.EvidenceOrigin, NotBefore: frozen.CreatedAt, Targets: frozen.Snapshot.Targets}
+	if frozen.Snapshot.PortMonitor != nil {
+		request.Version = portdiag.Version
+		request.PortDiagnostic = &frozen.Snapshot.PortMonitor.Diagnostic
+		if e = tx.QueryRowContext(ctx, `SELECT id FROM exec_task_attempts WHERE execution_id=$1 AND command_id=$2 AND fencing_token=$3`, execution, command, fence).Scan(&request.AttemptID); e != nil {
+			return nil, nil, e
+		}
+	}
 	if e = request.Validate(); e != nil {
 		return nil, nil, e
 	}

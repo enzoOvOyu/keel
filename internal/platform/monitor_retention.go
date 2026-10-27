@@ -41,6 +41,7 @@ func (s *Store) MaintainMonitorHistory(ctx context.Context) error {
  AND NOT EXISTS(SELECT 1 FROM monitor_metric_latest l WHERE l.sample_sequence=s.sequence)
  AND NOT EXISTS(SELECT 1 FROM monitor_alert_events a WHERE a.sample_sequence=s.sequence)
  AND NOT EXISTS(SELECT 1 FROM monitor_alerts a WHERE a.sample_sequence=s.sequence)
+ AND NOT EXISTS(SELECT 1 FROM portmon_issue_bindings discovery WHERE discovery.sample_sequence=s.sequence)
  ORDER BY s.sequence LIMIT 2000
  )`)
 	if e != nil {

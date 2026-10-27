@@ -135,7 +135,7 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 	// permission or account disable prevents subsequent task dispatch.
 	var creator, projectID, executionMode string
 	var issueVerification, wiringExecution bool
-	e = tx.QueryRowContext(ctx, "SELECT created_by,project_id,mode,parameters ? 'issue_verification_id',coalesce(parameters->>'validation_kind','')='wiring' FROM exec_executions WHERE id=$1", id).Scan(&creator, &projectID, &executionMode, &issueVerification, &wiringExecution)
+	e = tx.QueryRowContext(ctx, "SELECT created_by,project_id,mode,(parameters ? 'issue_verification_id' OR parameters ? 'topology_firmware_plan_id'),coalesce(parameters->>'validation_kind','')='wiring' FROM exec_executions WHERE id=$1", id).Scan(&creator, &projectID, &executionMode, &issueVerification, &wiringExecution)
 	if e != nil {
 		return nil, e
 	}
@@ -386,7 +386,17 @@ func (s *Service) claimExecution(ctx context.Context, id, worker string, lease t
 			if x.Snapshot.Flow.Definition.APIVersion == "keel.host/v1" && (x.Mode == "ssh" || x.Mode == "agent") {
 				resources = append(resources, x.Mode+":machine:"+target.ResourceKey)
 			}
-			if issueVerification {
+			firmwarePlan, _ := x.Parameters["topology_firmware_plan_id"].(string)
+			if issueVerification && firmwarePlan != "" {
+				if task.Type != "issue.repair" || s.IssueStore == nil {
+					return nil, conflict("Firmware mock task differs from approved admission")
+				}
+				resources, e = s.IssueStore.TopologyFirmwareResourcesTx(ctx, tx, firmwarePlan)
+				if e != nil {
+					return nil, e
+				}
+			}
+			if issueVerification && firmwarePlan == "" {
 				if task.Type != "issue.verify" {
 					return nil, conflict("Issue execution task differs from admitted verification")
 				}
@@ -499,6 +509,18 @@ func (s *Service) Heartbeat(ctx context.Context, c *Claim) (bool, error) {
 		return false, e
 	}
 	defer tx.Rollback()
+	if c.Task.Type == "issue.verify" || c.Task.Type == "issue.repair" {
+		if e = advisory(ctx, tx, "keel-admin-initialization"); e != nil {
+			return true, e
+		}
+	}
+	if c.Task.Type == "issue.repair" && s.IssueStore != nil {
+		if id, ok := c.Parameters["topology_firmware_plan_id"].(string); ok {
+			if _, e = s.IssueStore.TopologyFirmwareCurrentTx(ctx, tx, id); e != nil {
+				return true, e
+			}
+		}
+	}
 	until := time.Now().UTC().Add(c.LeaseDuration)
 	result, e := tx.ExecContext(ctx, "UPDATE exec_task_attempts SET lease_until=$4 WHERE id=$1 AND lease_owner=$2 AND fencing_token=$3 AND state='running' AND lease_until>now()", c.Attempt.ID, c.Attempt.LeaseOwner, c.Attempt.FencingToken, until)
 	if e != nil {
@@ -514,6 +536,17 @@ func (s *Service) Heartbeat(ctx context.Context, c *Claim) (bool, error) {
 	var desired string
 	if e = tx.QueryRowContext(ctx, "SELECT desired_state FROM exec_executions WHERE id=$1", c.Attempt.ExecutionID).Scan(&desired); e != nil {
 		return false, e
+	}
+	if c.Task.Type == "issue.verify" && s.IssueStore != nil {
+		if request, ok := c.Parameters["issue_verification_id"].(string); ok {
+			_, current, err := s.IssueStore.VerificationCurrentTx(ctx, tx, request, c.Attempt.ExecutionID)
+			if err != nil {
+				return true, err
+			}
+			if !current {
+				return true, tx.Commit()
+			}
+		}
 	}
 	return desired == "killed" || (c.Target.Precollect != nil && s.precollectFrozenTx(ctx, tx, c.Target) != nil) || s.monitorSSHHeartbeatTx(ctx, tx, c) || s.bmcHeartbeatTx(ctx, tx, c) || s.scriptHeartbeatTx(ctx, tx, c), tx.Commit()
 }
@@ -571,6 +604,9 @@ func (s *Service) recordReceiptTx(ctx context.Context, tx *sql.Tx, r Receipt) er
 			return err
 		}
 	}
+	if e = s.topologyFirmwareReceiptAllowedTx(ctx, tx, r); e != nil {
+		return e
+	}
 	if e = s.wiringReceiptAllowedTx(ctx, tx, r); e != nil {
 		return e
 	}
@@ -605,7 +641,7 @@ func (s *Service) Complete(ctx context.Context, c *Claim) error {
 		return e
 	}
 	defer tx.Rollback()
-	if c.Task.Type == "issue.verify" || c.Task.Type == "wiring.capture" {
+	if c.Task.Type == "issue.verify" || c.Task.Type == "issue.repair" || c.Task.Type == "wiring.capture" {
 		if e = advisory(ctx, tx, "keel-admin-initialization"); e != nil {
 			return e
 		}

@@ -46,6 +46,11 @@ DO $keel$ BEGIN
   IF to_regclass('public.pci_topology_snapshots') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON pci_topology_snapshots,topology_diffs,topology_issue_bindings FROM keel_app; END IF;
   IF to_regclass('public.monitor_alert_events') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON monitor_alert_events,monitor_notification_outbox FROM keel_app; END IF;
   IF to_regclass('public.monitor_policies') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON monitor_policies,monitor_ingest_receipts,monitor_assignment_versions FROM keel_app; END IF;
+  IF to_regclass('public.gate_waivers') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON gate_waivers,gate_waiver_revocations FROM keel_app; END IF;
+  IF to_regclass('public.monitor_switch_source_receipts') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON monitor_switch_source_receipts FROM keel_app; END IF;
+  IF to_regclass('public.monitor_ssh_requests') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON monitor_ssh_requests,monitor_ssh_captures,monitor_ssh_sample_receipts FROM keel_app; END IF;
+  IF to_regclass('public.portmon_issue_bindings') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON portmon_issue_bindings FROM keel_app; END IF;
+  IF to_regclass('public.topology_firmware_mock_plans') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON topology_firmware_mock_plans,topology_firmware_mock_approvals,topology_firmware_mock_runs,topology_firmware_mock_receipts FROM keel_app; END IF;
   IF to_regclass('public.mapping_corrections') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON mapping_corrections,mapping_correction_decisions FROM keel_app; END IF;
   IF to_regclass('public.mapping_assessments') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON mapping_assessments,mapping_revisions FROM keel_app; END IF;
   IF to_regclass('public.validation_wiring_coverage_snapshots') IS NOT NULL THEN REVOKE UPDATE,DELETE,TRUNCATE ON validation_wiring_port_evidence,validation_wiring_coverage_snapshots FROM keel_app; END IF;

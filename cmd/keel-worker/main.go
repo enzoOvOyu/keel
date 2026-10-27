@@ -63,6 +63,7 @@ func main() {
 	store.PrecollectEnabled = os.Getenv("KEEL_PRECOLLECT_ENABLED") == "true"
 	store.WiringEnabled = os.Getenv("KEEL_WIRING_ENABLED") == "true"
 	store.MonitorEnabled = os.Getenv("KEEL_MONITOR_ENABLED") == "true"
+	store.TopologyFirmwareMockEnabled = os.Getenv("KEEL_ENV") == "development" && os.Getenv("KEEL_TOPOLOGY_FIRMWARE_MOCK_ENABLED") == "true"
 	store.BMCInventoryEnabled = os.Getenv("KEEL_BMC_INVENTORY_ENABLED") == "true"
 	if err := store.ConfigureBMCInventory(os.Getenv("KEEL_BMC_INVENTORY_FILE"), os.Getenv("KEEL_DEVICE_CREDENTIAL_MASTER_KEY_FILE")); err != nil {
 		slog.Error("BMC inventory configuration rejected")
@@ -73,7 +74,7 @@ func main() {
 	if e = store.ConfigureProvisionInstall(os.Getenv("KEEL_PROVISION_INSTALL_ENABLED") == "true", os.Getenv("KEEL_PROVISION_IMAGE_PUBLIC_KEY_FILE")); e != nil {
 		fail("provision installer public trust configuration rejected")
 	}
-	if store.MonitorEnabled || store.PrecollectEnabled || store.BMCInventoryEnabled || store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled || store.SSHScriptsEnabled || store.AgentScriptsEnabled || store.ArtifactTransfersEnabled {
+	if store.TopologyFirmwareMockEnabled || store.MonitorEnabled || store.PrecollectEnabled || store.BMCInventoryEnabled || store.ProvisionPrepareEnabled || store.ProvisionInstallEnabled || store.SSHScriptsEnabled || store.AgentScriptsEnabled || store.ArtifactTransfersEnabled {
 		store.MediaObjects, e = mediaartifact.Load()
 		if e != nil || store.MediaObjects == nil {
 			fail("Provision preparation requires configured media storage")
@@ -105,7 +106,7 @@ func main() {
 	if _, e = store.FabricProbes.NetworkClient(); e == nil {
 		service.NetworkStore = store
 	}
-	if store.FabricIssueVerificationEnabled && store.FabricProbes.CollectorConfigured() {
+	if store.TopologyFirmwareMockEnabled || store.FabricIssueVerificationEnabled && store.FabricProbes.CollectorConfigured() {
 		service.IssueStore = store
 	}
 	// Explicit development-only synthetic adapter; never fallback from real I/O.

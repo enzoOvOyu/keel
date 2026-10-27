@@ -4045,6 +4045,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/issues/{issueId}/firmware-mock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["topologyFirmwareWorkspace"];
+        put?: never;
+        post: operations["createTopologyFirmwarePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/issues/{issueId}/firmware-mock/{planId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approveTopologyFirmwarePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/issues/{issueId}/firmware-mock/{planId}/executions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["executeTopologyFirmwareMock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/issues/{issueId}/monitor-evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPortMonitorIssueEvidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/issues/{issueId}/wiring-retests/scope": {
         parameters: {
             query?: never;
@@ -4869,6 +4933,127 @@ export interface components {
             active_devices: number;
             payload_share_bytes_per_second: number;
             global_bytes_per_second: number;
+        };
+        PortMonitorIssueEvidence: {
+            issue_id: string;
+            asset_id: string;
+            machine_id: string;
+            physical_port_id: string;
+            mapping_revision_id: string;
+            rule_id: string;
+            rule_version: string;
+            current_mapping_state: string;
+            current_mapping_revision_id: string;
+            /** Format: int64 */
+            asset_version: number;
+            repair_version: number;
+            /** Format: date-time */
+            repaired_at: string | null;
+            initial: components["schemas"]["MonitorObservation"];
+            current: components["schemas"]["PortMonitorItem"] | null;
+            required_checks: string[];
+        };
+        PortDiagnosticScope: {
+            project_id: string;
+            issue_id: string;
+            machine_id: string;
+            serial: string;
+            physical_port_id: string;
+            interface: string;
+            permanent_mac: string;
+            bdf: string;
+            switch_id: string;
+            switch_serial: string;
+            switch_port: string;
+            category: string;
+            rule_id: string;
+            source: string;
+            method: string;
+            origin: string;
+            expected_configuration_hash: string;
+            /** Format: date-time */
+            repaired_at: string;
+            limits: {
+                [key: string]: {
+                    warn_min: number | null;
+                    warn_max: number | null;
+                    critical_min: number | null;
+                    critical_max: number | null;
+                };
+            };
+        };
+        PortMonitorVerificationScope: {
+            asset_id: string;
+            /** Format: int64 */
+            asset_version: number;
+            mapping_revision_id: string;
+            host_trust_hash: string;
+            rule_version: string;
+            diagnostic: components["schemas"]["PortDiagnosticScope"];
+        };
+        PortDiagnosticCheck: {
+            id: string;
+            verdict: string;
+            code: string;
+        };
+        TopologyFirmwareInput: {
+            issue_version: number;
+            media_id: string;
+            action: string;
+            runbook: string;
+            recovery_plan: string;
+            reason: string;
+            reboot_approved: boolean;
+        };
+        TopologyFirmwareApproval: {
+            scope_hash: string;
+            reason: string;
+        };
+        TopologyFirmwarePlan: {
+            host_trust_hash: string;
+            id: string;
+            issue_id: string;
+            project_id: string;
+            issue_version: number;
+            asset_id: string;
+            asset_version: number;
+            machine_id: string;
+            serial: string;
+            model_version_id: string;
+            model_hash: string;
+            action: string;
+            artifact: components["schemas"]["TaskArtifact"];
+            runbook: string;
+            recovery_plan: string;
+            reason: string;
+            reboot_approved: boolean;
+            scope_hash: string;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            valid_until: string;
+            approved_by: string;
+            execution_id: string;
+            origin: string;
+        };
+        TopologyFirmwareWorkspace: {
+            enabled: boolean;
+            can_propose: boolean;
+            can_approve: boolean;
+            plans: components["schemas"]["TopologyFirmwarePlan"][];
+            media: components["schemas"]["MediaItemSummary"][];
+        };
+        TaskArtifact: {
+            media_id: string;
+            name: string;
+            version: string;
+            sha256: string;
+            size: number;
+            object_version: string;
+            approved_by: string;
+            /** Format: date-time */
+            updated_at: string;
         };
         MonitorObservation: {
             source_ref: string;
@@ -5924,6 +6109,7 @@ export interface components {
             valid_until: string;
             execution_available: boolean;
             management_hash: string;
+            port_monitor?: components["schemas"]["PortMonitorVerificationScope"];
         };
         IssueVerificationRequest: {
             id: string;
@@ -5966,6 +6152,7 @@ export interface components {
             can_close: boolean;
             escalated: boolean;
             recipient_ids: string[];
+            port_checks: components["schemas"]["PortDiagnosticCheck"][];
         };
         IssueVerificationPage: {
             items: components["schemas"]["IssueVerificationStatus"][];
@@ -9688,7 +9875,7 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
-        TaskArtifact: {
+        "schemas-TaskArtifact": {
             media_id: string;
             name: string;
             version: string;
@@ -9728,7 +9915,7 @@ export interface components {
             script_result_format?: "" | "json";
             /** @description Frozen policy for approved native script executions only; rejected by simulation flow admission. */
             script_prefer_cache?: boolean;
-            artifact?: components["schemas"]["TaskArtifact"];
+            artifact?: components["schemas"]["schemas-TaskArtifact"];
             /** @description Frozen per-task wait for keel.host/v1. Other public workflow adapters reject it. */
             wait_ms?: number;
             /** @description Public reference for approved script.run/media.stage/media.fetch in keel.host/v1. Runtime approval, object version, size and SHA are independently resolved and frozen at admission. */
@@ -19305,7 +19492,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Source-backed precollection; no automatic topology or mapping publication. Historical verdict and current validity are separate. */
+            /** @description Bounded SSH snapshot Execution; original evidence retained without gate approval. */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -19944,6 +20131,174 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
+    topologyFirmwareWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description P2 firmware simulation; original approval and execution references, no device update or gate approval */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopologyFirmwareWorkspace"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    createTopologyFirmwarePlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                issueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopologyFirmwareInput"];
+            };
+        };
+        responses: {
+            /** @description P2 firmware simulation; original approval and execution references, no device update or gate approval */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopologyFirmwarePlan"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    approveTopologyFirmwarePlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                issueId: string;
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopologyFirmwareApproval"];
+            };
+        };
+        responses: {
+            /** @description P2 firmware simulation; original approval and execution references, no device update or gate approval */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopologyFirmwarePlan"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    executeTopologyFirmwareMock: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact origin from the configured allowlist; no wildcard, suffix, or request-Host-derived trust. */
+                Origin: components["parameters"]["Origin"];
+                /** @description Bound to the current pre-login or authenticated session; retained in application memory only. */
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Reuse for a retry of the exact same account, operation and payload; use a new key for a new action. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                issueId: string;
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopologyFirmwareApproval"];
+            };
+        };
+        responses: {
+            /** @description P2 firmware simulation; original approval and execution references, no device update or gate approval */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Execution"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getPortMonitorIssueEvidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable original discovery and separately labelled current observations; no verification or gate approval */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortMonitorIssueEvidence"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     previewWiringRetest: {
         parameters: {
             query?: never;
@@ -20262,7 +20617,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Source-backed precollection; no automatic topology or mapping publication. Historical verdict and current validity are separate. */
+            /** @description Bounded SSH snapshot Execution; retains original evidence without gate approval. */
             202: {
                 headers: {
                     [name: string]: unknown;

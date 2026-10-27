@@ -16,3 +16,5 @@ export const monitorSnapshot = (project: string, asset: string, cursor: number, 
 export const monitorTrend = (project: string, asset: string, sample: MonitorObservation, window: string, signal: AbortSignal) => request<MonitorTrend>(`${assetBase(project, asset)}/trends?${new URLSearchParams({ key: sample.sample.key, entity: sample.sample.entity, source: sample.source, method: sample.method, origin: sample.origin, window })}`, { signal })
 
 export const createMonitorSSHSnapshot = (project: string, body: components['schemas']['MonitorSSHInput'], csrf: string, key: string) => request<execution['schemas']['Execution']>(`${monitorBase(project)}/ssh-snapshots`, { method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Idempotency-Key': key }, body: JSON.stringify(body) })
+
+export const getPortMonitorIssueEvidence = (issue: string, signal: AbortSignal) => request<components['schemas']['PortMonitorIssueEvidence']>(`/issues/${encodeURIComponent(issue)}/monitor-evidence`, { signal })

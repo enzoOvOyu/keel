@@ -13,6 +13,7 @@ import (
 	"github.com/enzoOvOyu/keel/internal/fabricboot"
 	"github.com/enzoOvOyu/keel/internal/fabricmon"
 	"github.com/enzoOvOyu/keel/internal/netbaseline"
+	"github.com/enzoOvOyu/keel/internal/portdiag"
 )
 
 type IssueVerificationInput struct {
@@ -156,8 +157,15 @@ func (s *Store) IssueVerificationResourcesTx(ctx context.Context, tx *sql.Tx, id
 		return nil, apiError(409, "ISSUE_VERIFICATION_SCOPE_CHANGED", "Verification admission is no longer current")
 	}
 	resources := []string{}
+	if request.Snapshot.PortMonitor != nil {
+		machine := request.Snapshot.PortMonitor.Diagnostic.MachineID
+		resources = append(resources, "device:machine:"+machine, "ssh:machine:"+machine, "agent:machine:"+machine)
+	}
 	for _, target := range request.Snapshot.Targets {
 		resources = append(resources, "ssh:switch:"+target.SwitchID)
+		if request.Snapshot.PortMonitor != nil {
+			resources = append(resources, "device:switch:"+target.SwitchID)
+		}
 	}
 	slices.Sort(resources)
 	return slices.Compact(resources), nil
@@ -176,6 +184,13 @@ func (s *Store) RunIssueVerification(ctx context.Context, id, execution, command
 		return nil, nil, e
 	}
 	op := &fabricboot.CollectorRecollectRequest{Version: "fabric-recollect/v1", ProjectID: request.ProjectID, ExecutionID: execution, CommandID: command, FencingToken: fence, ScopeHash: request.ScopeHash, EvidenceSource: request.Snapshot.EvidenceOrigin, NotBefore: time.Now().UTC(), Targets: request.Snapshot.Targets}
+	if request.Snapshot.PortMonitor != nil {
+		op.Version = portdiag.Version
+		op.PortDiagnostic = &request.Snapshot.PortMonitor.Diagnostic
+		if e = tx.QueryRowContext(ctx, `SELECT id FROM exec_task_attempts WHERE execution_id=$1 AND command_id=$2 AND fencing_token=$3`, execution, command, fence).Scan(&op.AttemptID); e != nil {
+			return nil, nil, e
+		}
+	}
 	_, ok, e := s.VerificationCurrentTx(ctx, tx, id, execution)
 	if e != nil {
 		return op, nil, e
@@ -218,6 +233,14 @@ func (s *Store) persistIssueVerificationEvidenceTx(ctx context.Context, tx *sql.
 	}
 	if request.ScopeHash != frozen.ScopeHash || request.ProjectID != frozen.ProjectID || request.CommandID != command || request.ExecutionID != execution || request.FencingToken != fence || request.EvidenceSource != frozen.Snapshot.EvidenceOrigin || netbaseline.ContentHash(request.Targets) != netbaseline.ContentHash(frozen.Snapshot.Targets) {
 		return "", "", apiError(409, "ISSUE_VERIFICATION_PROOF_MISMATCH", "Recollection proof differs from frozen admission")
+	}
+	if netbaseline.ContentHash(request.PortDiagnostic) != netbaseline.ContentHash(func() *portdiag.Scope {
+		if frozen.Snapshot.PortMonitor != nil {
+			return &frozen.Snapshot.PortMonitor.Diagnostic
+		}
+		return nil
+	}()) {
+		return "", "", apiError(409, "ISSUE_VERIFICATION_PROOF_MISMATCH", "Physical-port diagnostic differs from frozen admission")
 	}
 	if response != nil {
 		if e = response.Validate(*request, validationAt); e != nil {
@@ -291,7 +314,15 @@ func (s *Store) ApplyIssueVerificationEvidenceTx(ctx context.Context, tx *sql.Tx
 	if e != nil {
 		return e
 	}
-	_, e = tx.ExecContext(ctx, `INSERT INTO issue_verification_results(request_id,evidence_id,verdict,finding,code,valid_until,applied_issue_version,evaluated_at) VALUES($1,$2,$3,$4,$5,$6,$7,now())`, id, proofID, verdict, rawFinding, code, expiry, applied)
+	portChecks := []portdiag.Check{}
+	if request.Snapshot.PortMonitor != nil && proof.Response != nil && proof.Response.PortDiagnostic != nil {
+		evaluated, err := portdiag.Evaluate(request.Snapshot.PortMonitor.Diagnostic, portdiag.Binding{ExecutionID: proof.Operation.ExecutionID, AttemptID: proof.Operation.AttemptID, CommandID: proof.Operation.CommandID, FencingToken: proof.Operation.FencingToken, ScopeHash: proof.Operation.ScopeHash}, *proof.Response.PortDiagnostic, proof.ValidationAt)
+		if err != nil {
+			return err
+		}
+		portChecks = evaluated.Checks
+	}
+	_, e = tx.ExecContext(ctx, `INSERT INTO issue_verification_results(request_id,evidence_id,verdict,finding,code,valid_until,applied_issue_version,evaluated_at,port_checks) VALUES($1,$2,$3,$4,$5,$6,$7,now(),$8)`, id, proofID, verdict, rawFinding, code, expiry, applied, networkJSON(portChecks))
 	if e == nil && verdict == "FAIL" {
 		e = issueVerificationEscalationTx(ctx, tx, request)
 	}
@@ -313,6 +344,21 @@ func (s *Store) assessIssueVerificationTx(ctx context.Context, tx *sql.Tx, reque
 			return "", "", time.Time{}, nil, e
 		}
 		expiry = recorded.Add(5 * time.Minute)
+		if request.Snapshot.PortMonitor != nil {
+			if response.PortDiagnostic == nil {
+				return "BLOCKED", "PORTMON_CAPTURE_REQUIRED", recorded, nil, nil
+			}
+			capture := response.PortDiagnostic
+			evaluated, err := portdiag.Evaluate(request.Snapshot.PortMonitor.Diagnostic, portdiag.Binding{ExecutionID: op.ExecutionID, AttemptID: op.AttemptID, CommandID: op.CommandID, FencingToken: op.FencingToken, ScopeHash: op.ScopeHash}, *capture, validationAt)
+			if err != nil {
+				return "", "", time.Time{}, nil, err
+			}
+			expiry = capture.FinishedAt.Add(5 * time.Minute)
+			if !expiry.After(time.Now()) {
+				return "BLOCKED", "ISSUE_VERIFICATION_EVIDENCE_EXPIRED", expiry, nil, nil
+			}
+			return evaluated.Verdict, "PORTMON_SCOPED_" + evaluated.Verdict, expiry, nil, nil
+		}
 		samples := map[string]fabricmon.Snapshot{}
 		for _, sample := range response.Devices {
 			samples[sample.Serial] = sample

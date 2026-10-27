@@ -165,7 +165,7 @@ curl --fail http://127.0.0.1:3000/healthz
 curl --fail http://127.0.0.1:3000/api/v1/auth/providers
 ```
 
-`deploy.sh` 要求干净工作区，构建 `keel:<完整Git SHA>`，等待容器健康后更新 `.env` 的 `KEEL_IMAGE` 并保留旧镜像；不自动迁移数据库或失败回滚。工作区有用户修改时先确定其归属，不为通过发布门禁擅自 stash/提交/删除。发布证据还需认证、授权及受影响页面实际交互，不能只看 healthz。
+`deploy.sh` 要求所有发布源码均已提交；`check-release-workspace.py` 仅允许保留三份已知本地未跟踪资料（两份原fabric_precheck草稿和netbom.xlsx），且必须逐项匹配Docker排除规则。其它未提交修改或新源码仍阻断发布，不自动stash/提交/删除本地资料。脚本构建 `keel:<完整Git SHA>`，等待容器健康后更新 `.env` 的 `KEEL_IMAGE` 并保留旧镜像；不自动迁移数据库或失败回滚。工作区有用户修改时先确定其归属，不为通过发布门禁擅自 stash/提交/删除。发布证据还需认证、授权及受影响页面实际交互，不能只看 healthz。
 
 回滚选择已保留且与数据库兼容的镜像，再按部署配置切换 API。**镜像回滚不会回退数据库**；版本不兼容时按备份恢复方案处理，不能跳过 schema 校验或删除卷。
 
@@ -233,6 +233,19 @@ WP-1.5 的一次性注册、短期mTLS与连接心跳见 [AGENT-IDENTITY](AGENT-
 
 050/051/052 新增 Agent 续签、owner 主密钥维护和独立 Webhook 消费证据；2026-10-27用户明确要求先行发布后，运行已迁移至067（64条），版本与证据见HANDOFF §163。后续升级仍按备份恢复与权限演练流程部署，不能自动启用真实通道。可选 worker `KEEL_WEBHOOK_SINKS_FILE` 默认空，独立只读 `/run/keel/webhooks` 挂载默认无密钥；详见 [WEBHOOK-NOTIFICATIONS](WEBHOOK-NOTIFICATIONS.md)。主密钥维护与审计归档分别见 [CREDENTIAL-MASTER-ROTATION](CREDENTIAL-MASTER-ROTATION.md)、[AUDIT-EVIDENCE](AUDIT-EVIDENCE.md)，本批没有执行这些生产维护操作。运行版本与验证事实以 HANDOFF 最后记录为准。
 
-### P2预收集源码开关（2026-10-27，尚未发布）
+### P2 预收集与集中软件验证
 
-迁移080及预收集源代码尚未执行集中验证、隔离迁移/授权或部署。`KEEL_PRECOLLECT_ENABLED`（API/worker）与`KEEL_SSH_PRECOLLECT_ENABLED`（目标helper）默认false，不能只打开浏览器入口即宣称G1可用。还需匹配BOM/发布型号、SSH信任、BMC静态事实与版本化对象存储。详见[PRECOLLECT-G1](PRECOLLECT-G1.md)，保留当前3000与运行数据库不变。
+源码110条迁移/113已经过隔离恢复/迁移演练；当前运行版本以HANDOFF最后一节为准。`KEEL_PRECOLLECT_ENABLED`（API/worker）与`KEEL_SSH_PRECOLLECT_ENABLED`（目标helper）默认false。启用API预收集必须先配置版本化对象存储；还需当前BOM/发布型号、可信SSH和BMC原始身份/地址事实。详见[PRECOLLECT-G1](PRECOLLECT-G1.md)。
+
+P2完整软件正向链使用 `python3 scripts/check-p2-business-integration.py`，可加 `--browser` 验证真实API和五标签抽屉。脚本仅使用标注disposable且绑定15433回环端口的测试PostgreSQL，创建唯一数据库后清理；原草稿通过私有overlay隔离。协议边界使用独立软件夹具，平台状态和PASS必须由实际业务服务生成；日志明确不等于硬件PoC。浏览器模式保存自身测试库备份，界面失败时可从该证据隔离恢复做定向检查，避免重复业务测试。该只读API预览关闭预收集执行，避免把内存测试对象存储误当持续可用的MinIO。
+
+Compose透传BMC/监控/G1/G2/collector/固件模拟开关，默认关闭；静态适配器与凭据可放入既有只读私有配置挂载（例如`/run/keel/ssh`），不把配置本身写入源码。真实适配/目标helper仍需PoC单独提供。
+
+
+### P2 模块与受控固件模拟
+
+`KEEL_MONITOR_ENABLED` 启用统一监控，`KEEL_FABRIC_ISSUE_VERIFY_ENABLED` 开放已配置mTLS collector下的定向只读重验；portmon通过相同原命令/查询恢复协议扩展`keel.port-diagnostic/v1`，冻结主机/物理口/对端/维修版本与阈值。适配器不支持或缺少完整窗口、DOM、路径原文时阻断，不回退为原普通交换机快照。真实适配和H项证据由PoC单独回填。
+
+P2的`KEEL_TOPOLOGY_FIRMWARE_MOCK_ENABLED=true`仅在显式development生效，默认关闭。UI入口位于原T7工单，方案须有独立型号版本、SSH身份、四眼审批的已存储固件和相容矩阵、厂商操作依据、恢复/重启计划；方案再由独立DL/Admin审批，绑定共享Execution和独占资源。回执始终`origin=sim`/`hardware_evidence=false`，不修改硬件版本、G1/G2/G3或工单关闭状态。后续实际处置与新预收集/拓扑验证仍独立执行。
+
+固件介质的独立批准兼容矩阵须在`deps.compatibility.requires`中明确列出`device_model_version`（不可变型号版本ID）和`repair_action`（`flash_bios`或`update_nvswitch`），同时按介质arch与型号hw_spec.cpu_arch核对。不以固件名称或实测设备信息反推兼容性。

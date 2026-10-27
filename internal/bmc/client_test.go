@@ -45,7 +45,7 @@ func TestHTTPSClientPinsCredentialsOriginAndFailureClassification(t *testing.T) 
 		case "/redfish/v1/":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"RedfishVersion":"1.0.0"}`))
-		case "/redfish/v1/redirect":
+		case "/redfish/v1/Systems":
 			http.Redirect(w, r, "/redfish/v1/", 302)
 		default:
 			w.WriteHeader(401)
@@ -70,13 +70,13 @@ func TestHTTPSClientPinsCredentialsOriginAndFailureClassification(t *testing.T) 
 			t.Fatal("accepted unsafe absolute reference")
 		}
 	}
-	if _, e = client.Read(context.Background(), "/redfish/v1/redirect"); e == nil {
+	if _, e = client.Read(context.Background(), "/redfish/v1/Systems"); e == nil {
 		t.Fatal("followed redirect")
 	}
 	if hits.Load() != 2 {
 		t.Fatal("redirect made an extra request")
 	}
-	_, e = client.Read(context.Background(), "/redfish/v1/forbidden")
+	_, e = client.Read(context.Background(), "/redfish/v1/Managers")
 	var f *Failure
 	if !errors.As(e, &f) || f.Class != "authentication_failed" || strings.Contains(e.Error(), "private-value") {
 		t.Fatalf("bad sanitized failure: %v", e)

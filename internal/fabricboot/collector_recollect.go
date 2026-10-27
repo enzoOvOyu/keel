@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/enzoOvOyu/keel/internal/fabricmon"
+	"github.com/enzoOvOyu/keel/internal/portdiag"
 )
 
 // Recollection has a separate contract from reading cached project snapshots.
@@ -22,6 +23,8 @@ type CollectorTarget struct {
 	Ports    []string `json:"ports"`
 }
 type CollectorRecollectRequest struct {
+	PortDiagnostic *portdiag.Scope   `json:"port_diagnostic,omitempty"`
+	AttemptID      string            `json:"attempt_id,omitempty"`
 	EvidenceSource string            `json:"evidence_source"`
 	Version        string            `json:"version"`
 	ProjectID      string            `json:"project_id"`
@@ -33,6 +36,7 @@ type CollectorRecollectRequest struct {
 	Targets        []CollectorTarget `json:"targets"`
 }
 type CollectorRecollectResponse struct {
+	PortDiagnostic *portdiag.Capture    `json:"port_diagnostic,omitempty"`
 	Version        string               `json:"version"`
 	ProjectID      string               `json:"project_id"`
 	ExecutionID    string               `json:"execution_id"`
@@ -44,6 +48,27 @@ type CollectorRecollectResponse struct {
 }
 
 func (r CollectorRecollectRequest) Validate() error {
+	if r.PortDiagnostic != nil {
+		ordinary := r
+		ordinary.PortDiagnostic = nil
+		ordinary.AttemptID = ""
+		ordinary.Version = "fabric-recollect/v1"
+		if e := ordinary.Validate(); e != nil {
+			return e
+		}
+		d := r.PortDiagnostic
+		expectedOrigin := "real"
+		if r.EvidenceSource == "protocol_fixture" {
+			expectedOrigin = "sim"
+		}
+		if r.Version != portdiag.Version || !projectPattern.MatchString(r.AttemptID) || d.ProjectID != r.ProjectID || !projectPattern.MatchString(d.IssueID) || !projectPattern.MatchString(d.MachineID) || !projectPattern.MatchString(d.PhysicalPortID) || len(r.Targets) != 1 || r.Targets[0].SwitchID != d.SwitchID || r.Targets[0].Serial != d.SwitchSerial || len(r.Targets[0].Ports) != 1 || r.Targets[0].Ports[0] != d.SwitchPort || d.Origin != expectedOrigin || d.Interface == "" || d.PermanentMAC == "" || d.BDF == "" || d.RepairedAt.IsZero() {
+			return errors.New("exact bounded physical-port diagnostic scope required")
+		}
+		return nil
+	}
+	if r.Version != "fabric-recollect/v1" || r.AttemptID != "" {
+		return errors.New("unknown recollection envelope")
+	}
 	if (r.EvidenceSource != "device" && r.EvidenceSource != "protocol_fixture") || r.Version != "fabric-recollect/v1" || !projectPattern.MatchString(r.ProjectID) || !projectPattern.MatchString(r.ExecutionID) || !projectPattern.MatchString(r.CommandID) || r.FencingToken < 1 || len(r.ScopeHash) != 64 || r.NotBefore.IsZero() || len(r.Targets) < 1 || len(r.Targets) > 2 {
 		return errors.New("invalid frozen recollection request")
 	}
@@ -74,6 +99,16 @@ func (r CollectorRecollectRequest) Validate() error {
 func (r CollectorRecollectResponse) Validate(request CollectorRecollectRequest, now time.Time) error {
 	if e := request.Validate(); e != nil {
 		return e
+	}
+	if request.PortDiagnostic != nil {
+		if r.Version != request.Version || r.ProjectID != request.ProjectID || r.ExecutionID != request.ExecutionID || r.CommandID != request.CommandID || r.FencingToken != request.FencingToken || r.ScopeHash != request.ScopeHash || r.EvidenceSource != request.EvidenceSource || len(r.Devices) != 0 || r.PortDiagnostic == nil || r.PortDiagnostic.FinishedAt.Before(request.NotBefore) {
+			return errors.New("port diagnostic response envelope or original completion mismatch")
+		}
+		_, e := portdiag.Evaluate(*request.PortDiagnostic, portdiag.Binding{ExecutionID: request.ExecutionID, AttemptID: request.AttemptID, CommandID: request.CommandID, FencingToken: request.FencingToken, ScopeHash: request.ScopeHash}, *r.PortDiagnostic, now)
+		return e
+	}
+	if r.PortDiagnostic != nil {
+		return errors.New("unexpected port diagnostic payload")
 	}
 	if r.Version != request.Version || r.ProjectID != request.ProjectID || r.ExecutionID != request.ExecutionID || r.CommandID != request.CommandID || r.FencingToken != request.FencingToken || r.ScopeHash != request.ScopeHash || r.EvidenceSource != request.EvidenceSource || len(r.Devices) != len(request.Targets) {
 		return errors.New("recollection response identity or provenance mismatch")

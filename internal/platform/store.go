@@ -30,6 +30,7 @@ type MediaObjectStore interface {
 }
 
 type Store struct {
+	TopologyFirmwareMockEnabled    bool
 	MonitorEnabled                 bool
 	PrecollectEnabled              bool
 	WiringEnabled                  bool

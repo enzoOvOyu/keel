@@ -34,6 +34,9 @@ func (s *Service) RunClaim(ctx context.Context, c *Claim) error {
 	if c.Target.Mode == "fabric" && c.Task.Type == "wiring.capture" {
 		return s.runWiringClaim(ctx, c)
 	}
+	if c.Target.Mode == "fabric" && c.Task.Type == "issue.repair" {
+		return s.runTopologyFirmwareMockClaim(ctx, c)
+	}
 	if c.Target.Mode == "fabric" && c.Task.Type == "issue.verify" {
 		return s.runIssueVerificationClaim(ctx, c)
 	}

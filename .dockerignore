@@ -16,3 +16,9 @@ __pycache__/
 # Preserve local, unintegrated drafts without compiling or embedding them.
 internal/platform/fabric_precheck.go
 internal/platform/migrations/026_fabric_precheck.sql
+
+# Retained local source-of-record workbook is not part of the image.
+/netbom.xlsx
+
+.test-output/
+.deploy-lock/

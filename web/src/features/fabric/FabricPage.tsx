@@ -1,3 +1,4 @@
+import { ApiError } from '../../lib/api'
 import { FabricReadinessPanel } from './FabricReadinessPanel'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -33,7 +34,8 @@ function Board({search,onSearch}:{search:FabricSearch;onSearch:(value:Partial<Fa
  return <div className="fabric-page"><header className="management-heading"><div><h1>{t('fabricTitle')}</h1><p>{t('fabricIntro')}</p></div><div className="fabric-toolbar"><Link className="secondary-button" to="/p/$projectId/ztp" params={{projectId:project.id}}>{t('ztpTab')}</Link><Button variant="default" className="primary-button ui:min-h-11" disabled={!canCollect||!query.data?.configured||action.busy} onClick={()=>void collect()}>{t('fabricCollect')}</Button></div></header>
  {query.data&&!query.data.configured&&<p role="status">{t('fabricNotConfigured')}</p>}
  <FabricReadinessPanel key={project.id} projectId={project.id}/>
- {(query.error||action.error)&&<p role="alert">{t('fabricCollectionFailed')}{action.error&&` · ${action.error.code}: ${action.error.message}`}</p>}
+ {query.error instanceof ApiError && query.error.code==='FABRIC_BOM_REQUIRED'&&<p role="status">{t('fabricBOMRequired')}</p>}
+ {(action.error||(query.error&&!(query.error instanceof ApiError&&query.error.code==='FABRIC_BOM_REQUIRED')))&&<p role="alert">{t('fabricCollectionFailed')}{action.error&&` · ${action.error.code}: ${action.error.message}`}</p>}
  {report?.stale&&<p className="fabric-stale" role="status">{t('fabricStale')}</p>}
  {report&&<p className="fabric-evidence-source">{t('fabricSource')}: {t(report.evidence_source==='protocol_fixture'?'fabricFixture':'fabricDeviceSource')} · {t('fabricSnapshot')}: <code>{report.id}</code> · {t('fabricNP3')}</p>}
  <section className="panel"><div className="fabric-filters">{(['pod','role','state'] as const).map(field=><Label key={field}>{t(field==='pod'?'fabricPod':field==='role'?'fabricRole':'fabricObserved')}<NativeSelect className="ui:h-11" value={search[field]} onChange={e=>filter({[field]:e.target.value})}><NativeSelectOption value="">{t('fabricFilterAll')}</NativeSelectOption>{[...new Set(devices.map(d=>d[field]))].filter(Boolean).sort().map(value=><NativeSelectOption key={value} value={value}>{field==='state'?t(value==='observed'?'fabricObservedState':'fabricUnknown'):value}</NativeSelectOption>)}</NativeSelect></Label>)}<Button variant="outline" className="secondary-button ui:min-h-11" onClick={()=>filter({descending:!search.descending})}>{t('fabricSortSerial')} {search.descending?'↓':'↑'}</Button></div>
